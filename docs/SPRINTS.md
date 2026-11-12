@@ -179,8 +179,11 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     instead of failing the session. Proof: a session with an unknown kind opens, and saving keeps the entry.
 23. [ ] B5: worker refusals thrown as a refusal type of their own; any other exception is logged as an error with its stack,
     and the user sees a fixed message with the trace id (wording to the owner first). Proof: provenance log tests both ways.
-24. [ ] B6: the fragmentation bars read their columns as every other row does; a missing column fails that inspection only.
+24. [x] B6: the fragmentation bars read their columns as every other row does; a missing column fails that inspection only.
     Proof: an inspections test with a column missing.
+    Done: `ShowFragments` uses `ResultColumns.Require`; a result this build cannot show fails its own tile with "This result
+    could not be shown" and an error log line. `InspectionsViewModelTests.A_result_missing_a_column_fails_its_own_tile_only`,
+    proved by mutation.
 25. [ ] B7: every inspection records a basis (scanned, left out, reported with one cap); the collection inspections count what
     they could not read. Proof: a catalog test that every inspection's basis has scanned and left-out counts.
 26. [ ] B8: `logging.md` matches what runs under an activity. Proof: the Markdown sweep.

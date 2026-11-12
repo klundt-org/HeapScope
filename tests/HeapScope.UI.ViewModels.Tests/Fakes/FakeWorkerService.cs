@@ -276,6 +276,9 @@ internal sealed partial class FakeWorkerService : IWorkerService
     /// <summary>Inspection requests received, with their baselines (sprint 2.6).</summary>
     public List<InspectionRequest> InspectionRequests { get; } = [];
 
+    /// <summary>Columns a test gives an inspection instead of <see cref="InspectionColumnsFor"/> (a result from another build).</summary>
+    public Func<string, IReadOnlyList<ResultColumn>?>? ColumnsOfInspection { get; set; }
+
     /// <summary>The worker's columns for the fake's inspections.</summary>
     public static IReadOnlyList<ResultColumn> InspectionColumnsFor(string name) => name switch
     {

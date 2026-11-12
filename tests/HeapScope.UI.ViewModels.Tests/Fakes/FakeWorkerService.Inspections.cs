@@ -51,7 +51,7 @@ internal sealed partial class FakeWorkerService : IInspectionService
         var rows = InspectionRows.GetValueOrDefault(request.Name) ?? [];
         var id = Guid.NewGuid();
         _sets[id] = [.. rows];
-        var columns = InspectionColumnsFor(request.Name);
+        var columns = ColumnsOfInspection?.Invoke(request.Name) ?? InspectionColumnsFor(request.Name);
         return new InspectionResultDto(request.Name, rows.Count, 1000, request.Name == "loh" ? null : 64, null, new ResultSetInfo(id, rows.Count, columns), 0.1, request.BaselineSnapshotId);
     }
 }

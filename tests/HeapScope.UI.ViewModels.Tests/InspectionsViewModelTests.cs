@@ -82,6 +82,25 @@ public sealed class InspectionsViewModelTests : IDisposable
         Inspections.Fragments[1].FreeFraction.ShouldBe(3000.0 / 11000, 1e-9);
     }
 
+    // Sprint 3.12 (B6): a fragmentation result without a column used to throw past the tile and end the whole run.
+    [Fact]
+    public async Task A_result_missing_a_column_fails_its_own_tile_only()
+    {
+        _worker.Service.ColumnsOfInspection = name => name == InspectionNames.Fragmentation
+            ? [.. FakeWorkerService.InspectionColumnsFor(name).Where(c => c.Name != InspectionColumns.PinnedBytes)]
+            : null;
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await Inspections.RunTask;
+
+        Inspections.Status.ShouldBeNull();
+        var fragmentation = Inspections.Tiles.Single(t => t.Info.Name == InspectionNames.Fragmentation);
+        fragmentation.Status.ShouldNotBeNull().ShouldStartWith("This result could not be shown: ");
+        fragmentation.Status.ShouldContain(InspectionColumns.PinnedBytes);
+        Inspections.Tiles.Where(t => t.IsAvailable && t != fragmentation).ShouldAllBe(t => t.Status == null && t.Run != null);
+    }
+
     [Fact]
     public async Task Leak_detectors_come_first_and_the_growth_detector_compares_with_the_earlier_snapshot_of_the_process()
     {
