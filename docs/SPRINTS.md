@@ -141,8 +141,11 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
 
 From the refactor analysis (owner, 2026-11-12: every bug and every candidate tied to this sprint's tasks):
 
-15. [ ] R1, before task 9: the snapshot open pipeline moved out of `SnapshotStore` into a `SnapshotOpener`, behavior unchanged.
+15. [x] R1, before task 9: the snapshot open pipeline moved out of `SnapshotStore` into a `SnapshotOpener`, behavior unchanged.
     Proof: the existing open, cache and rebuild tests unchanged; new opener tests per cache refusal reason.
+    Done: `SnapshotOpener.cs` (444 lines; the store is 243, from 623); it logs under the store's category, so every line
+    reads as before. Worker (180), architecture (43) and integration open tests (37) pass unchanged. The opener tests per
+    refusal reason come with task 9, which changes what the older loader reason does.
 16. [ ] R2 and B2, with task 9: one value-reads state per snapshot (available, or refused with a reason: no reader, declined or
     missing DAC, older cache), read by the feature rules, inspection availability, object reads and value filters. Proof: a
     worker test opening with the DAC declined lists value reads and every field-reading inspection as unavailable, with the reason.
