@@ -94,6 +94,18 @@ public sealed record SessionDocument(
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; init; }
+
+    /// <summary>
+    /// Snapshot entries with a value this build does not know (a snapshot kind or source a newer build added), kept as they
+    /// were written and saved back unchanged (sprint 3.12, B4): one such entry used to make the whole session unreadable.
+    /// This build neither shows nor deletes them.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<JsonElement> UnknownSnapshots { get; init; } = [];
+
+    /// <summary>Run entries with a value this build does not know, kept as <see cref="UnknownSnapshots"/> are.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<JsonElement> UnknownRuns { get; init; } = [];
 }
 
 /// <summary>

@@ -175,8 +175,12 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     that leaves an outside dump alone, info icon and tooltip tests.
 21. [ ] B3: one path identity rule (case-insensitive on Windows, ordinal elsewhere) at every path comparison. Proof: unit tests
     for both systems; a Linux CI test that two files differing only in case open as two snapshots.
-22. [ ] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,
+22. [x] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,
     instead of failing the session. Proof: a session with an unknown kind opens, and saving keeps the entry.
+    Done: `SessionDocumentFile` sets aside a snapshot or run entry whose enum value this build does not know
+    (`SessionDocument.UnknownSnapshots`, `UnknownRuns`) and writes it back on save; any other damage still makes the
+    session unreadable. `SessionLibraryTests.Entries_with_a_value_a_newer_build_added_are_kept_and_saved_back_unchanged`,
+    proved by mutation.
 23. [ ] B5: worker refusals thrown as a refusal type of their own; any other exception is logged as an error with its stack,
     and the user sees a fixed message with the trace id (wording to the owner first). Proof: provenance log tests both ways.
 24. [x] B6: the fragmentation bars read their columns as every other row does; a missing column fails that inspection only.
