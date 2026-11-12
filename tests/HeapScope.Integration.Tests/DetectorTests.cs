@@ -99,7 +99,7 @@ public sealed class DetectorTests : IClassFixture<DetectorRuns>, IAsyncDisposabl
     public DetectorTests(DetectorRuns runs)
     {
         _runs = runs;
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

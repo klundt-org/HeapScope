@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Application.Snapshots;
+
 namespace HeapScope.Architecture.Tests;
 
 public class TextRulesTests
@@ -61,6 +63,20 @@ public class TextRulesTests
         var offenders = Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.cs", SearchOption.AllDirectories)
             .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && Path.GetFileName(f) != "HeapScopeFolders.cs")
             .Where(f => File.ReadAllText(f).Contains("SpecialFolder.LocalApplicationData", StringComparison.Ordinal))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ToList();
+
+        offenders.ShouldBeEmpty();
+    }
+
+    // Tests make snapshot sessions only through TestSessions, which never reads the machine's free memory (sprint 3.12):
+    // a busy machine made opens ask the low memory question first and failed tests that pass alone.
+    [Fact]
+    public void Tests_make_snapshot_sessions_only_through_TestSessions()
+    {
+        var offenders = Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && Path.GetFileName(f) != "TestSessions.cs")
+            .Where(f => File.ReadAllText(f).Contains("new " + nameof(SnapshotSession) + "(", StringComparison.Ordinal))
             .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
             .ToList();
 

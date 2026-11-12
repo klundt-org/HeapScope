@@ -47,7 +47,7 @@ public sealed class ProcessesViewModelTests : IDisposable
         var operations = new WorkerOperations(_worker, _jobs);
         // A fixed amount of free memory: with the machine's own, a full test run that leaves little free makes opening a
         // capture ask the low memory question first (failed so on 2026-11-10 with 0.6 GB free).
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, _jobs, static () => new PhysicalMemory(32L << 30, 16L << 30)), operations, new ImmediateUiDispatcher(), _interaction);
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _jobs), operations, new ImmediateUiDispatcher(), _interaction);
         _capture = new FakeCaptureService(_root, _jobs);
         _processes = new ProcessesViewModel(_capture, _snapshots, _interaction);
         _capture.Processes.Add(new ProcessEntry(10, "Api", "Api.exe --urls x", "10.0.13", ProcessElevation.NotElevated, false, 1000, 2000));

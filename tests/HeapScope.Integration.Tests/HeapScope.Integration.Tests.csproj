@@ -29,4 +29,8 @@
     <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" />
   </ItemGroup>
   <Import Project="$(HeapScopeRoot)build\Worker.Deploy.targets" />
+  <ItemGroup>
+    <!-- The one way tests make a SnapshotSession (sprint 3.12). -->
+    <Compile Include="..\SharedSession\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

@@ -50,7 +50,7 @@ public sealed class ObjectSetsTests : IClassFixture<AllLeaksDump>, IAsyncDisposa
     public ObjectSetsTests(AllLeaksDump shared)
     {
         _shared = shared;
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("sets.dmp");
         File.Copy(shared.DumpPath, _dump);
     }

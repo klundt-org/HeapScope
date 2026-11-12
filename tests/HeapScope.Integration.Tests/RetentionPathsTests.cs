@@ -50,7 +50,7 @@ public sealed class RetentionPathsTests : IClassFixture<AllLeaksDump>, IAsyncDis
 
     public RetentionPathsTests(AllLeaksDump shared)
     {
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("leaks.dmp");
         File.Copy(shared.DumpPath, _dump);
     }

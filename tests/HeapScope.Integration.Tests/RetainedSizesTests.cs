@@ -49,7 +49,7 @@ public sealed class RetainedSizesTests : IClassFixture<AllLeaksDump>, IAsyncDisp
     public RetainedSizesTests(AllLeaksDump shared)
     {
         _shared = shared;
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("leaks.dmp");
         File.Copy(shared.DumpPath, _dump);
     }

@@ -90,11 +90,18 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
 
 **Tasks**:
 
-1. [ ] A Medium dump made fresh from DenseHeap with the installed runtime, by a script in `fixtures/scripts` (git-ignored
+1. [x] A Medium dump made fresh from DenseHeap with the installed runtime, by a script in `fixtures/scripts` (git-ignored
    output). Proof: the script runs twice to the same object count; the dump opens.
-2. [ ] Test machine independence: every test that opens a dump gets a fixed `PhysicalMemory` from one shared helper, so the
+   Done: `New-SampleDump.ps1 -Tier Medium` and `New-DenseDump.ps1` already did this; the 2026-11-05 dumps were taken on .NET
+   10.0.14, whose DAC is gone since the 10.0.15 update, so they are now the fallback's case (task 9). Fresh Medium (4.5 GB) and
+   Small dumps on 10.0.15, 2026-11-11. Under Windows PowerShell 5.1 the scripts run with `powershell -File`.
+2. [x] Test machine independence: every test that opens a dump gets a fixed `PhysicalMemory` from one shared helper, so the
    machine's free memory cannot change an answer. Proof: a mutation that reads the real memory fails a test; a search finds
    no test opening a dump without the helper.
+   Done: `tests/SharedSession/TestSessions.cs` (32 GB, 16 GB free) in the integration, view model and UI tests; 33 sessions moved
+   to it; `TextRulesTests.Tests_make_snapshot_sessions_only_through_TestSessions`. Mutation: with 1 byte free, the three
+   `ProcessesViewModelTests` that failed in 3.11 fail again. The worker's own budget still reads the machine (mapped or in memory,
+   refusals); that is the product's behavior and is left as is.
 3. [ ] A WPR recording of the smoke run (CPU sampling, context switches, ready thread; Windows' own `wpr.exe`, an admin prompt
    the owner approves) beside the `--smoke-trace` EventPipe trace with JIT events, read by a small TraceEvent tool in
    `build/` that attributes each first show over 100 ms and each dispatcher lag over 100 ms to JIT, styles and templates,

@@ -50,7 +50,7 @@ public sealed class ReferrersTests : IClassFixture<AllLeaksDump>, IAsyncDisposab
 
     public ReferrersTests(AllLeaksDump shared)
     {
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("leaks.dmp");
         File.Copy(shared.DumpPath, _dump);
     }
@@ -172,7 +172,7 @@ public sealed class ReverseSidecarTests : IClassFixture<StaticCacheDump>, IAsync
 
     public ReverseSidecarTests(StaticCacheDump shared)
     {
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("app.dmp");
         File.Copy(shared.Path, _dump);
     }
@@ -296,7 +296,7 @@ public sealed class GcDumpReferrersTests(StaticCacheGcDumps shared) : IClassFixt
     [Fact]
     public async Task A_gcdump_answers_referrers_and_explains_the_missing_fields()
     {
-        var session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        var session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         var path = StaticCacheGcDumps.CopyTo(shared.CurrentGcDump, _folder);
         var handle = await session.StartOpen(path).Result;
 
@@ -329,7 +329,7 @@ public sealed class GcDumpReferrersTests(StaticCacheGcDumps shared) : IClassFixt
     public async Task A_gcdump_has_retained_sizes_too()
     {
         // Sprint 2.3 (decision 8): dominators over a gcdump's graph, the same computation as for a full dump.
-        var session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        var session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         var path = StaticCacheGcDumps.CopyTo(shared.CurrentGcDump, _folder);
         var handle = await session.StartOpen(path).Result;
         var instances = await session.QueryInstancesAsync(handle, new InstancesQuery("Fixtures.Leaks.StaticCacheEntry", "Leaks.dll", SortColumn: InstanceColumns.Retained, IncludeRetained: true), null, Ct);

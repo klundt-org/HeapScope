@@ -46,7 +46,7 @@ public sealed class SnapshotsViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         _operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, _operations.Jobs, () => _memory), _operations, new ImmediateUiDispatcher(), _interaction);
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory), _operations, new ImmediateUiDispatcher(), _interaction);
         _worker.Service.Rows.Add(["System.String", "600", "36000"]);
         _worker.Service.Rows.Add(["System.Byte[]", "400", "12000"]);
     }
@@ -273,7 +273,7 @@ public sealed class SnapshotsViewModelTests : IDisposable
     {
         // Sprint 3.6, peer review P2: the app asks, naming the file and its hash, and remembers a yes by the hash.
         var trusted = new TrustedDacs(_folder);
-        var snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('a', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         var dump = Dump("received.dmp", 10);

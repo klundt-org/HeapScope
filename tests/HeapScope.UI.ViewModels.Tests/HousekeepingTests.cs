@@ -48,7 +48,7 @@ public sealed class HousekeepingTests : IDisposable
     {
         _library = new SessionLibrary(_root);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), _interaction, new OneLogger(_snapshotsLog), library: _library);
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), _interaction, new OneLogger(_snapshotsLog), library: _library);
         _home = new HomeViewModel(operations, _snapshots, _library, _interaction, _homeLog);
     }
 

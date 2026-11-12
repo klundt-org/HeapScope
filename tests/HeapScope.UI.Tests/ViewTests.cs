@@ -747,7 +747,7 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             .AddSingleton(jobs)
             .AddSingleton<IWorkerClient>(worker)
             .AddSingleton(new WorkerOperations(worker, jobs))
-            .AddSingleton(new SnapshotSession(worker, jobs))
+            .AddSingleton(TestSessions.Create(worker, jobs))
             .AddSingleton<Application.Sessions.ICaptureService>(capture)
             .AddSingleton(new MonitorService(capture, new SyntheticCounterSource(0, perSecond: 1)))
             .AddSingleton(new Application.Sessions.SessionLibrary(Path.Combine(_folder, "sessions")))

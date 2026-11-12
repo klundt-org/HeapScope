@@ -75,7 +75,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
     public SnapshotTests(StaticCacheDump shared)
     {
         _host = new WorkerHost(Options.Create(new WorkerHostOptions { WorkerPath = TestPaths.WorkerExe }), new ListLoggerProvider());
-        _session = new SnapshotSession(_host, _jobs);
+        _session = TestSessions.Create(_host, _jobs);
         _operations = new WorkerOperations(_host, _jobs);
         _dump = _folder.File("app.dmp");
         File.Copy(shared.Path, _dump);
@@ -158,7 +158,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         await _session.StartOpen(_dump).Result;
         using var otherData = new TempFolder();
         await using var other = new WorkerHost(Options.Create(new WorkerHostOptions { WorkerPath = TestPaths.WorkerExe, DataFolder = otherData.Path }), new ListLoggerProvider());
-        var otherSession = new SnapshotSession(other, new JobTracker(TimeProvider.System));
+        var otherSession = TestSessions.Create(other, new JobTracker(TimeProvider.System));
 
         var rebuilt = await otherSession.StartOpen(_dump).Result;
 
@@ -166,7 +166,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         rebuilt.Descriptor.Notes.ShouldContain(n => n.Contains("signed with another key", StringComparison.Ordinal));
 
         await other.RestartAsync(Ct);
-        var reopened = await new SnapshotSession(other, new JobTracker(TimeProvider.System)).StartOpen(_dump).Result;
+        var reopened = await TestSessions.Create(other, new JobTracker(TimeProvider.System)).StartOpen(_dump).Result;
         reopened.Descriptor.FromCache.ShouldBeTrue("the rebuilt cache carries the other key's signature");
     }
 
@@ -180,7 +180,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         var movedDump = System.IO.Path.Combine(moved, "app.dmp");
         File.Move(_dump, movedDump);
         File.Move(CachePath, movedDump + ".hsidx");
-        var session = new SnapshotSession(_host, _jobs);
+        var session = TestSessions.Create(_host, _jobs);
 
         var handle = await session.StartOpen(movedDump).Result;
         var again = await session.StartOpen(movedDump).Result;
@@ -348,7 +348,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
     [Fact]
     public async Task Probe_reports_the_cache_state_and_the_session_warns_only_for_a_first_load()
     {
-        var tiny = new SnapshotSession(_host, _jobs, () => new PhysicalMemory(16L << 30, 1));
+        var tiny = TestSessions.Create(_host, _jobs, () => new PhysicalMemory(16L << 30, 1));
 
         var before = await _host.InvokeAsync((service, ct) => service.ProbeSnapshotAsync(_dump, ct), Ct);
         (await tiny.GetOpenWarningAsync(_dump, rebuild: false, Ct)).ShouldNotBeNull("no cache yet: a first load");
