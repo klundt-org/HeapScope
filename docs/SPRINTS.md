@@ -133,8 +133,10 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
     the gate and of the delete on cancel each fail a test.
 12. [ ] M6 from the 3.11 review: a Type or Namespace group row's retained bytes marked as a lower bound in the Retainers tree
     and its CSV export. Wording approved by the owner in `docs/design/info-text.md` first. Proof: view model and export tests.
-13. [ ] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
+13. [x] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
     cost, with `PlatformHints` (3.10 M36). The owner decides; any refactor is built only on the owner's pick. Proof: the document.
+    Done: [design/refactor-analysis.md](design/refactor-analysis.md), 2026-11-11: eight bugs (B1 to B8), five candidates tied to this
+    sprint's tasks, fourteen ranked for before Phase 4, and those that wait for a Phase 4 pick. Waiting for the owner's picks.
 14. [ ] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
 
 **Decisions** (product owner, 2026-11-11):
