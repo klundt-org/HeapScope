@@ -79,7 +79,7 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   The wrap's second full run: all 12 `AllocationTraceTests` again (as on 3.10's gate), their fixture's session start canceled.
   Cause: the fixture started the load a fixed second after the recording and stopped the recording when the load ended, so a
   start slower than the load was canceled. Fixed: the load starts once the trace's partial file has bytes, as
-  `LiveWorkflowTests` already waits.
+  `LiveWorkflowTests` already waits. Sprint 3.12 (2026-11-12), the first integration run after a build, on a loaded machine: `GcDumpSnapshotTests.Cli_inspect_of_an_unavailable_inspection_on_a_gcdump_fails_with_the_reason` exited 1 for another reason: the CLI's worker (started 1.1 s into the run) did not open its pipe within 30 s and logged nothing. The first start of a freshly built binary is slow on this machine (a smoke run's first window took 10 s right after a build, 1 s after), so a scan of the new files is likely; not confirmed. It passed alone and in two reruns. If it recurs, log the worker's own start time to tell a slow process start from a slow pipe.
 - From the 3.9 review (product owner, 2026-11-01): a worker start failure shows its stack trace on the CLI's console
   (`LogWarning(ex, ...)` reaches the console logger; keep stacks in the file log, M11); capturing or finding one of
   HeapScope's own processes says "No running .NET process with id N was found" and logs nothing (say "pid N is
