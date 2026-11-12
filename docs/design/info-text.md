@@ -128,6 +128,21 @@ A control that can be disabled shows its tooltip anyway, so it can say why. Tool
 
 Dropped: the Two snapshots and Trend across snapshots row, since their Table 1 icons already say it. The Trend button's tooltip goes with it.
 
+## Sprint 3.12 additions
+
+Approved by the owner on 2026-11-12, except the row marked draft.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Settings | Page icon (Table 1) | Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine. | draft, to approve |
+| Settings | Include filter text in logs (tooltip) | Write the text you type in filters and searches into HeapScope's logs, to help troubleshoot a result. It can hold values from your dumps (account numbers, tokens), so turn it off before you share a log. | approved |
+| Settings | Purge logs (tooltip) | Delete HeapScope's log files. The log being written now is kept until HeapScope closes. | approved |
+| Settings | Purge all (tooltip) | Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched. | approved |
+| Settings | Purge all confirmation | Title "Delete everything HeapScope keeps?"; body "This deletes HeapScope's logs and its whole library: N sessions, N files, N GB. Dumps you opened from your own folders stay. This cannot be undone."; buttons "Delete everything" and "Cancel". | approved |
+| Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
+| Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
+| Every export of the Retainers tree | CSV column (M6) | "Retained is", with "exact" or "at least" on each row. | approved |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

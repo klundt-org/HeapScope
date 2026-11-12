@@ -139,6 +139,39 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
     sprint's tasks, fourteen ranked for before Phase 4, and those that wait for a Phase 4 pick. Waiting for the owner's picks.
 14. [ ] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
 
+From the refactor analysis (owner, 2026-11-12: every bug and every candidate tied to this sprint's tasks):
+
+15. [ ] R1, before task 9: the snapshot open pipeline moved out of `SnapshotStore` into a `SnapshotOpener`, behavior unchanged.
+    Proof: the existing open, cache and rebuild tests unchanged; new opener tests per cache refusal reason.
+16. [ ] R2 and B2, with task 9: one value-reads state per snapshot (available, or refused with a reason: no reader, declined or
+    missing DAC, older cache), read by the feature rules, inspection availability, object reads and value filters. Proof: a
+    worker test opening with the DAC declined lists value reads and every field-reading inspection as unavailable, with the reason.
+17. [ ] R3, before task 5: one smoke phase runner for the watchdog bookkeeping and the first-show log lines; "Smoke open types"
+    unchanged (CI parses it). Proof: smoke runs, a test that a failing phase names its check.
+18. [ ] R4, with task 8: the loader's hot loop (segments in address order, pointer-free types skipped in the reference pass,
+    the finalizable check by binary search, `Size` read once). Proof: the graph's columns hash the same before and after on the
+    fixtures and the Medium dump; known answers; load phase times.
+19. [ ] R5, with task 8: freeze and collection as load phases of their own, GC pauses, CPU time and hard faults per phase in
+    the load's log line, and the load benchmark refusing a GC set up differently from the worker's. Proof: the log line; budgets.md.
+20. [ ] B1, a Settings page above About, with a Logging section: "Include filter text in logs" (on by default; it governs
+    the app, the worker and the CLI, which read the same setting), "Purge logs" (the log being written is kept until HeapScope
+    closes) and "Purge all" (logs, every session in the library, HeapScope's own index caches and bookmarks, after a
+    confirmation; never a dump opened from the user's own folders or its caches; refused while a capture or recording runs).
+    The CLI describes its command line by option, so filter text follows the setting there too. Wording approved
+    (`docs/design/info-text.md`). Proof: view model tests of each action, a CLI test with the setting on and off, a purge test
+    that leaves an outside dump alone, info icon and tooltip tests.
+21. [ ] B3: one path identity rule (case-insensitive on Windows, ordinal elsewhere) at every path comparison. Proof: unit tests
+    for both systems; a Linux CI test that two files differing only in case open as two snapshots.
+22. [ ] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,
+    instead of failing the session. Proof: a session with an unknown kind opens, and saving keeps the entry.
+23. [ ] B5: worker refusals thrown as a refusal type of their own; any other exception is logged as an error with its stack,
+    and the user sees a fixed message with the trace id (wording to the owner first). Proof: provenance log tests both ways.
+24. [ ] B6: the fragmentation bars read their columns as every other row does; a missing column fails that inspection only.
+    Proof: an inspections test with a column missing.
+25. [ ] B7: every inspection records a basis (scanned, left out, reported with one cap); the collection inspections count what
+    they could not read. Proof: a catalog test that every inspection's basis has scanned and left-out counts.
+26. [ ] B8: `logging.md` matches what runs under an activity. Proof: the Markdown sweep.
+
 **Decisions** (product owner, 2026-11-11):
 
 1. Tracing uses `--smoke-trace` and Windows' own WPR, read with TraceEvent; nothing downloaded.
@@ -151,6 +184,15 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    start, test machine independence, the capturer seam, and M6.
 8. A negative `gc-heap-size` sample is dropped and logged, not clamped.
 9. M7 from the 3.11 review stays in the Backlog.
+10. (2026-11-12) Every bug of the refactor analysis (B1 to B8) and the candidates tied to this sprint's tasks (R1 to R5) are in
+    this sprint; the ranked candidates wait for the owner's scheduling.
+11. (2026-11-12) The rule "never log filter text" becomes: filter text is logged unless the user turns it off in Settings
+    (on by default, since logs stay on the user's machine; the text tells them to turn it off before sharing a log).
+12. (2026-11-12) Purge all deletes logs, the library's sessions, HeapScope's own index caches and bookmarks; it keeps the
+    trusted DACs and the cache key, and never touches a dump outside the library.
+13. (2026-11-12) The Settings page sits above About; its three texts and the Purge all confirmation are approved.
+14. (2026-11-12) M6 as proposed: the group note, "≥" in a group row's Retained cell, and a "Retained is" column in the CSV.
+15. (2026-11-12) R1 is done before task 9.
 
 ## Sprint 3.13: Tutorial
 
