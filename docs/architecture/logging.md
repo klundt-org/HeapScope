@@ -16,9 +16,12 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   to debug output, Avalonia's warnings (area, template and source type only) and failures before its host exists; the
   CLI also writes Warning and up to stderr. The worker logs single-line records to stderr, which the client forwards
   into its own log.
-- **Correlation (sprint 2.3.7)**: every job (`JobTracker`: open, capture, inspections) and every CLI command runs under
-  an `Activity`; its trace id is a scope of every line it causes, in the front end and, through StreamJsonRpc's activity
-  tracing (W3C trace context in each request), in the worker. Job start and end lines carry the job id, title, time and
+- **Correlation (sprint 2.3.7)**: every job (`JobTracker`: open, capture) and every CLI command runs under an
+  `Activity`; its trace id is a scope of every line it causes, in the front end and, through StreamJsonRpc's activity
+  tracing (W3C trace context in each request), in the worker. Not every app call has one yet (checked in sprint 3.12): the
+  Inspections tab runs each inspection through `SnapshotSession.RunInspectionAsync`, not as a job, and the Object view's
+  load runs outside `QueryRunner`, so their worker lines carry no trace id of the front end's; match them by snapshot id and
+  time. The Backlog's query runner item (refactor analysis, rank 1) brings them under an activity. Job start and end lines carry the job id, title, time and
   outcome; the CLI logs its command line (paths and numbers as given, other values by their length) and exit code.
 - **Provenance of results (sprint 2.3.7, review H2 to H4)**: the log backs up any result a user contests.
   - Each process's start: versions, system, architecture, runtime, options; the worker adds the protocol, its path, the
@@ -40,8 +43,9 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     list just opened (or the top); the icicle its widest bars; set retention the type, all and reachable members, what
     they retain, the lower bound and the first ten retained types. Each user action on the Retainers tab (expand,
     collapse, focus, grouping, a link from another tab, a set) logs one line under its own activity, which its tree,
-    icicle and set queries join (sprint 2.4 and its review). Grid queries and panel loads run under an activity too, so their worker lines
-    carry their trace id.
+    icicle and set queries join (sprint 2.4 and its review). Grid queries and the panel loads that go through `QueryRunner`
+    run under an activity too, so their worker lines carry their trace id; the Object view's load does not yet (see
+    Correlation above).
   - Monitoring logs each run's rules and, when a rule fires, the metric and its source, the threshold after steps, the
     baseline and the rearm mode (`RuleDecision`); the CLI logs its growth gate's decision.
 - **A dump's process name (sprint 3.10)**: the snapshot's identity line says `process {Process} ({Pid}; name: {Source})`, where the

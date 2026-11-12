@@ -190,7 +190,8 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     proved by mutation.
 25. [ ] B7: every inspection records a basis (scanned, left out, reported with one cap); the collection inspections count what
     they could not read. Proof: a catalog test that every inspection's basis has scanned and left-out counts.
-26. [ ] B8: `logging.md` matches what runs under an activity. Proof: the Markdown sweep.
+26. [x] B8: `logging.md` matches what runs under an activity. Proof: the Markdown sweep.
+    Done: the Correlation item and the Retainers paragraph say which loads have no activity yet and how to match their lines.
 
 **Decisions** (product owner, 2026-11-11):
 
