@@ -53,7 +53,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
         SnapshotLease? baselineLease = null;
         try
         {
-            if (InspectionAvailability.Explain(inspection, snapshot.Capabilities, snapshot.Info) is { } why)
+            if (InspectionAvailability.Explain(inspection, snapshot) is { } why)
             {
                 throw new CapabilityNotSupportedException(why);
             }
@@ -76,7 +76,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 baselineLease = held;
 
                 // A baseline the detector cannot read (a gcdump) is refused, never silently ignored (review H8).
-                if (InspectionAvailability.Explain(inspection, earlier.Capabilities, earlier.Info) is { } unusable)
+                if (InspectionAvailability.Explain(inspection, earlier) is { } unusable)
                 {
                     throw new ArgumentException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: {unusable} Choose a full dump of the same process, captured earlier.");
                 }

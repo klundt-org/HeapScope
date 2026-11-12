@@ -29,6 +29,7 @@ using HeapScope.Contracts;
 using HeapScope.Core;
 using HeapScope.Core.Graph;
 using HeapScope.Core.Loading;
+using HeapScope.Loaders.ClrMd;
 using HeapScope.Storage;
 using HeapScope.Worker.Rpc;
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,9 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
     /// <summary>Tests only: a loader that stands in for the file's own, to reach what a real dump cannot be made to do.</summary>
     internal Func<string, ISnapshotLoader>? LoaderForTests { get; set; }
+
+    /// <summary>Tests only: the DAC trust check of a cache open, which a made-up dump cannot reach.</summary>
+    internal Action<string>? DacCheckForTests { get; set; }
 
     public OpenedSnapshot Open(string path, OpenSnapshotRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
@@ -70,6 +74,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             var cachePath = locator.GetCachePath(path);
             IndexCacheOpenResult? cached = null;
             string? rebuildReason = null;
+            OlderCache? older = null;
             if (!request.Rebuild)
             {
                 // A full dump about to open from a valid cache loads no DAC now, but its field reader will: only now can
@@ -78,10 +83,10 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 if (request.CheckDac && IndexCacheReader.Probe(cachePath, _signer, fingerprint) is null
                     && SnapshotFileSignature.Detect(path) is { } kind)
                 {
-                    _kinds.For(kind).CheckBeforeCacheOpen(path);
+                    (DacCheckForTests ?? _kinds.For(kind).CheckBeforeCacheOpen)(path);
                 }
 
-                cached = TryOpenCache(cachePath, fingerprint, forced, out rebuildReason, cancellationToken);
+                cached = TryOpenCache(cachePath, fingerprint, forced, out rebuildReason, out older, cancellationToken);
             }
 
             if (cached is null && request.RequireCache)
@@ -99,24 +104,51 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             MemoryMode mode;
             ulong identity;
             var fromCache = cached is not null;
+            ValueReadsRefused? refused = null;
             if (cached is not null)
             {
                 graph = cached.Graph!;
                 metadata = cached.Metadata!;
                 mode = cached.Mode;
                 identity = cached.Identity;
+
+                // An open that did not ask about the DAC (the user declined it, or the command line, which never asks) must
+                // not offer reads the DAC would refuse (sprint 3.12, B2): they are refused from the start, with the reason.
+                if (!request.CheckDac)
+                {
+                    refused = RefusedByDac(path, metadata.Info.Kind);
+                }
             }
             else
             {
-                (graph, metadata, mode, writtenCache, identity) = LoadDump(path, cachePath, fingerprint, forced, notes, rebuildReason is not null, throttled, cancellationToken);
-
-                // Only now is it known: "rebuilt" is true only when the load wrote its cache (3.10 review M39).
-                if (rebuildReason is not null)
+                try
                 {
-                    notes.Add((writtenCache is not null ? "The index cache was rebuilt: " : "The index cache was not used: ") + rebuildReason);
+                    (graph, metadata, mode, writtenCache, identity) = LoadDump(path, cachePath, fingerprint, forced, notes, rebuildReason is not null, throttled, cancellationToken);
+
+                    // Only now is it known: "rebuilt" is true only when the load wrote its cache (3.10 review M39).
+                    if (rebuildReason is not null)
+                    {
+                        notes.Add((writtenCache is not null ? "The index cache was rebuilt: " : "The index cache was not used: ") + rebuildReason);
+                    }
+                }
+                catch (Exception ex) when (older is not null && LacksDac(ex) && !cancellationToken.IsCancellationRequested)
+                {
+                    // The rebuild cannot reach the DAC it needs (gone after a runtime update, declined, or the symbol server
+                    // failed): the older cache opens instead, so the dump stays readable (sprint 3.12, the 3.10 review M14).
+                    var fallback = OpenOlder(older, fingerprint, forced, ex, cancellationToken);
+                    if (fallback is null)
+                    {
+                        throw;
+                    }
+
+                    (graph, metadata, mode, identity) = (fallback.Graph!, fallback.Metadata!, fallback.Mode, fallback.Identity);
+                    writtenCache = cachePath;
+                    fromCache = true;
+                    refused = new ValueReadsRefused("Field values and strings are not read: " + ex.Message);
+                    notes.Add(OlderCacheNote);
                 }
 
-                // LoadDump collected before choosing the mode (and again in the mapped transition).
+                // LoadDump collected before choosing the mode (and again in the mapped transition), and so did the fallback.
                 collect = false;
             }
 
@@ -129,7 +161,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 // The snapshot is the file that was opened: a dump moved or copied together with its index cache keeps a
                 // valid fingerprint, but the cache records the path of its first load (sprint 1.2 review).
                 var info = metadata.Info with { SourcePath = path };
-                snapshot = _kinds.For(info.Kind).Open(info, metadata.Capabilities, graph, path, () => EnsureUnchanged(path, fingerprint));
+                snapshot = _kinds.For(info.Kind).Open(info, metadata.Capabilities, graph, path, () => EnsureUnchanged(path, fingerprint), refused);
                 descriptor = Describe(snapshot, mode, fromCache, writtenCache, identity, stopwatch.Elapsed, notes);
             }
             catch
@@ -230,10 +262,14 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         }
     }
 
-    /// <summary>The usable cache, or null; <paramref name="rebuildReason"/> says why one that exists was not used.</summary>
-    private IndexCacheOpenResult? TryOpenCache(string cachePath, SnapshotFingerprint fingerprint, MemoryMode? forced, out string? rebuildReason, CancellationToken cancellationToken)
+    /// <summary>
+    /// The usable cache, or null; <paramref name="rebuildReason"/> says why one that exists was not used, and
+    /// <paramref name="older"/> names a cache an older loader wrote that can still open if the rebuild cannot.
+    /// </summary>
+    private IndexCacheOpenResult? TryOpenCache(string cachePath, SnapshotFingerprint fingerprint, MemoryMode? forced, out string? rebuildReason, out OlderCache? older, CancellationToken cancellationToken)
     {
         rebuildReason = null;
+        older = null;
         var required = IndexCacheReader.GetInMemoryBytes(cachePath, _signer, out var unusable);
         if (required is null)
         {
@@ -247,16 +283,27 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             return null;
         }
 
-        var mode = MemoryModeSelector.Select(required.Value, MemoryBudget.Current(forced: forced));
-        var result = IndexCacheReader.Open(cachePath, _signer, fingerprint, mode, cancellationToken);
-        if (result.Success && result.Metadata!.LoaderVersion < _kinds.For(result.Metadata.Info.Kind).LoaderVersion)
+        // The loader version from the metadata alone (sprint 3.12, the 3.10 review M31): an older cache's graph is not read
+        // only to be dropped before the rebuild. A cache whose metadata cannot be read is opened below, which says why.
+        if (IndexCacheReader.ReadMetadata(cachePath, _signer, fingerprint, out _) is { } written
+            && _kinds.For(written.Info.Kind) is var handler
+            && written.LoaderVersion < handler.LoaderVersion)
         {
             // Built by an older loader whose answers are now known to be wrong in some cases (review M7).
-            result.Graph!.Dispose();
-            logger.LogInformation("Index cache {Path} not used: loader version {Old}, current {New}", cachePath, result.Metadata.LoaderVersion, _kinds.For(result.Metadata.Info.Kind).LoaderVersion);
+            var fallback = written.LoaderVersion >= handler.OldestFallbackLoaderVersion;
+            logger.LogInformation(
+                "Index cache {Path} not used: loader version {Old}, current {New}; it {Fallback}",
+                cachePath,
+                written.LoaderVersion,
+                handler.LoaderVersion,
+                fallback ? "opens instead if the rebuild cannot reach the DAC" : string.Create(CultureInfo.InvariantCulture, $"is older than version {handler.OldestFallbackLoaderVersion}, so it never opens"));
             rebuildReason = "it was written by an older version of HeapScope, so this open took longer. The release notes say what changed.";
+            older = fallback ? new OlderCache(cachePath, written.LoaderVersion, handler.LoaderVersion) : null;
             return null;
         }
+
+        var mode = MemoryModeSelector.Select(required.Value, MemoryBudget.Current(forced: forced));
+        var result = IndexCacheReader.Open(cachePath, _signer, fingerprint, mode, cancellationToken);
 
         if (result.Success)
         {
@@ -365,6 +412,63 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         }
     }
 
+    /// <summary>The snapshot's note when it opened from an older loader's cache because a rebuild could not reach its DAC.</summary>
+    internal const string OlderCacheNote =
+        "Opened from the index cache an older version of HeapScope wrote, because a new one could not be built without the dump's DAC. "
+        + "Types, references, roots and retained sizes come from that older version, so they can differ from what this version would find; "
+        + "field values and strings are not read. When the DAC is available again, reopen the dump with Rebuild.";
+
+    /// <summary>
+    /// The older cache, opened after a rebuild failed for want of a DAC, or null when it cannot be opened any more (the caller
+    /// then reports the rebuild's failure). The failed load's memory is returned to the system first, so the two never stack
+    /// (the 3.10 review M31). The warning backs up a contested result: it names both loader versions and why.
+    /// </summary>
+    private IndexCacheOpenResult? OpenOlder(OlderCache older, SnapshotFingerprint fingerprint, MemoryMode? forced, Exception failure, CancellationToken cancellationToken)
+    {
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        var required = IndexCacheReader.GetInMemoryBytes(older.Path, _signer);
+        var mode = MemoryModeSelector.Select(required ?? long.MaxValue, MemoryBudget.Current(forced: forced));
+        var result = IndexCacheReader.Open(older.Path, _signer, fingerprint, mode, cancellationToken);
+        if (!result.Success || result.Metadata!.LoaderVersion != older.LoaderVersion)
+        {
+            result.Graph?.Dispose();
+            logger.LogWarning("Index cache {Path} could not be opened in place of the failed rebuild: {Reason} ({Detail})", older.Path, result.Reason, result.Detail);
+            return null;
+        }
+
+        logger.LogWarning(
+            "Index cache {Path} from loader version {Old} opened in place of a rebuild (current loader version {New}), {Mode}: the rebuild could not reach the dump's DAC ({Error}: {Message}). Field values and strings are refused for this snapshot.",
+            older.Path,
+            older.LoaderVersion,
+            older.CurrentVersion,
+            mode,
+            failure.GetType().Name,
+            failure.Message);
+        return result;
+    }
+
+    // What a rebuild cannot get past without native code nobody has or trusts; a damaged dump is not one of them.
+    private static bool LacksDac(Exception ex) => ex is UntrustedDacException or RuntimeComponentMissingException;
+
+    /// <summary>
+    /// The refusal of value reads for a snapshot opened without the DAC question, when its DAC lies untrusted next to the
+    /// dump; null when the reads may go ahead (a trusted or installed DAC, a missing one the reader reports itself, or a kind
+    /// that loads no native code).
+    /// </summary>
+    private ValueReadsRefused? RefusedByDac(string path, SnapshotKind kind)
+    {
+        try
+        {
+            (DacCheckForTests ?? _kinds.For(kind).CheckBeforeCacheOpen)(path);
+            return null;
+        }
+        catch (UntrustedDacException ex)
+        {
+            logger.LogInformation("Snapshot {Path} opens without reading field values or strings: its DAC {Dac} (SHA-256 {Sha256}) is not trusted", path, ex.Path, ex.Sha256);
+            return new ValueReadsRefused("Field values and strings are not read: " + ex.Message);
+        }
+    }
+
     /// <summary>Writes the index cache and returns its identity, or 0 (with a note) when it could not be written.</summary>
     private ulong TryWriteCache(string cachePath, HeapGraph graph, IndexCacheMetadata metadata, SnapshotFingerprint fingerprint, List<string> notes, CancellationToken cancellationToken)
     {
@@ -436,6 +540,9 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             target.Report(new JobProgress(rebuilding ? "Rebuilding the index cache: " + value.Phase : value.Phase, value.Completed, value.Total));
     }
 }
+
+/// <summary>An index cache an older loader wrote, which may open in place of a rebuild that cannot reach the dump's DAC.</summary>
+internal sealed record OlderCache(string Path, int LoaderVersion, int CurrentVersion);
 
 /// <summary>A snapshot just opened, with what the store keeps about its index cache.</summary>
 internal sealed record OpenedSnapshot(ISnapshot Snapshot, SnapshotDescriptor Descriptor, IndexState Index);

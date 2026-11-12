@@ -44,7 +44,7 @@ internal sealed class InspectionHandler(
                 i.Title,
                 i.Cause,
                 i.Fix,
-                InspectionAvailability.Explain(i, snapshot.Capabilities, snapshot.Info),
+                InspectionAvailability.Explain(i, snapshot),
                 i.Kind == InspectionKind.Leak ? InspectionKinds.Leak : InspectionKinds.Waste,
                 i.UsesBaseline))];
 

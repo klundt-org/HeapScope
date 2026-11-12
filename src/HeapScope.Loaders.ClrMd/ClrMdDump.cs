@@ -105,6 +105,15 @@ internal static class ClrMdDump
             options.DacChosen?.Invoke(choice);
             return runtime;
         }
+        catch (Exception ex) when (path is null && ex is ClrDiagnosticsException or InvalidOperationException or IOException)
+        {
+            // No local DAC, and the symbol server did not give one (sprint 3.12, the 3.10 review M29): the DAC is missing, not
+            // the dump damaged, so an older index cache can still open in place of the rebuild.
+            throw new RuntimeComponentMissingException(
+                $"The .NET {request.RuntimeVersion} runtime's DAC ({fileName}) was not found locally and could not be downloaded from Microsoft's symbol server: {ex.Message} "
+                + "Check the network, or install that runtime or put its DAC in the Symbols:DacFolder folder, then open the dump again.",
+                ex);
+        }
         catch (Exception ex) when (ex is ClrDiagnosticsException or InvalidOperationException or IOException or BadImageFormatException or DllNotFoundException)
         {
             throw new SnapshotFormatException(

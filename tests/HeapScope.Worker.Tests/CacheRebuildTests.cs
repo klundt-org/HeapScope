@@ -21,6 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Application.Tests;
 using HeapScope.Contracts;
 using HeapScope.Core;
 using HeapScope.Core.Loading;
@@ -50,8 +51,12 @@ public sealed class CacheRebuildTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private SnapshotStore Store(ISnapshotLoader? loader = null) =>
-        new(_options, _locator, IndexCacheSigner.None, NullLogger<SnapshotStore>.Instance) { LoaderForTests = _ => loader ?? new NoDacLoader() };
+    private readonly RecordingLogger<SnapshotStore> _log = new();
+
+    private SnapshotStore Store(ISnapshotLoader? loader = null, Action<string>? dacCheck = null) =>
+        new(_options, _locator, IndexCacheSigner.None, _log) { LoaderForTests = _ => loader ?? new NoDacLoader(), DacCheckForTests = dacCheck };
+
+    private static UntrustedDacException Untrusted() => new(@"C:\dumps\mscordaccore.dll", new string('a', 64), "10.0.14");
 
     private void WriteDamagedCache()
     {
@@ -73,16 +78,81 @@ public sealed class CacheRebuildTests : IDisposable
         IndexCacheWriter.Write(_locator.GetCachePath(_dump), IndexCacheSigner.None, graph, metadata, SnapshotFingerprint.Compute(_dump), cancellationToken: Ct);
     }
 
-    [Fact]
-    public async Task An_older_cache_whose_rebuild_lacks_the_DAC_says_what_is_missing()
+    // Sprint 3.12 (the 3.10 review M14, M29 to M31, M37): a rebuild that cannot reach the DAC opens the older cache, whose
+    // graph answers everything but value reads; the snapshot, its feature list and the log say so.
+    [Theory]
+    [InlineData("missing", SnapshotMemoryMode.InMemory)]
+    [InlineData("missing", SnapshotMemoryMode.Mapped)]
+    [InlineData("untrusted", SnapshotMemoryMode.InMemory)]
+    [InlineData("untrusted", SnapshotMemoryMode.Mapped)]
+    public async Task An_older_cache_opens_when_its_rebuild_cannot_reach_the_DAC(string why, SnapshotMemoryMode mode)
     {
-        // Opening the older cache instead is planned for sprint 3.12 (the 3.10 review M14).
         WriteCache(ClrMdDumpLoader.CurrentVersion - 1);
+        var cache = _locator.GetCachePath(_dump);
+        var before = await File.ReadAllBytesAsync(cache, Ct);
+        using var store = Store(why == "missing" ? new NoDacLoader() : new ThrowingLoader(Untrusted()));
+
+        var opened = await store.OpenAsync(new OpenSnapshotRequest(_dump, Mode: mode), null, Ct);
+
+        opened.FromCache.ShouldBeTrue();
+        opened.Mode.ShouldBe(mode);
+        opened.CachePath.ShouldBe(cache);
+        opened.ObjectCount.ShouldBe(10);
+        opened.Notes.ShouldContain(SnapshotOpener.OlderCacheNote);
+        opened.Notes.ShouldNotContain(static n => n.StartsWith("The index cache was rebuilt", StringComparison.Ordinal));
+        var fields = opened.Availability!.Single(a => a.Feature == SnapshotFeatureIds.FieldValues).Unavailable.ShouldNotBeNull();
+        fields.ShouldStartWith("Field values and strings are not read: ");
+        fields.ShouldContain(why == "missing" ? "No DAC here" : "--trust-dac");
+        opened.Availability!.Single(a => a.Feature == SnapshotFeatureIds.StringValues).Unavailable.ShouldBe(fields);
+        (await File.ReadAllBytesAsync(cache, Ct)).ShouldBe(before, "the older cache is read, never written");
+        _log.Lines.ShouldContain(l => l.Contains("opened in place of a rebuild", StringComparison.Ordinal) && l.Contains("loader version 3", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_cache_older_than_the_first_release_never_opens_in_place_of_a_rebuild()
+    {
+        // Version 3 is the loader of v3.9.0, the first public release; anything older came from development builds.
+        SnapshotKinds.Describe(SnapshotKind.FullDump).OldestFallbackLoaderVersion.ShouldBe(3);
+        WriteCache(2);
         using var store = Store();
 
         var missing = await Should.ThrowAsync<RuntimeComponentMissingException>(store.OpenAsync(new OpenSnapshotRequest(_dump), null, Ct));
 
         missing.Message.ShouldContain("No DAC here");
+        _log.Lines.ShouldContain(l => l.Contains("so it never opens", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_damaged_dump_does_not_open_the_older_cache()
+    {
+        // Only a DAC the rebuild cannot reach falls back; a dump that cannot be read fails as it did.
+        WriteCache(ClrMdDumpLoader.CurrentVersion - 1);
+        using var store = Store(new ThrowingLoader(new SnapshotFormatException("The dump is damaged.")));
+
+        await Should.ThrowAsync<SnapshotFormatException>(store.OpenAsync(new OpenSnapshotRequest(_dump), null, Ct));
+    }
+
+    // Sprint 3.12 (B2): an open without the DAC question (declined, or the command line) used to list field values as
+    // available and fail on each read.
+    [Fact]
+    public async Task A_current_cache_opened_without_the_DAC_question_refuses_value_reads_from_the_start_when_the_DAC_is_untrusted()
+    {
+        WriteCache(ClrMdDumpLoader.CurrentVersion);
+        using var store = Store(dacCheck: _ => throw Untrusted());
+
+        var opened = await store.OpenAsync(new OpenSnapshotRequest(_dump, CheckDac: false), null, Ct);
+
+        opened.FromCache.ShouldBeTrue();
+        opened.Availability!.Single(a => a.Feature == SnapshotFeatureIds.FieldValues).Unavailable.ShouldNotBeNull().ShouldContain("--trust-dac");
+        opened.Notes.ShouldNotContain(SnapshotOpener.OlderCacheNote);
+        store.Close(opened.SnapshotId);
+
+        using var asking = Store(dacCheck: _ => throw Untrusted());
+        await Should.ThrowAsync<UntrustedDacException>(asking.OpenAsync(new OpenSnapshotRequest(_dump), null, Ct));
+
+        using var trusted = Store(dacCheck: _ => { });
+        var readable = await trusted.OpenAsync(new OpenSnapshotRequest(_dump, CheckDac: false), null, Ct);
+        readable.Availability!.Single(a => a.Feature == SnapshotFeatureIds.FieldValues).Unavailable.ShouldBeNull();
     }
 
     [Fact]
@@ -201,6 +271,15 @@ public sealed class CacheRebuildTests : IDisposable
                 new LoadDiagnostics([], 0, 0),
                 new LoadTimings(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero));
         }
+    }
+
+    private sealed class ThrowingLoader(Exception failure) : ISnapshotLoader
+    {
+        public SnapshotKind Kind => SnapshotKind.FullDump;
+
+        public int Version => ClrMdDumpLoader.CurrentVersion;
+
+        public LoadResult Load(string dumpPath, IProgress<LoadProgress>? progress = null, CancellationToken cancellationToken = default) => throw failure;
     }
 
     private sealed class NoDacLoader : ISnapshotLoader

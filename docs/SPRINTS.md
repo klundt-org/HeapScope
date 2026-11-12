@@ -117,11 +117,17 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    numbers in `budgets.md`.
 8. [ ] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
    fix proposed with its cost; built only with the owner's OK. Proof: the trace and the numbers in `budgets.md`.
-9. [ ] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
+9. [x] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
    trusted DAC (gone, symbol server failure, untrusted after a "no") opens the older cache with a note; caches older than the
    v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
    with the reason. Proof: worker tests with a stand-in loader for each failure; an integration test in both memory modes;
    a test per refused view; the log line naming the fallback and why.
+   Done: `IndexCacheReader.ReadMetadata` reads the loader version without the graph; a cache from loader version 3 (v3.9.0) or
+   later opens in place of a rebuild that fails with `UntrustedDacException` or `RuntimeComponentMissingException` (now also a
+   failed symbol server download), after the failed load's memory is collected; never on a damaged dump, an explicit Rebuild or
+   a reopen after a worker restart. Its values are refused through task 16's state, so references, referrers and paths open
+   without field names (M37). `CacheRebuildTests` (both reasons in both memory modes, the floor, a damaged dump), each change
+   proved by mutation; the warning names both loader versions and the failure.
 10. [x] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
     Done: `CounterSampleBuilder` drops it with a warning naming the value, the time and gen 0's size;
     `CounterSampleBuilderTests.A_sample_with_a_negative_heap_is_dropped_and_logged`, proved by mutation.
@@ -146,9 +152,13 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     Done: `SnapshotOpener.cs` (444 lines; the store is 243, from 623); it logs under the store's category, so every line
     reads as before. Worker (180), architecture (43) and integration open tests (37) pass unchanged. The opener tests per
     refusal reason come with task 9, which changes what the older loader reason does.
-16. [ ] R2 and B2, with task 9: one value-reads state per snapshot (available, or refused with a reason: no reader, declined or
+16. [x] R2 and B2, with task 9: one value-reads state per snapshot (available, or refused with a reason: no reader, declined or
     missing DAC, older cache), read by the feature rules, inspection availability, object reads and value filters. Proof: a
     worker test opening with the DAC declined lists value reads and every field-reading inspection as unavailable, with the reason.
+    Done: `ValueReadsRefused` (Core) on a `DumpSnapshot` without a reader; `FeatureRules` words every value refusal from it and
+    `InspectionAvailability` goes through `FeatureRules`. An open without the DAC question (the user's "no", the CLI) checks the
+    DAC once and refuses from the start; the reason keeps the CLI's `--trust-dac` and the app's question.
+    `InspectionAvailabilityTests` and `CacheRebuildTests`, proved by mutation.
 17. [ ] R3, before task 5: one smoke phase runner for the watchdog bookkeeping and the first-show log lines; "Smoke open types"
     unchanged (CI parses it). Proof: smoke runs, a test that a failing phase names its check.
 18. [ ] R4, with task 8: the loader's hot loop (segments in address order, pointer-free types skipped in the reference pass,

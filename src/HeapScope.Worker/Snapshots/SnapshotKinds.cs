@@ -45,10 +45,20 @@ internal abstract class SnapshotKindHandler
     /// <summary>The current version of the kind's loader; index caches from an older one are rebuilt.</summary>
     public abstract int LoaderVersion { get; }
 
+    /// <summary>
+    /// The oldest loader version whose index cache opens in place of a rebuild that cannot reach the native code it needs
+    /// (sprint 3.12, the 3.10 review M14 and M30); a cache older than this is rebuilt or the open fails. A kind that loads no
+    /// native code never falls back, so by default only the current version qualifies.
+    /// </summary>
+    public virtual int OldestFallbackLoaderVersion => LoaderVersion;
+
     public abstract ISnapshotLoader CreateLoader();
 
-    /// <summary>The snapshot over an opened graph. <paramref name="ensureUnchanged"/> checks the file before a reader uses it.</summary>
-    public abstract ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged);
+    /// <summary>
+    /// The snapshot over an opened graph. <paramref name="ensureUnchanged"/> checks the file before a reader uses it. With
+    /// <paramref name="refused"/>, the snapshot reads no values from the file and says why (sprint 3.12).
+    /// </summary>
+    public abstract ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged, ValueReadsRefused? refused = null);
 
     /// <summary>Notes on what this kind of snapshot can and cannot answer, given what its loader recorded.</summary>
     public abstract void AddNotes(IndexCacheMetadata metadata, List<string> notes);
@@ -136,14 +146,20 @@ internal sealed class SnapshotKinds
 
         public override int LoaderVersion => ClrMdDumpLoader.CurrentVersion;
 
+        // The loader of v3.9.0, the first public release (owner, 2026-11-11): every cache a user can have, and none from the
+        // development builds before it, whose answers are known to be wrong in places.
+        public override int OldestFallbackLoaderVersion => 3;
+
         public override ISnapshotLoader CreateLoader() => new ClrMdDumpLoader(LoaderOptions());
 
         public override void CheckBeforeCacheOpen(string path) => ClrMdDumpLoader.CheckDacTrust(path, LoaderOptions());
 
         // Field values and strings are read from the dump on demand (sprint 1.5); the reader opens the dump only when
         // something is inspected, after checking it is still the file the graph was built from.
-        public override ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged) =>
-            new DumpSnapshot(info, capabilities, graph, new ClrMdObjectReader(path, LoaderOptions(), ensureUnchanged));
+        public override ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged, ValueReadsRefused? refused = null) =>
+            refused is null
+                ? new DumpSnapshot(info, capabilities, graph, new ClrMdObjectReader(path, LoaderOptions(), ensureUnchanged))
+                : new DumpSnapshot(info, capabilities, graph, refused);
 
         public override void AddNotes(IndexCacheMetadata metadata, List<string> notes)
         {
@@ -190,7 +206,7 @@ internal sealed class SnapshotKinds
         public override ISnapshotLoader CreateLoader() => new GcDumpLoader();
 
         // A gcdump holds no field values or string text: the graph is all there is.
-        public override ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged) =>
+        public override ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged, ValueReadsRefused? refused = null) =>
             new GraphSnapshot(info, capabilities, graph);
 
         public override void AddNotes(IndexCacheMetadata metadata, List<string> notes)

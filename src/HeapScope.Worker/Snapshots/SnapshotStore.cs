@@ -239,5 +239,12 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
         init => Opener.LoaderForTests = value;
     }
 
+    /// <summary>Tests only: the DAC trust check of a cache open, which a made-up dump cannot reach.</summary>
+    internal Action<string>? DacCheckForTests
+    {
+        get => Opener.DacCheckForTests;
+        init => Opener.DacCheckForTests = value;
+    }
+
     private SnapshotOpener Opener => LazyInitializer.EnsureInitialized(ref _opener, () => new SnapshotOpener(locator, _signer, _kinds, logger));
 }

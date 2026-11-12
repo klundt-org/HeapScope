@@ -121,6 +121,60 @@ public static class IndexCacheReader
         }
     }
 
+    /// <summary>
+    /// The cache's metadata alone (sprint 3.12): the header, directory and fingerprint are checked, and the metadata section's
+    /// own checksum, but no graph section is read. A worker decides from it whether an older loader wrote the cache before it
+    /// reads gigabytes of graph it would throw away. Null when the cache is missing or invalid, with <paramref name="failure"/>
+    /// saying why.
+    /// </summary>
+    public static IndexCacheMetadata? ReadMetadata(string path, IndexCacheSigner signer, SnapshotFingerprint expected, out IndexCacheOpenResult? failure)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        failure = null;
+        if (!File.Exists(path))
+        {
+            failure = IndexCacheOpenResult.Invalid(IndexCacheInvalidReason.Missing, $"No index cache at {path}.");
+            return null;
+        }
+
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var directory = IndexFileDirectory.Read(stream, signer, IndexFileLayout.Base, expected, 0, out _, out failure);
+            if (directory is null)
+            {
+                return null;
+            }
+
+            var reader = new ArrayReader(stream.SafeFileHandle, directory, CancellationToken.None);
+            var bytes = reader.Read<byte>(IndexSection.Metadata);
+            if (reader.Failure is { } failed)
+            {
+                failure = failed;
+                return null;
+            }
+
+            var document = JsonSerializer.Deserialize<MetadataDocument>(bytes);
+            if (document?.Metadata?.Info is null)
+            {
+                failure = IndexCacheOpenResult.Invalid(IndexCacheInvalidReason.Malformed, "The index cache metadata section is malformed.");
+                return null;
+            }
+
+            return document.Metadata;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            failure = IndexCacheOpenResult.Invalid(IndexCacheInvalidReason.IoError, $"The index cache could not be read: {ex.Message}");
+            return null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or OverflowException or JsonException or InvalidDataException)
+        {
+            failure = IndexCacheOpenResult.Invalid(IndexCacheInvalidReason.Malformed, $"The index cache is malformed: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>Bytes the graph's sections would take in memory, from the directory; null when the cache is invalid.</summary>
     public static long? GetInMemoryBytes(string path, IndexCacheSigner signer) => GetInMemoryBytes(path, signer, out _);
 

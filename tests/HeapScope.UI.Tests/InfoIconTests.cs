@@ -266,7 +266,7 @@ public sealed class InfoIconTests(UiSession ui)
         var table = File.ReadAllText(Path.Combine(repo, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
         var pages = Rows(Between(table, "## Table 1", "## Table 2"));
         var groups = Rows(Between(table, "## Table 2", "## Table 3"));
-        var singles = Rows(Between(table, "## Table 3", "## Evidence"));
+        var singles = Rows(Between(table, "## Table 3", "## Sprint 3.12 additions"));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).Select(static f => (string)f.GetRawConstantValue()!).ToHashSet();
         var src = Path.Combine(repo, "src", "HeapScope.UI");
         var screens = string.Concat(
