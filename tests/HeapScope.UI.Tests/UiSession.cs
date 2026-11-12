@@ -34,7 +34,9 @@ namespace HeapScope.UI.Tests;
 /// <summary>
 /// One Avalonia application on the headless platform for the whole test assembly (sprint 2.3.6): views are built,
 /// laid out and drawn off screen with Skia, on the session's UI thread. Binding failures are collected, so a test can
-/// check that a view binds cleanly.
+/// check that a view binds cleanly. So are values a binding fails to convert on the UI thread, which Avalonia swallows
+/// without a log line: a grid column bound two-way wrote each formatted number back to its source and threw twice per
+/// cell (sprint 3.12, found in a trace of the smoke run).
 /// </summary>
 public sealed class UiSession : IDisposable
 {
@@ -44,7 +46,20 @@ public sealed class UiSession : IDisposable
     public UiSession()
     {
         Logger.Sink = _errors;
+        AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+        {
+            if (IsConversionFailure(e.Exception) && Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+            {
+                _errors.Add($"{e.Exception.GetType().Name} on the UI thread: {e.Exception.Message}");
+            }
+        };
     }
+
+    // What a value converter throws on a value it cannot convert: TypeConverter's "x is not a valid value for T" and the
+    // parse and cast failures under it.
+    private static bool IsConversionFailure(Exception exception) =>
+        exception is FormatException or InvalidCastException or OverflowException
+        || (exception is ArgumentException && exception.Message.Contains(" is not a valid value for ", StringComparison.Ordinal));
 
     /// <summary>The headless app (Avalonia finds it by this name).</summary>
     public static AppBuilder BuildAvaloniaApp() =>
@@ -107,9 +122,14 @@ public sealed class UiSession : IDisposable
                 return;
             }
 
+            Add($"{source?.GetType().Name}: {messageTemplate} [{string.Join(", ", propertyValues)}]");
+        }
+
+        public void Add(string message)
+        {
             lock (_messages)
             {
-                _messages.Add($"{source?.GetType().Name}: {messageTemplate} [{string.Join(", ", propertyValues)}]");
+                _messages.Add(message);
             }
         }
     }

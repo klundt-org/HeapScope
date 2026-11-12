@@ -114,16 +114,16 @@
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
-        <DataGridTextColumn Header="Objects" x:DataType="vm:TypeRowItem" Binding="{Binding Objects, StringFormat='{}{0:N0}'}" Width="100" SortMemberPath="Objects" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Bytes" x:DataType="vm:TypeRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="130" SortMemberPath="Bytes" CellStyleClasses="number" />
-        <DataGridTextColumn Header="%" x:DataType="vm:TypeRowItem" Binding="{Binding Percent, StringFormat='{}{0:N1}'}" Width="60" CanUserSort="False" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Retained" x:DataType="vm:TypeRowItem" Binding="{Binding Retained, StringFormat='{}{0:N0}'}" Width="130" SortMemberPath="Retained" CellStyleClasses="number" Tag="Retained" IsVisible="False" />
-        <DataGridTextColumn Header="Gen0" x:DataType="vm:TypeRowItem" Binding="{Binding Gen0, StringFormat='{}{0:N0}'}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
-        <DataGridTextColumn Header="Gen1" x:DataType="vm:TypeRowItem" Binding="{Binding Gen1, StringFormat='{}{0:N0}'}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
-        <DataGridTextColumn Header="Gen2" x:DataType="vm:TypeRowItem" Binding="{Binding Gen2, StringFormat='{}{0:N0}'}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
-        <DataGridTextColumn Header="LOH" x:DataType="vm:TypeRowItem" Binding="{Binding LargeObjectHeap, StringFormat='{}{0:N0}'}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
-        <DataGridTextColumn Header="POH" x:DataType="vm:TypeRowItem" Binding="{Binding PinnedObjectHeap, StringFormat='{}{0:N0}'}" Width="90" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
-        <DataGridTextColumn Header="Frozen" x:DataType="vm:TypeRowItem" Binding="{Binding Frozen, StringFormat='{}{0:N0}'}" Width="90" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn Header="Objects" x:DataType="vm:TypeRowItem" Binding="{Binding Objects, StringFormat='{}{0:N0}', Mode=OneWay}" Width="100" SortMemberPath="Objects" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Bytes" x:DataType="vm:TypeRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="130" SortMemberPath="Bytes" CellStyleClasses="number" />
+        <DataGridTextColumn Header="%" x:DataType="vm:TypeRowItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CanUserSort="False" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Retained" x:DataType="vm:TypeRowItem" Binding="{Binding Retained, StringFormat='{}{0:N0}', Mode=OneWay}" Width="130" SortMemberPath="Retained" CellStyleClasses="number" Tag="Retained" IsVisible="False" />
+        <DataGridTextColumn Header="Gen0" x:DataType="vm:TypeRowItem" Binding="{Binding Gen0, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn Header="Gen1" x:DataType="vm:TypeRowItem" Binding="{Binding Gen1, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn Header="Gen2" x:DataType="vm:TypeRowItem" Binding="{Binding Gen2, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn Header="LOH" x:DataType="vm:TypeRowItem" Binding="{Binding LargeObjectHeap, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn Header="POH" x:DataType="vm:TypeRowItem" Binding="{Binding PinnedObjectHeap, StringFormat='{}{0:N0}', Mode=OneWay}" Width="90" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn Header="Frozen" x:DataType="vm:TypeRowItem" Binding="{Binding Frozen, StringFormat='{}{0:N0}', Mode=OneWay}" Width="90" CanUserSort="False" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>

@@ -83,6 +83,28 @@ public class TextRulesTests
         offenders.ShouldBeEmpty();
     }
 
+    // Avalonia's DataGrid makes a column binding without a mode two-way, even in a read-only grid: each formatted number was
+    // written back to its source and threw twice per cell, on the UI thread, while rows were built (sprint 3.12, a trace of
+    // the smoke run). Every text column binds one way.
+    [Fact]
+    public void Every_grid_text_column_binds_one_way()
+    {
+        var offenders = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.axaml", SearchOption.AllDirectories)
+                     .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f))))
+        {
+            foreach (System.Text.RegularExpressions.Match column in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(file), @"<DataGridTextColumn(?=[\s/>])[^>]*>"))
+            {
+                if (!column.Value.Contains("Mode=OneWay", StringComparison.Ordinal))
+                {
+                    offenders.Add($"{Path.GetRelativePath(RepoPaths.Root, file)}: {column.Value}");
+                }
+            }
+        }
+
+        offenders.ShouldBeEmpty();
+    }
+
     // The worker reads only caches signed with the user's key (ADR-036): "no signing" is for tools and tests that read
     // caches they wrote themselves, never for the worker (3.7 review M11).
     [Fact]

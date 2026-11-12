@@ -58,11 +58,11 @@
       <ctl:NoteText Text="{Binding SessionStatus}" Classes="subtle" Margin="0,0,0,4" />
       <DataGrid x:Name="Sessions" ctl:GridExports.ExportName="Sessions" ItemsSource="{Binding RecentSessions}" MaxHeight="360">
         <DataGrid.Columns>
-          <DataGridTextColumn Header="Session" x:DataType="sessions:SessionSummary" Binding="{Binding Name}" Width="*" MinWidth="240" />
-          <DataGridTextColumn Header="Created" x:DataType="sessions:SessionSummary" Binding="{Binding CreatedUtc.LocalDateTime, StringFormat='{}{0:g}'}" Width="140" />
-          <DataGridTextColumn Header="Last opened" x:DataType="sessions:SessionSummary" Binding="{Binding LastOpenedUtc.LocalDateTime, StringFormat='{}{0:g}'}" Width="140" />
-          <DataGridTextColumn Header="Snapshots" x:DataType="sessions:SessionSummary" Binding="{Binding SnapshotCount}" Width="90" CellStyleClasses="number" />
-          <DataGridTextColumn Header="Bytes" x:DataType="sessions:SessionSummary" Binding="{Binding SizeBytes, StringFormat='{}{0:N0}'}" Width="130" CellStyleClasses="number" />
+          <DataGridTextColumn Header="Session" x:DataType="sessions:SessionSummary" Binding="{Binding Name, Mode=OneWay}" Width="*" MinWidth="240" />
+          <DataGridTextColumn Header="Created" x:DataType="sessions:SessionSummary" Binding="{Binding CreatedUtc.LocalDateTime, StringFormat='{}{0:g}', Mode=OneWay}" Width="140" />
+          <DataGridTextColumn Header="Last opened" x:DataType="sessions:SessionSummary" Binding="{Binding LastOpenedUtc.LocalDateTime, StringFormat='{}{0:g}', Mode=OneWay}" Width="140" />
+          <DataGridTextColumn Header="Snapshots" x:DataType="sessions:SessionSummary" Binding="{Binding SnapshotCount, Mode=OneWay}" Width="90" CellStyleClasses="number" />
+          <DataGridTextColumn Header="Bytes" x:DataType="sessions:SessionSummary" Binding="{Binding SizeBytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="130" CellStyleClasses="number" />
           <DataGridTemplateColumn Width="150">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate x:DataType="sessions:SessionSummary">

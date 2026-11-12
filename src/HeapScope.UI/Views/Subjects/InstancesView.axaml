@@ -57,12 +57,12 @@
               ctl:GridBehaviors.VisibleColumnGroups="{Binding VisibleColumnGroups}"
               ToolTip.Tip="Double-click or Enter opens an object.">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Address" x:DataType="vm:InstanceRowItem" Binding="{Binding AddressText}" Width="150" SortMemberPath="Address" CellStyleClasses="address" />
-        <DataGridTextColumn Header="Type" x:DataType="vm:InstanceRowItem" Binding="{Binding Type}" Width="*" MinWidth="240" SortMemberPath="Type" />
-        <DataGridTextColumn Header="Bytes" x:DataType="vm:InstanceRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="110" SortMemberPath="Bytes" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Retained" x:DataType="vm:InstanceRowItem" Binding="{Binding Retained, StringFormat='{}{0:N0}'}" Width="120" SortMemberPath="Retained" CellStyleClasses="number" Tag="Retained" IsVisible="False" />
-        <DataGridTextColumn Header="Generation" x:DataType="vm:InstanceRowItem" Binding="{Binding Generation}" Width="120" SortMemberPath="Generation" />
-        <DataGridTextColumn x:DataType="vm:InstanceRowItem" Binding="{Binding Value}" Width="2*" MinWidth="200" SortMemberPath="Value">
+        <DataGridTextColumn Header="Address" x:DataType="vm:InstanceRowItem" Binding="{Binding AddressText, Mode=OneWay}" Width="150" SortMemberPath="Address" CellStyleClasses="address" />
+        <DataGridTextColumn Header="Type" x:DataType="vm:InstanceRowItem" Binding="{Binding Type, Mode=OneWay}" Width="*" MinWidth="240" SortMemberPath="Type" />
+        <DataGridTextColumn Header="Bytes" x:DataType="vm:InstanceRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" SortMemberPath="Bytes" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Retained" x:DataType="vm:InstanceRowItem" Binding="{Binding Retained, StringFormat='{}{0:N0}', Mode=OneWay}" Width="120" SortMemberPath="Retained" CellStyleClasses="number" Tag="Retained" IsVisible="False" />
+        <DataGridTextColumn Header="Generation" x:DataType="vm:InstanceRowItem" Binding="{Binding Generation, Mode=OneWay}" Width="120" SortMemberPath="Generation" />
+        <DataGridTextColumn x:DataType="vm:InstanceRowItem" Binding="{Binding Value, Mode=OneWay}" Width="2*" MinWidth="200" SortMemberPath="Value">
           <DataGridTextColumn.Header>
             <TextBlock Text="Value" ToolTip.Tip="A string's text, shortened, or an array's length. Empty for other objects, and for strings in a gcdump." />
           </DataGridTextColumn.Header>
