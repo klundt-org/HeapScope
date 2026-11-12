@@ -45,7 +45,8 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.9 | Packaging and distribution | Closed | 2026-11-01 | sprint-3.9 |
 | 3.10 | Visual design and README | Closed | 2026-11-05 | sprint-3.10 |
 | 3.11 | Screens that explain themselves | Closed | 2026-11-10 | sprint-3.11 |
-| 3.12 | First-show performance and refactor analysis | Planned | | |
+| 3.12 | First-show performance and refactor analysis | In Progress | | |
+| 3.13 | Tutorial | Planned | | |
 
 ---
 
@@ -86,6 +87,80 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
   cover every way a rebuild can lack the DAC (a symbol server failure, an untrusted DAC after a "no"), set the oldest loader version it accepts,
   free the first read's memory before the second, and say which views are refused without a DAC. Its first version caused most of the
   findings on 3.10's Moderate fixes, so review it as a feature.
+
+**Tasks**:
+
+1. [ ] A Medium dump made fresh from DenseHeap with the installed runtime, by a script in `fixtures/scripts` (git-ignored
+   output). Proof: the script runs twice to the same object count; the dump opens.
+2. [ ] Test machine independence: every test that opens a dump gets a fixed `PhysicalMemory` from one shared helper, so the
+   machine's free memory cannot change an answer. Proof: a mutation that reads the real memory fails a test; a search finds
+   no test opening a dump without the helper.
+3. [ ] A WPR recording of the smoke run (CPU sampling, context switches, ready thread; Windows' own `wpr.exe`, an admin prompt
+   the owner approves) beside the `--smoke-trace` EventPipe trace with JIT events, read by a small TraceEvent tool in
+   `build/` that attributes each first show over 100 ms and each dispatcher lag over 100 ms to JIT, styles and templates,
+   layout, GC, or the UI thread waiting for the CPU. Proof: the tool's unit tests on a recorded trace's numbers; its report
+   in `budgets.md`.
+4. [ ] Fix what the trace supports for cold first shows (for example preloading templates or JIT warm up off the UI thread),
+   each fix measured against the build before it. Proof: smoke runs on the demo dumps and on the Medium dump, before and after.
+5. [ ] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
+   of the rule; a mutation that lowers the ceiling fails the run.
+6. [ ] The dispatcher lag under load (Backlog High, from 0.3) and the worker's Server GC threads: settled from task 3's
+   trace, with a fix if it shows one (job object CPU rate, EcoQoS or GC heap affinity). Proof: the trace; smoke runs under load.
+7. [ ] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
+   numbers in `budgets.md`.
+8. [ ] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
+   fix proposed with its cost; built only with the owner's OK. Proof: the trace and the numbers in `budgets.md`.
+9. [ ] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
+   trusted DAC (gone, symbol server failure, untrusted after a "no") opens the older cache with a note; caches older than the
+   v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
+   with the reason. Proof: worker tests with a stand-in loader for each failure; an integration test in both memory modes;
+   a test per refused view; the log line naming the fallback and why.
+10. [ ] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
+11. [ ] A seam in front of `DumpCapturer`, so the capture gate and a cancel while writing are tested deterministically (one
+    pid refused, two pids together, released on failure and cancel, a cancel while the dump is written). Proof: those tests;
+    `CaptureTests`' cancel test no longer depends on timing.
+12. [ ] M6 from the 3.11 review: a Type or Namespace group row's retained bytes marked as a lower bound in the Retainers tree
+    and its CSV export. Wording approved by the owner in `docs/design/info-text.md` first. Proof: view model and export tests.
+13. [ ] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
+    cost, with `PlatformHints` (3.10 M36). The owner decides; any refactor is built only on the owner's pick. Proof: the document.
+14. [ ] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
+
+**Decisions** (product owner, 2026-11-11):
+
+1. Tracing uses `--smoke-trace` and Windows' own WPR, read with TraceEvent; nothing downloaded.
+2. A ceiling on slow first shows, set from the measured count after the fixes.
+3. A fresh Medium dump from DenseHeap, made locally and kept out of git; the old 20261022 and 20261023 dumps may go.
+4. The refactor analysis is a ranked list from all four reviewers; no refactor without the owner's pick.
+5. The fallback accepts caches from the v3.9.0 loader or later.
+6. From an older cache without a DAC, everything the graph holds works; reads of values from the dump are refused with the reason.
+7. Pulled in: the slower first load (traced; a fix only with the owner's OK), the dispatcher lag under load, the UI cold
+   start, test machine independence, the capturer seam, and M6.
+8. A negative `gc-heap-size` sample is dropped and logged, not clamped.
+9. M7 from the 3.11 review stays in the Backlog.
+
+## Sprint 3.13: Tutorial
+
+**Goal**: a user can start a sample process of HeapScope's own from the app, choose what it does, look at it with every view
+(capture, Live, allocations, Compare, Trend, inspections) and stop it, without a process of their own or elevation.
+
+**Background**: the product owner asked for this on 2026-11-10, after trouble finding a process whose allocations could be
+recorded. The test fixtures already do most of it (LeakyConsole's leaks, detector and waste patterns, its parent watch;
+LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once and then idles, so a trace of it is empty.
+
+**Scope, to settle at /start-sprint**:
+- Ship one sample app in every package, started as the user, never elevated, signed and licensed like the rest. Framework
+  dependent (small, needs the .NET runtime) or self-contained (larger packages): decide with a measured size.
+- The user picks one or more scenarios: the five classic leaks (static cache, event handler, closure, undisposed list,
+  unbounded dictionary), the detector leaks (timer, disposed but referenced, pending async, finalizer backlog), waste and
+  inspection patterns, and steady allocation from known call sites. Scenarios that cannot run together (finalizer backlog
+  and waste) are refused with the reason.
+- A mode that keeps allocating and keeps growing, so Live, an allocation trace, Compare and Trend all show something.
+- Start and stop from the UI (likely the Processes page), the sample's row marked as such; it stops when HeapScope exits or
+  crashes (the parent watch), and never more than a few run at once.
+- Perhaps `heapscope-cli sample start|stop`, so the README can walk through a demo.
+- A "try it" walkthrough in the User Guide, scenario by scenario, saying what each view should show; the known answers of
+  each scenario hold the walkthrough to the truth.
+- How the sample is built and tested apart from the fixtures (shared code, or the fixtures built from it), and an ADR.
 
 **Tasks**: to be filled by /start-sprint.
 
