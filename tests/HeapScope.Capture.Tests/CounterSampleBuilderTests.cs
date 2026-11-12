@@ -49,6 +49,25 @@ public sealed class CounterSampleBuilderTests
         builder.Flush().ShouldBeNull();
     }
 
+    // The 3.11 wrap: the target's runtime reported gc-heap-size -0.77 MB with gen 0 at 1.8 MB. Such a sample is dropped, not
+    // clamped (a clamp charts a dip to zero that never happened), and the log says which value and when (sprint 3.12).
+    [Fact]
+    public void A_sample_with_a_negative_heap_is_dropped_and_logged()
+    {
+        var log = new HeapScope.Application.Tests.RecordingLogger();
+        var builder = new CounterSampleBuilder(log);
+
+        builder.Add("gc-heap-size", -0.77, s_start).ShouldBeNull();
+        builder.Add("gen-0-size", 1_800_000, s_start).ShouldBeNull();
+        builder.Add("gc-heap-size", 12.5, s_start.AddSeconds(1)).ShouldBeNull("the negative interval gives no sample");
+        builder.Flush().ShouldNotBeNull().GcHeapBytes.ShouldBe(12_500_000, "the next interval is kept");
+
+        var (level, line) = log.Entries.ShouldHaveSingleItem();
+        level.ShouldBe(Microsoft.Extensions.Logging.LogLevel.Warning);
+        line.ShouldContain("gc-heap-size -0.77 MB, below zero");
+        line.ShouldContain("gen-0-size 1800000 bytes");
+    }
+
     [Fact]
     public void Gauges_report_their_mean_and_rates_their_increment()
     {

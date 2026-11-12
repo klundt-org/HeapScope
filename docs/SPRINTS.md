@@ -122,7 +122,9 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
    with the reason. Proof: worker tests with a stand-in loader for each failure; an integration test in both memory modes;
    a test per refused view; the log line naming the fallback and why.
-10. [ ] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
+10. [x] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
+    Done: `CounterSampleBuilder` drops it with a warning naming the value, the time and gen 0's size;
+    `CounterSampleBuilderTests.A_sample_with_a_negative_heap_is_dropped_and_logged`, proved by mutation.
 11. [ ] A seam in front of `DumpCapturer`, so the capture gate and a cancel while writing are tested deterministically (one
     pid refused, two pids together, released on failure and cancel, a cancel while the dump is written). Proof: those tests;
     `CaptureTests`' cancel test no longer depends on timing.

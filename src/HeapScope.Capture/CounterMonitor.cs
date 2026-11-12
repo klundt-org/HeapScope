@@ -25,6 +25,8 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using Microsoft.Diagnostics.NETCore.Client;
 using Microsoft.Diagnostics.Tracing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.Capture;
 
@@ -52,9 +54,13 @@ public sealed record CounterSample(
 /// <summary>
 /// Turns the runtime's counter values, which arrive one event per counter per interval, into samples: a counter seen
 /// again starts the next interval, so each sample is complete when the next one begins (testable without a process).
+/// A sample whose GC heap size is negative is dropped and logged: the target's runtime reported one (-0.77 MB, the 3.11
+/// wrap), and a heap below zero would chart a dip that never happened and feed the size rules (sprint 3.12).
 /// </summary>
-public sealed class CounterSampleBuilder
+public sealed class CounterSampleBuilder(ILogger? logger = null)
 {
+    private readonly ILogger _logger = logger ?? NullLogger.Instance;
+
     /// <summary>The runtime publishes gc-heap-size and working-set in decimal megabytes (bytes / 1,000,000).</summary>
     private const double Megabyte = 1_000_000;
 
@@ -91,8 +97,19 @@ public sealed class CounterSampleBuilder
             return null;
         }
 
-        if (!_values.ContainsKey("gc-heap-size"))
+        if (!_values.TryGetValue("gc-heap-size", out var heapMegabytes))
         {
+            _values.Clear();
+            return null;
+        }
+
+        if (heapMegabytes < 0)
+        {
+            _logger.LogWarning(
+                "Dropped the counter sample of {At:O}: the target's runtime reported gc-heap-size {HeapMb} MB, below zero (gen-0-size {Gen0Bytes} bytes)",
+                _at,
+                heapMegabytes,
+                _values.GetValueOrDefault("gen-0-size"));
             _values.Clear();
             return null;
         }
@@ -133,7 +150,7 @@ public static class CounterMonitor
     /// </summary>
     /// <exception cref="TargetUnavailableException">The process is gone or does not answer on its diagnostics port.</exception>
     /// <exception cref="ElevationRequiredException">The process belongs to another user or is elevated.</exception>
-    public static async Task RunAsync(int processId, TimeSpan interval, Action<CounterSample> onSample, CancellationToken cancellationToken)
+    public static async Task RunAsync(int processId, TimeSpan interval, Action<CounterSample> onSample, CancellationToken cancellationToken, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(onSample);
         ArgumentOutOfRangeException.ThrowIfLessThan(interval, TimeSpan.FromSeconds(1));
@@ -158,7 +175,7 @@ public static class CounterMonitor
 
         using (session)
         {
-            var builder = new CounterSampleBuilder();
+            var builder = new CounterSampleBuilder(logger);
             var stopping = 0;
             var reading = Task.Run(
                 () =>
