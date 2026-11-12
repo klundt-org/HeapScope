@@ -33,4 +33,8 @@
     <!-- The one way tests make a SnapshotSession (sprint 3.12). -->
     <Compile Include="..\SharedSession\*.cs" Link="Shared\%(Filename)%(Extension)" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- A dump writer held until the test releases it (sprint 3.12). -->
+    <Compile Include="..\SharedCapture\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

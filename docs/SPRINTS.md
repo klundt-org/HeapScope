@@ -125,9 +125,12 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
 10. [x] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
     Done: `CounterSampleBuilder` drops it with a warning naming the value, the time and gen 0's size;
     `CounterSampleBuilderTests.A_sample_with_a_negative_heap_is_dropped_and_logged`, proved by mutation.
-11. [ ] A seam in front of `DumpCapturer`, so the capture gate and a cancel while writing are tested deterministically (one
+11. [x] A seam in front of `DumpCapturer`, so the capture gate and a cancel while writing are tested deterministically (one
     pid refused, two pids together, released on failure and cancel, a cancel while the dump is written). Proof: those tests;
     `CaptureTests`' cancel test no longer depends on timing.
+    Done: the seam existed (`IDumpWriter`); `tests/SharedCapture/HeldDumpWriter.cs` holds a write until the test releases it.
+    `CaptureGateTests` (four tests, every wait bounded) and the real cancel test hold the runtime's own writer; mutations of
+    the gate and of the delete on cancel each fail a test.
 12. [ ] M6 from the 3.11 review: a Type or Namespace group row's retained bytes marked as a lower bound in the Retainers tree
     and its CSV export. Wording approved by the owner in `docs/design/info-text.md` first. Proof: view model and export tests.
 13. [ ] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
