@@ -27,3 +27,4 @@
   written out, which a rule test keeps out of the worker. The key file lives in HeapScope's data folder
   (`HeapScopeFolders`), which `--data-folder` or `HEAPSCOPE_DATA_FOLDER` moves; a worker with another data folder has
   another key, so it rebuilds caches the first one wrote (`SnapshotTests.A_cache_signed_by_another_users_key_is_rebuilt_and_noted`).
+- Amended in sprint 3.12 (ADR-041): an older cache opened in place of a rebuild is read with the same signature check as any cache; an unsigned or foreign one never opens.

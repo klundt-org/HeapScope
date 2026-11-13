@@ -34,7 +34,11 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 5. For debugging, a worker can be started by hand with `--pipe <name>` and a client attached to it with the
    `Worker:AttachPipeName` option (CLI: `--pipe <name>`); an attached worker is disconnected, not shut down.
 6. Test hooks (`CrashForTestingAsync`, `HangForTestingAsync`) exist only when the worker is started with
-   `--enable-test-hooks` (`Worker:EnableTestHooks`); otherwise they fail with `TestHooksDisabled`.
+   `--enable-test-hooks` (`Worker:EnableTestHooks`); otherwise they fail with `TestHooksDisabled`. With it,
+   `--test-hide-installed-dacs` (sprint 3.12) makes the worker take no DAC from an installed runtime, so a test opens a
+   real dump as on a machine without its runtime. The client passes it only from test code (`WorkerHostOptions` keeps the
+   property internal, out of configuration binding); the worker's start line says it is on, and ignoring it without
+   `--enable-test-hooks` is logged.
 
 ### 4.3 Crash handling
 - The client watches both `Process.Exited` and `JsonRpc.Disconnected`. Either one moves the worker to
@@ -191,6 +195,10 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   error code as before); front ends read it through `SnapshotAvailability` (`IsAvailable`, `WhyUnavailable`), which
   counts an id the worker did not list as unavailable. `ISnapshotService.GetTypeSummaryAsync` is removed:
   `QueryTypeSummaryAsync` with its defaults gives the same rows.
+  Version 22 (sprint 3.12, ADR-041): `SnapshotDescriptor.UntrustedDac` (a `DacTrustDetails`), the untrusted DAC next to the
+  dump when that is why field values and strings are refused, for the app's Trust this DAC and reopen. Same shape, new
+  meaning: `OpenSnapshotRequest.CheckDac` now governs only the trust question; a missing DAC refuses value reads whatever
+  it says, and `ProbeSnapshotAsync` reports a cache an older loader wrote as `Invalid` (it is rebuilt on open).
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

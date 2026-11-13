@@ -74,6 +74,8 @@ jobs:
           cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli.exe
           bash build/fixture-dump.sh "$RUNNER_TEMP/leaky.dmp" "cli=$cli"
           bash build/check-known-answers.sh "$cli" "$RUNNER_TEMP/leaky.dmp"
+          # A missing DAC and the symbol server's download rule on a real dump (sprint 3.12, the review of task 9).
+          HEAPSCOPE_FIXTURE_DUMP="$RUNNER_TEMP/leaky.dmp" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*MissingDacTests"
       - name: Keep the test results and HeapScope's logs
         # Always, so a step that timed out still leaves its results (review).
         if: ${{ always() }}
@@ -154,8 +156,9 @@ jobs:
           dump="$RUNNER_TEMP/leaky.dmp"
           bash build/fixture-dump.sh "$dump" dotnet-dump
           bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$dump"
-          # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19).
-          HEAPSCOPE_FIXTURE_DUMP="$dump" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*PlantedDacTests"
+          # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19), and a missing
+          # DAC with the symbol server's download rule (sprint 3.12).
+          HEAPSCOPE_FIXTURE_DUMP="$dump" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*PlantedDacTests" --filter-class "*MissingDacTests"
           # The Avalonia app opens the core dump headless and drills down as a user would (sprint 2.3.6).
           app=src/HeapScope.UI/bin/Release/net10.0/HeapScope
           "$app" --headless --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/ui-log" || { cat "$RUNNER_TEMP"/ui-log/*.log; exit 1; }

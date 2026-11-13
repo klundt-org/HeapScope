@@ -127,9 +127,15 @@ Rules:
 - Index caches record the version of the loader that built them (`IndexCacheMetadata.LoaderVersion`,
   `ISnapshotLoader.Version`: full dumps 4 since 3.10, gcdumps 1); the worker rebuilds a cache from an older version with
   a note, so a fix in what a loader records reaches snapshots cached before it (review M7). The note says "rebuilt" only when
-  the load wrote its cache, and "not used" otherwise. If that rebuild fails because the dump's DAC is gone or not trusted, the
-  open fails and says what is missing; opening the older cache instead is planned for sprint 3.12 (3.10 review M14). A reopen
-  after a worker restart is refused and asks the user to open the dump again.
+  the load wrote its cache, and "not used" otherwise. If that rebuild fails because the dump's DAC is gone or not trusted,
+  the older cache opens instead when its loader version is at least 3 (v3.9.0's; sprint 3.12, ADR-041): its note names the
+  cause, its process name is read again from the dump, and value reads are refused with the reason. A damaged dump, a
+  cancel, Rebuild and a cache older than version 3 never fall back. A reopen after a worker restart is refused and asks
+  the user to open the dump again (with its own message when the snapshot came from the older cache).
+- A full dump opened from its cache checks its DAC first (sprint 3.6, and since 3.12 a missing one too): one that needs
+  trust is the app's question; otherwise the graph opens without a reader, and field values, strings, interfaces and value
+  filters are refused with one reason (`ValueReadsRefused`, words in `DacRefusals`). `SnapshotDescriptor.UntrustedDac`
+  lets the app offer Trust this DAC and reopen.
 - Type names: the writer joins generic arguments without a space, writes compiler names' `<>` as `[]`, splits arrays
   above 1 KB and 10 KB into nodes named `T[] (Bytes > 10K)`, and drops the declaring types of nested types. The loader
   undoes the first three (`TypeNames.Normalize`); the last cannot be undone. Types without a method table are told apart

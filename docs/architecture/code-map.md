@@ -135,9 +135,12 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   their fields named for up to 1,000 referrers) and `TypeReferrersSource` (a type's referrers by type, sortable), served
   by `HeapQueryHandler` with `DerivedQueries` [2.1]; `ColumnSort` (sort by column name, ties by name, unknown columns
   refused) shared by the row sources [1.9]; `ObjectFormatter` [1.6]; `InspectionAvailability` [1.6].
-  `Snapshots/`: `SnapshotStore` (open, cache, memory mode); `SnapshotKinds` (per kind: the loader and its version, the
-  snapshot over a graph, the kind's notes) [1.9], and whether the kind holds garbage, what an unreached object means
-  and why its objects cannot be matched by address [3.8]; `DerivedData`, per-snapshot derived data on the snapshot's
+  `Snapshots/`: `SnapshotStore` (the open snapshots, their cache and memory mode) and `SnapshotOpener` (one open: the
+  index cache or the dump, the cache write, the memory mode, the older cache in place of a rebuild that cannot reach the
+  DAC, the identity line) [3.12]; `DacRefusals` (the words for a DAC that cannot be used, ADR-041) [3.12];
+  `SnapshotKinds` (per kind: the loader and its version, the oldest version that may open in place of a rebuild, the DAC
+  check and the process name read again [3.12], the snapshot over a graph, the kind's notes) [1.9], and whether the kind
+  holds garbage, what an unreached object means and why its objects cannot be matched by address [3.8]; `DerivedData`, per-snapshot derived data on the snapshot's
   entry, dropped in one step when it closes: each slot is one shared computation with its own lease; a caller that
   cancels only stops waiting, and the computation is canceled when the last waiter leaves before it finishes and nobody
   joins within a 2 s grace period (so a grid's re-query joins it), or when the snapshot closes (`DerivedWaiter`, after

@@ -79,6 +79,12 @@ public sealed class WorkerHostOptions
     /// <summary>Starts the worker with its crash and hang test hooks enabled (tests only).</summary>
     public bool EnableTestHooks { get; set; }
 
+    /// <summary>
+    /// With <see cref="EnableTestHooks"/>: the worker takes no DAC from an installed runtime (tests only, sprint 3.12).
+    /// Internal, so configuration binding never sets it: only test code can (3.12 re-review).
+    /// </summary>
+    internal bool HideInstalledDacsForTests { get; set; }
+
     /// <summary>The lowest level the worker logs; the front ends set their file log's level (sprint 2.3.7).</summary>
     public Microsoft.Extensions.Logging.LogLevel WorkerLogLevel { get; set; } = Microsoft.Extensions.Logging.LogLevel.Information;
 

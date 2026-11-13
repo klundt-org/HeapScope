@@ -44,6 +44,12 @@ public sealed record ClrMdLoaderOptions
     public bool AllowMicrosoftSymbolServer { get; init; }
 
     /// <summary>
+    /// The locator that downloads a DAC when <see cref="AllowMicrosoftSymbolServer"/> is on; null means ClrMD's own, which
+    /// reaches Microsoft's symbol server. Tests pass their own, to tell a failed download from a DAC that fails to load.
+    /// </summary>
+    internal Microsoft.Diagnostics.Runtime.IFileLocator? SymbolServerLocatorForTests { get; init; }
+
+    /// <summary>
     /// Folders holding installed shared runtimes (<c>...\shared\Microsoft.NETCore.App</c>). Null means the machine
     /// defaults (<c>DOTNET_ROOT</c> and Program Files); tests pass their own.
     /// </summary>

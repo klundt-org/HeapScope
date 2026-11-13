@@ -23,11 +23,8 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Globalization;
-using System.Runtime;
 using HeapScope.Contracts;
 using HeapScope.Core;
-using HeapScope.Core.Graph;
 using HeapScope.Core.Loading;
 using HeapScope.Storage;
 using HeapScope.Worker.Rpc;
@@ -81,11 +78,23 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     {
         var path = ExistingFullPath(requestedPath);
         var cachePath = locator.GetCachePath(path);
-        var failure = IndexCacheReader.Probe(cachePath, _signer, SnapshotFingerprint.Compute(path));
+        var fingerprint = SnapshotFingerprint.Compute(path);
+        var failure = IndexCacheReader.Probe(cachePath, _signer, fingerprint);
         var state = failure is null ? SnapshotCacheState.Valid
             : failure.Reason == IndexCacheInvalidReason.Missing ? SnapshotCacheState.Missing
             : SnapshotCacheState.Invalid;
-        return new SnapshotProbe(path, new FileInfo(path).Length, state, cachePath, failure?.Detail, FindOpen(path) is not null);
+        var detail = failure?.Detail;
+
+        // A cache an older loader wrote is rebuilt on open, a full load: the memory warning must see it (3.12 re-review).
+        if (state == SnapshotCacheState.Valid
+            && IndexCacheReader.ReadMetadata(cachePath, _signer, fingerprint, out _) is { } written
+            && written.LoaderVersion < _kinds.For(written.Info.Kind).LoaderVersion)
+        {
+            state = SnapshotCacheState.Invalid;
+            detail = "it was written by an older version of HeapScope, so the dump is read again";
+        }
+
+        return new SnapshotProbe(path, new FileInfo(path).Length, state, cachePath, detail, FindOpen(path) is not null);
     }
 
     public async Task<SnapshotDescriptor> OpenAsync(OpenSnapshotRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
@@ -239,11 +248,18 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
         init => Opener.LoaderForTests = value;
     }
 
-    /// <summary>Tests only: the DAC trust check of a cache open, which a made-up dump cannot reach.</summary>
-    internal Action<string>? DacCheckForTests
+    /// <summary>Tests only: the DAC check of a cache open, which a made-up dump cannot reach.</summary>
+    internal Func<string, Exception?>? DacCheckForTests
     {
         get => Opener.DacCheckForTests;
         init => Opener.DacCheckForTests = value;
+    }
+
+    /// <summary>Tests only: the process name an older cache takes from the dump, which a made-up dump cannot give.</summary>
+    internal Func<string, (string? Name, string Source)?>? ProcessNameForTests
+    {
+        get => Opener.ProcessNameForTests;
+        init => Opener.ProcessNameForTests = value;
     }
 
     private SnapshotOpener Opener => LazyInitializer.EnsureInitialized(ref _opener, () => new SnapshotOpener(locator, _signer, _kinds, logger));

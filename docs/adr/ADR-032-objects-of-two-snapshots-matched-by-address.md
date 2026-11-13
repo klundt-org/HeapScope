@@ -32,3 +32,4 @@
   object never moves, so it survives at its address while reading a younger generation; pinned buffers, which leak hunts
   chase, looked like churn. The generation is no longer tested for an object a pinned handle, an async pinned handle or a
   pinned stack root holds in either snapshot. Test: `ComparisonTests.A_pinned_object_the_GC_demoted_survives_and_an_unpinned_one_does_not`.
+- Amended in sprint 3.12 (ADR-041): a snapshot opened from an older index cache in place of a rebuild takes its process name from the dump again, so the identity rule compares the same names a rebuild would.

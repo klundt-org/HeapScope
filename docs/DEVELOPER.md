@@ -51,7 +51,12 @@ dotnet test --solution HeapScope.sln
 - The DAC trust check on a real dump of any system: `HEAPSCOPE_FIXTURE_DUMP=<dump> dotnet test --project
   tests/HeapScope.Loaders.ClrMd.Tests --filter-class "*PlantedDacTests"` (CI's Linux job runs it, with
   `HEAPSCOPE_REQUIRE_FIXTURE=1` so a skip fails). It plants the DAC next to the dump and removes it after; a folder that
-  already holds a DAC or runtime library is skipped, never overwritten.
+  already holds a DAC or runtime library is skipped, never overwritten. `--filter-class "*MissingDacTests"` (sprint 3.12;
+  CI's Windows and Linux jobs) checks a missing DAC and the symbol server's download rule on a copy of the dump, with a
+  stand-in server. `build/fixture-dump.sh <dump> cli=<heapscope-cli>` makes such a dump locally.
+- A real dump on a machine without its runtime (sprint 3.12): integration tests start a worker with
+  `WorkerHostOptions { EnableTestHooks = true, HideInstalledDacsForTests = true }` (`--test-hide-installed-dacs`), which
+  takes no DAC from an installed runtime (`SnapshotTests`, the older cache fallback).
 - Packages (sprint 3.7): nuget.org only (`nuget.config`); every project has a `packages.lock.json` and CI restores in
   locked mode, so after changing `Directory.Packages.props` or a project's references run `dotnet restore HeapScope.sln
   --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions.
@@ -140,8 +145,8 @@ dotnet test --solution HeapScope.sln
   retained bytes and its immediate dominator. The first retained query of a snapshot computes its dominators (seconds
   on a Medium heap, phases on stderr) and saves them as `<snapshot>.dom.hsidx` next to the index cache; later runs reuse
   them. The address is hex with or without `0x`; no object at it
-  exits 1. A snapshot without field values (a gcdump) prints the object's graph facts and, on stderr, why the fields are
-  missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log.
+  exits 1. A snapshot without field values (a gcdump, or a full dump whose DAC is missing or not trusted: sprint 3.12)
+  prints the object's graph facts and, on stderr, why the fields are missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log.
   `referrers <snapshot> (--address <hex> | --type <name> [--module <file>] [--sort references|objects|targets|bytes|type])
   [--top N | --all] [--format table|csv|json]` (sprint 2.1) lists who references one object (each referrer once, with
   its references to it and, on a full dump, the field that holds it, for objects with up to 1,000 referrers) or the

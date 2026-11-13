@@ -50,19 +50,33 @@ internal sealed partial class FakeWorkerService : ISnapshotService
             return Task.FromException<SnapshotDescriptor>(failure);
         }
 
+        DacTrustDetails? untrusted = null;
         if (RequiredDac is { } dac && !(request.TrustedDacs ?? []).Contains(dac.Sha256))
         {
-            return Task.FromException<SnapshotDescriptor>(new HeapScope.Application.Workers.WorkerOperationException(
-                HeapScopeErrorCode.DacNotTrusted, $"The DAC next to the dump is not trusted (SHA-256 {dac.Sha256}).", null) { DacTrust = dac });
+            // As the worker (sprint 3.12): from a cache, an open that does not ask gets the graph without value reads.
+            if (request.CheckDac || !CachedWithoutDac)
+            {
+                return Task.FromException<SnapshotDescriptor>(new HeapScope.Application.Workers.WorkerOperationException(
+                    HeapScopeErrorCode.DacNotTrusted, $"The DAC next to the dump is not trusted (SHA-256 {dac.Sha256}).", null) { DacTrust = dac });
+            }
+
+            untrusted = dac;
         }
 
         Opened.Add(request);
         var kind = request.Path.EndsWith(".gcdump", StringComparison.OrdinalIgnoreCase) ? SnapshotKindDto.GcDump : SnapshotKindDto.FullDump;
         var features = FeaturesOf(kind);
+        var availability = AvailabilityOf(kind, features);
+        if (untrusted is not null)
+        {
+            const string Refused = "Field values and strings are not read: the DAC (Data Access Component) next to the dump is not trusted.";
+            availability = [.. availability.Select(a => a.Feature is SnapshotFeatureIds.FieldValues or SnapshotFeatureIds.StringValues ? a with { Unavailable = Refused } : a)];
+        }
+
         return Task.FromResult(new SnapshotDescriptor(
             NextSnapshotId ?? Guid.NewGuid(), request.Path, kind, features, "App", 42, "10.0.13", CapturedAt?.Invoke(request.Path),
-            1000, 3000, 10, 5, 48_000, SnapshotMemoryMode.InMemory, false, request.Path + ".hsidx", 1.5, OpenNotes, CacheIdentity,
-            CaptureTimeFromFile?.Invoke(request.Path) ?? false, AvailabilityOf(kind, features)));
+            1000, 3000, 10, 5, 48_000, SnapshotMemoryMode.InMemory, untrusted is not null, request.Path + ".hsidx", 1.5, OpenNotes, CacheIdentity,
+            CaptureTimeFromFile?.Invoke(request.Path) ?? false, availability, untrusted));
     }
 
     /// <summary>The features a snapshot of <paramref name="kind"/> reports, following the fake's flags.</summary>

@@ -49,7 +49,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// 2 since sprint 1.8: truncated dumps lose CompleteGraph and ExactCounts, finalizer registrations are a fact. 3 since
     /// sprint 2.3.5: core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
     /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists.
-    /// Caches written before are rebuilt.
+    /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
+    /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
+    /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
     public const int CurrentVersion = 4;
 
@@ -59,6 +61,21 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// </summary>
     /// <exception cref="UntrustedDacException">The only matching DAC lies next to the dump and is not trusted.</exception>
     public static void CheckDacTrust(string dumpPath, ClrMdLoaderOptions options) => ClrMdDump.CheckDacTrust(dumpPath, options);
+
+    /// <inheritdoc cref="ClrMdDump.CheckDac"/>
+    public static Exception? CheckDac(string dumpPath, ClrMdLoaderOptions options) => ClrMdDump.CheckDac(dumpPath, options);
+
+    /// <summary>
+    /// The process name this loader records for the dump and where it came from (sprint 3.12): an older index cache opened in
+    /// place of a rebuild takes the current name, the one thing loader version 4 reads differently. Reads no DAC.
+    /// </summary>
+    /// <exception cref="SnapshotFormatException">The file is not a readable memory dump.</exception>
+    public static (string? Name, string Source) ReadProcessName(string dumpPath, ClrMdLoaderOptions options)
+    {
+        using var target = ClrMdDump.OpenDataTarget(dumpPath, options);
+        var choice = ProcessName(target);
+        return (choice.Name, choice.Source);
+    }
 
     /// <summary>The ClrMD library's version, for the worker's versions line (sprint 2.3.7).</summary>
     public static string LibraryVersion { get; } =

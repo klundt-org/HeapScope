@@ -130,11 +130,11 @@ Dropped: the Two snapshots and Trend across snapshots row, since their Table 1 i
 
 ## Sprint 3.12 additions
 
-Approved by the owner on 2026-11-12, except the row marked draft.
+Approved by the owner on 2026-11-12 and 2026-11-13, except the rows marked draft.
 
 | Page | Where | Text | Status |
 |---|---|---|---|
-| Settings | Page icon (Table 1) | Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine. | draft, to approve |
+| Settings | Page icon (Table 1) | Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine. | approved 2026-11-13 |
 | Settings | Include filter text in logs (tooltip) | Write the text you type in filters and searches into HeapScope's logs, to help troubleshoot a result. It can hold values from your dumps (account numbers, tokens), so turn it off before you share a log. | approved |
 | Settings | Purge logs (tooltip) | Delete HeapScope's log files. The log being written now is kept until HeapScope closes. | approved |
 | Settings | Purge all (tooltip) | Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched. | approved |
@@ -142,6 +142,14 @@ Approved by the owner on 2026-11-12, except the row marked draft.
 | Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
 | Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
 | Every export of the Retainers tree | CSV column (M6) | "Retained is", with "exact" or "at least" on each row. | approved |
+| Every view that reads values | Refusal, DAC not trusted (task 9) | Field values and strings are not read: the DAC (Data Access Component) next to the dump is not trusted. Trust it to read them (on the command line, add --trust-dac {sha256}). | approved 2026-11-13 |
+| Every view that reads values | Refusal, DAC missing (task 9) | Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET {version} runtime was not found. Install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line), then close the snapshot and open the dump again. | approved 2026-11-13 |
+| Snapshot notes | Older index cache (task 9) | Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: {cause}. The one thing this version reads differently, the process name, was read again from the dump. Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache. | approved 2026-11-13 |
+| Snapshots | Status, opened without the DAC (task 9) | Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why. | approved 2026-11-13 |
+| Snapshots | Status, reopen after a worker restart refused (task 9) | {file} was opened from an older index cache because its DAC could not be used, so it was not reopened automatically after the analysis worker restarted. Open it again. | approved 2026-11-13 |
+| Every view that reads values | Refusal, the DAC of another system or architecture (task 9 re-review) | Field values and strings are not read: the dump's DAC (Data Access Component) cannot be used on this machine. {the loader's own sentence, for example: This dump comes from Linux and HeapScope runs on Windows: open it with HeapScope on Linux.} | draft, to approve |
+| Snapshot tab | Button (task 9) | Trust this DAC and reopen | draft, to approve |
+| Snapshot tab | Button tooltip (task 9) | Asks you to trust the DAC (Data Access Component) that came with this dump, then opens the dump again so field values and strings are read. | draft, to approve |
 
 ## Evidence: the per-setting drafts
 

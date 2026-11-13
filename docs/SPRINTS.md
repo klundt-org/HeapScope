@@ -117,7 +117,7 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    numbers in `budgets.md`.
 8. [ ] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
    fix proposed with its cost; built only with the owner's OK. Proof: the trace and the numbers in `budgets.md`.
-9. [x] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
+9. [ ] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
    trusted DAC (gone, symbol server failure, untrusted after a "no") opens the older cache with a note; caches older than the
    v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
    with the reason. Proof: worker tests with a stand-in loader for each failure; an integration test in both memory modes;
@@ -128,6 +128,29 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    a reopen after a worker restart. Its values are refused through task 16's state, so references, referrers and paths open
    without field names (M37). `CacheRebuildTests` (both reasons in both memory modes, the floor, a damaged dump), each change
    proved by mutation; the warning names both loader versions and the failure.
+   Reopened 2026-11-12 by its feature review (all four reviewers; senior-dev H), done again 2026-11-13 (ADR-041): every full
+   dump opened from a cache checks its DAC first, so a missing DAC refuses value reads from the start too (the review's
+   other H); the refusals, the note and the statuses use the owner's wording, with a next step that works while the snapshot
+   is open, and the full detail in the log; the process name is read again from the dump; a download is resolved before the
+   runtime is created, so a downloaded DAC that fails to load is a damaged dump, not a missing DAC; the DAC check runs before
+   the cache is read (no graph to leak); a cancel is a cancel; a reopen after a restart has its own message; the app offers
+   Trust this DAC and reopen (`SnapshotDescriptor.UntrustedDac`, protocol 22). Proofs: `SnapshotTests` on a real dump with
+   a version 3 cache, in both memory modes, on a worker that sees no installed DAC (`--test-hide-installed-dacs`, test hooks
+   only), and with an untrusted DAC trusted after the open; `RefusedValueReadsTests` (object details, references, referrers,
+   paths, string instances and a value filter, interface grouping); `CacheRebuildTests` (missing and untrusted on a current
+   cache, the older cache failing too, cancel, the restart message, the log lines); `MissingDacTests` on the fixture dump
+   (the open's check, a failed download, a downloaded DAC that cannot load); `SnapshotsViewModelTests` (the button, the
+   status). Mutations of the missing-DAC refusal and of the download rule fail them. Not covered: the command line end to
+   end (its worker cannot hide the installed DAC); the worker path under it is.
+   Re-reviewed 2026-11-13 by all four; their one High (the download looked a build-id DAC up under the host's platform,
+   not the dump's) and their Moderates fixed: the status after a "no" is the approved one; Trust this DAC and reopen asks
+   the memory question first (the probe now reports an older loader's cache as one to rebuild), keeps the memory mode and
+   reopens in place under the same handle; a tripwire test makes a loader version bump reword the note; the cancel test
+   fails when the cancel check is removed (mutation); `MissingDacTests` run in CI on Windows and Linux; the test switch
+   cannot be set from configuration and is logged; the graph cannot leak after the fallback; a failed fallback collects
+   once; an unreadable metadata section is rebuilt without being read; a cache replaced meanwhile is not opened as the
+   older one. Their Lows are in the Backlog. Waiting only for the owner's approval of the button's label and tooltip, and
+   of the refusal for a DAC of another system (`docs/design/info-text.md`, rows marked draft).
 10. [x] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
     Done: `CounterSampleBuilder` drops it with a warning naming the value, the time and gen 0's size;
     `CounterSampleBuilderTests.A_sample_with_a_negative_heap_is_dropped_and_logged`, proved by mutation.
@@ -214,6 +237,10 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
 13. (2026-11-12) The Settings page sits above About; its three texts and the Purge all confirmation are approved.
 14. (2026-11-12) M6 as proposed: the group note, "≥" in a group row's Retained cell, and a "Retained is" column in the CSV.
 15. (2026-11-12) R1 is done before task 9.
+16. (2026-11-13) Task 9's texts as worded in `docs/design/info-text.md` (Sprint 3.12 additions). A DAC next to a dump is
+    still trusted only when the user says so (ADR-035 stands); after a "no" the snapshot offers Trust this DAC and reopen,
+    which asks the same question. No status line of its own for the older cache: the snapshot's note says it.
+17. (2026-11-13) The Settings page's info text is approved.
 
 ## Sprint 3.13: Tutorial
 

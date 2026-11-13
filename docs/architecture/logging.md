@@ -31,6 +31,18 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     memory mode, cache path and identity, writer and loader versions, counts, dropped references and roots, unreadable
     objects, incomplete segments, static roots, the DAC and why it was trusted, and the notes shown. A load from the dump
     also logs its phase times. The client logs its handle with the worker id on open, reopen and a changed-file refusal.
+    Since 3.12 the source says "older index cache (loader version N) in place of a failed rebuild" when that is where the
+    graph came from, and whether the open could ask the DAC question ("DAC question allowed" or "not asked").
+  - The older cache in place of a rebuild (sprint 3.12, ADR-041): why a cache was not used ("loader version N, current M; it
+    opens instead if the rebuild cannot reach the DAC", or "is older than version 3, so it never opens"); a warning when it
+    opens, naming both loader versions, the memory mode and the rebuild's error and message, or when it could not be opened
+    either; and the process name read again from the dump when it differs from the cache's. A snapshot that opens without
+    value reads logs "opens without reading field values or strings" with the DAC error's full message (the folders
+    searched, the untrusted file and its hash), which the short reason on screen leaves out; the identity line then says
+    its DAC was "recorded when the cache was written and not usable now". A process name that cannot be read again is a
+    warning ("could not be read again from the dump ...; the older index cache's is kept"). Trust this DAC and reopen logs
+    the question and the answer like the open's own question, then "closed in the worker, to be opened again in place"
+    and the open under the same handle.
   - Each DAC choice (`DacChoice`): the file, the rule that accepted it (time stamp and size, file version, own build
     id, runtime build id with the installed-folder or version-string pairing), every file looked at with why it was not
     used; a symbol-server download is a warning. Kept in the cache metadata, so a reopen still says it.

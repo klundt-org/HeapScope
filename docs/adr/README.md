@@ -45,3 +45,4 @@ section 13 links here).
 - [ADR-038](ADR-038-skiasharp-native-library-without-the-dng-sdk.md) SkiaSharp's native library without the DNG SDK (added 2026-10-30, outside a sprint)
 - [ADR-039](ADR-039-distribution.md) Distribution (added in sprint 3.9, amends ADR-025)
 - [ADR-040](ADR-040-visual-design.md) Visual design (added in sprint 3.10)
+- [ADR-041](ADR-041-older-index-cache-in-place-of-a-rebuild-without-a-dac.md) An older index cache in place of a rebuild without a DAC (added in sprint 3.12)

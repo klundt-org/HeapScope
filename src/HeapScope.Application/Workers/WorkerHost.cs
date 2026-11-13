@@ -466,6 +466,11 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         if (_options.EnableTestHooks)
         {
             info.ArgumentList.Add("--enable-test-hooks");
+            if (_options.HideInstalledDacsForTests)
+            {
+                _logger.LogWarning("The worker starts with the installed runtimes' DACs hidden (test hook): full dumps open as on a machine without their runtime.");
+                info.ArgumentList.Add("--test-hide-installed-dacs");
+            }
         }
 
         var process = new Process { StartInfo = info, EnableRaisingEvents = true };

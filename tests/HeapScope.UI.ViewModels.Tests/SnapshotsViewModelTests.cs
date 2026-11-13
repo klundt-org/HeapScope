@@ -299,6 +299,116 @@ public sealed class SnapshotsViewModelTests : IDisposable
         new TrustedDacs(_folder).All().ShouldBe([dac.Sha256]);
     }
 
+    // Sprint 3.12 (owner, 2026-11-13): after a "no" the snapshot opens from its cache without value reads, and the page offers
+    // Trust this DAC and reopen, which asks the same question, trusts, closes the snapshot and opens the dump again.
+    [Fact]
+    public async Task A_declined_DAC_can_be_trusted_later_from_the_snapshot_and_the_dump_opens_again()
+    {
+        var trusted = new TrustedDacs(_folder);
+        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('b', 64), "10.0.13");
+        _worker.Service.RequiredDac = dac;
+        _worker.Service.CachedWithoutDac = true;
+        var dump = Dump("received.dmp", 10);
+
+        _interaction.Answer = false;
+        await snapshots.OpenPathAsync(dump);
+        var declined = snapshots.Selected.ShouldNotBeNull();
+        var declinedId = declined.Handle.Descriptor.SnapshotId;
+        snapshots.Status.ShouldBe("Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why.");
+        snapshots.CanTrustDac.ShouldBeTrue();
+        snapshots.TrustDacAndReopenCommand.CanExecute(null).ShouldBeTrue();
+
+        // A second no changes nothing.
+        await snapshots.TrustDacAndReopenCommand.ExecuteAsync(null);
+        _interaction.Questions.Count.ShouldBe(2);
+        trusted.All().ShouldBeEmpty();
+        snapshots.Selected.ShouldBeSameAs(declined);
+        _worker.Service.Closed.ShouldBeEmpty();
+
+        _interaction.Answer = true;
+        await snapshots.TrustDacAndReopenCommand.ExecuteAsync(null);
+
+        _interaction.Questions.Count.ShouldBe(3);
+        _interaction.Questions[2].ShouldContain(dac.Sha256);
+        trusted.Kept().ShouldHaveSingleItem().Reason.ShouldContain("Trust this DAC and reopen");
+        _worker.Service.Closed.ShouldBe([declinedId]);
+
+        // In place (3.12 re-review): the same item and handle, now on the new worker snapshot, in the mode it was opened with.
+        snapshots.Selected.ShouldBeSameAs(declined);
+        snapshots.Snapshots.ShouldHaveSingleItem();
+        declined.Handle.Descriptor.SnapshotId.ShouldNotBe(declinedId);
+        declined.Handle.Descriptor.UntrustedDac.ShouldBeNull();
+        declined.Handle.Descriptor.IsAvailable(SnapshotFeatureIds.FieldValues).ShouldBeTrue();
+        _worker.Service.Opened[^1].TrustedDacs.ShouldBe([dac.Sha256]);
+        snapshots.CanTrustDac.ShouldBeFalse();
+        snapshots.Status.ShouldBeNull();
+    }
+
+    // The 3.12 re-review: a reopen that loads the dump asks about memory first, and a "no" leaves the snapshot as it was.
+    [Fact]
+    public async Task Trust_this_DAC_and_reopen_asks_about_memory_before_it_closes_anything()
+    {
+        var trusted = new TrustedDacs(_folder);
+        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        _worker.Service.RequiredDac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('c', 64), "10.0.13");
+        _worker.Service.CachedWithoutDac = true;
+        var dump = Dump("big.dmp", 1024);
+        await File.WriteAllBytesAsync(dump + ".hsidx", [1], TestContext.Current.CancellationToken);
+        _interaction.Answer = false;
+        await snapshots.OpenPathAsync(dump);
+        var item = snapshots.Selected.ShouldNotBeNull();
+
+        // The worker now reads its cache as one to rebuild (an older loader's), so the reopen is a load.
+        File.Delete(dump + ".hsidx");
+        _memory = new PhysicalMemory(16 * Gb, Gb / 2);
+        _interaction.Answers.Enqueue(true);
+        _interaction.Answers.Enqueue(false);
+
+        await snapshots.TrustDacAndReopenCommand.ExecuteAsync(null);
+
+        _interaction.Titles[^1].ShouldBe("Not enough free memory");
+        _worker.Service.Closed.ShouldBeEmpty();
+        snapshots.Selected.ShouldBeSameAs(item);
+        snapshots.Status.ShouldBe("Open canceled.");
+    }
+
+    [Fact]
+    public async Task Trust_this_DAC_and_reopen_keeps_the_memory_mode_the_snapshot_was_opened_with()
+    {
+        var trusted = new TrustedDacs(_folder);
+        var session = TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted);
+        using var snapshots = new SnapshotsViewModel(session, _operations, new ImmediateUiDispatcher(), _interaction);
+        var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('d', 64), "10.0.13");
+        _worker.Service.RequiredDac = dac;
+        _worker.Service.CachedWithoutDac = true;
+        var dump = Dump("mapped.dmp", 1024);
+        await File.WriteAllBytesAsync(dump + ".hsidx", [1], TestContext.Current.CancellationToken);
+        await session.StartOpen(dump, mode: SnapshotMemoryMode.Mapped, checkDac: false).Result;
+        snapshots.Selected = snapshots.Snapshots.ShouldHaveSingleItem();
+
+        await snapshots.TrustDacAndReopenCommand.ExecuteAsync(null);
+
+        _worker.Service.Opened[^1].Mode.ShouldBe(SnapshotMemoryMode.Mapped);
+        _worker.Service.Opened[^1].TrustedDacs.ShouldBe([dac.Sha256]);
+    }
+
+    // Sprint 3.12 (review of task 9): a full dump whose DAC cannot be used opens without value reads, and the status says so.
+    [Fact]
+    public async Task A_full_dump_opened_without_its_DAC_says_so_in_the_status_and_offers_no_trust()
+    {
+        _worker.Service.Unavailable[SnapshotFeatureIds.FieldValues] = "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.13 runtime was not found.";
+
+        await _snapshots.OpenPathAsync(Dump("moved.dmp", 10));
+
+        _snapshots.Status.ShouldBe("Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why.");
+        _snapshots.CanTrustDac.ShouldBeFalse();
+
+        _worker.Service.Unavailable.Clear();
+        await _snapshots.OpenPathAsync(Dump("fine.dmp", 10));
+        _snapshots.Status.ShouldBeNull();
+    }
+
     [Fact]
     public async Task Shell_shows_the_snapshots_page_when_a_snapshot_opens()
     {

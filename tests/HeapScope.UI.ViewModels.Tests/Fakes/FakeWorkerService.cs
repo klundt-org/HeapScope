@@ -72,6 +72,9 @@ internal sealed partial class FakeWorkerService : IWorkerService
     /// <summary>When set, opens are refused until a request trusts this DAC (sprint 3.6).</summary>
     public DacTrustDetails? RequiredDac { get; set; }
 
+    /// <summary>With <see cref="RequiredDac"/>: the dump has an index cache, so an open that does not ask about the DAC succeeds without value reads.</summary>
+    public bool CachedWithoutDac { get; set; }
+
     /// <summary>Type summary queries received (tests check filter, sort and grouping).</summary>
     public List<TypeSummaryRequest> SummaryQueries { get; } = [];
 

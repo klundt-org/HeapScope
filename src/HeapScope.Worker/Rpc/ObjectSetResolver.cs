@@ -450,7 +450,17 @@ internal sealed class ObjectSetResolver(
         var module = Cell(InspectionColumns.Module);
         snapshot.TryGetService<IObjectReader>(out var reader);
         var reachable = scope == InstanceScope.Reachable ? await derived.GetReachableAsync(snapshotId, cancellationToken).ConfigureAwait(false) : null;
-        var objects = await Task.Run(() => InstancesSource.Select(graph, reader, typeName, module, scope, address, reachable, cancellationToken), cancellationToken).ConfigureAwait(false);
+        int[] objects;
+        try
+        {
+            objects = await Task.Run(() => InstancesSource.Select(graph, reader, typeName, module, scope, address, reachable, cancellationToken), cancellationToken).ConfigureAwait(false);
+        }
+        catch (CapabilityNotSupportedException ex) when (ex.Missing != SnapshotCapabilities.None)
+        {
+            // A row of equal strings needs string text: the snapshot's own reason, as every other refusal (3.12 re-review).
+            throw new CapabilityNotSupportedException(ex.Missing, FeatureRules.ExplainMissing(ex.Missing, snapshot));
+        }
+
         return (Reserved(snapshotId, graph, () => ObjectSet.OfIndices(graph, objects.AsSpan())),
             $"{rerun}rule v{version}; type {typeName} ({(string.IsNullOrEmpty(module) ? "no module" : module)}) in scope {scope}");
     }

@@ -56,7 +56,7 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   keeps TRX results 14 days): `DenseHeapTests` once in CI (2026-11-02, release PR #45; ClrMD's default DAC lookup in
   the test helper failed where HeapScope's loader had just opened the dump; the helper is local-only since 2026-11-03
   and explains any failure); under full local load only, passing alone: `LiveWorkflowTests` (an allocation trace for a
-  run's whole length), `CounterMonitorTests`, `DiffTests` (leak deltas short of the known answers). Three gate runs on sprint
+  run's whole length; again 2026-11-13, 45 ms past its deadline), `CounterMonitorTests`, `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
   3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
   little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
   most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has
@@ -115,6 +115,22 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   on every full-dump cache open measured on Medium, and skipped when the cache's recorded DAC still comes from a trusted
   folder (re-review); an option for the trust file's folder, so front ends started by tests keep it in their own root
   (L30).
+- From the 3.12 re-review of task 9 (Lows, listed): with the symbol server on, a failed download is retried on every
+  read and fails a whole page of string instances (`ClrMdObjectReader.EnsureOpen`, `InstancesSource.Value`: keep the
+  failure until the snapshot reopens, and turn it into the refusal reason); a test of a real download through ClrMD's own
+  locator (the network job), with `VerifyDacOnWindows` on the downloaded path; a cross-system download (a Linux dump's
+  Windows DAC by build id) has no test, since no CI job has a dump of another system; references on a refused snapshot
+  shown as #1, #2 without a note (`ReferencesSource`); the baseline refusal's "Choose a full dump" suffix on a full dump
+  whose values are refused (`InspectionRunner`); the reopen-after-restart message chosen whenever an older cache exists,
+  not only when the snapshot came from it; the "user answered" lines outside a job activity; the opener's test hooks by
+  constructor, `IndexState` in its own file, and the ClrMD exception types out of the kind-neutral opener (for a second
+  kind that loads native code); opener tests per cache refusal reason for an older cache (foreign key, damaged section);
+  a trusted DAC beside the dump that fails to load leaves the dump unopenable until it is untrusted, and the app has no
+  way to untrust a DAC; the command line end to end on a refused snapshot; a query on the snapshot while Trust this DAC and
+  reopen runs starts a reopen of its own beside the new open, which can leave a worker snapshot unclosed, or close the one
+  just rebuilt with a wrong "index cache was rebuilt" error (a swap inside the
+  session: open, update the handle, then close the old one); a user cancel during a symbol server download on a first
+  open reported as a missing DAC (ClrMD's locator takes no token).
 - From the 3.7 review (decided autonomously): a cache next to the dump that is untrusted or cannot be replaced written to
   and read from the user's cache folder instead (M4); checks behind the checksums on cache open (monotonic edge starts,
   index ranges, sorted addresses, sidecars; M9); gcdump counts checked against the bytes left with each COM record's

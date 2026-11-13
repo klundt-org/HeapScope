@@ -91,12 +91,18 @@ internal abstract class SnapshotKindHandler
     public abstract Func<string, string>? NamesWhenComparedWith(SnapshotKind other);
 
     /// <summary>
-    /// Refuses a snapshot opened from its index cache whose later reads would need native code nobody trusted (sprint 3.6
-    /// review H1: the full dump's DAC next to the dump); nothing for kinds that load no native code.
+    /// Why a snapshot opened from its index cache could not read field values later (sprint 3.6 review H1, sprint 3.12): the
+    /// full dump's DAC lies untrusted next to the dump (<see cref="UntrustedDacException"/>) or is missing
+    /// (<see cref="RuntimeComponentMissingException"/>). Null when the reads can go ahead, and for kinds that load no native code.
     /// </summary>
-    public virtual void CheckBeforeCacheOpen(string path)
-    {
-    }
+    public virtual Exception? CheckDac(string path) => null;
+
+    /// <summary>
+    /// The process name the current loader reads from <paramref name="path"/> and its rule, or null for a kind whose name never
+    /// changed between loader versions (sprint 3.12: an older full dump cache opened in place of a rebuild).
+    /// </summary>
+    /// <exception cref="SnapshotFormatException">The file cannot be read for it.</exception>
+    public virtual (string? Name, string Source)? ReadProcessName(string path) => null;
 }
 
 /// <summary>The handlers of every kind, chosen by kind or by a file's first bytes.</summary>
@@ -152,7 +158,9 @@ internal sealed class SnapshotKinds
 
         public override ISnapshotLoader CreateLoader() => new ClrMdDumpLoader(LoaderOptions());
 
-        public override void CheckBeforeCacheOpen(string path) => ClrMdDumpLoader.CheckDacTrust(path, LoaderOptions());
+        public override Exception? CheckDac(string path) => ClrMdDumpLoader.CheckDac(path, LoaderOptions());
+
+        public override (string? Name, string Source)? ReadProcessName(string path) => ClrMdDumpLoader.ReadProcessName(path, LoaderOptions());
 
         // Field values and strings are read from the dump on demand (sprint 1.5); the reader opens the dump only when
         // something is inspected, after checking it is still the file the graph was built from.
@@ -194,6 +202,11 @@ internal sealed class SnapshotKinds
             DacChosen = dacChosen,
             IsTrustedDac = trustedDacs.ContainsKey,
             TrustedDacCopyFolder = options.Folders.DacCopies,
+
+            // A machine without the dump's runtime, for tests (WorkerOptions.HideInstalledDacsSwitch).
+            InstalledRuntimeRoots = options.HideInstalledDacs ? [] : null,
+            SearchDumpedRuntimeDirectory = !options.HideInstalledDacs,
+            OwnRuntimeDirectory = options.HideInstalledDacs ? null : new ClrMdLoaderOptions().OwnRuntimeDirectory,
         };
     }
 

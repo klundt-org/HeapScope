@@ -169,17 +169,34 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// rebuild) whose estimated peak exceeds the memory available now (ARCHITECTURE.md 10). The worker checks the cache
     /// where it really is (next to the dump or in the fallback folder), so UI and CLI share one rule.
     /// </summary>
-    public async Task<string?> GetOpenWarningAsync(string path, bool rebuild, CancellationToken cancellationToken)
+    /// <param name="reopening">The dump is open and about to be opened again in place (sprint 3.12, Trust this DAC and reopen):
+    /// being open does not spare the warning then.</param>
+    public async Task<string?> GetOpenWarningAsync(string path, bool rebuild, CancellationToken cancellationToken, bool reopening = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         var fullPath = System.IO.Path.GetFullPath(path);
         var probe = await worker.InvokeAsync((service, ct) => service.ProbeSnapshotAsync(fullPath, ct), cancellationToken).ConfigureAwait(false);
-        if (probe.IsOpen || (probe.CacheState == SnapshotCacheState.Valid && !rebuild))
+        if ((probe.IsOpen && !reopening) || (probe.CacheState == SnapshotCacheState.Valid && !rebuild))
         {
             return null;
         }
 
         return SnapshotMemoryEstimate.Warn(probe.FileBytes, _memory());
+    }
+
+    /// <summary>
+    /// Closes the handle's snapshot in the worker but keeps the handle (sprint 3.12, Trust this DAC and reopen): the next open
+    /// of its path updates it in place, so what refers to it (Compare's pair, Trend's ticks, the selection) stays. Until then
+    /// a call on it reopens it from its index cache, as after a worker restart.
+    /// </summary>
+    public async Task CloseInWorkerAsync(SnapshotHandle handle, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        _logger.LogInformation("Snapshot {Path} (worker snapshot {WorkerSnapshotId}) closed in the worker, to be opened again in place", handle.Path, handle.WorkerSnapshotId);
+        if (handle.Generation == worker.Generation && worker.State == WorkerState.Running)
+        {
+            await worker.InvokeAsync((service, ct) => service.CloseSnapshotAsync(handle.WorkerSnapshotId, ct), cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Closes a snapshot in the worker (when it is still there) and forgets the handle.</summary>

@@ -292,19 +292,14 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
                         return;
                     }
 
+                    // The approved status, with Trust this DAC and reopen beside it (sprint 3.12 re-review).
                     ShowOpened(handle, before);
-                    Status = "Opened from its index cache without the DAC: field values and strings are not shown. To trust the DAC, close the snapshot and open it again.";
+                    Status = OpenedStatus(handle);
                     return;
                 }
 
-                try
+                if (!await TrustAsync(trusted, dac, $"trusted by the user when opening {path}", "Not opened"))
                 {
-                    await Task.Run(() => trusted.Trust(dac.Sha256, dac.Path, $"trusted by the user when opening {path}"));
-                }
-                catch (Exception trustFailed) when (trustFailed is IOException or UnauthorizedAccessException)
-                {
-                    _logger?.LogWarning(trustFailed, "The trust in DAC {Sha256} could not be saved to {File}", dac.Sha256, trusted.Path);
-                    Status = $"Not opened: your trust in the DAC could not be saved to {trusted.Path} ({trustFailed.Message}). Close other HeapScope windows and try again.";
                     return;
                 }
 
@@ -312,7 +307,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
             }
 
             ShowOpened(handle, before);
-            Status = null;
+            Status = OpenedStatus(handle);
         }
         catch (OperationCanceledException)
         {
@@ -356,6 +351,101 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         }
 
         Selected = item;
+    }
+
+    /// <summary>
+    /// The status after an open: a full dump whose DAC cannot be used opens without field values and strings (sprint 3.12:
+    /// missing, declined, or an older cache in place of a rebuild); the notes say why, and an untrusted DAC offers Trust this
+    /// DAC and reopen. Null otherwise.
+    /// </summary>
+    private static string? OpenedStatus(SnapshotHandle handle) =>
+        handle.Descriptor.Kind == SnapshotKindDto.FullDump && !handle.Descriptor.IsAvailable(SnapshotFeatureIds.FieldValues)
+            ? "Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why."
+            : null;
+
+    /// <summary>Whether the selected snapshot reads no field values because its DAC is not trusted, which the user can change.</summary>
+    public bool CanTrustDac => Selected?.Handle.Descriptor.UntrustedDac is not null && _session.TrustedDacs is not null && !IsOpening;
+
+    /// <summary>
+    /// Trusts the DAC that came with the selected dump and opens the dump again (sprint 3.12, owner 2026-11-13): after a "no",
+    /// or an open that never asked (an older index cache in place of a rebuild), the way to field values without closing and
+    /// opening it by hand. It asks the open's own question first, so the risk is said the same way every time, and the memory
+    /// question of a load before anything is closed. The snapshot opens again in place (its handle stays), so Compare's pair,
+    /// Trend's ticks and the selection keep it (3.12 re-review).
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanTrustDac))]
+    private async Task TrustDacAndReopenAsync()
+    {
+        if (Selected is not { Handle.Descriptor.UntrustedDac: { } dac } item || _session.TrustedDacs is not { } trusted)
+        {
+            return;
+        }
+
+        var path = item.Handle.Path;
+        var before = item.Handle.Descriptor.SnapshotId;
+        var yes = await _interaction.ConfirmAsync("Trust the DAC next to this dump?", TrustQuestion(dac));
+        _logger?.LogInformation("Asked to trust the DAC {Sha256} at {DacPath} for {Path} from Trust this DAC and reopen; the user answered {Answer}", dac.Sha256, dac.Path, path, yes ? "yes" : "no");
+        if (!yes || !await TrustAsync(trusted, dac, $"trusted by the user for {path} (Trust this DAC and reopen)", "Not reopened"))
+        {
+            return;
+        }
+
+        IsOpening = true;
+        Status = $"Opening {System.IO.Path.GetFileName(path)}...";
+        try
+        {
+            // An older index cache is rebuilt now, which is a load: its memory question comes before anything is closed.
+            if (await _session.GetOpenWarningAsync(path, rebuild: false, CancellationToken.None, reopening: true) is { } warning
+                && !await _interaction.ConfirmAsync("Not enough free memory", warning + "\n\nOpen the dump anyway?"))
+            {
+                Status = "Open canceled.";
+                return;
+            }
+
+            await _session.CloseInWorkerAsync(item.Handle, CancellationToken.None);
+            var handle = await _session.StartOpen(path, mode: item.Handle.RequestedMode).Result;
+            ShowOpened(handle, before);
+            Status = OpenedStatus(handle);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Open canceled.";
+        }
+        catch (Exception ex) when (ex is WorkerException)
+        {
+            Status = ex.Message;
+        }
+        finally
+        {
+            IsOpening = false;
+        }
+    }
+
+    /// <summary>
+    /// Saves the user's trust in <paramref name="dac"/>; false, with the status saying why (after <paramref name="outcome"/>,
+    /// "Not opened" or "Not reopened"), when it cannot be saved.
+    /// </summary>
+    private async Task<bool> TrustAsync(TrustedDacs trusted, DacTrustDetails dac, string why, string outcome)
+    {
+        try
+        {
+            await Task.Run(() => trusted.Trust(dac.Sha256, dac.Path, why));
+            return true;
+        }
+        catch (Exception trustFailed) when (trustFailed is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(trustFailed, "The trust in DAC {Sha256} could not be saved to {File}", dac.Sha256, trusted.Path);
+            Status = $"{outcome}: your trust in the DAC could not be saved to {trusted.Path} ({trustFailed.Message}). Close other HeapScope windows and try again.";
+            return false;
+        }
+    }
+
+    partial void OnIsOpeningChanged(bool value) => RaiseCanTrustDac();
+
+    private void RaiseCanTrustDac()
+    {
+        OnPropertyChanged(nameof(CanTrustDac));
+        TrustDacAndReopenCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>The question asked before a DAC that came with a dump is loaded (sprint 3.6).</summary>
@@ -457,6 +547,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
 
     partial void OnSelectedChanged(SnapshotItemViewModel? value)
     {
+        RaiseCanTrustDac();
+
         // Each snapshot keeps its analysis path while it is open (sprint 2.7).
         Navigator.Show(value?.Handle);
         Types.Show(value?.Handle);
@@ -514,6 +606,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
             }
         }
 
+        // A reopen after a worker restart can change what the selected snapshot offers (3.12 re-review).
+        RaiseCanTrustDac();
         if (Selected is not null && !Snapshots.Contains(Selected))
         {
             Selected = Snapshots.FirstOrDefault();

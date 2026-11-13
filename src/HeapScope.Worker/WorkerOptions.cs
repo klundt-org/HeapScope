@@ -36,6 +36,15 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// <summary>Flag (no value) that enables the crash and hang test hooks.</summary>
     public const string EnableTestHooksSwitch = "--enable-test-hooks";
 
+    /// <summary>
+    /// Tests only, and only with <see cref="EnableTestHooksSwitch"/>: no DAC is taken from an installed runtime, so a real dump
+    /// can be opened as on a machine without its runtime (sprint 3.12: the older cache fallback, end to end).
+    /// </summary>
+    public const string HideInstalledDacsSwitch = "--test-hide-installed-dacs";
+
+    /// <summary>Whether <see cref="HideInstalledDacsSwitch"/> is on (tests only).</summary>
+    public bool HideInstalledDacs { get; init; }
+
     /// <summary>Configuration section of the DAC lookup options (ADR-017).</summary>
     public const string SymbolsSectionName = "Symbols";
 

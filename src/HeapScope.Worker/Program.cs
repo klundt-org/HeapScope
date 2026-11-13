@@ -33,9 +33,10 @@ using Microsoft.Extensions.Logging.Console;
 
 const int UsageError = 2;
 
-// The test hook switch takes no value, so it is removed before the key/value command line provider sees it.
+// The test hook switches take no value, so they are removed before the key/value command line provider sees them.
 var enableTestHooks = args.Contains(WorkerOptions.EnableTestHooksSwitch, StringComparer.Ordinal);
-var configArgs = args.Where(a => !string.Equals(a, WorkerOptions.EnableTestHooksSwitch, StringComparison.Ordinal)).ToArray();
+var hideInstalledDacs = enableTestHooks && args.Contains(WorkerOptions.HideInstalledDacsSwitch, StringComparer.Ordinal);
+var configArgs = args.Where(a => a is not (WorkerOptions.EnableTestHooksSwitch or WorkerOptions.HideInstalledDacsSwitch)).ToArray();
 
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 {
@@ -47,6 +48,10 @@ builder.Configuration.AddCommandLine(configArgs, WorkerOptions.CreateSwitchMappi
 // so a privacy-relevant switch (symbol server downloads, ADR-017) cannot be turned on behind its back.
 var commandLine = new ConfigurationBuilder().AddCommandLine(configArgs, WorkerOptions.CreateSwitchMappings()).Build();
 var optionsValid = WorkerOptions.TryRead(commandLine, enableTestHooks, out var options, out var optionsError);
+if (options is not null && hideInstalledDacs)
+{
+    options = options with { HideInstalledDacs = true };
+}
 
 // The worker logs single-line records to stderr only; the client forwards each line into its own log
 // (ARCHITECTURE.md 4.3 and 11). Scopes carry the client's trace id, which StreamJsonRpc sends with each request, so a
@@ -112,7 +117,7 @@ if (!optionsValid || options is null)
 // self-contained worker's own DAC depend on them (sprint 2.3.7 review H4).
 var gc = GC.GetConfigurationVariables();
 logger.LogInformation(
-    "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); log level {LogLevel}; test hooks {TestHooks}",
+    "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); log level {LogLevel}; test hooks {TestHooks}{HiddenDacs}",
     ProductInfo.Name,
     ProductInfo.InformationalVersion,
     Environment.ProcessId,
@@ -128,7 +133,12 @@ logger.LogInformation(
     options.Folders.Root,
     options.Folders.Source,
     options.LogLevel,
-    options.EnableTestHooks);
+    options.EnableTestHooks,
+    options.HideInstalledDacs ? "; installed runtimes' DACs hidden (test hook): every full dump opens as on a machine without its runtime" : string.Empty);
+if (!enableTestHooks && args.Contains(WorkerOptions.HideInstalledDacsSwitch, StringComparer.Ordinal))
+{
+    logger.LogWarning("{Switch} was ignored: it is honored only with {TestHooks}", WorkerOptions.HideInstalledDacsSwitch, WorkerOptions.EnableTestHooksSwitch);
+}
 
 // The versions of every rule and format a result depends on (sprint 2.3.7 review M5): a result disputed after an
 // upgrade is traced to the rules that produced it.

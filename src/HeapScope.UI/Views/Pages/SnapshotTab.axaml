@@ -61,6 +61,9 @@
           </ItemsControl>
         </Border>
       </StackPanel>
+      <Button DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="0,0,0,8" Content="Trust this DAC and reopen"
+              IsVisible="{Binding CanTrustDac}" Command="{Binding TrustDacAndReopenCommand}"
+              ToolTip.Tip="Asks you to trust the DAC (Data Access Component) that came with this dump, then opens the dump again so field values and strings are read." />
 
       <!-- Subjects (sprint 1.5): the types grid, a type's objects, one object, a type's referrers (2.1) and paths (2.2); back and forward. -->
       <DockPanel DataContext="{Binding Navigator}" x:DataType="vm:NavigatorViewModel">
