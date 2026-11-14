@@ -45,6 +45,39 @@ public sealed class SmokeGateTests
         bound.MaxBound.ShouldBe(130, "from the previous probe's run: an upper bound of the 120-tick operation");
     }
 
+    // Sprint 3.12 (R3): one runner keeps every phase's measures; the checked maxima are the warm phases', and the slow
+    // operations of every phase, cold first shows too, are what task 5's ceiling counts.
+    [Fact]
+    public void The_phases_keep_each_measure_and_check_only_the_warm_ones()
+    {
+        var reading = (Lag: TimeSpan.Zero, Operation: TimeSpan.Zero, Slow: 0);
+        var resets = 0;
+        var phases = new SmokePhases(() => reading, () => resets++);
+
+        phases.Begin();
+        reading = (TimeSpan.FromMilliseconds(400), TimeSpan.FromMilliseconds(380), 3);
+        var cold = phases.End("first show", cold: true);
+        phases.Begin();
+        reading = (TimeSpan.FromMilliseconds(90), TimeSpan.FromMilliseconds(60), 0);
+        phases.End("warm", cold: false);
+        phases.Begin();
+        reading = (TimeSpan.FromMilliseconds(150), TimeSpan.FromMilliseconds(40), 1);
+        phases.End("warm again", cold: false);
+
+        resets.ShouldBe(3);
+        cold.Measured.ShouldBe("maximum dispatcher lag 400 ms, longest dispatcher operation at most 380 ms", "the words every smoke line has used");
+        phases.Checked.ShouldBe((TimeSpan.FromMilliseconds(150), TimeSpan.FromMilliseconds(60)));
+        phases.SlowOperations.ShouldBe(4);
+        phases.All.Select(p => p.Name).ShouldBe(["first show", "warm", "warm again"]);
+    }
+
+    [Fact]
+    public void A_failing_phase_names_each_check_that_failed()
+    {
+        SmokePhases.Failed(("first object read", true), ("type's referrers", false), ("retained column", false)).ShouldBe("type's referrers, retained column");
+        SmokePhases.Failed(("first object read", true)).ShouldBeNull();
+    }
+
     [Fact]
     public void A_reset_forgets_probes_posted_before_it()
     {

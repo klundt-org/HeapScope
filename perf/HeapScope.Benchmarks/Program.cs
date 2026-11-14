@@ -33,6 +33,7 @@ var benchmarks = new Dictionary<string, Func<BenchmarkArgs, int>>(StringComparer
     ["load-dump"] = LoadDumpBenchmark.Run,
     ["trace-report"] = TraceReport.Run,
     ["ui-stalls"] = UiStallReport.Run,
+    ["cpu-profile"] = CpuProfileReport.Run,
     ["phase2-indices"] = Phase2IndexBenchmark.Run,
     ["reverse-index"] = ReverseIndexBenchmark.Run,
     ["retention"] = RetentionBenchmark.Run,

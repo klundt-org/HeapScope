@@ -189,8 +189,12 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     `InspectionAvailability` goes through `FeatureRules`. An open without the DAC question (the user's "no", the CLI) checks the
     DAC once and refuses from the start; the reason keeps the CLI's `--trust-dac` and the app's question.
     `InspectionAvailabilityTests` and `CacheRebuildTests`, proved by mutation.
-17. [ ] R3, before task 5: one smoke phase runner for the watchdog bookkeeping and the first-show log lines; "Smoke open types"
+17. [x] R3, before task 5: one smoke phase runner for the watchdog bookkeeping and the first-show log lines; "Smoke open types"
     unchanged (CI parses it). Proof: smoke runs, a test that a failing phase names its check.
+    Done: `SmokePhases` and `SmokePhase` keep each phase's lag, longest operation and slow operations (the watchdog now
+    counts operations over the budget since its reset); the checked maxima are the warm phases', every log line takes its
+    words from one place and reads as before (a smoke run on the demo dumps, 2026-11-13). `SmokeGateTests`: the phases keep
+    each measure and check only the warm ones; a failing phase names each check that failed.
 18. [ ] R4, with task 8: the loader's hot loop (segments in address order, pointer-free types skipped in the reference pass,
     the finalizable check by binary search, `Size` read once). Proof: the graph's columns hash the same before and after on the
     fixtures and the Medium dump; known answers; load phase times.
