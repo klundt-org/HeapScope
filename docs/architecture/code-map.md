@@ -7,7 +7,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
 - **Core.** `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
   `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
-  (what the logs may hold, followed within a second by every process) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
+  (what the logs may hold, followed within a second by every process) [3.12]; `RequestRefusedException` (a request the worker
+  refuses for a reason the user can act on; any other exception at its boundary is a bug) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
   string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
@@ -265,14 +266,15 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   and `UiHost` (DI, `UiOptions`). `Views/`: `MainWindow` (the shell, the attribution strip as `AttributionText`,
   ADR-022; back and forward by mouse buttons and Alt+arrows) and `Pages/`, one user control per page and per Snapshots
   tab, compiled bindings throughout; `LazyContentControl` builds a page when first shown and keeps it (switching pages
-  is a visibility change) [1.5]; `MessageWindow` (Avalonia has no message box). `Controls/`: `GridBehaviors` (rows
+  is a visibility change) [1.5], or before, unseen (`Prebuild`) [3.12]; `MessageWindow` (Avalonia has no message box). `Controls/`: `GridBehaviors` (rows
   through `VirtualCollectionView`, header clicks sent to the view model's sort command with the arrow from its
   `SortState`, open by double-click or Enter, column groups shown from the view model, columns from a result set's
   list), `VirtualCollectionView<TRow>` (the pass-through `IDataGridCollectionView`: the grid reads rows by index and
   never copies or walks the list; whole-list walks are counted in `VirtualCollectionViews.Enumerations`, which the UI
   tests keep at zero), `HighlightedText`, `ProportionalPanel` (the heap kinds bar), `TimelineChart`, converters.
   `Services/`: `AvaloniaUiDispatcher`, `AvaloniaUserInteraction` (the system file picker), `DispatcherWatchdog`,
-  `ThemeChooser`, `AppFonts`, `NativeMethods` (Windows only). `Themes/`: `Light.axaml` and `Dark.axaml` (theme dictionaries with
+  `ViewPrewarmer` (after the first window, at idle, builds the Snapshots page in place and the other heavy views alone, with
+  "Getting pages ready" in the status bar; `Ui:Prewarm=false` turns it off) [3.12], `ThemeChooser`, `AppFonts`, `NativeMethods` (Windows only). `Themes/`: `Light.axaml` and `Dark.axaml` (theme dictionaries with
   the same keys), `Styles.axaml` and `Icons.axaml` (ADR-040). `Controls/` since 3.10: `DuotoneIcon`, `ButtonIcon`, `EmptyState`,
   `ThemeBrush` (a background named by a data row, which follows the theme), `NumberHeaders`, `SignConverters`. In
   `UI.ViewModels`, `PlatformHints` holds the next steps that depend on whether this system can capture. Sprint 3.11:
@@ -282,7 +284,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   controls. `IcicleGeometry` (UI.ViewModels) makes two or more neighbors under one parent, each narrower than 6 pixels
   (`GroupBelow`), one "+N smaller" bar, in one linear walk per level.
   `Assets/heapscope.ico`: the app's icon, from `build/make-icon.cs`. `Smoke/SmokeRunner`: the unattended smoke runs [1.9,
-  2.3.6]; `Smoke/ScreenshotRunner`: every page as PNG files [3.10]. Sprint 2.4: the Snapshot tab's subjects are views of their own (`Views/Subjects/`), the
+  2.3.6], with `SmokePhases` (each phase's lag, longest operation and slow operations, one place) and `SmokeVerdict` [3.12]; `Smoke/ScreenshotRunner`: every page as PNG files [3.10]. Sprint 2.4: the Snapshot tab's subjects are views of their own (`Views/Subjects/`), the
   Retainers tab (`RetainersTab`), `Controls/IcicleChart` (drawn in one pass, geometry from the view models),
   `Controls/NoteText` (a status or note line that takes no space when empty), and `GridBehaviors`' `VisibleColumnGroups`,
   `ExpandCommand`, `CollapseCommand` and `ScrollToSelection`. Sprint 2.7: `Controls/GridExports` (every grid's

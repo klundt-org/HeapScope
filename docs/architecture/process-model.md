@@ -7,6 +7,8 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 
 ### 4.1 Processes
 - **UI process** (Avalonia; AnyCPU, so 64-bit on x64 and arm64): shell, view models, Application services, capture.
+  Workstation GC with a 64 MB gen 0 budget (`System.GC.Gen0Size`, sprint 3.12, task 6: its own gen 0 and gen 1 collections
+  were a quarter of the UI's lag under load; budgets.md).
 - **CLI process** (AnyCPU, 64-bit): same Application services, console output.
 - **Worker process** (64-bit, the machine's architecture; `HeapScope.Worker`, or `dotnet` running
   `HeapScope.Worker.dll` in the CLI's dotnet tool): one per UI or CLI instance. Holds every loaded snapshot
@@ -62,7 +64,10 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   `SnapshotChanged`, and since 3.6 `DacNotTrusted` with its error data) and logs every outcome once with the operation and the request (section 11): an answer with what
   was answered, an expected refusal (capability, invalid argument, changed file, unknown snapshot or result set, missing
   or untrusted DAC, memory) at Information without a stack, other coded failures as warnings with their stack, unexpected ones as
-  errors; errors the worker creates as codes are logged too (sprint 2.3.7). The client's message stays plain and the
+  errors; errors the worker creates as codes are logged too (sprint 2.3.7). Since 3.12 (B5) only a
+  `RequestRefusedException` (Core; the worker's own request checks) is `InvalidArgument`: any other exception, an
+  `ArgumentException` from a bug included, is unexpected, logged as an error with its stack and an id (the trace id), and
+  the user sees a fixed message with that id, never the exception's own text. The client's message stays plain and the
   log keeps the details. The front ends catch `WorkerException`, the base of the three worker exception types. The UI
   adds last-chance handlers (dispatcher, app domain, unobserved tasks) that log and show a plain message; the
   CLI command boundary prints a plain message and logs the stack trace.

@@ -199,7 +199,11 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
     cost, with `PlatformHints` (3.10 M36). The owner decides; any refactor is built only on the owner's pick. Proof: the document.
     Done: [design/refactor-analysis.md](design/refactor-analysis.md), 2026-11-11: eight bugs (B1 to B8), five candidates tied to this
     sprint's tasks, fourteen ranked for before Phase 4, and those that wait for a Phase 4 pick. Waiting for the owner's picks.
-14. [ ] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
+14. [x] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
+   Done 2026-11-14: budgets.md holds tasks 3 to 8; ADR-006 and ADR-036 were amended with task 9 (ADR-041); DEVELOPER.md has
+   `ui-stalls`, `cpu-profile`, the load benchmark's graph hashes and the prewarm switch for A/B smoke runs; process-model,
+   logging and code-map describe B5's refusals, the UI's gen 0 budget and the prewarm; the Backlog's items this sprint
+   settled are under "Built since listed".
 
 From the refactor analysis (owner, 2026-11-12: every bug and every candidate tied to this sprint's tasks):
 

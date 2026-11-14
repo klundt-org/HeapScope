@@ -10,6 +10,16 @@ Outside a sprint:
 - SkiaSharp's native library without Adobe's DNG SDK and Google's piex (High, from the 3.8 owner actions): built
   2026-10-30 (ADR-038; `skia-native.yml`, `build/skia-native.sh`, `build/check-no-dng.sh`).
 
+Swept in sprint 3.12:
+- The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and
+  6). No stall waited for a processor; the UI's own gen 0 and gen 1 collections were a quarter of the lag under load (a 64 MB
+  gen 0 budget halved them) and styles and templates most of the rest (prewarmed, task 4). The smoke gate's lag check stays at
+  twice the 100 ms budget, as OS scheduling noise remains in it.
+- The slower first load (from 3.10): traced and fixed (tasks 8 and R4; Medium from about 21 s to 13 s).
+- UI cold start on Avalonia (from 0.3): measured (task 7); template preloading built (task 4).
+- A seam in front of `DumpCapturer` (3.4 M13): task 11.
+- A negative `gc-heap-size` sample: dropped and logged (task 10).
+
 Swept in sprint 3.8:
 - Trend analysis across more than two snapshots: built in 3.3 (`trend`, the Trend view).
 - One capture per target at a time: built in 3.4.
@@ -54,11 +64,6 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   contributions are not accepted, and no outside pull request is merged: code, tests or docs. The agreement's terms
   (product owner, 2026-10-30): contributors are 18 or older; each contribution's ownership (copyright) passes to the
   owner; contributors are credited.
-- Intermittent 105 to 130 ms dispatcher lag at job completion under heavy machine load (from 0.3): find the
-  cause (likely CPU contention with the worker) and bring the smoke gate back to 100 ms. Capture a WPR or PerfView
-  trace (CPU sampling, context switches, ready thread) of the smoke run and log the UI thread's CPU time per lag.
-- Worker Server GC threads run at normal priority despite the below-normal process (from 0.3): evaluate a job
-  object CPU rate, EcoQoS or GC heap affinity once a trace shows them preempting the UI.
 - Tests that failed now and then (2026-11-03; the gate's `artifacts/gate/history.csv` records every failed test, CI
   keeps TRX results 14 days): `DenseHeapTests` once in CI (2026-11-02, release PR #45; ClrMD's default DAC lookup in
   the test helper failed where HeapScope's loader had just opened the dump; the helper is local-only since 2026-11-03
@@ -82,7 +87,7 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   finished before the wait saw "Writing dump" (the wait also ends on completion), so the cancel came too late; the test needs
   the capture held while it writes, or to accept both outcomes as `TraceTests` does. `CounterMonitorTests`: the first sample's
   `gc-heap-size` was negative (-0.77 MB, from the target's runtime, with Gen0 at 1.8 MB); HeapScope passes it on as is, so the
-  chart and the size rules can read a negative heap. Decide whether to drop or clamp such a sample.
+  chart and the size rules can read a negative heap (dropped and logged since 3.12, task 10).
   The wrap's second full run: all 12 `AllocationTraceTests` again (as on 3.10's gate), their fixture's session start canceled.
   Cause: the fixture started the load a fixed second after the recording and stopped the recording when the load ended, so a
   start slower than the load was canceled. Fixed: the load starts once the trace's partial file has bytes, as
@@ -94,9 +99,6 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   variable `Logging__File__MinimumLevel`, M14).
 - A documented CI leak check for users' pipelines: a sample workflow running `heapscope-cli diff --fail-on-growth` on
   two fixture dumps.
-- First load is slower than sprint 1.2 measured (sprint 3.10): a Medium dump took 35 to 48 s against 15.8 s, inside the 3 minute
-  budget, with one pass ranging 13 to 25 s between runs on a machine in use. Measure on a quiet machine and trace the object pass
-  before Phase 4 adds loader work (`docs/architecture/budgets.md`).
 - Testing on macOS (2026-10-31): CI has no macOS runners (owner: their minutes cost about ten times Linux's), so the
   macOS packages are built on Linux and never run, and the macOS core dump checks (known answers, DAC trust) no longer
   run. Since 3.10 releases attach them marked untested (ADR-039). Before that mark comes off, the product owner picks a way
@@ -168,9 +170,7 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   static state and doc link tests tightened; the type summaries and touched files brought to the S8 and S9 rules; a
   separate-process live tail with stack folding measured (ADR-037's gate for Phase 4).
 - From the 3.4 review (decided autonomously): `session.json` runs read one by one, an unreadable run kept as its JSON
-  so the session still opens and nothing is lost on save, with the rule that new run members are optional (M8); a seam
-  in front of `DumpCapturer` so the real per-process capture gate is tested deterministically (one pid refused, two pids
-  together, released on failure and cancel) (M13); serializing the Allocations page's recording with a gcdump of the
+  so the session still opens and nothing is lost on save, with the rule that new run members are optional (M8); serializing the Allocations page's recording with a gcdump of the
   same process, with an integration test counting induced collections across a gcdump and a trace's start and stop on
   .NET 8 and 10 (M5); the allocation trace's size per minute and the target's slowdown measured on LeakyApi and a
   high-allocation target, added to section 10 (L17); a reopened run downsampled over its whole length so every marker
@@ -331,8 +331,6 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
 **Low**
 - Visual design, left out of sprint 3.10 (product owner, 2026-11-04; ADR-040): inline data bars in grids, dimmed namespaces
   in type names, a collapsible snapshot rail, the icicle chart colored by application versus framework code.
-- UI cold start: measure the Avalonia app's first window and first Compare tab again (the 1.2 and 1.4 numbers were
-  WPF's); template preloading and deferring startup work remain options (from 0.3).
 - WinForms specific leak inspections.
 - Unmanaged/native memory overview.
 - Reading a dump on another system or architecture than the one that took it (cross-system DACs), and a Linux arm64

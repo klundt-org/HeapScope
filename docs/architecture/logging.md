@@ -92,7 +92,9 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   `ElevationRequiredException`, `WorkerCrashedException`) and does not swallow them.
 - Worker errors cross the pipe as JSON-RPC errors with a `HeapScopeErrorCode` as the JSON-RPC error code so clients
   can show a precise message.
-- Users always see a plain-language message and a next step. Stack traces go to the log only.
+- Users always see a plain-language message and a next step. Stack traces go to the log only. A worker failure that is
+  not a refusal (sprint 3.12, B5) shows the owner's fixed message with an id; the same id is on the error line in the
+  log ("failed unexpectedly (id ...)"), which support asks for.
 - Navigation and polish (sprint 2.7): the analysis path logs each step opened, shown or closed by kind (Types,
   Instances, Object, TypeReferrers, TypePaths, Retainers, RetainedBySet, and Set and SetInstances since 3.1), its id on the path, its parent's id, its depth,
   the worker snapshot id and the step count, and each switch of snapshot, never a type name or an address; a CSV export

@@ -246,6 +246,9 @@ dotnet test --solution HeapScope.sln
   `--smoke-open` also counts the UI operations over 100 ms in every phase ("Smoke slow operations", by phase) and fails
   a passing run with more than 12 with exit 7 (sprint 3.12, task 5; not headless). Exit codes: 0 ok, 3 lag over the gate, 4
   a step failed, 5 the first window over 30 s, 6 a whole-list grid walk, 7 too many slow operations.
+  Every smoke run first waits for the background build of the pages after start (sprint 3.12, task 4; "Smoke prewarm",
+  its slow operations logged apart and not counted, as no page is shown meanwhile). For an A/B run without it, set
+  `Ui__Prewarm=false` in the environment (or pass `--Ui:Prewarm false`); `artifacts/bench/3.12/ab3.sh` alternates the two.
 - Traces: `heapscope-cli trace --pid <id> [--duration 30] [--profile cpu|gc|allocations] [--out file.nettrace]` records an
   EventPipe trace of any .NET process (no dotnet-trace needed; Ctrl+C stops early and keeps it). An `allocations` trace
   is read by `heapscope-cli allocations <file> [--from s] [--to s] [--type <name>] [--types N] [--stacks N] [--frames N]
@@ -264,6 +267,11 @@ dotnet test --solution HeapScope.sln
   blocked, with the collections in it and, for a mostly blocked stall, where the UI thread waited. The first read converts
   the recording (minutes for a few GB) into an `.etlx` beside it, which later reads reuse. The split's rules are
   `UiStallAttribution`, tested in `tests/HeapScope.Benchmarks.Tests`.
+- Where a process spent its time (sprint 3.12, for a slow load): record as above, then
+  `dotnet run -c Release --project perf/HeapScope.Benchmarks -- cpu-profile --etl run.etl --process HeapScope.Worker`
+  (`--top 25`, `--stretch-s 5`, `--modules a,b`; HeapScope and ClrMD by default): its busiest thread on the processor,
+  ready for one, or off it by wait reason (a page read from a mapped dump waits as PageIn or Executive) per stretch, and its
+  heaviest methods, inclusive and at the leaf.
 - Live sources (sprint 3.8, ADR-037): `dotnet run -c Release --project perf/HeapScope.Benchmarks -- live-tail --seconds
   10` records an allocating copy of itself and reads the trace file while it grows, reporting events read and lost,
   the delay to the reader and its memory.
@@ -485,7 +493,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - `stack-roots --dump <path>`: stack roots per thread and frame (diagnostic; no budget check).
 - `load-dump --dump <path> [--cache-mb 512] [--keep-cache 1] [--any-gc 1]` (run with `DOTNET_GCHeapCount` set to half the
   processors in hex, as the worker runs; since 3.12 it refuses another GC setup without `--any-gc`, and prints each phase's
-  CPU, GC and page faults and a hash of the graph built): HeapScope's loader on a real dump: counts, density,
+  CPU, GC and page faults and a hash of the graph built, whole and per column, so a loader change can be shown to build the
+  same graph): HeapScope's loader on a real dump: counts, density,
   dropped data and segment completeness, private bytes when each phase starts and at peak, the cache write, the switch
   to mapped mode and both reopens, checked against the ARCHITECTURE.md 10 budgets (exit code 1 on a miss).
   `--cancel-at <phase>` cancels as a phase starts and checks the 2 s cancellation budget.
