@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Core;
+
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
@@ -50,7 +52,7 @@ internal sealed class ColumnSort<TRow>(Func<TRow, string> name)
     {
         if (!_byColumn.ContainsKey(column))
         {
-            throw new ArgumentException($"Unknown sort column {column}. Sort by one of: {string.Join(", ", _byColumn.Keys)}.");
+            throw new RequestRefusedException($"Unknown sort column {column}. Sort by one of: {string.Join(", ", _byColumn.Keys)}.");
         }
     }
 

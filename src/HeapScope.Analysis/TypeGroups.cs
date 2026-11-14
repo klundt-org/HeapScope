@@ -115,7 +115,7 @@ public static class TypeGroups
         ArgumentNullException.ThrowIfNull(graph);
         if (groupBy == GroupKey.Interface)
         {
-            throw new ArgumentException("Interface groups overlap; they have no numbering of their own.", nameof(groupBy));
+            throw new RequestRefusedException("Interface groups overlap; they have no numbering of their own.", nameof(groupBy));
         }
 
         var count = graph.Types.Count;
@@ -329,7 +329,7 @@ public static class TypeGroups
         ArgumentNullException.ThrowIfNull(name);
         if (groupBy is GroupKey.Type or GroupKey.Interface)
         {
-            throw new ArgumentException("A group is a namespace or an assembly.", nameof(groupBy));
+            throw new RequestRefusedException("A group is a namespace or an assembly.", nameof(groupBy));
         }
 
         var comparer = Comparer(groupBy);

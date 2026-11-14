@@ -142,7 +142,7 @@ internal sealed class TypeDiffSource : IResultSource
         ];
         if (!Enum.IsDefined(request.GroupBy))
         {
-            throw new ArgumentOutOfRangeException(nameof(request), $"Unknown grouping {(int)request.GroupBy}.");
+            throw new RequestRefusedException($"Unknown grouping {(int)request.GroupBy}.");
         }
 
         var sortColumn = request.SortColumn ?? TypeDiffColumns.BytesDelta;

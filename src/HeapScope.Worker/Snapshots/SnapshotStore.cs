@@ -113,7 +113,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
                     return open.Descriptor;
                 }
 
-                throw new ArgumentException($"{path} is open. Close it before rebuilding its index cache.", nameof(request));
+                throw new RequestRefusedException($"{path} is open. Close it before rebuilding its index cache.", nameof(request));
             }
 
             var opened = await Task.Run(() => Opener.Open(path, request, progress, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -200,11 +200,11 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     {
         if (string.IsNullOrWhiteSpace(requested))
         {
-            throw new ArgumentException("A snapshot path is required.", nameof(requested));
+            throw new RequestRefusedException("A snapshot path is required.", nameof(requested));
         }
 
         var path = Path.GetFullPath(requested);
-        return File.Exists(path) ? path : throw new ArgumentException($"The file {path} does not exist.", nameof(requested));
+        return File.Exists(path) ? path : throw new RequestRefusedException($"The file {path} does not exist.", nameof(requested));
     }
 
     private Entry? FindOpen(string path)

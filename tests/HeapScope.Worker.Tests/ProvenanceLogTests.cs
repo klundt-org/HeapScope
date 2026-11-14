@@ -180,8 +180,29 @@ public sealed class ProvenanceLogTests
     {
         var logger = new RecordingLogger();
 
-        await Should.ThrowAsync<InvalidOperationException>(() => WorkerErrors.GuardAsync<int>(() => throw new InvalidOperationException("broken"), logger, "QueryTypeSummaryAsync"));
+        await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new InvalidOperationException("broken"), logger, "QueryTypeSummaryAsync"));
 
         logger.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Error);
+    }
+
+    // Sprint 3.12 (B5, the owner's wording of 2026-11-14): the user sees the fixed message with the id that finds the logged
+    // stack, never the exception's own text; a bug's ArgumentException is unexpected too, a refusal is not.
+    [Fact]
+    public async Task An_unexpected_failure_shows_the_fixed_message_with_the_id_of_its_log_line()
+    {
+        var logger = new RecordingLogger();
+
+        var shown = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new ArgumentOutOfRangeException("index", "Index was out of range."), logger, "QueryTypeSummaryAsync"));
+
+        shown.ErrorCode.ShouldBe((int)HeapScopeErrorCode.Unknown);
+        shown.Message.ShouldStartWith("The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: ");
+        shown.Message.ShouldNotContain("Index was out of range");
+        var id = shown.Message[(shown.Message.LastIndexOf(' ') + 1)..^1];
+        var line = logger.Lines.ShouldHaveSingleItem();
+        line.ShouldContain("failed unexpectedly (id " + id + ")");
+        logger.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Error);
+
+        var refused = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new HeapScope.Core.RequestRefusedException("Unknown sort column Size."), logger, "QueryTypeSummaryAsync"));
+        (refused.ErrorCode, refused.Message).ShouldBe(((int)HeapScopeErrorCode.InvalidArgument, "Unknown sort column Size."));
     }
 }

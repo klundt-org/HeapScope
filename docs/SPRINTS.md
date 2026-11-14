@@ -260,8 +260,12 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     (`SessionDocument.UnknownSnapshots`, `UnknownRuns`) and writes it back on save; any other damage still makes the
     session unreadable. `SessionLibraryTests.Entries_with_a_value_a_newer_build_added_are_kept_and_saved_back_unchanged`,
     proved by mutation.
-23. [ ] B5: worker refusals thrown as a refusal type of their own; any other exception is logged as an error with its stack,
+23. [x] B5: worker refusals thrown as a refusal type of their own; any other exception is logged as an error with its stack,
     and the user sees a fixed message with the trace id (wording to the owner first). Proof: provenance log tests both ways.
+    Done 2026-11-14 (wording approved that day): `RequestRefusedException` (Core) for every request check of the worker and the
+    analysis checks a request reaches; any other exception at the worker's boundary, an `ArgumentException` of a bug included, is
+    logged as an error with its stack and an id (the trace id, or a new one), and the user sees the fixed message with that id
+    (code Unknown). `ProvenanceLogTests` both ways; the integration tier finds a missed request check as unexpected.
 24. [x] B6: the fragmentation bars read their columns as every other row does; a missing column fails that inspection only.
     Proof: an inspections test with a column missing.
     Done: `ShowFragments` uses `ResultColumns.Require`; a result this build cannot show fails its own tile with "This result

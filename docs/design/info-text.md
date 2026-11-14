@@ -130,7 +130,7 @@ Dropped: the Two snapshots and Trend across snapshots row, since their Table 1 i
 
 ## Sprint 3.12 additions
 
-Approved by the owner on 2026-11-12 and 2026-11-13.
+Approved by the owner on 2026-11-12, 2026-11-13 and 2026-11-14.
 
 | Page | Where | Text | Status |
 |---|---|---|---|
@@ -145,6 +145,7 @@ Approved by the owner on 2026-11-12 and 2026-11-13.
 | Settings | Status when Purge all is refused (B1) | Nothing was deleted: {reason}, for example "Capture app is running; wait for it or cancel it first." | approved 2026-11-13 |
 | Settings | Status when the setting cannot be saved (B1) | The setting could not be saved to {file}: {message} | approved 2026-11-13 |
 | Settings | Section, check box and buttons (B1) | Logging; Include filter text in logs; Purge logs; Purge all | as the owner named them, 2026-11-12 |
+| Every page, the command line | An unexpected worker failure (B5) | The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: {id}. | approved 2026-11-14 |
 | Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
 | Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
 | Every export of the Retainers tree | CSV column (M6) | "Retained is", with "exact" or "at least" on each row. | approved |

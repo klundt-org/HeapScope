@@ -59,7 +59,7 @@ internal sealed class RetentionHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (request.MaxRoots is < 1 or > 50)
             {
-                throw new ArgumentException("MaxRoots must be between 1 and 50.", nameof(request));
+                throw new RequestRefusedException("MaxRoots must be between 1 and 50.", nameof(request));
             }
 
             // The lease keeps the graph, and the reverse index attached to it, while the paths are found and named.
@@ -67,7 +67,7 @@ internal sealed class RetentionHandler(
             using var _ = lease;
             if (!snapshot.Graph.TryGetIndex(request.Address, out var index))
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
             }
 
             var (reverse, info) = await derived.GetReverseAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
@@ -116,12 +116,12 @@ internal sealed class RetentionHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (string.IsNullOrEmpty(request.TypeName) && request.Set is null)
             {
-                throw new ArgumentException("A type name or a set is required.", nameof(request));
+                throw new RequestRefusedException("A type name or a set is required.", nameof(request));
             }
 
             if (request.MaxPaths is < 1 or > 100)
             {
-                throw new ArgumentException("MaxPaths must be between 1 and 100.", nameof(request));
+                throw new RequestRefusedException("MaxPaths must be between 1 and 100.", nameof(request));
             }
 
             var (snapshot, lease) = access.Lease(request.SnapshotId);
@@ -193,7 +193,7 @@ internal sealed class RetentionHandler(
             var graph = snapshot.Graph;
             if (!graph.TryGetIndex(request.Address, out var index))
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
             }
 
             var (dominators, info) = await derived.GetDominatorsAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
@@ -218,12 +218,12 @@ internal sealed class RetentionHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (request.MaxChildren is < DominatorTreeLimits.MinChildren or > DominatorTreeLimits.MaxChildren)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"Children per row must be between {DominatorTreeLimits.MinChildren} and {DominatorTreeLimits.MaxChildren:N0}."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"Children per row must be between {DominatorTreeLimits.MinChildren} and {DominatorTreeLimits.MaxChildren:N0}."));
             }
 
             if (request.Expanded is null || request.Expanded.Count > DominatorTreeLimits.MaxExpanded)
             {
-                throw new ArgumentException(string.Create(
+                throw new RequestRefusedException(string.Create(
                     CultureInfo.InvariantCulture,
                     $"At most {DominatorTreeLimits.MaxExpanded:N0} rows can be open at once. Collapse some rows, or focus on one to see the tree below it."));
             }
@@ -301,7 +301,7 @@ internal sealed class RetentionHandler(
 
             // Any object set since sprint 3.1; a type name stays the short form of a one-type set.
             var spec = request.Set ?? (string.IsNullOrEmpty(request.TypeName)
-                ? throw new ArgumentException("A type name or a set is required.", nameof(request))
+                ? throw new RequestRefusedException("A type name or a set is required.", nameof(request))
                 : ObjectSetSpec.OfType(request.TypeName, request.Module));
             var (snapshot, lease) = access.Lease(request.SnapshotId);
             using var _ = lease;
@@ -449,7 +449,7 @@ internal sealed class RetentionHandler(
             ArgumentNullException.ThrowIfNull(request.Set);
             if (request.MaxGroups is < 1 or > SimilarRetentionLimits.MaxGroups)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"MaxGroups must be between 1 and {SimilarRetentionLimits.MaxGroups}."), nameof(request));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"MaxGroups must be between 1 and {SimilarRetentionLimits.MaxGroups}."), nameof(request));
             }
 
             var (snapshot, lease) = access.Lease(request.SnapshotId);
@@ -533,12 +533,12 @@ internal sealed class RetentionHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (request.Levels is < 1 or > 20)
             {
-                throw new ArgumentException("Levels must be between 1 and 20.", nameof(request));
+                throw new RequestRefusedException("Levels must be between 1 and 20.", nameof(request));
             }
 
             if (request.MinShare is < 0.0001 or > 0.5 || double.IsNaN(request.MinShare))
             {
-                throw new ArgumentException("MinShare must be between 0.0001 and 0.5.", nameof(request));
+                throw new RequestRefusedException("MinShare must be between 0.0001 and 0.5.", nameof(request));
             }
 
             var (snapshot, lease) = access.Lease(request.SnapshotId);
@@ -583,7 +583,7 @@ internal sealed class RetentionHandler(
 
         return graph.TryGetIndex(address, out var focus)
             ? focus
-            : throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{address:x} in this snapshot."));
+            : throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{address:x} in this snapshot."));
     }
 
     /// <summary>The dominators, checking that a root reaches the focus.</summary>
@@ -594,7 +594,7 @@ internal sealed class RetentionHandler(
         if (focus >= 0 && !tree.IsReachable(focus))
         {
             // Why, for this kind of snapshot, and where to go instead (the 2.4 review).
-            throw new ArgumentException(string.Create(
+            throw new RequestRefusedException(string.Create(
                 CultureInfo.InvariantCulture,
                 $"0x{address:x} is not in the dominator tree. {RetentionMapping.UnreachableNote(snapshot.Info.Kind)} It retains nothing; the biggest retainers show the tree from the top."));
         }

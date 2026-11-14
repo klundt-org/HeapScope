@@ -63,7 +63,7 @@ internal sealed class ObjectSetResolver(
         ArgumentNullException.ThrowIfNull(spec);
         if (depth > ObjectSetLimits.MaxDepth)
         {
-            throw new ArgumentException("The set nests too deeply.");
+            throw new RequestRefusedException("The set nests too deeply.");
         }
 
         var key = spec.CacheKey;
@@ -99,7 +99,7 @@ internal sealed class ObjectSetResolver(
     {
         if (set.Count == 0)
         {
-            throw new ArgumentException("The set has no objects in this snapshot.");
+            throw new RequestRefusedException("The set has no objects in this snapshot.");
         }
     }
 
@@ -118,7 +118,7 @@ internal sealed class ObjectSetResolver(
                 var keys = spec.Types ?? [];
                 if (keys.Count == 0 || keys.Count > ObjectSetLimits.MaxTypes)
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"A set names 1 to {ObjectSetLimits.MaxTypes:N0} types."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"A set names 1 to {ObjectSetLimits.MaxTypes:N0} types."));
                 }
 
                 (set, detail) = await Task.Run(() => OfTypeKeys(snapshotId, graph, keys, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -128,7 +128,7 @@ internal sealed class ObjectSetResolver(
                 var interfaceMask = TypeGroups.MatchInterface(graph, interfaces, spec.Name ?? string.Empty, out var implementing);
                 if (implementing == 0)
                 {
-                    throw new ArgumentException("No type of this snapshot implements that interface. Names are case sensitive and include the namespace; group the types by interface (the CLI's summary --group interface) to list them.");
+                    throw new RequestRefusedException("No type of this snapshot implements that interface. Names are case sensitive and include the namespace; group the types by interface (the CLI's summary --group interface) to list them.");
                 }
 
                 set = await Task.Run(() => Reserved(snapshotId, graph, () => ObjectSet.OfTypes(graph, interfaceMask, cancellationToken)), cancellationToken).ConfigureAwait(false);
@@ -164,7 +164,7 @@ internal sealed class ObjectSetResolver(
                 var groupMask = TypeGroups.MatchGroup(graph, grouping, spec.Name ?? string.Empty, out var matched);
                 if (matched == 0)
                 {
-                    throw new ArgumentException(spec.Kind == ObjectSetKind.Namespace ? "No type of this snapshot is in that namespace." : "No type of this snapshot is in that assembly.");
+                    throw new RequestRefusedException(spec.Kind == ObjectSetKind.Namespace ? "No type of this snapshot is in that namespace." : "No type of this snapshot is in that assembly.");
                 }
 
                 set = await Task.Run(() => Reserved(snapshotId, graph, () => ObjectSet.OfTypes(graph, groupMask, cancellationToken)), cancellationToken).ConfigureAwait(false);
@@ -174,7 +174,7 @@ internal sealed class ObjectSetResolver(
                 var addresses = spec.Addresses ?? [];
                 if (addresses.Count == 0 || addresses.Count > ObjectSetLimits.MaxAddresses)
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"A set names 1 to {ObjectSetLimits.MaxAddresses:N0} objects."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"A set names 1 to {ObjectSetLimits.MaxAddresses:N0} objects."));
                 }
 
                 set = Reserved(snapshotId, graph, () => ObjectSet.OfAddresses(graph, addresses));
@@ -184,13 +184,13 @@ internal sealed class ObjectSetResolver(
                 (set, detail) = await ResolveInspectionRowAsync(snapshotId, snapshot, spec, progress, cancellationToken).ConfigureAwait(false);
                 break;
             case ObjectSetKind.RetainedBy:
-                var innerSpec = spec.Inner ?? throw new ArgumentException("A retained-by set needs its inner set.");
+                var innerSpec = spec.Inner ?? throw new RequestRefusedException("A retained-by set needs its inner set.");
                 var inner = await ResolveAsync(snapshotId, snapshot, innerSpec, progress, cancellationToken, depth + 1).ConfigureAwait(false);
                 set = await RetainedObjectsAsync(snapshotId, graph, inner, progress, cancellationToken).ConfigureAwait(false);
                 detail = string.Create(CultureInfo.InvariantCulture, $"the inner set's {inner.Count} objects");
                 break;
             default:
-                throw new ArgumentException($"Unknown set kind {(int)spec.Kind}.");
+                throw new RequestRefusedException($"Unknown set kind {(int)spec.Kind}.");
         }
 
         // The cache drops it when the snapshot closed meanwhile.
@@ -244,7 +244,7 @@ internal sealed class ObjectSetResolver(
 
         if (matched == 0)
         {
-            throw new ArgumentException("None of the set's types is in this snapshot. Names are case sensitive and include the namespace.");
+            throw new RequestRefusedException("None of the set's types is in this snapshot. Names are case sensitive and include the namespace.");
         }
 
         var missing = keys.Where(k => wanted[(k.Name, TypeGroups.ModuleKey(k.Module).ToUpperInvariant())] == 0)
@@ -309,17 +309,17 @@ internal sealed class ObjectSetResolver(
     /// </summary>
     private async Task<(ObjectSet Set, string Detail)> ResolveComparedAsync(Guid snapshotId, ISnapshot snapshot, ObjectSetSpec spec, IProgress<JobProgress>? progress, CancellationToken cancellationToken, int depth)
     {
-        var innerSpec = spec.Inner ?? throw new ArgumentException("A compared set needs its inner set.");
-        var change = spec.Change ?? throw new ArgumentException("A compared set needs its change: new, dead or survived.");
-        var otherId = spec.Baseline ?? throw new ArgumentException("A compared set needs the snapshot it is compared with.");
+        var innerSpec = spec.Inner ?? throw new RequestRefusedException("A compared set needs its inner set.");
+        var change = spec.Change ?? throw new RequestRefusedException("A compared set needs its change: new, dead or survived.");
+        var otherId = spec.Baseline ?? throw new RequestRefusedException("A compared set needs the snapshot it is compared with.");
         if (otherId == snapshotId)
         {
-            throw new ArgumentException("A snapshot cannot be compared with itself.");
+            throw new RequestRefusedException("A snapshot cannot be compared with itself.");
         }
 
         if (!Enum.IsDefined(change))
         {
-            throw new ArgumentException($"Unknown change {(int)change}.");
+            throw new RequestRefusedException($"Unknown change {(int)change}.");
         }
 
         var (other, otherLease) = access.Lease(otherId);
@@ -328,14 +328,14 @@ internal sealed class ObjectSetResolver(
         var (baseline, current) = dead ? (snapshot, other) : (other, snapshot);
         if (IdentityMatcher.WhyNoIdentity(baseline, current) is { } why)
         {
-            throw new ArgumentException(why);
+            throw new RequestRefusedException(why);
         }
 
         var inner = await ResolveAsync(snapshotId, snapshot, innerSpec, progress, cancellationToken, depth + 1).ConfigureAwait(false);
         var identity = await identities.MatchAsync(snapshotId, baseline, current, progress, cancellationToken).ConfigureAwait(false);
         if (IdentityMatcher.WhyNotOneRun(identity) is { } notOneRun)
         {
-            throw new ArgumentException(notOneRun);
+            throw new RequestRefusedException(notOneRun);
         }
 
         var kind = change switch
@@ -352,10 +352,10 @@ internal sealed class ObjectSetResolver(
     /// <summary>The members of a Similar Retention group: the inner set grouped again, then the group at the spec's rank.</summary>
     private async Task<(ObjectSet Set, string Detail)> ResolveRetentionGroupAsync(Guid snapshotId, ISnapshot snapshot, ObjectSetSpec spec, IProgress<JobProgress>? progress, CancellationToken cancellationToken, int depth)
     {
-        var innerSpec = spec.Inner ?? throw new ArgumentException("A retention group set needs its inner set.");
+        var innerSpec = spec.Inner ?? throw new RequestRefusedException("A retention group set needs its inner set.");
         if (string.IsNullOrEmpty(spec.Name))
         {
-            throw new ArgumentException("A retention group set needs its group's pattern key.");
+            throw new RequestRefusedException("A retention group set needs its group's pattern key.");
         }
 
         var inner = await ResolveAsync(snapshotId, snapshot, innerSpec, progress, cancellationToken, depth + 1).ConfigureAwait(false);
@@ -379,7 +379,7 @@ internal sealed class ObjectSetResolver(
             cancellationToken).ConfigureAwait(false);
         if (set.Count == 0)
         {
-            throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"No group of this set is retained the way group {spec.Row + 1} was (pattern #{spec.Name}) in this snapshot. List the groups again with Similar Retention (the CLI's --view similar)."));
+            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"No group of this set is retained the way group {spec.Row + 1} was (pattern #{spec.Name}) in this snapshot. List the groups again with Similar Retention (the CLI's --view similar)."));
         }
 
         return (set, string.Create(CultureInfo.InvariantCulture, $"group {spec.Row + 1} (pattern #{spec.Name}) of the inner set's {inner.Count} objects"));
@@ -392,7 +392,7 @@ internal sealed class ObjectSetResolver(
     /// </summary>
     private async Task<(ObjectSet Set, string Detail)> ResolveInspectionRowAsync(Guid snapshotId, ISnapshot snapshot, ObjectSetSpec spec, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
-        var name = spec.Name ?? throw new ArgumentException("An inspection row set needs the inspection's name.");
+        var name = spec.Name ?? throw new RequestRefusedException("An inspection row set needs the inspection's name.");
         var table = snapshots.Sets.TryGetTable(snapshotId, name, spec.Baseline);
         var rerun = string.Empty;
         if (table is null)
@@ -407,7 +407,7 @@ internal sealed class ObjectSetResolver(
 
         if (spec.Row < 0 || spec.Row >= table.Count)
         {
-            throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"The inspection has {table.Count:N0} rows; there is no row {spec.Row}."));
+            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The inspection has {table.Count:N0} rows; there is no row {spec.Row}."));
         }
 
         var graph = snapshot.Graph;
@@ -443,7 +443,7 @@ internal sealed class ObjectSetResolver(
         {
             return address != 0
                 ? (ObjectSet.OfAddresses(graph, [address]), $"{rerun}rule v{version}; the row's one object")
-                : throw new ArgumentException("That inspection row names no objects.");
+                : throw new RequestRefusedException("That inspection row names no objects.");
         }
 
         var scope = Enum.TryParse<InstanceScope>(Cell(InspectionColumns.Scope), out var parsed) ? parsed : InstanceScope.All;
