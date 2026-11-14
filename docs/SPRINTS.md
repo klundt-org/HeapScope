@@ -118,12 +118,22 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    each fix measured against the build before it. Proof: smoke runs on the demo dumps and on the Medium dump, before and after.
 5. [ ] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
    of the rule; a mutation that lowers the ceiling fails the run.
-6. [ ] The dispatcher lag under load (Backlog High, from 0.3) and the worker's Server GC threads: settled from task 3's
+6. [x] The dispatcher lag under load (Backlog High, from 0.3) and the worker's Server GC threads: settled from task 3's
    trace, with a fix if it shows one (job object CPU rate, EcoQoS or GC heap affinity). Proof: the trace; smoke runs under load.
-7. [ ] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
+   Done 2026-11-13: no stall waited for a processor, even with four cores busy, so none of the three would help; the UI
+   process's own gen 0 and gen 1 collections were a quarter of the lag under load. The app runs with a 64 MB gen 0 budget
+   (`System.GC.Gen0Size`), which halved the GC time inside the lags under load in A/B smoke runs (budgets.md); the rest of
+   the lag is styles and templates (task 4). The worker's Server GC threads are not in the UI's lags.
+7. [x] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
    numbers in `budgets.md`.
-8. [ ] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
+   Done 2026-11-13: first window 0.77 to 0.87 s warm, 6.9 s on the first run after publishing, about 1.0 to 1.1 s with four
+   cores busy; the Compare tab's first show at most 60 ms of lag and 121 ms of operation (budgets.md).
+8. [x] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
    fix proposed with its cost; built only with the owner's OK. Proof: the trace and the numbers in `budgets.md`.
+   Done 2026-11-13: CPU work, not disk (the WPR recording: 50.7 of 56.5 s on a processor); ClrMD's type factory per object
+   was the largest part, and the machine's load changed one build's time from 24 to 52 s. The owner approved the fix
+   (2026-11-13, "do all recos"): the loader maps method tables to types once per type (with R4); Medium's first load went from
+   about 21 s to 13 s with the same graph (budgets.md).
 9. [x] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
    trusted DAC (gone, symbol server failure, untrusted after a "no") opens the older cache with a note; caches older than the
    v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
@@ -195,11 +205,22 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     counts operations over the budget since its reset); the checked maxima are the warm phases', every log line takes its
     words from one place and reads as before (a smoke run on the demo dumps, 2026-11-13). `SmokeGateTests`: the phases keep
     each measure and check only the warm ones; a failing phase names each check that failed.
-18. [ ] R4, with task 8: the loader's hot loop (segments in address order, pointer-free types skipped in the reference pass,
+18. [x] R4, with task 8: the loader's hot loop (segments in address order, pointer-free types skipped in the reference pass,
     the finalizable check by binary search, `Size` read once). Proof: the graph's columns hash the same before and after on the
     fixtures and the Medium dump; known answers; load phase times.
-19. [ ] R5, with task 8: freeze and collection as load phases of their own, GC pauses, CPU time and hard faults per phase in
+    Done 2026-11-13: `ClrMdDumpLoader.AddObjects` walks segments in address order reading method tables itself (ClrMD's own
+    walk takes over a segment at an object it cannot read, so damaged dumps count unreadable objects as before), computes each
+    size once as ClrMD does (a string's terminator, the minimum object size), merges the sorted finalizable list, and
+    `AddReferences` reads each object's references with its type (`HeapGraphBuilder.FrozenTypeIndices`), skipping types
+    without pointers. `load-dump` prints a canonical hash of the graph: the same before and after on the fixture dump and the
+    Medium dump; the loader tests and the integration tier (known answers) pass.
+19. [x] R5, with task 8: freeze and collection as load phases of their own, GC pauses, CPU time and hard faults per phase in
     the load's log line, and the load benchmark refusing a GC set up differently from the worker's. Proof: the log line; budgets.md.
+    Done 2026-11-13: `LoadMeter` (the ClrMD loader) ends each phase with its wall time, the process's CPU time, GC pause time
+    and page faults (every fault on Windows, major faults on Linux); `LoadTimings.Freeze` and `Costs`; the worker's "Loaded
+    ... from the dump" line names freeze and collect and every phase's costs; `load-dump` prints them and refuses another GC
+    setup than the worker's (Server GC, not concurrent, half the processors as heaps) unless `--any-gc 1`. A Medium load:
+    objects 4.6 s (CPU 4.9 s, 1.17M page faults), freeze and collect 0.4 s, references 4.8 s (CPU 5.5 s).
 20. [x] B1, a Settings page above About, with a Logging section: "Include filter text in logs" (on by default; it governs
     the app, the worker and the CLI, which read the same setting), "Purge logs" (the log being written is kept until HeapScope
     closes) and "Purge all" (logs, every session in the library, HeapScope's own index caches and bookmarks, after a

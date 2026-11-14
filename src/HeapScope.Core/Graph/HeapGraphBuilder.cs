@@ -105,6 +105,19 @@ public sealed class HeapGraphBuilder : IDisposable
         }
     }
 
+    /// <summary>
+    /// The frozen objects' type indices, index i for object i (sprint 3.12, R4): a loader reads each object's references
+    /// with its type known, and skips types that hold none. Valid when <see cref="FrozenAddresses"/> is.
+    /// </summary>
+    public ReadOnlySpan<int> FrozenTypeIndices
+    {
+        get
+        {
+            EnsurePhase(BuildPhase.References);
+            return _typeIndices.Span;
+        }
+    }
+
     public long DroppedReferenceCount { get; private set; }
 
     public long DroppedRootCount { get; private set; }

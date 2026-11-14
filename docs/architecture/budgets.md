@@ -159,3 +159,29 @@ What the recordings show:
   watchdog also measured 0 ms of UI CPU in it): not work on the UI thread; its cause is not in these recordings.
 - The traced runs are slower than untraced ones (the first window took 7.0 and 8.5 s while recording, 0.8 to 4.9 s without);
   the shares, not the times, are the result.
+
+The UI's gen 0 budget (sprint 3.12, task 6), A/B smoke runs of the published build on 2026-11-13 with Defender and another
+project's tests at about 3 cores (`load-window2.log`), alternating the default against a 64 MB gen 0 budget
+(`DOTNET_GCgen0size`). GC time inside the logged lags per run: with four more cores busy, 392, 408 and 430 ms by default
+against 145, 174 and 211 ms with 64 MB; on the quieter machine 237, 265 and 224 ms against 214, 270, 146 and 157 ms. Slow
+operations (over 100 ms) per run under load 5, 7 and 10 against 6, 7 and 7; the worst lag moved little (203 to 275 ms
+against 189 to 266 ms), since styles and templates are the rest of it. The app now runs with the 64 MB budget
+(`System.GC.Gen0Size` in its runtime configuration); a worker CPU cap, EcoQoS or GC heap affinity would not have helped,
+since no stall waited for a processor.
+
+UI cold start on Avalonia (sprint 3.12, task 7), the published ReadyToRun build on 2026-11-13: the first window rendered
+6.9 s after start on the first run after publishing (the files read and scanned for the first time), then 0.77 to 0.87 s
+on later runs, and 0.99 to 1.10 s with four more cores busy; the Compare tab's first show had a maximum lag of 23 to 60 ms
+and a longest operation of 49 to 121 ms.
+
+The first load's object pass (sprint 3.12, task 8, with R4). The WPR recording of a Medium load (58.0M objects, 2026-11-12)
+showed the loading thread on a processor for 50.7 of 56.5 s: CPU work, not reading the dump (1.1 s of page-in waits, the
+file in the cache). ClrMD's type factory resolved each object's type (8.6 s), arrays asked the DAC each (2.8 s), sizes were
+read twice and the finalizable check hashed every object. The same build loaded the same dump in 40.1, 51.6 and 24.0 s in
+three runs that day, and in 20.8 to 21.5 s the next: much of the "slower first load" since 1.2 is the machine's load, not
+the loader. The loader now maps method tables to types itself, once per type, computes sizes as ClrMD does, walks segments in
+address order, merges the finalizable list, and reads references with each object's type known, skipping types that hold
+none. Medium, alternating the two builds three times each on 2026-11-13: object pass 10.9 to 11.1 s down to 4.9 to 5.1 s,
+reference pass 7.4 to 7.6 s down to 5.3 to 5.6 s, first load 20.9 to 21.5 s down to 13.0 to 13.3 s, peak private bytes the
+same (2,769 to 2,774 MB). The graph is the same: its columns hash identically on the fixture dump and the Medium dump
+(`load-dump` prints the hash).

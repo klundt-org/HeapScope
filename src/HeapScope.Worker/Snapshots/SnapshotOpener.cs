@@ -389,14 +389,16 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             diagnostics.ProcessNameSource);
         var timings = loaded.Timings;
         logger.LogInformation(
-            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}, debuggable modules {Debuggable}",
+            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}, debuggable modules {Debuggable}",
             path,
-            (timings.Open + timings.Objects + timings.References + timings.Roots + timings.Build).TotalSeconds,
+            timings.Total.TotalSeconds,
             timings.Open.TotalSeconds,
             timings.Objects.TotalSeconds,
+            timings.Freeze.TotalSeconds,
             timings.References.TotalSeconds,
             timings.Roots.TotalSeconds,
             timings.Build.TotalSeconds,
+            timings.PhaseCosts.Count == 0 ? "not measured" : string.Join("; ", timings.PhaseCosts),
             diagnostics.UnreadableObjects,
             diagnostics.IncompleteSegments,
             diagnostics.StaticFieldRoots,
