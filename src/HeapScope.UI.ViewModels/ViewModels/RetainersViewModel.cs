@@ -114,6 +114,10 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
 
     public static IReadOnlyList<DominatorGroupingDto> Groupings { get; } = Enum.GetValues<DominatorGroupingDto>();
 
+    /// <summary>The tree's note when grouped by Type or Namespace (sprint 3.12, M6; the owner's wording, 2026-11-12).</summary>
+    public const string GroupedNote =
+        "Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above.";
+
     /// <summary>The name of the set action, for the toolbar.</summary>
     public static string SetActionText => ValueBoundTexts.SetAction;
 
@@ -268,7 +272,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
                     ? string.Create(CultureInfo.CurrentCulture, $"Retains {Format.Bytes(result.FocusRetained)} of {Format.Bytes(result.TotalRetained)} reachable")
                     : string.Create(CultureInfo.CurrentCulture, $"{result.TopLevel:N0} top-level retainers of {Format.Bytes(result.TotalRetained)} reachable");
                 var bound = result.Rows.Columns.FirstOrDefault(c => c.Name == DominatorTreeColumns.Retained)?.Bound ?? ValueBound.Exact;
-                Note = RetainedSizeTexts.Source(result.Dominators, CultureInfo.CurrentCulture) + " " + ValueBoundTexts.For(bound)
+                Note = RetainedSizeTexts.Source(result.Dominators, CultureInfo.CurrentCulture) + " " + (Grouping == DominatorGroupingDto.None ? ValueBoundTexts.For(bound) : GroupedNote)
                     + (result.Truncated
                         ? string.Create(CultureInfo.CurrentCulture, $" The tree is cut at {DominatorTreeLimits.MaxRows:N0} rows; collapse rows or focus on one to see the rest.")
                         : string.Empty);

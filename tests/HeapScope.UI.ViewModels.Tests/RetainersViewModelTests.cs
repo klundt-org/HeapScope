@@ -133,6 +133,53 @@ public sealed class RetainersViewModelTests : IDisposable
     }
 
     [Fact]
+    // Sprint 3.12 (M6 of the 3.11 review; the owner's wording, 2026-11-12): a group row's retained bytes are a lower bound,
+    // shown with "≥ ", and the tree's note says so when it is grouped.
+    public async Task A_group_rows_retained_bytes_are_shown_as_a_lower_bound_and_the_note_says_why()
+    {
+        _worker.Service.TreeNodes.Insert(0, new FakeTreeNode("g:App.Cache", string.Empty, "App.Cache", 0, 1200, DominatorRowKinds.Group, Objects: 2));
+        await OpenAsync();
+        await ShowTabAsync();
+        Retainers.Note!.ShouldNotContain(RetainersViewModel.GroupedNote, Case.Sensitive, "not grouped: the column's own note");
+
+        Retainers.Grouping = DominatorGroupingDto.Type;
+        await Retainers.QueryTask;
+
+        var rows = await RowsAsync();
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        try
+        {
+            rows.Single(r => r.Kind == DominatorRowKinds.Group).RetainedText.ShouldBe("≥ 1,200");
+            rows.First(r => r.IsObject).RetainedText.ShouldBe("800");
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = culture;
+        }
+
+        Retainers.Note!.ShouldEndWith("Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above.");
+    }
+
+    [Fact]
+    public async Task The_trees_export_says_for_each_row_whether_its_retained_bytes_are_exact_or_at_least()
+    {
+        _worker.Service.TreeNodes.Insert(0, new FakeTreeNode("g:App.Cache", string.Empty, "App.Cache", 0, 1200, DominatorRowKinds.Group, Objects: 2));
+        await OpenAsync();
+        await ShowTabAsync();
+        await RowsAsync();
+        using var csv = new StringWriter();
+
+        await ((IGridExport)Retainers.Rows).WriteCsvAsync(csv, includeValues: false, Ct);
+
+        var lines = csv.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        var header = lines[0].Split(',');
+        var at = Array.IndexOf(header, "Retained is");
+        at.ShouldBeGreaterThanOrEqualTo(0, lines[0]);
+        lines.Skip(1).Select(l => l.Split(',')[at]).ShouldBe(["at least", "exact", "exact"], "the top level: the group and two objects");
+    }
+
+    [Fact]
     public async Task Grouping_focus_and_the_trail_ask_the_worker_again()
     {
         await OpenAsync();

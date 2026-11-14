@@ -181,8 +181,12 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
     Done: the seam existed (`IDumpWriter`); `tests/SharedCapture/HeldDumpWriter.cs` holds a write until the test releases it.
     `CaptureGateTests` (four tests, every wait bounded) and the real cancel test hold the runtime's own writer; mutations of
     the gate and of the delete on cancel each fail a test.
-12. [ ] M6 from the 3.11 review: a Type or Namespace group row's retained bytes marked as a lower bound in the Retainers tree
+12. [x] M6 from the 3.11 review: a Type or Namespace group row's retained bytes marked as a lower bound in the Retainers tree
     and its CSV export. Wording approved by the owner in `docs/design/info-text.md` first. Proof: view model and export tests.
+    Done 2026-11-13: the worker's tree rows carry "Retained is" (`DominatorTreeColumns.RetainedIs`: exact for an object, at
+    least for a group or a "more" row), which the CSV export writes and the grid shows as "≥ " before a lower bound; grouped by
+    Type or Namespace, the tree's note is the owner's text. `RetainersViewModelTests`: the cell, the note, and the export's
+    column per row.
 13. [x] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
     cost, with `PlatformHints` (3.10 M36). The owner decides; any refactor is built only on the owner's pick. Proof: the document.
     Done: [design/refactor-analysis.md](design/refactor-analysis.md), 2026-11-11: eight bugs (B1 to B8), five candidates tied to this
