@@ -146,6 +146,8 @@ Approved by the owner on 2026-11-12, 2026-11-13 and 2026-11-14.
 | Settings | Status when the setting cannot be saved (B1) | The setting could not be saved to {file}: {message} | approved 2026-11-13 |
 | Settings | Section, check box and buttons (B1) | Logging; Include filter text in logs; Purge logs; Purge all | as the owner named them, 2026-11-12 |
 | Every page, the command line | An unexpected worker failure (B5) | The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: {id}. | approved 2026-11-14 |
+| Every page | Status bar while the pages are built after start (task 4) | Getting pages ready | approved 2026-11-14 |
+| Every page | Its tooltip (task 4) | HeapScope is building its pages in the background so they open faster the first time. You can keep working; this ends on its own in a few seconds. | approved 2026-11-14 |
 | Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
 | Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
 | Every export of the Retainers tree | CSV column (M6) | "Retained is", with "exact" or "at least" on each row. | approved |

@@ -67,6 +67,31 @@ public sealed class LazyContentControl : ContentControl
         set => SetValue(IsShownProperty, value);
     }
 
+    /// <summary>
+    /// Builds the page's view and lays it out at <paramref name="size"/> without showing it (sprint 3.12, task 4), so its first
+    /// show is a visibility change; the view is the one kept, with its own view model. Returns the view, or null when the
+    /// page is already built or has none.
+    /// </summary>
+    public Control? Prebuild(Size size)
+    {
+        if (Page is null || ReferenceEquals(Content, Page))
+        {
+            return null;
+        }
+
+        Content = Page;
+        ApplyTemplate();
+        Presenter?.UpdateChild();
+        if (Presenter?.Child is not { } view)
+        {
+            return null;
+        }
+
+        view.Measure(size);
+        view.Arrange(new Rect(size));
+        return view;
+    }
+
     private void Update()
     {
         if (IsShown && !ReferenceEquals(Content, Page))

@@ -114,8 +114,16 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    `tests/HeapScope.Benchmarks.Tests` on one recorded stall's numbers (a mutation of the split fails two tests). Report in
    `budgets.md`: no stall waited for a CPU, even under load; first shows are mostly styles and templates, then GC; under load
    GC grows to a quarter of the lag; cold start is JIT, the runtime's own code, and waits (one inside Defender's scan).
-4. [ ] Fix what the trace supports for cold first shows (for example preloading templates or JIT warm up off the UI thread),
+4. [x] Fix what the trace supports for cold first shows (for example preloading templates or JIT warm up off the UI thread),
    each fix measured against the build before it. Proof: smoke runs on the demo dumps and on the Medium dump, before and after.
+   Done 2026-11-14: the styles and templates task 3 found are paid at idle after the first window (`ViewPrewarmer`): the
+   Snapshots page built in its place, the other pages and the Snapshot tab's subjects and other tabs built alone and dropped,
+   then a gen 1 collection; one view per step, "Getting pages ready" in the status bar meanwhile (the owner's requirement and
+   wording, 2026-11-14), `Ui:Prewarm=false` to turn it off. A/B smoke runs in the owner's quiet window (budgets.md): slow
+   operations 1 to 2 per run against 2 to 9, the Snapshots page's first show 17 ms against 58 to 83 ms, on the Medium dump 16
+   to 21 ms against 70 to 95 ms; the Retainers tab's first show about 14 ms slower, cause not found (Backlog). Two designs
+   measured and dropped (every page in place; no collection after). `ViewTests` prove every page and subject view is built
+   or named, the page built in place is the one shown, the status bar follows, no binding fails, and the switch.
 5. [x] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
    of the rule; a mutation that lowers the ceiling fails the run.
    Done 2026-11-13: the open run counts UI operations over 100 ms in every phase (R3's `SmokePhases`), logs them by phase

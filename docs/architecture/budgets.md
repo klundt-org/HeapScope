@@ -175,6 +175,22 @@ UI cold start on Avalonia (sprint 3.12, task 7), the published ReadyToRun build 
 on later runs, and 0.99 to 1.10 s with four more cores busy; the Compare tab's first show had a maximum lag of 23 to 60 ms
 and a longest operation of 49 to 121 ms.
 
+Cold first shows prewarmed (sprint 3.12, task 4): after the first window, at the dispatcher's idle priority and one view per
+step, the app builds the Snapshots page in its place (kept for its first show) and builds the other pages and the views a
+page shows only with data alone, then drops them and collects gen 1 (about 8 ms); about 0.2 to 0.3 s of UI work over 0.35
+to 0.45 s, its worst lag 53 to 88 ms, with "Getting pages ready" in the status bar meanwhile (`ViewPrewarmer`,
+`Ui:Prewarm=false` turns it off). A/B smoke runs of the published build on 2026-11-14 in the owner's quiet window,
+alternating on and off (`artifacts/bench/3.12/ab3.sh`), demo dumps, six pairs: slow operations (over 100 ms) per run 1 to 2
+on against 2 to 9 off; the Snapshots page's first show at most 16 to 17 ms against 58 to 83 ms; the open phase's longest
+operation 92 to 140 ms (median about 109) against 113 to 204 ms (about 134); the Allocations page's first show level (55 to
+69 ms against 41 to 71 ms); the Retainers tab's first show about 14 ms slower (median about 100 ms against 86 ms, cause not
+found). Medium dump, three pairs: the Snapshots page's first show 16 to 21 ms against 70 to 95 ms, the open phase's longest
+operation 129 to 181 ms against 158 to 209 ms, slow operations 4 to 5 against 4 to 6. Two designs were measured and
+dropped: every page built in place made the Retainers and Allocations first shows 20 to 45 ms slower (the hidden Jobs, Live
+and Processes pages stayed bound to their view models and followed the run's jobs), and the dropped views' garbage left to
+the gen 0 budget was collected inside the Allocations page's first show. The open phase's 100 ms operation check failed in
+most runs of both arms on this day, and in one of two runs of the build before task 6: the machine, not this change.
+
 The first load's object pass (sprint 3.12, task 8, with R4). The WPR recording of a Medium load (58.0M objects, 2026-11-12)
 showed the loading thread on a processor for 50.7 of 56.5 s: CPU work, not reading the dump (1.1 s of page-in waits, the
 file in the cache). ClrMD's type factory resolved each object's type (8.6 s), arrays asked the DAC each (2.8 s), sizes were

@@ -39,7 +39,9 @@ using HeapScope.UI.ViewModels;
 using HeapScope.UI.ViewModels.Tests;
 using HeapScope.UI.Views;
 using HeapScope.UI.Views.Pages;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.Tests;
 
@@ -723,6 +725,84 @@ public sealed class ViewTests(UiSession ui) : IDisposable
     }
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
+
+    // Sprint 3.12, task 4: the pages are built once after start, the status bar says so meanwhile, and nothing stays behind.
+    [Fact]
+    public async Task The_prewarm_builds_every_heavy_view_cleanly_and_shows_that_it_runs()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            ui.ClearBindingErrors();
+            var window = new MainWindow(shell);
+            window.Show();
+            var prewarm = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance);
+            var shown = new List<bool>();
+            shell.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ShellViewModel.IsPreparingViews))
+                {
+                    shown.Add(shell.IsPreparingViews);
+                    window.FindControl<Control>("PreparingViews")!.IsVisible.ShouldBe(shell.IsPreparingViews, "the status bar follows it");
+                }
+            };
+
+            var run = prewarm.RunAsync(window, TestContext.Current.CancellationToken);
+            while (!run.IsCompleted)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Yield();
+            }
+
+            await run;
+            prewarm.Completion.IsCompletedSuccessfully.ShouldBeTrue();
+            shown.ShouldBe([true, false]);
+            window.PrewarmHost.Children.ShouldBeEmpty("each view built alone is dropped after its step");
+            ui.BindingErrors.ShouldBeEmpty();
+            prewarm.Built.ShouldNotContain(nameof(HomePage), "the page shown is not built again");
+
+            // A page built in place is the one its first show uses: no second view.
+            var built = window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem();
+            shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == shell.Snapshots);
+            Dispatcher.UIThread.RunJobs();
+            window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem().ShouldBeSameAs(built);
+            built.IsEffectivelyVisible.ShouldBeTrue();
+            ui.BindingErrors.ShouldBeEmpty();
+
+            // Every page and subject view is built, or named here: shown at start, a row, or inside the Snapshots page.
+            string[] inside = [nameof(HomePage), nameof(JobRow), nameof(SnapshotTab), nameof(HeapScope.UI.Views.Subjects.ObjectView)];
+            var views = typeof(MainWindow).Assembly.GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(UserControl)) && t.Namespace is "HeapScope.UI.Views.Pages" or "HeapScope.UI.Views.Subjects")
+                .Select(t => t.Name);
+            views.Except(inside).Order().ShouldBe(prewarm.Built.Order());
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public async Task The_prewarm_is_off_by_setting_and_in_screenshot_runs()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            var off = new ViewPrewarmer(shell, Configuration("false"), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance);
+            var screenshots = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null, ScreenshotFolder: _folder), NullLogger<ViewPrewarmer>.Instance);
+            var window = new MainWindow(shell);
+
+            await off.RunAsync(window, TestContext.Current.CancellationToken);
+            await screenshots.RunAsync(window, TestContext.Current.CancellationToken);
+
+            (off.IsEnabled, screenshots.IsEnabled).ShouldBe((false, false));
+            (off.Completion.IsCompletedSuccessfully, screenshots.Completion.IsCompletedSuccessfully).ShouldBe((true, true));
+            shell.IsPreparingViews.ShouldBeFalse();
+            (off.Built.Count, screenshots.Built.Count).ShouldBe((0, 0));
+        });
+    }
+
+    private static Microsoft.Extensions.Configuration.IConfiguration Configuration(string? prewarm) =>
+        new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(prewarm is null ? [] : [new(ViewPrewarmer.SettingName, prewarm)])
+            .Build();
 
     internal static DataGrid Grid(Window window, string name)
     {

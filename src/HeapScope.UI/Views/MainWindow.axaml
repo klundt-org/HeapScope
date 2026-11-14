@@ -46,6 +46,9 @@
     <DataTemplate DataType="vm:JobViewModel"><pages:JobRow /></DataTemplate>
   </Window.DataTemplates>
   <DockPanel>
+    <!-- Where ViewPrewarmer builds each page once after start (sprint 3.12, task 4): in the visual tree, so styles and templates
+         apply, but zero-sized and clipped, so nothing shows and nothing is hit; no data context, so no binding reads the shell. -->
+    <Canvas x:Name="PrewarmHost" DockPanel.Dock="Bottom" DataContext="{x:Null}" Width="0" Height="0" ClipToBounds="True" Opacity="0" IsHitTestVisible="False" />
     <Border DockPanel.Dock="Top" Background="{DynamicResource Brush.Error.Background}" BorderBrush="{DynamicResource Brush.Error.Border}" BorderThickness="0,0,0,1" Padding="12,6"
             IsVisible="{Binding IsCrashBannerVisible}">
       <DockPanel>
@@ -67,6 +70,12 @@
     <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Surface}" Padding="8,3">
       <DockPanel>
         <TextBlock DockPanel.Dock="Right" Text="F1: keyboard shortcuts" Classes="subtle" Margin="12,0,0,0" />
+        <!-- The background build of the pages after start (sprint 3.12, task 4): a longer start does not look frozen. -->
+        <StackPanel x:Name="PreparingViews" DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" IsVisible="{Binding IsPreparingViews}"
+                    ToolTip.Tip="HeapScope is building its pages in the background so they open faster the first time. You can keep working; this ends on its own in a few seconds.">
+          <ProgressBar IsIndeterminate="True" Width="48" MinWidth="48" VerticalAlignment="Center" />
+          <TextBlock Text="Getting pages ready" Classes="subtle" VerticalAlignment="Center" />
+        </StackPanel>
         <Button DockPanel.Dock="Right" Classes="link" Content="{Binding FinishedJobsText}" Margin="12,0,0,0" Command="{Binding ShowJobsCommand}"
                 IsVisible="{Binding FinishedJobsText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="Show the Jobs page" />
         <Button x:Name="CancelExport" DockPanel.Dock="Right" Classes="compact" Content="Cancel export" Margin="8,0,0,0"

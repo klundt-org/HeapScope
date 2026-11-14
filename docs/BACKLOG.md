@@ -40,6 +40,13 @@ Sprint 3.11:
 Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
 
 **High**
+- A hands-on tutorial (product owner, 2026-11-14; a phase 3.5 candidate): a Learn item low on the left navigation that
+  gives the user captures, snapshots and allocation traces with a varied set of planted problems, and walks them through
+  finding and diagnosing each with the app's own pages. Open questions: generated each time by a bundled scenario app
+  (teaches capture too, matches the machine's runtime and DAC, can vary names and sizes per run) or pre-built files (no
+  wait, but they grow the install and age with each runtime's DAC), or both; one lesson per inspection and per page;
+  how a lesson checks the user found it (the scenario knows what it planted, as the fixtures' known answers do); the
+  lesson texts approved by the owner (info-text.md).
 - A contribution policy before any outside contribution is accepted (from ADR-022; 2026-10-30, the repository is
   public). A contribution stays its author's, licensed to HeapScope under the AGPL only, which would end commercial
   licensing of any file it touches. Until a contributor agreement exists (a CLA that grants the owner the right to
@@ -143,6 +150,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
+  86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
 - From 3.8 (decided autonomously): the Live page view model split into live monitoring, past runs and timeline actions
   with a shared chart state (peer review P11, its view model half); an analysis workspace per snapshot, extracted from
   the Snapshots page, with a design for the worker's result sets of hidden snapshots (P21, Phase 4); the Object view,

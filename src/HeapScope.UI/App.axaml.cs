@@ -119,6 +119,9 @@ public sealed partial class App : Avalonia.Application
 
             window.Show();
 
+            // Builds the pages at idle priority, so after the first window renders (sprint 3.12, task 4); never faults.
+            _ = _host.Services.GetRequiredService<ViewPrewarmer>().RunAsync(window, lifetime.ApplicationStopping);
+
             var options = _host.Services.GetRequiredService<UiOptions>();
             if (options.ScreenshotFolder is { } screenshots)
             {

@@ -83,6 +83,11 @@ internal sealed class SmokeRunner(IServiceProvider services)
     public async Task<int?> RunAsync(UiOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        if (options.IsSmokeRun)
+        {
+            await WaitForPrewarmAsync();
+        }
+
         int? result = options switch
         {
             { SmokeSyntheticObjects: int objects } => await RunSmokeAsync(objects),
@@ -107,6 +112,31 @@ internal sealed class SmokeRunner(IServiceProvider services)
         }
 
         return SmokeVerdict.Final(result.Value, enumerations, Program.IsHeadless, App.FirstWindowTime);
+    }
+
+    /// <summary>
+    /// Waits for the background build of the pages (sprint 3.12, task 4), so the run measures what a user meets after it,
+    /// and logs its slow operations apart: no page is shown while it runs, so they are not first shows and not in the ceiling.
+    /// </summary>
+    private async Task WaitForPrewarmAsync()
+    {
+        var logger = _services.GetRequiredService<ILogger<SmokeRunner>>();
+        var watchdog = _services.GetRequiredService<DispatcherWatchdog>();
+        var prewarm = _services.GetRequiredService<ViewPrewarmer>();
+        var phases = new SmokePhases(watchdog);
+        phases.Begin();
+        try
+        {
+            await prewarm.Completion.WaitAsync(TimeSpan.FromMinutes(2));
+        }
+        catch (TimeoutException)
+        {
+            logger.LogWarning("Smoke prewarm: not done after 2 minutes; the run goes on");
+        }
+
+        await IdleAsync();
+        var phase = phases.End("prewarm", cold: true);
+        logger.LogInformation("Smoke prewarm ({State}): {Measured}; slow operations {Slow}", prewarm.IsEnabled ? "on" : "off", phase.Measured, phase.SlowOperations);
     }
 
     // Waits until the UI thread has nothing left to do, rendering included.

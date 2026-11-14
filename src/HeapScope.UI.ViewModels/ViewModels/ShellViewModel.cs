@@ -52,6 +52,10 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _workerStatus = "Worker not started";
 
+    /// <summary>True while the app builds its pages in the background after start (sprint 3.12, task 4); the status bar shows it.</summary>
+    [ObservableProperty]
+    private bool _isPreparingViews;
+
     [ObservableProperty]
     private bool _isCrashBannerVisible;
 
