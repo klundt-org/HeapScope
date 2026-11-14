@@ -282,8 +282,8 @@ public sealed class SessionLibrary
     // Sessions something writes into (a capture, a monitoring run) and sessions being deleted (sprint 3.4 review H1):
     // a deletion refuses the first, and the second refuse to start in a session being deleted.
     private readonly object _useGate = new();
-    private readonly Dictionary<string, List<string>> _inUse = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _deleting = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> _inUse = new(PathIdentity.Comparer());
+    private readonly HashSet<string> _deleting = new(PathIdentity.Comparer());
 
     public SessionLibrary(string? root = null, TimeProvider? timeProvider = null, ILogger<SessionLibrary>? logger = null)
     {
@@ -441,7 +441,7 @@ public sealed class SessionLibrary
         return Update(folder, document =>
         {
             var file = snapshot.File;
-            if (Path.IsPathFullyQualified(file) && string.Equals(Path.GetDirectoryName(file), folder, StringComparison.OrdinalIgnoreCase))
+            if (Path.IsPathFullyQualified(file) && PathIdentity.Same(Path.GetDirectoryName(file), folder))
             {
                 file = Path.GetFileName(file);
             }
@@ -627,7 +627,7 @@ public sealed class SessionLibrary
         foreach (var summary in ListRecent(int.MaxValue))
         {
             if (TryRead(summary.Folder) is { } session
-                && session.Document.Snapshots.FirstOrDefault(s => string.Equals(Path.GetFullPath(session.PathOf(s)), full, StringComparison.OrdinalIgnoreCase)) is { } snapshot)
+                && session.Document.Snapshots.FirstOrDefault(s => PathIdentity.Same(Path.GetFullPath(session.PathOf(s)), full)) is { } snapshot)
             {
                 return (session, snapshot);
             }
@@ -727,7 +727,7 @@ public sealed class SessionLibrary
             }
         }
 
-        return ([.. files.Distinct(StringComparer.OrdinalIgnoreCase)], kept);
+        return ([.. files.Distinct(PathIdentity.Comparer())], kept);
     }
 
     /// <summary>A snapshot's files: itself, its partial file, and its index caches and sidecars.</summary>
@@ -740,7 +740,7 @@ public sealed class SessionLibrary
         var deleted = new List<string>();
         var failed = new List<string>();
         long bytes = 0;
-        foreach (var file in files.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var file in files.Distinct(PathIdentity.Comparer()))
         {
             try
             {
@@ -760,10 +760,10 @@ public sealed class SessionLibrary
 
     private static string Normalize(string folder) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
 
-    private static bool IsFile(string? a, string? b) => a is not null && b is not null && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    private static bool IsFile(string? a, string? b) => PathIdentity.Same(a, b);
 
     internal static bool IsUnder(string file, string folder) =>
-        Path.GetFullPath(file).StartsWith(Path.TrimEndingDirectorySeparator(folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        PathIdentity.IsUnder(Path.GetFullPath(file), Path.TrimEndingDirectorySeparator(folder));
 
     private static bool IsLink(string path) =>
         (File.Exists(path) || Directory.Exists(path)) && File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
@@ -839,7 +839,7 @@ public sealed class SessionLibrary
 
             lock (_gate)
             {
-                if (string.Equals(_currentFolder, folder, StringComparison.OrdinalIgnoreCase))
+                if (PathIdentity.Same(_currentFolder, folder))
                 {
                     // Its document is gone either way, so it is no longer a session to capture into.
                     _currentFolder = null;

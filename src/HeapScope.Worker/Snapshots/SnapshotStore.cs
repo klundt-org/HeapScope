@@ -211,7 +211,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     {
         foreach (var entry in _snapshots.Values)
         {
-            if (string.Equals(entry.Descriptor.Path, path, StringComparison.OrdinalIgnoreCase))
+            if (PathIdentity.Same(entry.Descriptor.Path, path))
             {
                 return entry;
             }

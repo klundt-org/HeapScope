@@ -148,7 +148,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
     private string? WhyKept(SessionSummary summary)
     {
         var folder = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(summary.Folder));
-        if (string.Equals(library?.CurrentFolder, folder, StringComparison.OrdinalIgnoreCase))
+        if (PathIdentity.Same(library?.CurrentFolder, folder))
         {
             return $"{summary.Name} is the current session (new captures go into it), so it is kept. Open another session first.";
         }
@@ -159,7 +159,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
 
         var under = folder + System.IO.Path.DirectorySeparatorChar;
-        return snapshots?.Snapshots.Any(s => System.IO.Path.GetFullPath(s.Handle.Path).StartsWith(under, StringComparison.OrdinalIgnoreCase)) == true
+        return snapshots?.Snapshots.Any(s => System.IO.Path.GetFullPath(s.Handle.Path).StartsWith(under, PathIdentity.Comparison())) == true
             ? $"{summary.Name} has a snapshot open. Close it on the Snapshots page first."
             : null;
     }

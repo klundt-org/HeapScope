@@ -257,7 +257,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         // The worker snapshot the dump has now, if it is open: an open that changes it was the user's way back from a refused
         // reopen (3.11 review M1, M12). A silent reopen after a worker restart has already moved the handle on.
         var fullPath = System.IO.Path.GetFullPath(path);
-        var before = _session.Snapshots.FirstOrDefault(h => string.Equals(h.Path, fullPath, StringComparison.OrdinalIgnoreCase))?.Descriptor.SnapshotId;
+        var before = _session.Snapshots.FirstOrDefault(h => PathIdentity.Same(h.Path, fullPath))?.Descriptor.SnapshotId;
         try
         {
             if (await _session.GetOpenWarningAsync(path, rebuild: false, CancellationToken.None) is { } warning

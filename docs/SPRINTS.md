@@ -248,8 +248,12 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     `SettingsViewModelTests` (the setting, Purge logs, Purge all's question, its "no", what it deletes and keeps, refused
     while a job runs), `InfoIconTests` (the approved texts on screen), the shell's page order; a mutation that deletes the
     log being written fails two of them. The page's status lines are drafts for the owner (`info-text.md`).
-21. [ ] B3: one path identity rule (case-insensitive on Windows, ordinal elsewhere) at every path comparison. Proof: unit tests
+21. [x] B3: one path identity rule (case-insensitive on Windows, ordinal elsewhere) at every path comparison. Proof: unit tests
     for both systems; a Linux CI test that two files differing only in case open as two snapshots.
+    Done 2026-11-13: `PathIdentity` (Contracts: `Same`, `IsUnder`, `Comparer`) at every path comparison of the worker's open,
+    the session library (its folders, deletions, in-use marks), bookmarks, settings, the app's open and trace lists and the CLI's
+    trend. `PathIdentityTests` (Worker, so CI's Linux job runs it): both systems' rules, whole folder names, and two dumps
+    whose names differ only in case opening as two snapshots where the system tells them apart.
 22. [x] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,
     instead of failing the session. Proof: a session with an unknown kind opens, and saving keeps the entry.
     Done: `SessionDocumentFile` sets aside a snapshot or run entry whose enum value this build does not know

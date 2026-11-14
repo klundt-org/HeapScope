@@ -225,7 +225,7 @@ public sealed class SettingsService
     private bool IsInLibrary(string path)
     {
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_library.Root)) + Path.DirectorySeparatorChar;
-        return Path.GetFullPath(path).StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        return Path.GetFullPath(path).StartsWith(root, HeapScope.Contracts.PathIdentity.Comparison());
     }
 
     private IEnumerable<string> LogFiles()
@@ -237,7 +237,7 @@ public sealed class SettingsService
 
         var current = _logs?.CurrentPath;
         return Directory.EnumerateFiles(LogFolder, "heapscope-*.log")
-            .Where(f => current is null || !string.Equals(Path.GetFullPath(f), Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase))
+            .Where(f => current is null || !HeapScope.Contracts.PathIdentity.Same(Path.GetFullPath(f), Path.GetFullPath(current)))
             .ToList();
     }
 

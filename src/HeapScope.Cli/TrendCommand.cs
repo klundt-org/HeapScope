@@ -53,7 +53,7 @@ internal static partial class CliCommands
         AddTopOrAllValidator(command, top, all);
         command.Validators.Add(result =>
         {
-            if (result.GetValue(dumps) is { } files && files.Select(f => f.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != files.Length)
+            if (result.GetValue(dumps) is { } files && files.Select(f => f.FullName).Distinct(PathIdentity.Comparer()).Count() != files.Length)
             {
                 result.AddError("Give each dump once.");
             }

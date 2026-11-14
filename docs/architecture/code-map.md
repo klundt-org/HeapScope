@@ -96,7 +96,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   the full dump loader's form), `ObservedReadStream` (progress and cancellation while the vendored reader reads) [1.8].
 - **ThirdParty.GcDump.** The vendored dotnet-gcdump code (PerfView's `MemoryGraph`, `GCHeapDump` and the EventPipe heap
   dumper), MIT, with its five changes listed in its `CHANGES.md` [1.8, 1.9, 3.7].
-- **Contracts.** The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
+- **Contracts.** `PathIdentity`, the one rule for when two paths name the same file (case ignored on Windows only) [3.12]. The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
   `IResultSetService`, `IHeapQueryService`, `IRetentionService`, `IInspectionService`, `IAllocationTraceService`, listed
   in `WorkerContracts.All`; `IWorkerService` aggregates them for clients), `WorkerProtocol`, `HeapScopeErrorCode`, the wire enums and `CapabilityDescriptions`
   [0.3]; `DacTrustDetails`, the error data of `DacNotTrusted` [3.6]; `SnapshotFeatureIds`, `FeatureAvailability` (the

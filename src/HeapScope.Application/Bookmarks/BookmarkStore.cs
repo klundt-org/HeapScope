@@ -60,7 +60,7 @@ public sealed record SnapshotKey(string Path, long Length, DateTime WriteTimeUtc
 
     public bool Matches(SnapshotKey other) =>
         other is not null && Length == other.Length && WriteTimeUtc == other.WriteTimeUtc
-        && string.Equals(Path, other.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        && HeapScope.Contracts.PathIdentity.Same(Path, other.Path);
 }
 
 /// <summary>One marked object: where, which, and how it is shown. No field values or string text (ADR-026).</summary>

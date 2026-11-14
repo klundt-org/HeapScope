@@ -132,7 +132,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             SnapshotHandle handle;
             lock (_gate)
             {
-                handle = _snapshots.Find(h => string.Equals(h.Path, descriptor.Path, StringComparison.OrdinalIgnoreCase))
+                handle = _snapshots.Find(h => PathIdentity.Same(h.Path, descriptor.Path))
                     ?? Add(new SnapshotHandle(descriptor, generation, mode));
                 handle.Update(descriptor, generation);
             }
