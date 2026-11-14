@@ -253,6 +253,14 @@ dotnet test --solution HeapScope.sln
   the callers of a frame). It finds the UI thread by Avalonia's dispatcher (WPF's for old traces) and counts a sample
   idle when the thread waits in its run loop (sprint 3.8). Traced runs are slower: use them to find where time goes,
   not to check budgets.
+- Why the UI stalled (sprint 3.12): record a smoke run with Windows' own recorder in an administrator prompt
+  (`wpr -start CPU -start DotNET -filemode`, run the smoke run, `wpr -stop run.etl`), then
+  `dotnet run -c Release --project perf/HeapScope.Benchmarks -- ui-stalls --etl run.etl --log <the run's heapscope-...-ui-PID.log>`
+  (`--min-ms 100`, `--frames N` for the heaviest leaf frames of the unexplained samples). Each lag and long operation the
+  app's watchdog logged is split into waiting for a CPU, GC, JIT, styles and templates, layout, rendering, other code and
+  blocked, with the collections in it and, for a mostly blocked stall, where the UI thread waited. The first read converts
+  the recording (minutes for a few GB) into an `.etlx` beside it, which later reads reuse. The split's rules are
+  `UiStallAttribution`, tested in `tests/HeapScope.Benchmarks.Tests`.
 - Live sources (sprint 3.8, ADR-037): `dotnet run -c Release --project perf/HeapScope.Benchmarks -- live-tail --seconds
   10` records an allocating copy of itself and reads the trace file while it grows, reporting events read and lost,
   the delay to the reader and its memory.

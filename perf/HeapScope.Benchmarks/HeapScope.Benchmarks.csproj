@@ -7,6 +7,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="HeapScope.Benchmarks.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\HeapScope.Analysis\HeapScope.Analysis.csproj" />
     <ProjectReference Include="..\..\src\HeapScope.Core\HeapScope.Core.csproj" />
     <ProjectReference Include="..\..\src\HeapScope.Storage\HeapScope.Storage.csproj" />

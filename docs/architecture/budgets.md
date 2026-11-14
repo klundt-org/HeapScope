@@ -131,3 +131,31 @@ are first shows of a page, which the run logs; every checked phase stayed inside
 first shows over 100 ms went from 3 to 7 per run to 5 to 13. Inter and its tabular figures account for little of that: with
 neither, an unpublished build still showed more of them than the build before, so the cost is mostly the new styles and templates
 compiling on first use. The published folder grew from 352 MB to 359 MB, the font and the license folder included.
+
+UI stalls attributed (sprint 3.12, task 3). Five WPR recordings (CPU sampling, context switches, ready thread, .NET events) of
+the published ReadyToRun build on 2026-11-12, 23:47 to 00:05, on the 24-thread, 32 GB development machine with its usual
+background work mostly stopped (another project's tests ran at times; the load log is `artifacts/bench/3.12/load-quiet.log`).
+`ui-stalls` (perf/HeapScope.Benchmarks) splits each stall the app's watchdog logged (lags and long operations over 100 ms)
+into causes by the UI thread's context switches, ready time, the runtime's GC and JIT events and its CPU samples' stacks.
+Shares of the total lag time per run:
+
+| Run | Lags over 100 ms | GC | Styles and templates | JIT | Layout | Rendering | Other code | Blocked (not running) | Waiting for a CPU |
+|---|---|---|---|---|---|---|---|---|---|
+| Quiet, run 1 | 16, 4,290 ms | 13% | 18% | 10% | 6% | 6% | 13% | 35% | 0% |
+| Quiet, run 2 | 10, 2,643 ms | 14% | 16% | 14% | 6% | 3% | 18% | 29% | 0% |
+| Four busy cores (task 6) | 23, 5,857 ms | 25% | 23% | 12% | 9% | 7% | 16% | 7% | 0% |
+
+What the recordings show:
+- The UI thread never waited for a processor in any stall, even with four cores busy: the lag under load (Backlog, from 0.3)
+  is not CPU starvation of the UI thread, so a CPU rate cap, EcoQoS or GC heap affinity for the worker would not reach it.
+  Under load the UI process's own garbage collections grow to a quarter of the lag: gen 0 and gen 1 collections the UI's
+  small allocations trigger (non-concurrent, 14 to 93 ms each in these stalls) and background gen 2 collections.
+- The first shows of a page are mostly styles and control templates built on first use (Avalonia's styling and template
+  frames), then GC, layout and rendering.
+- Cold start's first window (1.5 s in run 1) is about 280 ms of JIT and 310 ms of the runtime's own code (type loading,
+  ReadyToRun fixups; no symbols for it), and about 880 ms off the processor: one wait of 112 ms was inside Microsoft
+  Defender's real-time scan (`mprtp`) of a file being loaded; the others carried no user-mode stack.
+- One 220 ms lag in each quiet run has the UI thread off the processor the whole time with no stack (the app's own
+  watchdog also measured 0 ms of UI CPU in it): not work on the UI thread; its cause is not in these recordings.
+- The traced runs are slower than untraced ones (the first window took 7.0 and 8.5 s while recording, 0.8 to 4.9 s without);
+  the shares, not the times, are the result.

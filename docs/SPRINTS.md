@@ -102,11 +102,18 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    to it; `TextRulesTests.Tests_make_snapshot_sessions_only_through_TestSessions`. Mutation: with 1 byte free, the three
    `ProcessesViewModelTests` that failed in 3.11 fail again. The worker's own budget still reads the machine (mapped or in memory,
    refusals); that is the product's behavior and is left as is.
-3. [ ] A WPR recording of the smoke run (CPU sampling, context switches, ready thread; Windows' own `wpr.exe`, an admin prompt
+3. [x] A WPR recording of the smoke run (CPU sampling, context switches, ready thread; Windows' own `wpr.exe`, an admin prompt
    the owner approves) beside the `--smoke-trace` EventPipe trace with JIT events, read by a small TraceEvent tool in
    `build/` that attributes each first show over 100 ms and each dispatcher lag over 100 ms to JIT, styles and templates,
    layout, GC, or the UI thread waiting for the CPU. Proof: the tool's unit tests on a recorded trace's numbers; its report
    in `budgets.md`.
+   Done 2026-11-13: five WPR recordings (2026-11-12, the quiet window: two quiet smoke runs, one with four busy cores, a
+   Medium first load, and one more smoke run); the WPR profile's own .NET events gave the JIT events, so no separate
+   EventPipe trace was needed. The tool is `ui-stalls` in `perf/HeapScope.Benchmarks`, beside the existing `trace-report`,
+   not in `build/`: it shares that project's TraceEvent reference. Its rules (`UiStallAttribution`) are tested in the new
+   `tests/HeapScope.Benchmarks.Tests` on one recorded stall's numbers (a mutation of the split fails two tests). Report in
+   `budgets.md`: no stall waited for a CPU, even under load; first shows are mostly styles and templates, then GC; under load
+   GC grows to a quarter of the lag; cold start is JIT, the runtime's own code, and waits (one inside Defender's scan).
 4. [ ] Fix what the trace supports for cold first shows (for example preloading templates or JIT warm up off the UI thread),
    each fix measured against the build before it. Proof: smoke runs on the demo dumps and on the Medium dump, before and after.
 5. [ ] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
