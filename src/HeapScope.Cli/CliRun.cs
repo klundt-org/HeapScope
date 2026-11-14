@@ -60,7 +60,7 @@ internal static partial class CliCommands
         using var activity = new System.Diagnostics.Activity("HeapScope.Cli").Start();
         var command = parseResult.CommandResult.Command.Name;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
-        logger.LogInformation("Command {Command} started: {Arguments}", command, DescribeTokens(parseResult));
+        logger.LogInformation("Command {Command} started: {Arguments}", command, DescribeTokens(parseResult, HeapScope.Application.Settings.SettingsService.FilterTextInLogs));
         int exitCode;
         try
         {
@@ -91,17 +91,42 @@ internal static partial class CliCommands
         return exitCode;
     }
 
-    /// <summary>The command line for the log: option names, paths and numbers as given, other values by their length.</summary>
-    internal static string DescribeTokens(ParseResult parseResult) => string.Join(
-        " ",
-        parseResult.Tokens.Select(token => token.Type switch
+    /// <summary>Options whose values are filter or search text the user typed (sprint 3.12, B1).</summary>
+    private static readonly HashSet<string> s_filterOptions = new(StringComparer.Ordinal) { "--filter" };
+
+    /// <summary>
+    /// The command line for the log, value by value by the option it belongs to (sprint 3.12, B1): a filter's text as given
+    /// when <paramref name="includeFilterText"/> (the user's setting, on by default) and by its length otherwise, whatever it
+    /// looks like; paths, numbers and true or false of other options as given; any other text by its length.
+    /// </summary>
+    internal static string DescribeTokens(ParseResult parseResult, bool includeFilterText)
+    {
+        var parts = new List<string>();
+        string? option = null;
+        foreach (var token in parseResult.Tokens)
         {
-            System.CommandLine.Parsing.TokenType.Argument when File.Exists(token.Value) || Directory.Exists(token.Value)
-                || double.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
-                || token.Value is "true" or "false" => token.Value,
-            System.CommandLine.Parsing.TokenType.Argument => string.Create(CultureInfo.InvariantCulture, $"({token.Value.Length} chars)"),
-            _ => token.Value,
-        }));
+            if (token.Type != System.CommandLine.Parsing.TokenType.Argument)
+            {
+                parts.Add(token.Value);
+                option = token.Type == System.CommandLine.Parsing.TokenType.Option ? token.Value : null;
+                continue;
+            }
+
+            var length = string.Create(CultureInfo.InvariantCulture, $"({token.Value.Length} chars)");
+            parts.Add(option is not null && s_filterOptions.Contains(option)
+                ? (includeFilterText ? JsonQuoted(token.Value) : length)
+                : File.Exists(token.Value) || Directory.Exists(token.Value)
+                    || double.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                    || token.Value is "true" or "false" ? token.Value : length);
+            option = null;
+        }
+
+        return string.Join(" ", parts);
+    }
+
+    // Quoted on one line, readable: escapes only what would break the line or the quotes.
+    private static string JsonQuoted(string value) =>
+        System.Text.Json.JsonSerializer.Serialize(value, new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
     internal sealed class ProductVersionAction : SynchronousCommandLineAction
     {

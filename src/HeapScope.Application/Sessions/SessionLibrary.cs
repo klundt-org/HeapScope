@@ -339,6 +339,22 @@ public sealed class SessionLibrary
         }
     }
 
+    /// <summary>
+    /// Lets go of the current session (sprint 3.12, Purge all): its folder is not touched, and the next capture starts a new
+    /// session.
+    /// </summary>
+    public void ForgetCurrent()
+    {
+        lock (_currentWork)
+        {
+            lock (_gate)
+            {
+                _logger.LogInformation("The current session {Folder} is let go of; the next capture starts a new one", _currentFolder ?? "(none)");
+                _currentFolder = null;
+            }
+        }
+    }
+
     /// <summary>True when a current session exists already (captures will not create a new one).</summary>
     public bool HasCurrent
     {
@@ -532,9 +548,10 @@ public sealed class SessionLibrary
     /// <see cref="Deletion.Kept"/>. Refused, with the reason, for a folder that is not a session of this library, the
     /// current session, or a session something writes into. Nothing is deleted here.
     /// </summary>
-    public Deletion PlanSessionDeletion(string folder, string? cacheFallbackRoot = null)
+    /// <param name="allowCurrent">Purge all (sprint 3.12): the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
+    public Deletion PlanSessionDeletion(string folder, string? cacheFallbackRoot = null, bool allowCurrent = false)
     {
-        var session = SessionToDelete(folder);
+        var session = SessionToDelete(folder, allowCurrent);
         var (files, kept) = SessionFiles(session, cacheFallbackRoot);
         return new Deletion(files, files.Sum(f => new FileInfo(f).Length), Kept: kept);
     }
@@ -544,9 +561,10 @@ public sealed class SessionLibrary
     /// <c>session.json</c> last, so a deletion that fails part way leaves a session that is still listed and can be deleted
     /// again. The caller has made sure none of its snapshots is open.
     /// </summary>
-    public Deletion DeleteSession(string folder, string? cacheFallbackRoot = null)
+    /// <param name="allowCurrent">Purge all (sprint 3.12): the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
+    public Deletion DeleteSession(string folder, string? cacheFallbackRoot = null, bool allowCurrent = false)
     {
-        var full = SessionToDelete(folder).Folder;
+        var full = SessionToDelete(folder, allowCurrent).Folder;
         lock (_useGate)
         {
             if (_inUse.TryGetValue(full, out var users))
@@ -642,7 +660,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>A session of this library that may be deleted now, or the reason it may not.</summary>
-    private Session SessionToDelete(string folder)
+    private Session SessionToDelete(string folder, bool allowCurrent = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(folder);
         var full = Normalize(folder);
@@ -653,7 +671,7 @@ public sealed class SessionLibrary
             throw new ArgumentException("Only a session of this library can be deleted.", nameof(folder));
         }
 
-        if (IsFile(full, CurrentFolder))
+        if (!allowCurrent && IsFile(full, CurrentFolder))
         {
             throw new InvalidOperationException("The current session cannot be deleted while it is current: start a new session first.");
         }

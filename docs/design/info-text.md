@@ -139,6 +139,12 @@ Approved by the owner on 2026-11-12 and 2026-11-13, except the rows marked draft
 | Settings | Purge logs (tooltip) | Delete HeapScope's log files. The log being written now is kept until HeapScope closes. | approved |
 | Settings | Purge all (tooltip) | Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched. | approved |
 | Settings | Purge all confirmation | Title "Delete everything HeapScope keeps?"; body "This deletes HeapScope's logs and its whole library: N sessions, N files, N GB. Dumps you opened from your own folders stay. This cannot be undone."; buttons "Delete everything" and "Cancel". | approved |
+| Settings | Status after Purge logs (B1) | Deleted {N} log files ({size}). | draft, to approve |
+| Settings | Status after Purge all (B1) | Deleted everything HeapScope keeps: {N} sessions, {N} files ({size}). | draft, to approve |
+| Settings | Status when files could not be deleted (B1) | {N} files could not be deleted, usually because another program has them open: {files}. Close it and try again. | draft, to approve |
+| Settings | Status when Purge all is refused (B1) | Nothing was deleted: {reason}, for example "Capture app is running; wait for it or cancel it first." | draft, to approve |
+| Settings | Status when the setting cannot be saved (B1) | The setting could not be saved to {file}: {message} | draft, to approve |
+| Settings | Section, check box and buttons (B1) | Logging; Include filter text in logs; Purge logs; Purge all | as the owner named them, 2026-11-12 |
 | Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
 | Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
 | Every export of the Retainers tree | CSV column (M6) | "Retained is", with "exact" or "at least" on each row. | approved |

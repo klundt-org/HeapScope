@@ -80,6 +80,10 @@ public static class ViewModelServiceCollectionExtensions
         services.AddSingleton(sp => new GridExportService(
             sp.GetRequiredService<IUserInteraction>(),
             sp.GetService<ILogger<GridExportService>>()));
+        services.AddSingleton(sp => new SettingsViewModel(
+            sp.GetRequiredService<HeapScope.Application.Settings.SettingsService>(),
+            sp.GetRequiredService<IUserInteraction>(),
+            sp.GetService<ILogger<SettingsViewModel>>()));
         services.AddSingleton(sp => new ShellViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<IUiDispatcher>(),
@@ -89,7 +93,8 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<AboutViewModel>(),
             sp.GetRequiredService<LiveViewModel>(),
             sp.GetRequiredService<AllocationsViewModel>(),
-            sp.GetRequiredService<GridExportService>()));
+            sp.GetRequiredService<GridExportService>(),
+            sp.GetRequiredService<SettingsViewModel>()));
         return services;
     }
 }

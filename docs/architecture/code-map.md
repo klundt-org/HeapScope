@@ -6,7 +6,8 @@ brackets.
 Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
 - **Core.** `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
-  `--data-folder`) [3.8]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
+  `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
+  (what the logs may hold, followed within a second by every process) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
   string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
@@ -176,7 +177,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed) and `RunRecord`, a file per type
   [P11]; `Sessions/SessionFileCheck` (a session's file, or which check refused it) [3.7 review M2].
   `Workers/` (`WorkerHost`, `IWorkerClient`, exceptions, log forwarding), `Jobs/JobTracker`,
-  `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Snapshots/`: `SnapshotSession` (summaries, diffs with both
+  `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's setting and its
+  Purge logs and Purge all, with `PurgePlan`) [3.12]; `Snapshots/`: `SnapshotSession` (summaries, diffs with both
   snapshots reopened after a restart through `UseBothAsync`, instances, objects, inspections, referrers [2.1], retention paths [2.2], retained sizes [2.3]) and
   `ResultSetHandle` (section 4.6) [1.3 to 1.6]; `Sessions/`: `SessionLibrary`, `CaptureService` (per-kind capture settings in one table)
   [1.1, 1.9] and `TraceService` [1.5]; `Snapshots/GrowthThreshold` (the `--fail-on-growth` CI gate's limit, a size or a
@@ -210,7 +212,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `QueryTypeTrendAsync` over up to 20 snapshots (`UseManyAsync`), and `ObjectSetQuery.Baseline` as a compared set's
   other snapshot [3.3].
 - **UI.ViewModels** (sprint 2.3.6, moved from the WPF app; no UI toolkit). Since 3.8 every query runs through
-  `QueryRunner` (its activity, progress, and a refusal logged as shown; grids through `GridQueryViewModel`) [P8]. `Services/`: `IUiDispatcher` (post to the UI
+  `QueryRunner` (its activity, progress, and a refusal logged as shown; grids through `GridQueryViewModel`) [P8]. `SettingsViewModel` (the Settings page above About) [3.12]. `Services/`: `IUiDispatcher` (post to the UI
   thread, `YieldToRenderAsync`) with `ImmediateUiDispatcher` for tests, `IUserInteraction` (asynchronous dialogs; opening a file or showing it in its folder since the timeline row) with
   `AutomaticUserInteraction` for smoke runs. `ViewModels/`: the shell, pages and jobs [0.3]; `GridQueryViewModel<TRow>`
   (the query lifecycle shared by the grids: debounced filter, latest query wins, column-name sort, first page preloaded

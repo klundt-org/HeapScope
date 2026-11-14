@@ -256,9 +256,10 @@ internal static partial class CliCommands
 
                 // The gate's decision in the log, so a failed CI run can be explained later (sprint 2.3.7 review M4; per row,
                 // the rows over their limits and the largest, each with its own baseline and limit, the 3.3 review). The
-                // filter is logged by its length only.
+                // filter's text is logged unless the user turned that off (sprint 3.12, B1); its length always is.
+                var filterText = parseResult.GetValue(filter);
                 context.Get<ILoggerFactory>().CreateLogger("HeapScope.Cli.Diff").LogInformation(
-                    "Growth gate {Outcome} ({Grouping} rows, growth of {GrowthOf}, {Mode}): {Decision}; limit {Threshold}; {Rows} matching rows, filter {FilterLength} chars; baseline {Baseline} (worker snapshot {BaselineId}), current {Current} (worker snapshot {CurrentId}); exact counts {ExactCounts}",
+                    "Growth gate {Outcome} ({Grouping} rows, growth of {GrowthOf}, {Mode}): {Decision}; limit {Threshold}; {Rows} matching rows, filter {Filter}{FilterLength} chars; baseline {Baseline} (worker snapshot {BaselineId}), current {Current} (worker snapshot {CurrentId}); exact counts {ExactCounts}",
                     exceeded ? "failed" : "passed",
                     parseResult.GetValue(group),
                     parseResult.GetValue(growthOf),
@@ -270,7 +271,8 @@ internal static partial class CliCommands
                             : string.Create(CultureInfo.InvariantCulture, $"grew by {delta} bytes in {parseResult.GetValue(growthOf)}, limit {limit} bytes"),
                     text,
                     result.Rows.TotalCount,
-                    parseResult.GetValue(filter)?.Length ?? 0,
+                    filterText is { Length: > 0 } && HeapScope.Application.Settings.SettingsService.FilterTextInLogs ? System.Text.Json.JsonSerializer.Serialize(filterText, new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) + ", " : string.Empty,
+                    filterText?.Length ?? 0,
                     before.Path,
                     before.Descriptor.SnapshotId,
                     after.Path,

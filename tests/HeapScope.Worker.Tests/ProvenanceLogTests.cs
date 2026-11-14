@@ -33,7 +33,8 @@ namespace HeapScope.Worker.Tests;
 
 /// <summary>
 /// Every answer of the worker leaves one line saying what was asked and what was answered (sprint 2.3.7 review H3, M2),
-/// with names and numbers only: field values, string contents and filter text never reach the log (ARCHITECTURE.md 12).
+/// with names and numbers only: field values and string contents never reach the log (ARCHITECTURE.md 12), and filter text
+/// only while the user allows it (sprint 3.12, B1).
 /// </summary>
 public sealed class ProvenanceLogTests
 {
@@ -51,9 +52,9 @@ public sealed class ProvenanceLogTests
         var line = logger.Lines.ShouldHaveSingleItem();
         line.ShouldStartWith("QueryInstancesAsync answered in ");
         line.ShouldContain("SnapshotId=11111111-2222-3333-4444-555555555555");
-        line.ShouldContain("TypeName=App.Order, Module=App.dll, Filter=(15 chars; 1 terms, 0 excluding, 0 on the module)");
+        line.ShouldContain("TypeName=App.Order, Module=App.dll, Filter=");
+        line.ShouldContain("(15 chars; 1 terms, 0 excluding, 0 on the module)");
         line.ShouldContain("TotalObjects=10, TotalBytes=400");
-        line.ShouldNotContain("secret");
     }
 
     [Fact]
@@ -101,14 +102,22 @@ public sealed class ProvenanceLogTests
     }
 
     [Fact]
-    public void A_filter_is_logged_by_its_shape_never_its_text()
+    public void A_filter_is_logged_with_its_text_and_shape_or_by_its_shape_only_when_the_user_turned_the_text_off()
     {
-        // 2.7 review: an exclusion or a module term explains a missing row.
-        var line = Provenance.Describe(new TypeSummaryRequest(s_snapshot, Filter: "order -secret m:App.dll"));
+        // 2.7 review: an exclusion or a module term explains a missing row. Sprint 3.12 (B1, owner 2026-11-12): its text too,
+        // quoted on one line, unless the Settings page turned that off.
+        var request = new TypeSummaryRequest(s_snapshot, Filter: "order -secret m:App.dll");
 
-        line.ShouldContain("Filter=(23 chars; 1 terms, 1 excluding, 1 on the module)");
-        line.ShouldNotContain("secret");
-        line.ShouldNotContain("order");
+        var with = Provenance.Describe(request, includeFilterText: true);
+        var without = Provenance.Describe(request, includeFilterText: false);
+        var quoted = Provenance.Describe(new TypeSummaryRequest(s_snapshot, Filter: "a \"b\"\nc"), includeFilterText: true);
+
+        with.ShouldContain("Filter=\"order -secret m:App.dll\" (23 chars; 1 terms, 1 excluding, 1 on the module)");
+        quoted.ShouldContain("Filter=\"a \\\"b\\\"\\nc\" (", customMessage: "quoted and escaped, on one line");
+        quoted.ShouldNotContain("\n");
+        without.ShouldContain("Filter=(23 chars; 1 terms, 1 excluding, 1 on the module)");
+        without.ShouldNotContain("secret");
+        without.ShouldNotContain("order");
     }
 
     [Fact]

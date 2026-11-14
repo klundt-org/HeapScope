@@ -58,6 +58,9 @@ public sealed class ViewTests(UiSession ui) : IDisposable
         await ui.RunAsync(async () =>
         {
             var (shell, _) = Shell();
+
+            // Sprint 3.12 (B1, owner 2026-11-12): Settings on the left, above About.
+            shell.NavigationItems.Select(i => i.Title).TakeLast(3).ShouldBe(["Jobs", "Settings", "About"]);
             ui.ClearBindingErrors();
             var window = new MainWindow(shell);
             window.Show();
@@ -752,6 +755,12 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             .AddSingleton(new MonitorService(capture, new SyntheticCounterSource(0, perSecond: 1)))
             .AddSingleton(new Application.Sessions.SessionLibrary(Path.Combine(_folder, "sessions")))
             .AddSingleton(sp => new Application.Allocations.AllocationSession(worker, jobs, new Application.Sessions.TraceService(), sp.GetRequiredService<Application.Sessions.SessionLibrary>()))
+            .AddSingleton(sp => new Application.Settings.SettingsService(
+                sp.GetRequiredService<Application.Sessions.SessionLibrary>(),
+                new Application.Bookmarks.BookmarkStore(_folder),
+                sp.GetRequiredService<Application.Snapshots.SnapshotSession>(),
+                jobs,
+                folders: new Core.HeapScopeFolders(_folder)))
             .AddSingleton<IUiDispatcher>(ImmediateUiDispatcher.Instance)
             .AddSingleton<IUserInteraction>(interaction ?? new FakeUserInteraction())
             .AddHeapScopeViewModels()

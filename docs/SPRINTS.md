@@ -189,13 +189,25 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     fixtures and the Medium dump; known answers; load phase times.
 19. [ ] R5, with task 8: freeze and collection as load phases of their own, GC pauses, CPU time and hard faults per phase in
     the load's log line, and the load benchmark refusing a GC set up differently from the worker's. Proof: the log line; budgets.md.
-20. [ ] B1, a Settings page above About, with a Logging section: "Include filter text in logs" (on by default; it governs
+20. [x] B1, a Settings page above About, with a Logging section: "Include filter text in logs" (on by default; it governs
     the app, the worker and the CLI, which read the same setting), "Purge logs" (the log being written is kept until HeapScope
     closes) and "Purge all" (logs, every session in the library, HeapScope's own index caches and bookmarks, after a
     confirmation; never a dump opened from the user's own folders or its caches; refused while a capture or recording runs).
     The CLI describes its command line by option, so filter text follows the setting there too. Wording approved
     (`docs/design/info-text.md`). Proof: view model tests of each action, a CLI test with the setting on and off, a purge test
     that leaves an outside dump alone, info icon and tooltip tests.
+    Done: `HeapScopeSettings` (`settings.json` in the data folder; a member a newer build wrote is kept) and `LogPrivacy` (each
+    process follows a change within a second; a worker given `--data-folder` reads that folder's); the worker's provenance
+    writes a filter quoted on one line plus its shape, or its shape only; the CLI describes its command line by option, so
+    `--filter 4111111111111111` follows the setting instead of passing as a number; the growth gate's line too.
+    `SettingsService` (Application) saves the setting and purges: logs but the one being written; and, refused while a job
+    runs or a session is in use, every session of the library (the current one let go of first) with HeapScope's caches of
+    their dumps, the bookmarks and the logs, after closing the library's snapshots and traces. The page (`SettingsPage`,
+    above About, with its own icon), the confirmation with the owner's words and buttons ("Delete everything", Cancel the
+    default). Tests: `HeapScopeSettingsTests`, `ProvenanceLogTests` (on and off), `CommandLineLogTests` (on and off),
+    `SettingsViewModelTests` (the setting, Purge logs, Purge all's question, its "no", what it deletes and keeps, refused
+    while a job runs), `InfoIconTests` (the approved texts on screen), the shell's page order; a mutation that deletes the
+    log being written fails two of them. The page's status lines are drafts for the owner (`info-text.md`).
 21. [ ] B3: one path identity rule (case-insensitive on Windows, ordinal elsewhere) at every path comparison. Proof: unit tests
     for both systems; a Linux CI test that two files differing only in case open as two snapshots.
 22. [x] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,

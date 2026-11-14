@@ -27,15 +27,19 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using HeapScope.Contracts;
+using HeapScope.Core;
 
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
 /// A request or a result as one log line (sprint 2.3.7 review H3): what was asked and what was answered, so a disputed
 /// result can be traced to its inputs. Numbers, flags, enums, ids, times and the names below are written as they are;
-/// lists by their count; any other text by its length only, so field values, string contents and the user's filter text
-/// never reach the log (ARCHITECTURE.md 11 and 12).
+/// lists by their count; any other text by its length only, so field values and string contents never reach the log
+/// (ARCHITECTURE.md 11 and 12). The user's filter text is written, quoted, unless the user turned that off on the Settings
+/// page (sprint 3.12, B1); its shape always is.
 /// </summary>
 internal static class Provenance
 {
@@ -48,6 +52,9 @@ internal static class Provenance
     };
 
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> s_properties = new();
+
+    // Quoted on one line, readable: escapes only what would break the line or the quotes.
+    private static readonly JsonSerializerOptions s_quoted = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <summary>
     /// Where a retention path starts, for the log (sprint 2.3.7 review H3, the "held by a static field" case): the root's
@@ -73,15 +80,18 @@ internal static class Provenance
             $"group {group.Number} #{group.Key}: {group.Objects} objects, {group.Bytes} bytes, {group.Types} types from {group.FirstType}, {group.PathCount} paths: {string.Join(" | ", group.Paths.Select(p => $"[{Describe(p.Root)}] {string.Join(" > ", p.Steps.Select(s => s.TypeName))}"))}");
     }
 
-    /// <summary>The value for the log, at most two levels of nested records deep.</summary>
-    public static string Describe(object? value)
+    /// <summary>The value for the log, at most two levels of nested records deep, by the user's settings.</summary>
+    public static string Describe(object? value) => Describe(value, LogPrivacy.Current.IncludeFilterText);
+
+    /// <summary>The value for the log, with or without the filter's text.</summary>
+    internal static string Describe(object? value, bool includeFilterText)
     {
         var text = new StringBuilder();
-        Append(text, value, depth: 0);
+        Append(text, value, depth: 0, includeFilterText);
         return text.ToString();
     }
 
-    private static void Append(StringBuilder text, object? value, int depth)
+    private static void Append(StringBuilder text, object? value, int depth, bool includeFilterText)
     {
         switch (value)
         {
@@ -129,14 +139,19 @@ internal static class Provenance
             }
             else if (property.Name == "Filter" && propertyValue is string { Length: > 0 } filter)
             {
-                // The filter's shape, never its text (2.7 review): "why is my type missing?" needs to know that an
-                // exclusion or a module term was there.
+                // The filter's shape (2.7 review): "why is my type missing?" needs to know that an exclusion or a module term
+                // was there; its text too, unless the user turned that off (sprint 3.12, B1, owner 2026-11-12).
+                if (includeFilterText)
+                {
+                    text.Append(JsonSerializer.Serialize(filter, s_quoted)).Append(' ');
+                }
+
                 var terms = NameFilter.Terms(filter);
                 text.Append(CultureInfo.InvariantCulture, $"({filter.Length} chars; {terms.Count(t => !t.Negated && !t.OnModule)} terms, {terms.Count(t => t.Negated)} excluding, {terms.Count(t => t.OnModule)} on the module)");
             }
             else
             {
-                Append(text, propertyValue, depth + 1);
+                Append(text, propertyValue, depth + 1, includeFilterText);
             }
         }
 

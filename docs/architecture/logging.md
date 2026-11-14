@@ -76,9 +76,14 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   unpinned, which count as dead and new: a new object at a reused address or an unpinned object the GC demoted, which the
   match cannot tell apart. The rest of the reused addresses hold another type, size, area or method table (M14).
 - **What a log may hold (sprint 2.3.7 review M6)**: paths, file and process names, type, module and field names, counts,
-  sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump,
-  and never the user's filter text (logged by its shape: length and term counts): `Provenance` writes any other text by its length only, and
-  error messages that would echo a filter leave it out. Logs are local evidence for support; they are not meant to be
+  sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump:
+  `Provenance` writes any other text by its length only, and error messages that would echo a filter leave it out. The
+  user's filter text (sprint 3.12, B1; owner, 2026-11-12) is logged, quoted on one line, unless the user turns off Include
+  filter text in logs on the Settings page (on by default: logs stay on the user's machine, and the setting's tooltip says
+  to turn it off before sharing one); its shape (length and term counts) always is. The setting lives in `settings.json` in
+  the data folder (`HeapScopeSettings`), and every process follows a change within a second (`LogPrivacy`): the worker's
+  provenance lines, the CLI's command line (by option: a `--filter` value follows the setting whatever it looks like) and
+  the growth gate's line. Logs are local evidence for support; they are not meant to be
   published, since paths name the user and the machine. A result meant to be shared goes through the shared analysis
   export (ADR-026), which strips names by default.
 - Exceptions are caught at boundaries only: worker RPC methods, view model commands, CLI command handlers.
@@ -93,7 +98,10 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   logs the grid's fixed name, the worker result set it reads (whose query the worker logged), the rows expected and
   written, the columns, whether values were included and the time, never the file's path or a cell (a failure logs its
   exception type and HResult); bookmarks log counts, opens and file problems only. Provenance logs a filter by its shape
-  (length and counts of terms, excluding terms and module terms), never its text.
+  (length and counts of terms, excluding terms and module terms), and its text as the setting above allows.
+- Settings (sprint 3.12, B1): a saved setting ("Setting saved to {File}: include filter text in logs on|off"); Purge logs,
+  the files and bytes it deletes and keeps (the log being written); Purge all, the question and the answer, what it deletes
+  (sessions, bookmarks, logs, files, bytes) and keeps, each failure, or why it was refused; the current session let go of.
 - Object sets (sprint 3.1): a set is logged by its shape (`ObjectSetSpecs.Shape`: the kind, the first 20 type keys with
   their modules, the namespace or assembly, the inspection, row and baseline, and for objects their count and a short
   hash of the sorted addresses, never the addresses), in every request's provenance too. A resolution logs the

@@ -39,6 +39,9 @@ public interface IUserInteraction
     /// <summary>Asks a yes or no question; true for yes.</summary>
     Task<bool> ConfirmAsync(string title, string message);
 
+    /// <summary>Asks a question whose buttons say what they do (Purge all's "Delete everything", sprint 3.12); true for <paramref name="confirm"/>.</summary>
+    Task<bool> ConfirmAsync(string title, string message, string confirm, string cancel) => ConfirmAsync(title, message);
+
     /// <summary>Puts text on the clipboard (the About page's details for support, sprint 2.3.7); nothing where there is none.</summary>
     Task CopyTextAsync(string text) => Task.CompletedTask;
 

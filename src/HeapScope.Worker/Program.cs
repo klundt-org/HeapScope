@@ -53,6 +53,12 @@ if (options is not null && hideInstalledDacs)
     options = options with { HideInstalledDacs = true };
 }
 
+// The user's settings live in the data folder the client named (sprint 3.12, B1: filter text in the logs).
+if (options?.DataFolder is not null)
+{
+    HeapScope.Core.LogPrivacy.Use(options.Folders);
+}
+
 // The worker logs single-line records to stderr only; the client forwards each line into its own log
 // (ARCHITECTURE.md 4.3 and 11). Scopes carry the client's trace id, which StreamJsonRpc sends with each request, so a
 // worker line can be joined to the UI or CLI action that caused it (sprint 2.3.7 review M1).

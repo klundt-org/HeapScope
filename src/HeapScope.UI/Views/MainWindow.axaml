@@ -41,6 +41,7 @@
     <DataTemplate DataType="vm:LiveViewModel"><pages:LivePage /></DataTemplate>
     <DataTemplate DataType="vm:AllocationsViewModel"><pages:AllocationsPage /></DataTemplate>
     <DataTemplate DataType="vm:JobsPageViewModel"><pages:JobsPage /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel"><pages:SettingsPage /></DataTemplate>
     <DataTemplate DataType="vm:AboutViewModel"><pages:AboutPage /></DataTemplate>
     <DataTemplate DataType="vm:JobViewModel"><pages:JobRow /></DataTemplate>
   </Window.DataTemplates>
