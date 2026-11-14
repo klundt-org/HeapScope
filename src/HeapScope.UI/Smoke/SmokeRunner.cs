@@ -68,6 +68,17 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// </summary>
     public const int SmokeGridEnumerated = 6;
 
+    /// <summary>Smoke mode exit code: more UI operations over 100 ms than <see cref="SlowOperationCeiling"/> (sprint 3.12, task 5).</summary>
+    public const int SmokeSlowOperations = 7;
+
+    /// <summary>
+    /// The ceiling on slow first shows (sprint 3.12, task 5): UI operations over the 100 ms budget in a whole open run, cold
+    /// first shows included. Measured on 2026-11-13 with the published build on the demo dumps: 0 to 4 on the development
+    /// machine, 5 to 10 with four more cores busy (budgets.md); the ceiling sits above that, so a regression that adds slow
+    /// first shows fails the run, and the ordinary spread does not. Not checked headless.
+    /// </summary>
+    public const int SlowOperationCeiling = 12;
+
     /// <summary>The exit code of the smoke run <paramref name="options"/> ask for, or null when they ask for none.</summary>
     public async Task<int?> RunAsync(UiOptions options)
     {
@@ -297,7 +308,12 @@ internal sealed class SmokeRunner(IServiceProvider services)
             rows.RequestedPages.Count,
             (rows.Count + VirtualRowList.PageSize - 1) / VirtualRowList.PageSize,
             new SmokePhase("run", false, lag, operation, phases.SlowOperations).Measured);
-        return SmokeVerdict.Phase(completed, operation, lag);
+        logger.LogInformation(
+            "Smoke slow operations: {Count} UI operations over 100 ms in the run, ceiling {Ceiling}; by phase: {Phases}",
+            phases.SlowOperations,
+            SlowOperationCeiling,
+            string.Join(", ", phases.All.Where(p => p.SlowOperations > 0).Select(p => $"{p.Name} {p.SlowOperations}")) is { Length: > 0 } byPhase ? byPhase : "none");
+        return SmokeVerdict.Ceiling(SmokeVerdict.Phase(completed, operation, lag), phases.SlowOperations, SlowOperationCeiling, Program.IsHeadless);
     }
 
     /// <summary>

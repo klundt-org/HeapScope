@@ -71,6 +71,18 @@ public sealed class SmokeGateTests
         phases.All.Select(p => p.Name).ShouldBe(["first show", "warm", "warm again"]);
     }
 
+    // Sprint 3.12, task 5: a passing run with more slow operations than the ceiling fails with its own code.
+    [Theory]
+    [InlineData(0, 13, false, SmokeRunner.SmokeSlowOperations)]
+    [InlineData(0, 12, false, 0)]
+    [InlineData(0, 40, true, 0)]
+    [InlineData(SmokeRunner.SmokeLagExceeded, 40, false, SmokeRunner.SmokeLagExceeded)]
+    public void More_slow_operations_than_the_ceiling_fail_a_passing_run(int result, int slow, bool headless, int expected)
+    {
+        SmokeVerdict.Ceiling(result, slow, SmokeRunner.SlowOperationCeiling, headless).ShouldBe(expected);
+        SmokeRunner.SlowOperationCeiling.ShouldBe(12, "measured: 0 to 4 quiet, 5 to 10 with four busy cores (budgets.md)");
+    }
+
     [Fact]
     public void A_failing_phase_names_each_check_that_failed()
     {

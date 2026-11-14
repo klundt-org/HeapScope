@@ -243,6 +243,9 @@ dotnet test --solution HeapScope.sln
   ("Smoke open types"), which CI checks against the known answers. Every smoke run also works with `--headless`.
   Add `--smoke-allocations <file.nettrace>` to `--smoke-open` to also show an allocations trace on the Allocations page
   ("Smoke allocations": its cold first show logged; expanding the first back trace and the call tree checked; sprint 2.5).
+  `--smoke-open` also counts the UI operations over 100 ms in every phase ("Smoke slow operations", by phase) and fails
+  a passing run with more than 12 with exit 7 (sprint 3.12, task 5; not headless). Exit codes: 0 ok, 3 lag over the gate, 4
+  a step failed, 5 the first window over 30 s, 6 a whole-list grid walk, 7 too many slow operations.
 - Traces: `heapscope-cli trace --pid <id> [--duration 30] [--profile cpu|gc|allocations] [--out file.nettrace]` records an
   EventPipe trace of any .NET process (no dotnet-trace needed; Ctrl+C stops early and keeps it). An `allocations` trace
   is read by `heapscope-cli allocations <file> [--from s] [--to s] [--type <name>] [--types N] [--stacks N] [--frames N]

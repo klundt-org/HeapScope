@@ -116,8 +116,12 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    GC grows to a quarter of the lag; cold start is JIT, the runtime's own code, and waits (one inside Defender's scan).
 4. [ ] Fix what the trace supports for cold first shows (for example preloading templates or JIT warm up off the UI thread),
    each fix measured against the build before it. Proof: smoke runs on the demo dumps and on the Medium dump, before and after.
-5. [ ] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
+5. [x] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
    of the rule; a mutation that lowers the ceiling fails the run.
+   Done 2026-11-13: the open run counts UI operations over 100 ms in every phase (R3's `SmokePhases`), logs them by phase
+   ("Smoke slow operations"), and a passing run with more than 12 fails with exit 7 (`SmokeVerdict.Ceiling`; not headless).
+   Measured before it: 0 to 4 per run on the development machine, 5 to 10 with four more cores busy. `SmokeGateTests` test the
+   rule; a mutation that moves the threshold fails them. A smoke run with the new loader and the gen 0 budget passed with 1.
 6. [x] The dispatcher lag under load (Backlog High, from 0.3) and the worker's Server GC threads: settled from task 3's
    trace, with a fix if it shows one (job object CPU rate, EcoQoS or GC heap affinity). Proof: the trace; smoke runs under load.
    Done 2026-11-13: no stall waited for a processor, even with four cores busy, so none of the three would help; the UI

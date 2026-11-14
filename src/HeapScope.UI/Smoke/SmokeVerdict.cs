@@ -42,6 +42,14 @@ internal static class SmokeVerdict
         : 0;
 
     /// <summary>
+    /// A passing run with more slow UI operations than <paramref name="ceiling"/> fails with
+    /// <see cref="SmokeRunner.SmokeSlowOperations"/> (sprint 3.12, task 5); a failed run keeps its code, and headless runs (CI,
+    /// software drawing on a shared runner) are not held to it, as they are not to the lag gate.
+    /// </summary>
+    public static int Ceiling(int result, int slowOperations, int ceiling, bool headless) =>
+        result == 0 && !headless && slowOperations > ceiling ? SmokeRunner.SmokeSlowOperations : result;
+
+    /// <summary>
     /// The run's code from its phases' result: a whole-list grid walk fails a passing run (exit 6); headless runs (CI) do
     /// not gate lag, since a shared runner drawing in software measures the machine (decision 11 of 2.3.6); a passing run
     /// whose first window took longer than <see cref="SmokeRunner.FirstWindowLimit"/> fails with 5 (not checked headless).
