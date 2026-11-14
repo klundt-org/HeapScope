@@ -132,7 +132,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 result.WastedBytes?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "n/a",
                 result.Rows.Count,
                 stopwatch.Elapsed.TotalSeconds,
-                result.Basis ?? "not recorded",
+                (result.Counts is { } counts ? counts + "; " : string.Empty) + (result.Basis ?? "not recorded"),
                 result.Note ?? "none");
             // Kept so a detector's row opens as a set (sprint 3.1) without running the inspection again.
             if (result.Rows.HasMembers)

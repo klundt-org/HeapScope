@@ -267,8 +267,12 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     Done: `ShowFragments` uses `ResultColumns.Require`; a result this build cannot show fails its own tile with "This result
     could not be shown" and an error log line. `InspectionsViewModelTests.A_result_missing_a_column_fails_its_own_tile_only`,
     proved by mutation.
-25. [ ] B7: every inspection records a basis (scanned, left out, reported with one cap); the collection inspections count what
+25. [x] B7: every inspection records a basis (scanned, left out, reported with one cap); the collection inspections count what
     they could not read. Proof: a catalog test that every inspection's basis has scanned and left-out counts.
+    Done 2026-11-13: `InspectionCounts` (scanned, left out; rows listed at most 50) on every inspection's result, logged
+    before its own basis; the collection inspections count the collections whose count they could not read; the detectors'
+    row lists in the log stop at 50 (`DetectorGraph.Listed`). `LeakDetectorTests`: every one of the 17 inspections records its
+    counts, an unreadable list is scanned and left out, the cap.
 26. [x] B8: `logging.md` matches what runs under an activity. Proof: the Markdown sweep.
     Done: the Correlation item and the Retainers paragraph say which loads have no activity yet and how to match their lines.
 

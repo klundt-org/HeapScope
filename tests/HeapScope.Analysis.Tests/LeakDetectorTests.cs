@@ -619,6 +619,45 @@ public sealed class LeakDetectorTests
     }
 
     // As the worker runs them: the detectors that count reachable objects get them, the baseline's included.
+    // Sprint 3.12 (B7): every inspection says what its answer rests on in the same terms, scanned and left out, and the
+    // collection inspections count the collections they could not read ("why is my collection not listed?").
+    [Fact]
+    public void Every_inspection_records_what_it_scanned_and_what_it_left_out()
+    {
+        var builder = new SyntheticGraphBuilder();
+        var holder = builder.Object("App.Holder");
+        builder.Root(holder, detail: "App.Holder.s_instance");
+        var list = builder.Object("System.Collections.Generic.List<System.Int32>", 32);
+        builder.Reference(holder, list);
+        using var graph = builder.Build();
+        var reader = new FakeReader();
+        using var referrers = ReverseReferences.Build(graph, cancellationToken: Ct);
+
+        foreach (var inspection in InspectionCatalog.All)
+        {
+            var result = Run(inspection.Name, graph, reader, inspection.UsesBaseline ? new InspectionBaseline(graph, s_info, reader) : null, inspection.UsesReferrers ? referrers : null);
+
+            var counts = result.Counts.ShouldNotBeNull(inspection.Name);
+            counts.Scanned.ShouldBeGreaterThanOrEqualTo(0, inspection.Name);
+            counts.LeftOut.ShouldBeGreaterThanOrEqualTo(0, inspection.Name);
+            counts.ToString().ShouldStartWith("scanned ", customMessage: inspection.Name);
+        }
+
+        // The list's count cannot be read: scanned and left out, never silently skipped.
+        Run("empty-collections", graph, reader).Counts.ShouldBe(new InspectionCounts(1, 1));
+        Run("oversized-collections", graph, reader).Counts.ShouldBe(new InspectionCounts(1, 1));
+        InspectionCatalog.All.Count.ShouldBe(17);
+    }
+
+    [Fact]
+    public void A_log_lines_list_of_rows_stops_at_one_cap()
+    {
+        var listed = DetectorGraph.Listed(Enumerable.Range(1, InspectionCounts.ListedCap + 10).Select(i => "row" + i));
+
+        listed.ShouldEndWith("row50 and 10 more");
+        DetectorGraph.Listed(["a", "b"]).ShouldBe("a; b");
+    }
+
     private static InspectionResult Run(string name, HeapGraph graph, FakeReader reader, InspectionBaseline? baseline = null, ReverseReferences? referrers = null)
     {
         var inspection = InspectionCatalog.Find(name)!;
@@ -667,9 +706,17 @@ public sealed class LeakDetectorTests
 
         public string? ReadString(ulong address, int maxLength) => null;
 
-        public void ReadStrings(IReadOnlyList<ulong> addresses, int maxLength, Action<int, string?> onEach, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public void ReadStrings(IReadOnlyList<ulong> addresses, int maxLength, Action<int, string?> onEach, CancellationToken cancellationToken)
+        {
+            for (var i = 0; i < addresses.Count; i++)
+            {
+                onEach(i, null);
+            }
+        }
 
-        public void ReadStringPieces(IReadOnlyList<ulong> addresses, StringPieceHandler onPiece, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public void ReadStringPieces(IReadOnlyList<ulong> addresses, StringPieceHandler onPiece, CancellationToken cancellationToken)
+        {
+        }
 
         public IReadOnlyDictionary<ulong, string> ReadReferencePaths(ulong address, int maxElements, CancellationToken cancellationToken) =>
             Paths.GetValueOrDefault(address) ?? [];

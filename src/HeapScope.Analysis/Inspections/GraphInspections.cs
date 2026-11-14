@@ -131,7 +131,7 @@ internal sealed class LargeObjectHeapInspection : IInspection
         var graph = context.Graph;
         var kinds = graph.HeapKinds;
         var rows = InspectionRows.ByType(graph, i => kinds[i] == HeapKind.LargeObjectHeap, "Reading the large object heap", context, out var count, out var bytes);
-        return new InspectionResult(count, bytes, null, null, InspectionRows.TypeTable(rows, InspectionScopes.LargeObjectHeap));
+        return new InspectionResult(count, bytes, null, null, InspectionRows.TypeTable(rows, InspectionScopes.LargeObjectHeap), Counts: new(graph.ObjectCount, 0));
     }
 }
 
@@ -190,7 +190,7 @@ internal sealed class LargeArraysInspection : IInspection
             cells[2] = InspectionRows.Number(InspectionRows.ArrayLength(graph, obj));
             cells[3] = InspectionRows.Number((long)graph.GetSize(obj));
             cells[4] = graph.HeapKinds[obj].ToString();
-        }));
+        }), Counts: new(graph.ObjectCount, 0));
     }
 }
 
@@ -267,7 +267,7 @@ internal sealed class SparseArraysInspection : IInspection
             cells[3] = InspectionRows.Number(row.Nulls);
             cells[4] = InspectionRows.Number(row.Wasted);
             cells[5] = InspectionRows.Number((long)graph.GetSize(row.Object));
-        }));
+        }), Counts: new(graph.ObjectCount, 0));
     }
 
     private sealed record SparseRow(int Object, long Length, long Nulls, long Wasted);
@@ -345,7 +345,7 @@ internal sealed class FinalizableObjectsInspection : IInspection
             cells[4] = row.Name;
             cells[5] = row.Module;
             cells[6] = InspectionScopes.Finalizable;
-        }));
+        }), Counts: new(graph.ObjectCount, 0));
     }
 }
 
@@ -434,7 +434,7 @@ internal sealed class FragmentationInspection : IInspection
             cells[3] = row.Free is { } part && part + row.Live > 0 ? (100.0 * part / (part + row.Live)).ToString("F2", CultureInfo.InvariantCulture) : null;
             cells[4] = InspectionRows.Number(row.PinnedObjects);
             cells[5] = InspectionRows.Number(row.PinnedBytes);
-        }));
+        }), Counts: new(graph.ObjectCount, 0));
     }
 
     /// <summary>

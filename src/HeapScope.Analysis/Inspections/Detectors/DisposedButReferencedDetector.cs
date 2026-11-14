@@ -134,7 +134,7 @@ internal sealed class DisposedButReferencedDetector : IInspection
             .ToArray();
         var basis = string.Create(
             CultureInfo.InvariantCulture,
-            $"{reachable.Count} reachable objects; {probed} types with {MinObjects}+ probed, {candidates.Count} with a disposed flag (most objects without one: {DetectorGraph.Top(noFlag, 5)}); disposed: {string.Join("; ", disposed.Types.OrderByDescending(d => d.Objects).Take(Math.Max(10, rows.Length)).Select(d => $"{graph.Types.GetName(d.Type)} {d.Objects} by {candidates[d.Type]}"))}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Flag"), basis);
+            $"{reachable.Count} reachable objects; {probed} types with {MinObjects}+ probed, {candidates.Count} with a disposed flag (most objects without one: {DetectorGraph.Top(noFlag, 5)}); disposed: {string.Join("; ", disposed.Types.OrderByDescending(d => d.Objects).Take(Math.Min(Math.Max(10, rows.Length), InspectionCounts.ListedCap)).Select(d => $"{graph.Types.GetName(d.Type)} {d.Objects} by {candidates[d.Type]}"))}");
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Flag"), basis, Counts: new(reachable.Count, 0));
     }
 }

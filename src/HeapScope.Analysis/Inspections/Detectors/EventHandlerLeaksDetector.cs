@@ -245,7 +245,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
             .OrderByDescending(r => r.Subscribers).ThenBy(r => r.Key, StringComparer.Ordinal)
             .ToArray();
         string Describe(IEnumerable<KeyValuePair<(int Publisher, string Field), Event>> list) =>
-            string.Join("; ", list.Select(e => string.Create(CultureInfo.InvariantCulture, $"{graph.Types.GetName(e.Key.Publisher)}.{e.Key.Field} {e.Value.Subscribers} subscribers on {e.Value.Publishers.Count} publishers")));
+            DetectorGraph.Listed(list.Select(e => string.Create(CultureInfo.InvariantCulture, $"{graph.Types.GetName(e.Key.Publisher)}.{e.Key.Field} {e.Value.Subscribers} subscribers on {e.Value.Publishers.Count} publishers")));
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{candidates.Count(c => c)} delegate types with {MinSubscribers}+ objects, {read} subscribers read, {pending.Count} publishers, {events.Count} events; {skipped}; reported: {Describe(events.Where(e => e.Value.Subscribers >= MinSubscribers).OrderByDescending(e => e.Value.Subscribers))}; largest below the threshold: {Describe(events.Where(e => e.Value.Subscribers < MinSubscribers).OrderByDescending(e => e.Value.Subscribers).Take(5))}");
@@ -266,7 +266,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
                 cells[7] = InspectionScopes.Reachable;
             },
             row => row.Members),
-            basis);
+            basis, Counts: new(read, skipped.Total));
     }
 
     /// <summary>

@@ -48,7 +48,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     used; a symbol-server download is a warning. Kept in the cache metadata, so a reopen still says it.
   - Each answered query: `WorkerErrors.GuardAsync` logs the operation, the request and the result (`Provenance`), with
     page reads and probes at Debug. Inspections add their version, thresholds (`IInspection.Parameters`) and basis (what
-    was scanned or skipped). Retention paths log each root shown (its kind and description) and each key path (root,
+    was scanned or skipped; since 3.12 every inspection first in the same terms, "scanned N, left out M, rows listed at most
+    50", and no list of rows in a log line longer than 50). Retention paths log each root shown (its kind and description) and each key path (root,
     type steps, objects, bytes), with stopped-early, truncated and the root path fallback. Compare logs how its pair was
     chosen; result set re-runs are logged. The dominator tree logs its focus, grouping, row count, total, the trail
     (types, addresses, retained), the first 20 open keys, the revealed key and its row, and the first ten rows of the
