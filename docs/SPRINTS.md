@@ -117,7 +117,7 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    numbers in `budgets.md`.
 8. [ ] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
    fix proposed with its cost; built only with the owner's OK. Proof: the trace and the numbers in `budgets.md`.
-9. [ ] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
+9. [x] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
    trusted DAC (gone, symbol server failure, untrusted after a "no") opens the older cache with a note; caches older than the
    v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
    with the reason. Proof: worker tests with a stand-in loader for each failure; an integration test in both memory modes;
@@ -149,8 +149,8 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    fails when the cancel check is removed (mutation); `MissingDacTests` run in CI on Windows and Linux; the test switch
    cannot be set from configuration and is logged; the graph cannot leak after the fallback; a failed fallback collects
    once; an unreadable metadata section is rebuilt without being read; a cache replaced meanwhile is not opened as the
-   older one. Their Lows are in the Backlog. Waiting only for the owner's approval of the button's label and tooltip, and
-   of the refusal for a DAC of another system (`docs/design/info-text.md`, rows marked draft).
+   older one. Their Lows are in the Backlog. The owner approved the button's label and tooltip and the refusal for a DAC of
+   another system on 2026-11-13, with the B1 status lines.
 10. [x] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
     Done: `CounterSampleBuilder` drops it with a warning naming the value, the time and gen 0's size;
     `CounterSampleBuilderTests.A_sample_with_a_negative_heap_is_dropped_and_logged`, proved by mutation.

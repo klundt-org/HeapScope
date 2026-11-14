@@ -130,7 +130,7 @@ Dropped: the Two snapshots and Trend across snapshots row, since their Table 1 i
 
 ## Sprint 3.12 additions
 
-Approved by the owner on 2026-11-12 and 2026-11-13, except the rows marked draft.
+Approved by the owner on 2026-11-12 and 2026-11-13.
 
 | Page | Where | Text | Status |
 |---|---|---|---|
@@ -139,11 +139,11 @@ Approved by the owner on 2026-11-12 and 2026-11-13, except the rows marked draft
 | Settings | Purge logs (tooltip) | Delete HeapScope's log files. The log being written now is kept until HeapScope closes. | approved |
 | Settings | Purge all (tooltip) | Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched. | approved |
 | Settings | Purge all confirmation | Title "Delete everything HeapScope keeps?"; body "This deletes HeapScope's logs and its whole library: N sessions, N files, N GB. Dumps you opened from your own folders stay. This cannot be undone."; buttons "Delete everything" and "Cancel". | approved |
-| Settings | Status after Purge logs (B1) | Deleted {N} log files ({size}). | draft, to approve |
-| Settings | Status after Purge all (B1) | Deleted everything HeapScope keeps: {N} sessions, {N} files ({size}). | draft, to approve |
-| Settings | Status when files could not be deleted (B1) | {N} files could not be deleted, usually because another program has them open: {files}. Close it and try again. | draft, to approve |
-| Settings | Status when Purge all is refused (B1) | Nothing was deleted: {reason}, for example "Capture app is running; wait for it or cancel it first." | draft, to approve |
-| Settings | Status when the setting cannot be saved (B1) | The setting could not be saved to {file}: {message} | draft, to approve |
+| Settings | Status after Purge logs (B1) | Deleted {N} log files ({size}). | approved 2026-11-13 |
+| Settings | Status after Purge all (B1) | Deleted everything HeapScope keeps: {N} sessions, {N} files ({size}). | approved 2026-11-13 |
+| Settings | Status when files could not be deleted (B1) | {N} files could not be deleted, usually because another program has them open: {files}. Close it and try again. | approved 2026-11-13 |
+| Settings | Status when Purge all is refused (B1) | Nothing was deleted: {reason}, for example "Capture app is running; wait for it or cancel it first." | approved 2026-11-13 |
+| Settings | Status when the setting cannot be saved (B1) | The setting could not be saved to {file}: {message} | approved 2026-11-13 |
 | Settings | Section, check box and buttons (B1) | Logging; Include filter text in logs; Purge logs; Purge all | as the owner named them, 2026-11-12 |
 | Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
 | Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
@@ -153,9 +153,9 @@ Approved by the owner on 2026-11-12 and 2026-11-13, except the rows marked draft
 | Snapshot notes | Older index cache (task 9) | Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: {cause}. The one thing this version reads differently, the process name, was read again from the dump. Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache. | approved 2026-11-13 |
 | Snapshots | Status, opened without the DAC (task 9) | Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why. | approved 2026-11-13 |
 | Snapshots | Status, reopen after a worker restart refused (task 9) | {file} was opened from an older index cache because its DAC could not be used, so it was not reopened automatically after the analysis worker restarted. Open it again. | approved 2026-11-13 |
-| Every view that reads values | Refusal, the DAC of another system or architecture (task 9 re-review) | Field values and strings are not read: the dump's DAC (Data Access Component) cannot be used on this machine. {the loader's own sentence, for example: This dump comes from Linux and HeapScope runs on Windows: open it with HeapScope on Linux.} | draft, to approve |
-| Snapshot tab | Button (task 9) | Trust this DAC and reopen | draft, to approve |
-| Snapshot tab | Button tooltip (task 9) | Asks you to trust the DAC (Data Access Component) that came with this dump, then opens the dump again so field values and strings are read. | draft, to approve |
+| Every view that reads values | Refusal, the DAC of another system or architecture (task 9 re-review) | Field values and strings are not read: the dump's DAC (Data Access Component) cannot be used on this machine. {the loader's own sentence, for example: This dump comes from Linux and HeapScope runs on Windows: open it with HeapScope on Linux.} | approved 2026-11-13 |
+| Snapshot tab | Button (task 9) | Trust this DAC and reopen | approved 2026-11-13 |
+| Snapshot tab | Button tooltip (task 9) | Asks you to trust the DAC (Data Access Component) next to this dump, then opens the dump again so field values and strings are read. If its index cache was written by an older version, this takes as long as a first open. | approved 2026-11-13 |
 
 ## Evidence: the per-setting drafts
 
