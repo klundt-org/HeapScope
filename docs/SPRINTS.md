@@ -46,7 +46,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.10 | Visual design and README | Closed | 2026-11-05 | sprint-3.10 |
 | 3.11 | Screens that explain themselves | Closed | 2026-11-10 | sprint-3.11 |
 | 3.12 | First-show performance and refactor analysis | Closed | 2026-11-15 | sprint-3.12 |
-| 3.13 | Tutorial | Planned | | |
+| 3.13 | Tutorial | In Progress | | |
 
 ---
 
@@ -104,7 +104,66 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
   points at a scenario its build lacks. The ADR records the extension contract; DEVELOPER.md's Definition of Done gains an
   item from this sprint on: a feature a user would learn adds its scenario and lesson, or says in its sprint why not.
 
-**Tasks**: to be filled by /start-sprint.
+**Tasks**:
+
+1. [ ] ADR-042, the tutorial: a shipped sample process whose scenarios and the app's lessons are catalogs, the extension contract
+   for later features, the packaging, and what the sample may and may not do (never elevated, stops with HeapScope, at most
+   three). DEVELOPER.md's Definition of Done gains the item "a feature a user would learn adds its scenario and lesson, or its
+   sprint says why not". Proof: the ADR and its index line; the Markdown sweep.
+2. [ ] The sample, `src/HeapScope.Sample` (executable `heapscope-sample`): the fixtures' leak library (`fixtures/Leaks`, shared
+   so the known answers hold for both) behind a scenario catalog (`ScenarioCatalog`: name, title, what it plants, what it
+   cannot run with, its known answer's name), `--scenarios a,b`, `--list` (the catalog as JSON, which the app reads, so the app
+   never names a scenario its sample lacks), `--parent-pid`, and refusals with the reason for scenarios that cannot run
+   together. Proof: unit tests of the catalog (names unique, conflicts both ways, every scenario's known answer exists) and of
+   the argument rules; an architecture rule that the sample references only the leak library.
+3. [ ] Keeps growing: `--grow-every <ms>` adds a share of each chosen leak at an interval, and the steady allocation scenario
+   allocates from known call sites, so Live, an allocation trace, Compare and Trend all show something. Proof: tests that the
+   item counts grow by the step; an integration test that two dumps of a growing sample differ by the known step and a trace
+   names the known call site.
+4. [ ] Packaging: the sample published into `sample/` beside `worker/` in every package (self-contained per system like the
+   worker; framework-dependent in the CLI tool), signed and licensed like the rest, its size measured. Proof: `check-package.sh`
+   finds it, its license entries and its signature; the size in budgets.md.
+5. [ ] Starting and stopping (Application, `SampleService`): starts the sample as the user with the chosen scenarios, reads
+   its catalog, marks its pid as a sample, refuses while HeapScope runs elevated (the sample would be elevated too) and above
+   three running, stops it on request, and it exits with HeapScope (parent watch). Proof: tests with a fake process starter
+   for each rule; an integration test that starts, lists and stops the real sample.
+6. [ ] The Processes page starts and stops a sample (scenarios picked from its catalog) and marks its rows "Sample". Proof: view
+   model tests; the view test binds cleanly; the screenshot run shows it.
+7. [ ] Lessons (`LessonCatalog`, UI.ViewModels): one entry per lesson: its title, the scenarios it starts, the page it starts
+   on, its steps, its question and the answer checked against the scenario's known answer (the planted type among decoys).
+   Every scenario has a lesson or a reason, every lesson's scenarios exist in the sample's catalog. Proof: catalog tests both
+   ways; a test per lesson that its answer is the known answer's type.
+8. [ ] The Learn page, low on the left navigation above Settings: the lessons with their progress, a lesson started (its sample
+   running), its steps beside the page it opens, the answer checked, progress kept per user in the data folder. Proof: view
+   model tests (start, steps, a right and a wrong answer, progress saved and read back); the view test; the screenshot run.
+9. [ ] `heapscope-cli sample list|start|stop` for a demo without the app. Proof: CLI tests; an integration test that starts the
+   sample and captures it with the CLI.
+10. [ ] A "Try it" walkthrough in the User Guide, scenario by scenario, and the README's demo; every text of the Learn page and the
+   lessons as drafts in info-text.md for the owner. Proof: the doc link test; InfoIconTests for the page's icon.
+11. [ ] Docs: ARCHITECTURE.md and its pages (code map, process model), DEVELOPER.md (building and testing the sample, adding a
+   scenario and a lesson), THIRD-PARTY-NOTICES if anything is added. Proof: the Markdown sweep.
+
+**Decisions** (2026-11-15; the owner: "just keep going, no reason to wait on me", so each was decided autonomously with its
+recommended default):
+
+1. One sample, `heapscope-sample`, built on the fixtures' leak library (shared code, so one known answer serves the fixture
+   tests and the lessons), not a copy. Decided autonomously.
+2. Self-contained in each per-system package, as the worker is, so it runs without an installed .NET; framework-dependent in
+   the CLI tool, which needs .NET anyway. The measured size is recorded; if it adds more than half again to a package, the
+   owner is asked. Decided autonomously.
+3. The scenario catalog lives in the sample and the app reads it (`--list`), so the app never offers a scenario its sample
+   lacks; lessons name scenarios, and a test checks they exist. Decided autonomously.
+4. A lesson's answer is checked by a question the user answers after finding the problem with the app's pages (the planted
+   type among decoys from the same dump), not by watching what the user clicks: robust to how the user gets there, and each
+   new feature's lesson is one catalog entry. Decided autonomously.
+5. Generated by default (the sample runs live); no pre-built files in this sprint (Backlog). Decided autonomously.
+6. While HeapScope runs elevated the sample is refused with the reason (starting a non-elevated child from an elevated one is
+   not portable); at most three samples at once. Decided autonomously.
+7. The Learn page sits low on the left navigation, above Settings; starting and stopping is on the Processes page too.
+   Decided autonomously.
+8. `heapscope-cli sample` is in, for the README's demo. Decided autonomously.
+9. Every user-facing text is drafted in info-text.md and built; the owner approves before the sprint closes. Decided
+   autonomously.
 
 ## Peer review sprints
 
