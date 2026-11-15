@@ -28,7 +28,8 @@ namespace HeapScope.Core;
 /// <summary>
 /// The user's settings, shared by every HeapScope process on this machine (sprint 3.12): <c>settings.json</c> in the data
 /// folder's root (<see cref="HeapScopeFolders.Root"/>). The app writes it from its Settings page; the app, the worker and the
-/// command line read it. A missing or unreadable file means the defaults, and a member a newer build wrote is kept on save.
+/// command line read it. A missing file means the defaults, and a member a newer build wrote is kept on save; a file that cannot
+/// be read is the defaults for <see cref="Read"/>, and <see cref="TryRead"/> says so.
 /// </summary>
 /// <param name="IncludeFilterTextInLogs">
 /// Whether the text typed in filters and searches is written into the logs, to troubleshoot a result (on by default: the logs
@@ -46,17 +47,30 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true)
     public Dictionary<string, JsonElement>? Extra { get; init; }
 
     /// <summary>The settings in <paramref name="folders"/>, or the defaults when there are none or they cannot be read.</summary>
-    public static HeapScopeSettings Read(HeapScopeFolders folders)
+    public static HeapScopeSettings Read(HeapScopeFolders folders) => TryRead(folders, out var settings) ? settings : new HeapScopeSettings();
+
+    /// <summary>
+    /// Reads the settings in <paramref name="folders"/>: true with them, or with the defaults when there is no file; false when
+    /// a file is there and cannot be read now (in use, damaged, not this user's), with the defaults in <paramref name="settings"/>.
+    /// A caller that must not fail open on a setting (the logs' privacy, sprint 3.12 review H5) tells the two apart.
+    /// </summary>
+    public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings)
     {
         ArgumentNullException.ThrowIfNull(folders);
+        settings = new HeapScopeSettings();
         try
         {
             using var stream = new FileStream(PathIn(folders), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            return JsonSerializer.Deserialize<HeapScopeSettings>(stream, s_json) ?? new HeapScopeSettings();
+            settings = JsonSerializer.Deserialize<HeapScopeSettings>(stream, s_json) ?? new HeapScopeSettings();
+            return true;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            return new HeapScopeSettings();
+            return false;
         }
     }
 
@@ -79,6 +93,12 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true)
             using (var stream = PrivateFiles.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 JsonSerializer.Serialize(stream, this, s_json);
+
+                // On the disk before it replaces the file: a power loss must not leave an empty file in its place (review H5).
+                if (stream is FileStream file)
+                {
+                    file.Flush(flushToDisk: true);
+                }
             }
 
             File.Move(temp, path, overwrite: true);

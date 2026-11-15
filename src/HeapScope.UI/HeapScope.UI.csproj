@@ -19,14 +19,6 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\heapscope.ico" />
   </ItemGroup>
-  <ItemGroup>
-    <!--
-      A 64 MB gen 0 budget for the app (sprint 3.12, task 6): with four busy cores the UI's own gen 0 and gen 1 collections
-      were a quarter of its lag (WPR, task 3), and this halved the GC time inside the lags (A/B smoke runs, 2026-11-13).
-      It costs up to 64 MB more private memory before a collection.
-    -->
-    <RuntimeHostConfigurationOption Include="System.GC.Gen0Size" Value="67108864" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\HeapScope.Application\HeapScope.Application.csproj" />

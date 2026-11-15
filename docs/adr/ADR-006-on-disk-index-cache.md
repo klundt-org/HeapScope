@@ -1,4 +1,4 @@
-# ADR-006 On-disk index cache
+# ADR-006 On-disk index cache (amended by ADR-041)
 
 - Context: parsing a Medium dump takes minutes; investigations reopen the same snapshots many times.
 - Decision: persist the parsed graph next to the snapshot, versioned, invalidated on format change.

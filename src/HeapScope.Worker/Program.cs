@@ -53,10 +53,11 @@ if (options is not null && hideInstalledDacs)
     options = options with { HideInstalledDacs = true };
 }
 
-// The user's settings live in the data folder the client named (sprint 3.12, B1: filter text in the logs).
-if (options?.DataFolder is not null)
+// The user's settings live in the client's own data folder, which it names apart from the worker's data folder (sprint
+// 3.12, B1: filter text in the logs; review H4: a worker given another data folder read another settings file).
+if (options is not null && (options.SettingsFolder ?? options.DataFolder) is not null)
 {
-    HeapScope.Core.LogPrivacy.Use(options.Folders);
+    HeapScope.Core.LogPrivacy.Use(options.SettingsFolders);
 }
 
 // The worker logs single-line records to stderr only; the client forwards each line into its own log
@@ -123,7 +124,7 @@ if (!optionsValid || options is null)
 // self-contained worker's own DAC depend on them (sprint 2.3.7 review H4).
 var gc = GC.GetConfigurationVariables();
 logger.LogInformation(
-    "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); log level {LogLevel}; test hooks {TestHooks}{HiddenDacs}",
+    "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); settings {SettingsFile}; log level {LogLevel}; test hooks {TestHooks}{HiddenDacs}",
     ProductInfo.Name,
     ProductInfo.InformationalVersion,
     Environment.ProcessId,
@@ -138,6 +139,7 @@ logger.LogInformation(
     options.DacFolder ?? "(none)",
     options.Folders.Root,
     options.Folders.Source,
+    HeapScope.Core.HeapScopeSettings.PathIn(options.SettingsFolders),
     options.LogLevel,
     options.EnableTestHooks,
     options.HideInstalledDacs ? "; installed runtimes' DACs hidden (test hook): every full dump opens as on a machine without its runtime" : string.Empty);

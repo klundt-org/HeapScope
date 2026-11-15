@@ -124,21 +124,6 @@ public sealed record InspectionProgress(string Phase, long Done, long Total);
 /// excluded by a rule) and the cap on rows its log line lists.
 public sealed record InspectionResult(long Count, long Bytes, long? WastedBytes, string? Note, InspectionTable Rows, string? Basis = null, InspectionCounts? Counts = null);
 
-/// <summary>
-/// What an inspection's answer rests on, in the same terms for every inspection (sprint 3.12, B7): the objects, collections
-/// or types it scanned and those it left out (could not read, or excluded by its rules), so "why is mine not listed?" has an
-/// answer in the log. Lists of rows in a basis are cut at <see cref="ListedCap"/>.
-/// </summary>
-public sealed record InspectionCounts(long Scanned, long LeftOut)
-{
-    /// <summary>The most rows a log line lists; the rest are counted ("and N more").</summary>
-    public const int ListedCap = 50;
-
-    public override string ToString() => string.Create(
-        System.Globalization.CultureInfo.InvariantCulture,
-        $"scanned {Scanned}, left out {LeftOut}, rows listed at most {ListedCap}");
-}
-
 /// <summary>Kinds of inspection columns (mirrored by the worker's result columns).</summary>
 public enum InspectionColumnKind
 {

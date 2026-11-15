@@ -139,7 +139,7 @@ public sealed class ViewPrewarmer
 
             if (!cancellationToken.IsCancellationRequested)
             {
-                // The views built alone are garbage now. Left to the 64 MB gen 0 budget, they were collected inside a later first
+                // The views built alone are garbage now. Left to the gen 0 budget, they were collected inside a later first
                 // show (the Allocations page's longest operation 71 to 118 ms against 54 to 66 ms with this collect, A/B smoke runs
                 // of 2026-11-14); collected here, at idle, it costs about 8 ms.
                 work += await Dispatcher.UIThread.InvokeAsync(CollectGarbage, DispatcherPriority.ApplicationIdle, CancellationToken.None);

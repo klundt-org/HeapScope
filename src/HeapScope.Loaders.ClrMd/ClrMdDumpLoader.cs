@@ -526,7 +526,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                 }
 
                 var type = (uint)typeIndices[i] < (uint)clrTypes.Length ? clrTypes[typeIndices[i]] : null;
-                if (type is { ContainsPointers: false })
+                // A type without pointers has no references, unless it is collectible: ClrMD then yields its LoaderAllocator,
+                // as the GC marks it (sprint 3.12 review H3), which keeps an unloadable context's statics alive.
+                if (type is { ContainsPointers: false, IsCollectible: false })
                 {
                     continue;
                 }

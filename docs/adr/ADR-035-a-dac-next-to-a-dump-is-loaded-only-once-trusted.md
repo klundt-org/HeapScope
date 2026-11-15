@@ -1,4 +1,4 @@
-# ADR-035 A DAC next to a dump is loaded only once trusted (added in sprint 3.6, amends ADR-017)
+# ADR-035 A DAC next to a dump is loaded only once trusted (added in sprint 3.6, amends ADR-017; amended by ADR-041)
 
 - Context: the peer review of 3.5.0 (P2) found that a DAC in the dump's folder was loaded as native code into the
   worker, matched only on values the dump supplies (PE time stamp and size, or build id and version). A zip holding a

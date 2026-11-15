@@ -144,6 +144,10 @@ src/
 tests/
   Shared/                      Helpers compiled into every test project (the repository root finder, sprint 1.9; the
                                per-test data folder, sprint 3.8)
+  SharedSession/               Compiled into the integration, view model and UI tests: `TestSessions`, the one way a test
+                               opens a snapshot session, with a fixed memory budget (sprint 3.12).
+  SharedCapture/               Compiled into the tests that capture: `HeldDumpWriter`, which holds a capture while it writes
+                               so a cancel or a second capture meets it there (sprint 3.12, task 11).
   HeapScope.Core.Tests
   HeapScope.Analysis.Tests     Synthetic graphs with known answers.
   HeapScope.Storage.Tests
@@ -158,8 +162,10 @@ tests/
   HeapScope.Architecture.Tests Enforces the dependency rules below.
   HeapScope.Integration.Tests  Real worker processes, fixtures, real dumps, known answers. References Storage,
                                Analysis and the three loaders to test them in process, and runs the built CLI and app.
+  HeapScope.Benchmarks.Tests   The benchmarks' rules on recorded numbers (`UiStallAttribution`, sprint 3.12).
 perf/
-  HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.).
+  HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.) and the
+                               trace readers (`trace-report`, `ui-stalls`, `cpu-profile`).
 .github/workflows/ci.yml       CI on GitHub's runners: Windows and Linux, and the builds per system (sprints 2.3.5,
 2.3.6; no macOS runners since 2026-10-31).
 .github/workflows/fuzz.yml     Nightly mutation tests with more iterations (sprint 3.7).

@@ -122,9 +122,17 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
 - ClrMD reads the dump through its lock-free memory-mapped reader (`DataTargetOptions.UseLockFreeMemoryMapReader`):
   dump pages are file-backed, not private memory, and the walk is about twice as fast as the default cached reader
   (Medium: 15.8 s and 2.4 GB peak, against 36.6 s and 4.2 GB). ClrMD's data cache stays capped at 512 MB.
-- Object pass per segment (`ClrSegment.EnumerateObjects`): the heap kind comes from the segment kind, or from
-  `GetGeneration` on ephemeral and region segments; types are interned by method table on first sight;
-  `HasFinalizer` is `EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`.
+- Object pass per segment, segments in address order (since sprint 3.12, R4 and task 8): the loader reads each object's
+  method table from the dump (the header word, its low two bits masked) and maps it through a table filled once per method
+  table (`ClrHeap.GetObjectType`), so ClrMD's type factory runs once per type; the size is the type's base size plus the
+  component count (read as a `uint` at one pointer) times the component size, strings counting their terminator, at least
+  three pointers, aligned to a pointer (8 bytes on large and pinned segments); allocation contexts are skipped to their
+  end plus a minimum object. An object whose method table maps to no type hands the rest of its segment to ClrMD's own
+  `EnumerateObjects`, which counts unreadable objects as before. The heap kind comes from the segment kind, or from
+  `GetGeneration` on ephemeral and region segments. Objects arrive sorted, so `HasFinalizer` merges the sorted finalizable
+  list (`EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`) rather than looking each object up. The proof
+  that it builds ClrMD's graph is `load-dump`'s graph hash, whole and per column, equal before and after on the fixture and
+  the Medium dump (budgets.md).
 - After `FreezeObjects` the loader runs one aggressive, compacting collection: the phase-one chunks (about 20 bytes
   per object) are garbage then, and otherwise stay committed through the reference pass, which is where a load peaks.
 - Dependent handles become edges before the reference pass; weak handles become non-retaining `WeakHandle` roots.

@@ -54,6 +54,16 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// <summary>The data folders this worker uses: its cache key, the index cache fallback, DAC copies, trace conversion.</summary>
     public HeapScopeFolders Folders => DataFolder is null ? HeapScopeFolders.Default : new HeapScopeFolders(DataFolder, "--data-folder");
 
+    /// <summary>
+    /// The folder of the user's <c>settings.json</c> (<c>--settings-folder</c>; sprint 3.12 review H4): the client's own data
+    /// folder, which is where its Settings page saves, even when <see cref="DataFolder"/> moves the worker's data elsewhere.
+    /// Null: the data folder's.
+    /// </summary>
+    public string? SettingsFolder { get; init; }
+
+    /// <summary>The folders whose <c>settings.json</c> this worker follows.</summary>
+    public HeapScopeFolders SettingsFolders => SettingsFolder is null ? Folders : new HeapScopeFolders(SettingsFolder, "--settings-folder");
+
     /// <summary>A user folder searched for the data access component (<c>--dac-folder</c>).</summary>
     public string? DacFolder { get; init; }
 
@@ -75,6 +85,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
         ["--allow-symbol-server"] = $"{SymbolsSectionName}:AllowMicrosoftSymbolServer",
         ["--log-level"] = $"{SectionName}:LogLevel",
         ["--data-folder"] = $"{SectionName}:DataFolder",
+        ["--settings-folder"] = $"{SectionName}:SettingsFolder",
     };
 
     /// <summary>
@@ -129,6 +140,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             LogLevel = level,
             DacFolder = string.IsNullOrWhiteSpace(symbols["DacFolder"]) ? null : symbols["DacFolder"],
             DataFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["DataFolder"]) ? null : configuration.GetSection(SectionName)["DataFolder"],
+            SettingsFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["SettingsFolder"]) ? null : configuration.GetSection(SectionName)["SettingsFolder"],
             AllowMicrosoftSymbolServer = allow,
         };
         error = null;

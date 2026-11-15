@@ -7,16 +7,17 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 
 ### 4.1 Processes
 - **UI process** (Avalonia; AnyCPU, so 64-bit on x64 and arm64): shell, view models, Application services, capture.
-  Workstation GC with a 64 MB gen 0 budget (`System.GC.Gen0Size`, sprint 3.12, task 6: its own gen 0 and gen 1 collections
-  were a quarter of the UI's lag under load; budgets.md).
+  Workstation GC with the runtime's default gen 0 budget. A 64 MB budget halved the GC time in the UI's lags under load
+  (sprint 3.12, task 6, budgets.md), but only the `DOTNET_GCgen0size` environment variable sets it: the runtime ignores
+  `System.GC.Gen0Size` in the runtime configuration (review H2), so it is not shipped.
 - **CLI process** (AnyCPU, 64-bit): same Application services, console output.
 - **Worker process** (64-bit, the machine's architecture; `HeapScope.Worker`, or `dotnet` running
   `HeapScope.Worker.dll` in the CLI's dotnet tool): one per UI or CLI instance. Holds every loaded snapshot
   of the session (a diff needs both snapshots in one address space). Uses Server GC, non-concurrent
   (section 9), and runs at below-normal process priority so its ordinary threads yield to the UI and the profiled
   application. This does not cover Server GC threads, which the runtime creates at highest thread priority (they
-  end up at normal priority in a below-normal process); taming GC threads (job object CPU rate, EcoQoS, heap
-  affinity) is a backlog item to be decided with a trace.
+  end up at normal priority in a below-normal process); sprint 3.12's recordings (task 6) found no UI stall waiting for a
+  processor, even with four cores busy, so they are left as they are (budgets.md).
 
 ### 4.2 Lifecycle
 1. Application's `WorkerHost` starts the worker with `--pipe <name> --parent-pid <pid>`. The pipe name is

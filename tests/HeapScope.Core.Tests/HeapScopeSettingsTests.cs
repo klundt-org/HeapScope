@@ -74,5 +74,35 @@ public sealed class HeapScopeSettingsTests : IDisposable
         privacy.IncludeFilterText.ShouldBeTrue();
     }
 
+    // Sprint 3.12 review H5: the logs' privacy never falls back to "on" because the file could not be read at that moment.
+    [Fact]
+    public void An_unreadable_file_keeps_the_last_setting_read_and_is_read_again_next_time()
+    {
+        var path = HeapScopeSettings.PathIn(Folders);
+        var privacy = new LogPrivacy(Folders, checkEvery: TimeSpan.Zero);
+        new HeapScopeSettings(IncludeFilterTextInLogs: false).Save(Folders);
+        privacy.IncludeFilterText.ShouldBeFalse();
+
+        File.WriteAllText(path, "{ damaged");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(5));
+        privacy.IncludeFilterText.ShouldBeFalse("the last setting read, not the default");
+        HeapScopeSettings.TryRead(Folders, out _).ShouldBeFalse();
+
+        File.WriteAllText(path, "{\"IncludeFilterTextInLogs\": true}");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(5));
+        privacy.IncludeFilterText.ShouldBeTrue("read again once it can be, even with the same write time as the damaged one");
+    }
+
+    [Fact]
+    public void A_file_that_cannot_be_read_from_the_start_keeps_filter_text_out()
+    {
+        File.WriteAllText(HeapScopeSettings.PathIn(Folders), "{ damaged");
+
+        new LogPrivacy(Folders, checkEvery: TimeSpan.Zero).IncludeFilterText.ShouldBeFalse("it may say off");
+        HeapScopeSettings.TryRead(Folders, out var settings).ShouldBeFalse();
+        settings.IncludeFilterTextInLogs.ShouldBeTrue("Read's defaults are unchanged");
+        HeapScopeSettings.TryRead(new HeapScopeFolders(Path.Combine(_root, "none")), out _).ShouldBeTrue("no file is the defaults");
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 }

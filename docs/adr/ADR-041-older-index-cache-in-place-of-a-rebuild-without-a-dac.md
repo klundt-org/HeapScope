@@ -1,4 +1,4 @@
-# ADR-041 An older index cache in place of a rebuild without a DAC (added in sprint 3.12)
+# ADR-041 An older index cache in place of a rebuild without a DAC (added in sprint 3.12, amends ADR-006, ADR-032, ADR-035 and ADR-036)
 
 - Context: a full dump's index cache from an older loader is rebuilt (sprint 3.10, review M7), and the rebuild needs the
   dump's DAC (Data Access Component). After a .NET update removes the runtime the dump was taken on, or when the only DAC

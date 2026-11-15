@@ -13,7 +13,7 @@ Outside a sprint:
 Swept in sprint 3.12:
 - The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and
   6). No stall waited for a processor; the UI's own gen 0 and gen 1 collections were a quarter of the lag under load (a 64 MB
-  gen 0 budget halved them) and styles and templates most of the rest (prewarmed, task 4). The smoke gate's lag check stays at
+  gen 0 budget halved them, but is not shipped: review H2) and styles and templates most of the rest (prewarmed, task 4). The smoke gate's lag check stays at
   twice the 100 ms budget, as OS scheduling noise remains in it.
 - The slower first load (from 3.10): traced and fixed (tasks 8 and R4; Medium from about 21 s to 13 s).
 - UI cold start on Avalonia (from 0.3): measured (task 7); template preloading built (task 4).
@@ -68,7 +68,9 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   keeps TRX results 14 days): `DenseHeapTests` once in CI (2026-11-02, release PR #45; ClrMD's default DAC lookup in
   the test helper failed where HeapScope's loader had just opened the dump; the helper is local-only since 2026-11-03
   and explains any failure); under full local load only, passing alone: `LiveWorkflowTests` (an allocation trace for a
-  run's whole length; again 2026-11-13, 45 ms past its deadline), `CounterMonitorTests`, `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
+  run's whole length; again 2026-11-13, 45 ms past its deadline, and 2026-11-14 in the wrap's full run),
+  `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
+  beside four reviewers and a build; both passed alone), `CounterMonitorTests`, `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
   3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
   little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
   most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has

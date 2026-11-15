@@ -166,9 +166,10 @@ project's tests at about 3 cores (`load-window2.log`), alternating the default a
 (`DOTNET_GCgen0size`). GC time inside the logged lags per run: with four more cores busy, 392, 408 and 430 ms by default
 against 145, 174 and 211 ms with 64 MB; on the quieter machine 237, 265 and 224 ms against 214, 270, 146 and 157 ms. Slow
 operations (over 100 ms) per run under load 5, 7 and 10 against 6, 7 and 7; the worst lag moved little (203 to 275 ms
-against 189 to 266 ms), since styles and templates are the rest of it. The app now runs with the 64 MB budget
-(`System.GC.Gen0Size` in its runtime configuration); a worker CPU cap, EcoQoS or GC heap affinity would not have helped,
-since no stall waited for a processor.
+against 189 to 266 ms), since styles and templates are the rest of it. The budget is not shipped: the runtime reads it only
+from the environment variable, and ignores `System.GC.Gen0Size` in the runtime configuration (the sprint 3.12 review, H2: a
+test program counted 73 gen 0 collections with and without it, 14 with the variable). A worker CPU cap, EcoQoS or GC heap
+affinity would not have helped, since no stall waited for a processor.
 
 UI cold start on Avalonia (sprint 3.12, task 7), the published ReadyToRun build on 2026-11-13: the first window rendered
 6.9 s after start on the first run after publishing (the files read and scanned for the first time), then 0.77 to 0.87 s
@@ -188,7 +189,7 @@ found). Medium dump, three pairs: the Snapshots page's first show 16 to 21 ms ag
 operation 129 to 181 ms against 158 to 209 ms, slow operations 4 to 5 against 4 to 6. Two designs were measured and
 dropped: every page built in place made the Retainers and Allocations first shows 20 to 45 ms slower (the hidden Jobs, Live
 and Processes pages stayed bound to their view models and followed the run's jobs), and the dropped views' garbage left to
-the gen 0 budget was collected inside the Allocations page's first show. The open phase's 100 ms operation check failed in
+the default gen 0 budget was collected inside the Allocations page's first show. The open phase's 100 ms operation check failed in
 most runs of both arms on this day, and in one of two runs of the build before task 6: the machine, not this change.
 
 The first load's object pass (sprint 3.12, task 8, with R4). The WPR recording of a Medium load (58.0M objects, 2026-11-12)

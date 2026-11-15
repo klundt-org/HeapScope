@@ -38,6 +38,7 @@ public sealed class LogPrivacy
     private DateTime _written;
     private long _checked;
     private bool _includeFilterText = new HeapScopeSettings().IncludeFilterTextInLogs;
+    private bool _readOnce;
 
     /// <summary>Reads the settings of <paramref name="folders"/>, checking the file at most every <paramref name="checkEvery"/> (1 s by default).</summary>
     public LogPrivacy(HeapScopeFolders folders, TimeSpan? checkEvery = null)
@@ -82,6 +83,12 @@ public sealed class LogPrivacy
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // As an unreadable file below (review H5): never the default "on" before the file was read once.
+            if (!_readOnce)
+            {
+                _includeFilterText = false;
+            }
+
             return;
         }
 
@@ -90,7 +97,20 @@ public sealed class LogPrivacy
             return;
         }
 
+        if (!HeapScopeSettings.TryRead(_folders, out var settings))
+        {
+            // There and unreadable now (sprint 3.12 review H5): never fall back to the default "on". Keep what was read last, or
+            // keep filter text out until the file has been read once; the write time is not recorded, so the next check reads again.
+            if (!_readOnce)
+            {
+                _includeFilterText = false;
+            }
+
+            return;
+        }
+
         _written = written;
-        _includeFilterText = HeapScopeSettings.Read(_folders).IncludeFilterTextInLogs;
+        _readOnce = true;
+        _includeFilterText = settings.IncludeFilterTextInLogs;
     }
 }

@@ -1,4 +1,4 @@
-# ADR-032 Objects of two snapshots matched by address (added in sprint 3.3, amends ADR-018)
+# ADR-032 Objects of two snapshots matched by address (added in sprint 3.3, amends ADR-018; amended by ADR-041)
 
 - Context: ADR-018 compares per-type totals only, because dumps carry no object identity: collections move objects, and
   freed addresses are reused. dotMemory's comparison shows New, Dead and Survived objects per type and opens them as

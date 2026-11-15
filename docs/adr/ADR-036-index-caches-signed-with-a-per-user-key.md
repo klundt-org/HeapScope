@@ -1,4 +1,4 @@
-# ADR-036 Index caches signed with a per-user key (added in sprint 3.7)
+# ADR-036 Index caches signed with a per-user key (added in sprint 3.7; amended by ADR-041)
 
 - Context: the peer review of 3.5.0 (P14) found that an index cache next to its dump is preferred and trusted on unkeyed
   checksums and a fingerprint of size, time and the first and last MiB. A dump's time survives unzipping, so a shipped

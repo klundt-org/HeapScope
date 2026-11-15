@@ -105,6 +105,16 @@ references such as "ARCHITECTURE.md 11" still name the right section.
 - Settings (sprint 3.12, B1): a saved setting ("Setting saved to {File}: include filter text in logs on|off"); Purge logs,
   the files and bytes it deletes and keeps (the log being written); Purge all, the question and the answer, what it deletes
   (sessions, bookmarks, logs, files, bytes) and keeps, each failure, or why it was refused; the current session let go of.
+  The worker follows the `settings.json` of its client's own data folder (`--settings-folder`), and a file that is there but
+  cannot be read keeps the last setting read, or filter text out (review H4, H5).
+- Start and first shows (sprint 3.12): "First window rendered N ms after process start"; the background build of the pages
+  ("Prewarmed {View} in N ms", "in place" for the Snapshots page; a step that fails is a warning naming the view; "View
+  prewarm done|stopped: N views in N ms of UI work over N ms (views)", "Prewarm garbage collected (gen 1) in N ms", or
+  "View prewarm skipped" when `Ui:Prewarm` is false or in a screenshot run); the watchdog's lags and long operations over
+  100 ms with the UI thread's CPU and the GC pauses in them. The smoke runs' lines ("Smoke slow operations" and the others)
+  are in DEVELOPER.md.
+- Session files (sprint 3.12, B4): an entry with an enum value this build does not know is kept as it was and saved
+  unchanged.
 - Object sets (sprint 3.1): a set is logged by its shape (`ObjectSetSpecs.Shape`: the kind, the first 20 type keys with
   their modules, the namespace or assembly, the inspection, row and baseline, and for objects their count and a short
   hash of the sorted addresses, never the addresses), in every request's provenance too. A resolution logs the

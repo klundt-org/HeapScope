@@ -129,13 +129,14 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    Done 2026-11-13: the open run counts UI operations over 100 ms in every phase (R3's `SmokePhases`), logs them by phase
    ("Smoke slow operations"), and a passing run with more than 12 fails with exit 7 (`SmokeVerdict.Ceiling`; not headless).
    Measured before it: 0 to 4 per run on the development machine, 5 to 10 with four more cores busy. `SmokeGateTests` test the
-   rule; a mutation that moves the threshold fails them. A smoke run with the new loader and the gen 0 budget passed with 1.
+   rule; a mutation that moves the threshold fails them. A smoke run with the new loader passed with 1.
 6. [x] The dispatcher lag under load (Backlog High, from 0.3) and the worker's Server GC threads: settled from task 3's
    trace, with a fix if it shows one (job object CPU rate, EcoQoS or GC heap affinity). Proof: the trace; smoke runs under load.
    Done 2026-11-13: no stall waited for a processor, even with four cores busy, so none of the three would help; the UI
-   process's own gen 0 and gen 1 collections were a quarter of the lag under load. The app runs with a 64 MB gen 0 budget
-   (`System.GC.Gen0Size`), which halved the GC time inside the lags under load in A/B smoke runs (budgets.md); the rest of
-   the lag is styles and templates (task 4). The worker's Server GC threads are not in the UI's lags.
+   process's own gen 0 and gen 1 collections were a quarter of the lag under load. A 64 MB gen 0 budget halved the GC time
+   inside the lags under load in A/B smoke runs set by environment variable (budgets.md); the rest of the lag is styles and
+   templates (task 4). The worker's Server GC threads are not in the UI's lags. Corrected by the review (H2): the
+   `System.GC.Gen0Size` runtime setting shipped with it does nothing, so it was removed and the budget is not shipped.
 7. [x] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
    numbers in `budgets.md`.
    Done 2026-11-13: first window 0.77 to 0.87 s warm, 6.9 s on the first run after publishing, about 1.0 to 1.1 s with four
@@ -202,7 +203,7 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
 14. [x] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
    Done 2026-11-14: budgets.md holds tasks 3 to 8; ADR-006 and ADR-036 were amended with task 9 (ADR-041); DEVELOPER.md has
    `ui-stalls`, `cpu-profile`, the load benchmark's graph hashes and the prewarm switch for A/B smoke runs; process-model,
-   logging and code-map describe B5's refusals, the UI's gen 0 budget and the prewarm; the Backlog's items this sprint
+   logging and code-map describe B5's refusals, the UI's GC and the prewarm; the Backlog's items this sprint
    settled are under "Built since listed".
 
 From the refactor analysis (owner, 2026-11-12: every bug and every candidate tied to this sprint's tasks):
