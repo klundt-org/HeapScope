@@ -41,9 +41,35 @@ public sealed class ScenarioCatalogTests
         {
             scenario.Title.ShouldNotBeNullOrWhiteSpace(scenario.Name);
             scenario.Plants.ShouldNotBeNullOrWhiteSpace(scenario.Name);
-            File.Exists(Path.Combine(RepoRoot.Path, "fixtures", "KnownAnswers", scenario.KnownAnswer + ".json"))
-                .ShouldBeTrue($"{scenario.Name}'s known answer {scenario.KnownAnswer}");
+            if (scenario.KnownAnswer is { } answer)
+            {
+                // The type a lesson's answer names is one the known answer counts.
+                var file = Path.Combine(RepoRoot.Path, "fixtures", "KnownAnswers", answer + ".json");
+                File.Exists(file).ShouldBeTrue($"{scenario.Name}'s known answer {answer}");
+                File.ReadAllText(file).ShouldContain($"\"type\": \"{scenario.AnswerType}\"", customMessage: scenario.Name);
+            }
+            else
+            {
+                // A scenario that plants allocations names a type of the sample's own.
+                typeof(ScenarioCatalog).Assembly.GetType(scenario.AnswerType).ShouldNotBeNull(scenario.Name);
+            }
         }
+    }
+
+    // Sprint 3.13 task 3: a scenario that keeps growing adds a step of its leak at every tick, and the steady allocation
+    // scenario allocates from its one call site.
+    [Fact]
+    public void A_growing_scenario_adds_its_step_and_the_steady_allocation_prices_orders()
+    {
+        var cache = new Fixtures.Leaks.StaticCacheLeak();
+        var before = cache.ItemCount;
+        ScenarioCatalog.Find("StaticCache")!.Grow!.Invoke(7, new ScenarioOptions(70, 8));
+        cache.ItemCount.ShouldBe(before + 7);
+
+        var order = SteadyAllocation.PriceOrder(new Random(1));
+        order.Lines.Length.ShouldBe(8);
+        order.GetType().FullName.ShouldBe(SteadyAllocation.AnswerType);
+        (typeof(SteadyAllocation).FullName + "." + nameof(SteadyAllocation.PriceOrder)).ShouldBe(SteadyAllocation.CallSite);
     }
 
     [Fact]

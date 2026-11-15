@@ -59,6 +59,14 @@ public sealed partial class FixtureProcess : IDisposable
         return new FixtureProcess(child, null);
     }
 
+    /// <summary>Starts the tutorial's sample (sprint 3.13) with <paramref name="arguments"/>, watched by this test process.</summary>
+    public static async Task<FixtureProcess> StartSampleAsync(params string[] arguments)
+    {
+        var child = ChildProcess.Start(TestPaths.SampleExe, [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
+        await WaitReadyAsync(child).ConfigureAwait(false);
+        return new FixtureProcess(child, null);
+    }
+
     /// <summary>Starts DenseHeap, which grows a dense heap of real Roslyn objects to about <paramref name="targetMb"/> MB.</summary>
     public static async Task<FixtureProcess> StartDenseAsync(int targetMb)
     {

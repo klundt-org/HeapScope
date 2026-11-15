@@ -43,6 +43,9 @@ internal static class TestPaths
 
     public static string UiExe => Path.Combine(UiOutput, "HeapScope.exe");
 
+    /// <summary>The tutorial's sample process (sprint 3.13).</summary>
+    public static string SampleExe => Path.Combine(RepoRoot, "src", "HeapScope.Sample", "bin", Configuration, "net10.0", "heapscope-sample.exe");
+
     public static string LeakyConsoleExe => Path.Combine(RepoRoot, "fixtures", "LeakyConsole", "bin", Configuration, "net10.0", "LeakyConsole.exe");
 
     public static string LeakyApiExe => Path.Combine(RepoRoot, "fixtures", "LeakyApi", "bin", Configuration, "net10.0", "LeakyApi.exe");

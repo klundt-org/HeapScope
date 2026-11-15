@@ -43,6 +43,7 @@ if (arguments.List)
         s.Title,
         s.Plants,
         s.KnownAnswer,
+        s.AnswerType,
         s.CannotRunWith,
         Grows = s.Grow is not null,
     });

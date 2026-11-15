@@ -120,10 +120,14 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    Done 2026-11-15: eleven scenarios (the five classic leaks, the four detector leaks, Waste, Inspection), `--list` as JSON,
    the finalizer-blocking scenarios started after the last full collection as the fixtures do. `ScenarioCatalogTests`
    (unique names, known answers, conflicts both ways, the argument rules); `LayerRules` holds the sample to the leak library.
-3. [ ] Keeps growing: `--grow-every <ms>` adds a share of each chosen leak at an interval, and the steady allocation scenario
+3. [x] Keeps growing: `--grow-every <ms>` adds a share of each chosen leak at an interval, and the steady allocation scenario
    allocates from known call sites, so Live, an allocation trace, Compare and Trend all show something. Proof: tests that the
    item counts grow by the step; an integration test that two dumps of a growing sample differ by the known step and a trace
    names the known call site.
+   Done 2026-11-15: every classic and detector leak grows by a tenth of its count per tick; `SteadyAllocation` prices orders
+   without end from `SteadyAllocation.PriceOrder`, keeping one in a hundred in a bounded window. Each scenario names the type a
+   lesson's answer is (`AnswerType`, held to its known answer). `ScenarioCatalogTests`; `SampleTests` (two dumps a growing
+   sample apart differ by whole steps; a CLI allocation trace of the steady scenario names `PriceOrder` and the sample's types).
 4. [ ] Packaging: the sample published into `sample/` beside `worker/` in every package (self-contained per system like the
    worker; framework-dependent in the CLI tool), signed and licensed like the rest, its size measured. Proof: `check-package.sh`
    finds it, its license entries and its signature; the size in budgets.md.

@@ -32,7 +32,8 @@ internal sealed record ScenarioOptions(int Count, int Payload);
 
 /// <summary>
 /// One problem the sample can plant (sprint 3.13, ADR-042): its name (what the app and the lessons use), its title, what it
-/// plants, the known answer in fixtures/KnownAnswers that describes it, and the scenarios it cannot run with.
+/// plants, the known answer in fixtures/KnownAnswers that describes it (null when it plants allocations, not objects), the type
+/// a lesson's answer names, and the scenarios it cannot run with.
 /// <paramref name="Start"/> plants it; <paramref name="Grow"/>, when the scenario can keep growing, adds a step of it.
 /// <paramref name="AfterLastCollection"/> scenarios start after the sample's last full collection (they block the finalizer
 /// thread for good).
@@ -41,7 +42,8 @@ internal sealed record Scenario(
     string Name,
     string Title,
     string Plants,
-    string KnownAnswer,
+    string? KnownAnswer,
+    string AnswerType,
     IReadOnlyList<string> CannotRunWith,
     Action<ScenarioOptions> Start,
     Action<int, ScenarioOptions>? Grow = null,
@@ -55,19 +57,20 @@ internal static class ScenarioCatalog
 {
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Leak(new StaticCacheLeak(), "A static cache that only grows", "A static dictionary of entries, each with a byte payload, that nothing removes."),
-        Leak(new EventHandlerLeak(), "Event handlers never removed", "Short-lived subscribers attached to long-lived publishers and never detached."),
-        Leak(new ClosureLeak(), "A closure that holds its data", "Lambdas stored in a static list, each capturing a buffer."),
-        Leak(new UndisposedListLeak(), "Undisposed objects kept in a list", "Disposable objects added to a static list and never disposed or removed."),
-        Leak(new UnboundedDictionaryLeak(), "A dictionary keyed without bound", "A static dictionary whose keys never repeat, so it grows with every request."),
-        Leak(new TimerLeak(), "Timers never stopped", "Periodic timers whose callbacks keep their owners alive."),
-        Leak(new DisposedReferencedLeak(), "Disposed objects still referenced", "Objects disposed but still held by a static list."),
-        Leak(new PendingAsyncLeak(), "Async methods that never finish", "Async methods awaiting tasks that never complete, kept alive by their continuations."),
+        Leak(new StaticCacheLeak(), "A static cache that only grows", "A static dictionary of entries, each with a byte payload, that nothing removes.", "Fixtures.Leaks.StaticCacheEntry"),
+        Leak(new EventHandlerLeak(), "Event handlers never removed", "Short-lived subscribers attached to long-lived publishers and never detached.", "Fixtures.Leaks.LeakySubscriber"),
+        Leak(new ClosureLeak(), "A closure that holds its data", "Lambdas stored in a static list, each capturing a buffer.", "Fixtures.Leaks.CapturedState"),
+        Leak(new UndisposedListLeak(), "Undisposed objects kept in a list", "Disposable objects added to a static list and never disposed or removed.", "Fixtures.Leaks.UndisposedResource"),
+        Leak(new UnboundedDictionaryLeak(), "A dictionary keyed without bound", "A static dictionary whose keys never repeat, so it grows with every request.", "Fixtures.Leaks.SessionRecord"),
+        Leak(new TimerLeak(), "Timers never stopped", "Periodic timers whose callbacks keep their owners alive.", "Fixtures.Leaks.TimerTarget"),
+        Leak(new DisposedReferencedLeak(), "Disposed objects still referenced", "Objects disposed but still held by a static list.", "Fixtures.Leaks.DisposedResource"),
+        Leak(new PendingAsyncLeak(), "Async methods that never finish", "Async methods awaiting tasks that never complete, kept alive by their continuations.", "Fixtures.Leaks.PendingWork"),
         new(
             "FinalizerBacklog",
             "A finalizer queue that never drains",
             "Finalizable objects queued behind a finalizer that never returns.",
             "FinalizerBacklog",
+            "Fixtures.Leaks.FinalizableItem",
             ["Waste"],
             options => new FinalizerBacklogLeak().Grow(options.Count, options.Payload),
             AfterLastCollection: true),
@@ -76,6 +79,7 @@ internal static class ScenarioCatalog
             "Memory wasted by shape",
             "Duplicate strings, empty and oversized collections, sparse arrays and a finalizer backlog of its own.",
             "Waste",
+            "Fixtures.Leaks.WasteHolder",
             ["FinalizerBacklog"],
             _ => WasteFixtures.Create()),
         new(
@@ -83,19 +87,29 @@ internal static class ScenarioCatalog
             "Patterns the inspections find",
             "Large arrays, the large object heap, finalizable and pinned objects.",
             "Inspection",
+            "Fixtures.Leaks.InspectionSample",
             [],
             _ => InspectionFixtures.Create()),
+        new(
+            "SteadyAllocation",
+            "Steady allocation from one place",
+            "Orders priced over and over, each allocating short-lived objects, so an allocation trace names the call site.",
+            null,
+            SteadyAllocation.AnswerType,
+            [],
+            _ => SteadyAllocation.Start()),
     ];
 
     /// <summary>The scenario named <paramref name="name"/> (without regard to case), or null.</summary>
     public static Scenario? Find(string name) => All.FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-    private static Scenario Leak(ILeak leak, string title, string plants) =>
+    private static Scenario Leak(ILeak leak, string title, string plants, string answerType) =>
         new(
             leak.Name,
             title,
             plants,
             leak.Name,
+            answerType,
             [],
             options => leak.Grow(options.Count, options.Payload),
             (step, options) => leak.Grow(step, options.Payload));
