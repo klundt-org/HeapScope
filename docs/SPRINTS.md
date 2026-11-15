@@ -143,8 +143,12 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    through the dotnet host), registered in DI; refusals with what to do (not installed, elevated, an unknown scenario, a
    conflict, three running, a sample that exits before it is ready, in its own words); `Changed` for the pages.
    `SampleServiceTests` (each rule, with a fake starter); `SampleTests.The_service_lists_starts_and_stops_the_real_sample`.
-6. [ ] The Processes page starts and stops a sample (scenarios picked from its catalog) and marks its rows "Sample". Proof: view
+6. [x] The Processes page starts and stops a sample (scenarios picked from its catalog) and marks its rows "Sample". Proof: view
    model tests; the view test binds cleanly; the screenshot run shows it.
+   Done 2026-11-15: a "Sample process" panel (the catalog's scenarios as check boxes with what each plants, Keep growing, Start
+   sample, Stop sample) and a Kind column; the started sample is listed, selected and marked. `ProcessesSampleTests` (start
+   with the chosen scenarios, marked and selected, stopped; a refusal shown); `ViewTests` bind the page cleanly. The screenshot
+   run is checked with task 10's texts.
 7. [ ] Lessons (`LessonCatalog`, UI.ViewModels): one entry per lesson: its title, the scenarios it starts, the page it starts
    on, its steps, its question and the answer checked against the scenario's known answer (the planted type among decoys).
    Every scenario has a lesson or a reason, every lesson's scenarios exist in the sample's catalog. Proof: catalog tests both

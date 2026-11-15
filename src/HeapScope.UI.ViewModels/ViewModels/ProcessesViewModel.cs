@@ -31,8 +31,11 @@ using HeapScope.UI.Services;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>One row of the process list. Numbers stay numeric so the grid sorts them.</summary>
-public sealed record ProcessRow(int ProcessId, string Name, string Runtime, string Elevation, long WorkingSetBytes, string CommandLine, bool NeedsAdministrator)
+public sealed record ProcessRow(int ProcessId, string Name, string Runtime, string Elevation, long WorkingSetBytes, string CommandLine, bool NeedsAdministrator, bool IsSample = false)
 {
+    /// <summary>"Sample" for the tutorial's sample this HeapScope started (sprint 3.13), else empty.</summary>
+    public string Kind => IsSample ? "Sample" : string.Empty;
+
     public static ProcessRow From(ProcessEntry process)
     {
         ArgumentNullException.ThrowIfNull(process);
@@ -51,8 +54,10 @@ public sealed record ProcessRow(int ProcessId, string Name, string Runtime, stri
 /// and opening the captured dump through the Snapshots page (which runs the memory check). Since sprint 2.5 it also
 /// records a process's allocations, shown on the Allocations page when done.
 /// </summary>
-public sealed partial class ProcessesViewModel(ICaptureService capture, SnapshotsViewModel snapshots, IUserInteraction interaction, AllocationsViewModel? allocations = null) : ObservableObject
+public sealed partial class ProcessesViewModel(ICaptureService capture, SnapshotsViewModel snapshots, IUserInteraction interaction, AllocationsViewModel? allocations = null, HeapScope.Application.Tutorial.SampleService? samples = null) : ObservableObject
 {
+    private readonly HeapScope.Application.Tutorial.SampleService? _samples = samples;
+
     private CancellationTokenSource? _recording;
 
     private readonly ICaptureService _capture = capture ?? throw new ArgumentNullException(nameof(capture));
@@ -60,8 +65,12 @@ public sealed partial class ProcessesViewModel(ICaptureService capture, Snapshot
     private readonly IUserInteraction _interaction = interaction ?? throw new ArgumentNullException(nameof(interaction));
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(CaptureCommand), nameof(RecordAllocationsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CaptureCommand), nameof(RecordAllocationsCommand), nameof(StopSampleCommand))]
     private ProcessRow? _selected;
+
+    /// <summary>Whether a sample started here keeps growing (sprint 3.13), so Live, traces, Compare and Trend show change.</summary>
+    [ObservableProperty]
+    private bool _keepGrowing = true;
 
     /// <summary>True while Record allocations records; Stop ends it and keeps what was recorded.</summary>
     [ObservableProperty]
@@ -82,6 +91,15 @@ public sealed partial class ProcessesViewModel(ICaptureService capture, Snapshot
     private bool _captureGcDump;
 
     public ObservableCollection<ProcessRow> Processes { get; } = [];
+
+    /// <summary>The tutorial sample's scenarios to choose from (sprint 3.13), read from the sample.</summary>
+    public ObservableCollection<SampleScenarioItem> SampleScenarios { get; } = [];
+
+    /// <summary>Whether this page offers the tutorial's sample (its host has the service).</summary>
+    public bool HasSample => _samples is not null;
+
+    /// <summary>Why no sample can start here (not installed, HeapScope elevated), or null.</summary>
+    public string? SampleUnavailable => _samples?.UnavailableReason;
 
     /// <summary>The path of the last successful capture (tests).</summary>
     public string? LastCapturePath { get; private set; }
@@ -104,12 +122,13 @@ public sealed partial class ProcessesViewModel(ICaptureService capture, Snapshot
         IsBusy = true;
         try
         {
+            await LoadSampleScenariosAsync();
             var processes = await _capture.ListProcessesAsync(CancellationToken.None);
             var selectedId = Selected?.ProcessId;
             Processes.Clear();
             foreach (var process in processes)
             {
-                Processes.Add(ProcessRow.From(process));
+                Processes.Add(ProcessRow.From(process) with { IsSample = _samples?.IsSample(process.ProcessId) == true });
             }
 
             Selected = Processes.FirstOrDefault(p => p.ProcessId == selectedId);
@@ -127,6 +146,65 @@ public sealed partial class ProcessesViewModel(ICaptureService capture, Snapshot
     }
 
     private bool CanCapture() => Selected is not null && Unavailable is null;
+
+    // The sample's catalog, read once from the sample when the page first lists processes (sprint 3.13).
+    private async Task LoadSampleScenariosAsync()
+    {
+        if (_samples is null || SampleScenarios.Count > 0 || _samples.UnavailableReason is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var scenario in await _samples.ListScenariosAsync(CancellationToken.None))
+            {
+                SampleScenarios.Add(new SampleScenarioItem(scenario));
+            }
+        }
+        catch (HeapScope.Application.Tutorial.SampleRefusedException ex)
+        {
+            Status = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Starts the tutorial's sample with the chosen scenarios (sprint 3.13), then lists it, selected and marked "Sample", ready to
+    /// capture or record.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSample))]
+    private async Task StartSampleAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            var chosen = SampleScenarios.Where(s => s.IsChosen).Select(s => s.Name).ToList();
+            var sample = await _samples!.StartAsync(chosen, KeepGrowing, CancellationToken.None);
+            await RefreshAsync();
+            Selected = Processes.FirstOrDefault(p => p.ProcessId == sample.ProcessId);
+            Status = $"Sample {sample.ProcessId} started: {string.Join(", ", sample.Scenarios)}.";
+        }
+        catch (HeapScope.Application.Tutorial.SampleRefusedException ex)
+        {
+            Status = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private bool CanStopSample() => Selected is { IsSample: true };
+
+    /// <summary>Stops the selected sample (sprint 3.13).</summary>
+    [RelayCommand(CanExecute = nameof(CanStopSample))]
+    private async Task StopSampleAsync()
+    {
+        var id = Selected!.ProcessId;
+        _samples!.Stop(id);
+        await RefreshAsync();
+        Status = $"Sample {id} stopped.";
+    }
 
     /// <summary>Whether this page can record allocations (the host has an Allocations page).</summary>
     public bool CanRecordAllocations => allocations is not null;
