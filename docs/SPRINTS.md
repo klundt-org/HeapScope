@@ -165,8 +165,14 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    unreadable file counts as none). `LearnViewModelTests` (start, page shown, no answer, wrong, right and saved, read back,
    stop; a scenario missing from the sample; no sample; a bad file); `ViewTests` bind the page and the panel cleanly. The
    screenshot run is checked with task 10's texts.
-9. [ ] `heapscope-cli sample list|start|stop` for a demo without the app. Proof: CLI tests; an integration test that starts the
+9. [x] `heapscope-cli sample list|start|stop` for a demo without the app. Proof: CLI tests; an integration test that starts the
    sample and captures it with the CLI.
+   Done 2026-11-15: `sample start` runs in the foreground until Ctrl+C or `sample stop` (the sample exits with it, so none is
+   left behind); `sample stop --pid` stops only a process whose command line runs the sample with scenarios. Found on the way:
+   process discovery hid every executable under the installation, so the shipped sample (in `sample/`) could be neither listed
+   nor captured, in the app or the CLI; `ProcessDiscovery.IsOwnImage` now lists it. `SampleCommandTests` (usage, a refused
+   stop, the command line rule), `ProcessDiscoveryTests` (the sample is not own), and `SampleTests` (the real CLI starts,
+   lists, captures and stops the sample, and the start command then ends with 0).
 10. [ ] A "Try it" walkthrough in the User Guide, scenario by scenario, and the README's demo; every text of the Learn page and the
    lessons as drafts in info-text.md for the owner. Proof: the doc link test; InfoIconTests for the page's icon.
 11. [ ] Docs: ARCHITECTURE.md and its pages (code map, process model), DEVELOPER.md (building and testing the sample, adding a

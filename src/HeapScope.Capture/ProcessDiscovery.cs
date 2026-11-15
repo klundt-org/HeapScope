@@ -81,12 +81,21 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
     /// HeapScope itself (this process, and the UI, CLI and worker started from this installation) is never listed or
     /// captured: a dump of the worker would contain the snapshots it holds. Matched by pid and executable path, not by
     /// name, so a user's own app called HeapScope is still listed. In the CLI's dotnet tool the worker runs as the dotnet
-    /// host, so its command line names the worker's assembly in this installation (sprint 3.9, ADR-039).
+    /// host, so its command line names the worker's assembly in this installation (sprint 3.9, ADR-039). The tutorial's
+    /// sample (sprint 3.13, ADR-042) is HeapScope's too, but it is there to be captured, so it is listed.
     /// </summary>
     private static bool IsOwn(int processId) =>
         processId == Environment.ProcessId
-        || (ReadImagePath(processId) is { } image && HeapScope.Shared.PathIdentity.IsUnder(image, s_ownFolder))
+        || (ReadImagePath(processId) is { } image && IsOwnImage(image, s_ownFolder))
         || RunsOwnWorkerAssembly(ReadCommandLine(processId), s_ownFolder);
+
+    /// <summary>
+    /// Whether <paramref name="image"/> is one of the installation's own executables in <paramref name="ownFolder"/>: any
+    /// under it except the tutorial's sample in its <c>sample</c> subfolder.
+    /// </summary>
+    internal static bool IsOwnImage(string image, string ownFolder) =>
+        HeapScope.Shared.PathIdentity.IsUnder(image, ownFolder)
+        && !HeapScope.Shared.PathIdentity.IsUnder(image, Path.Combine(ownFolder, "sample"));
 
     /// <summary>Whether <paramref name="commandLine"/> runs the worker assembly of the installation in <paramref name="ownFolder"/>.</summary>
     internal static bool RunsOwnWorkerAssembly(string? commandLine, string ownFolder) =>

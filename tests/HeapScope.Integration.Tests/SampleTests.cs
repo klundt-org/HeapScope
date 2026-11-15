@@ -101,5 +101,45 @@ public sealed class SampleTests : IDisposable
         service.Running.ShouldBeEmpty();
     }
 
+    // Sprint 3.13 task 9: the demo without the app. The CLI starts the sample in the foreground, lists it, captures it and stops
+    // it from a second command, and the first one then ends on its own.
+    [Fact]
+    public async Task The_cli_starts_the_sample_captures_it_and_stops_it()
+    {
+        using var start = ChildProcess.Start(TestPaths.CliExe, "sample", "start", "--scenarios", "StaticCache");
+        (await start.WaitForOutputAsync("Stop it:", TimeSpan.FromSeconds(60))).ShouldBeTrue(start.Output);
+        var match = System.Text.RegularExpressions.Regex.Match(start.StandardOutput, @"^Sample (\d+) runs: StaticCache\.", System.Text.RegularExpressions.RegexOptions.Multiline);
+        match.Success.ShouldBeTrue(start.Output);
+        var pid = match.Groups[1].Value;
+
+        using (var list = ChildProcess.Start(TestPaths.CliExe, "list"))
+        {
+            (await list.WaitForExitAsync(TimeSpan.FromSeconds(60))).ShouldBeTrue(list.Output);
+            list.StandardOutput.ShouldContain(pid, customMessage: "the sample is HeapScope's but is listed");
+        }
+
+        var dump = _root.File("sample.dmp");
+        using (var capture = ChildProcess.Start(TestPaths.CliExe, "capture", "--pid", pid, "--out", dump))
+        {
+            (await capture.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(capture.Output);
+            capture.Process.ExitCode.ShouldBe(0, capture.Output);
+        }
+
+        using (var analysis = DumpAnalysis.Open(dump))
+        {
+            analysis.CountTypes(["Fixtures.Leaks.StaticCacheEntry"])["Fixtures.Leaks.StaticCacheEntry"].ShouldBeGreaterThan(0);
+        }
+
+        using (var stop = ChildProcess.Start(TestPaths.CliExe, "sample", "stop", "--pid", pid))
+        {
+            (await stop.WaitForExitAsync(TimeSpan.FromSeconds(60))).ShouldBeTrue(stop.Output);
+            stop.Process.ExitCode.ShouldBe(0, stop.Output);
+        }
+
+        (await start.WaitForExitAsync(TimeSpan.FromSeconds(30))).ShouldBeTrue("the start command ends when its sample stops");
+        start.Process.ExitCode.ShouldBe(0, start.Output);
+        start.StandardOutput.ShouldContain($"Sample {pid} stopped.");
+    }
+
     public void Dispose() => _root.Dispose();
 }
