@@ -759,7 +759,6 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             shown.ShouldBe([true, false]);
             window.PrewarmHost.Children.ShouldBeEmpty("each view built alone is dropped after its step");
             ui.BindingErrors.ShouldBeEmpty();
-            prewarm.Built.ShouldNotContain(nameof(HomePage), "the page shown is not built again");
 
             // A page built in place is the one its first show uses: no second view.
             var built = window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem();
@@ -775,6 +774,79 @@ public sealed class ViewTests(UiSession ui) : IDisposable
                 .Where(t => t.IsSubclassOf(typeof(UserControl)) && t.Namespace is "HeapScope.UI.Views.Pages" or "HeapScope.UI.Views.Subjects")
                 .Select(t => t.Name);
             views.Except(inside).Order().ShouldBe(prewarm.Built.Order());
+            window.Close();
+        });
+    }
+
+    // The review's M12: a cancel mid-run, a step that fails, and a page shown before its step.
+    [Fact]
+    public async Task The_prewarm_stops_on_a_cancel_and_says_so()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            var window = new MainWindow(shell);
+            window.Show();
+            using var stop = new CancellationTokenSource();
+            var prewarm = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance)
+            {
+                // The second view's step cancels, as a window closing while it is built would.
+                StandaloneViews =
+                [
+                    (nameof(AboutPage), static () => new AboutPage()),
+                    (nameof(SettingsPage), () =>
+                    {
+                        stop.Cancel();
+                        return new SettingsPage();
+                    }),
+                    (nameof(JobsPage), static () => new JobsPage()),
+                ],
+            };
+
+            var run = prewarm.RunAsync(window, stop.Token);
+            while (!run.IsCompleted)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Yield();
+            }
+
+            await run;
+            prewarm.Built.ShouldBe([nameof(SnapshotsPage), nameof(AboutPage), nameof(SettingsPage)], "it stops before the next step");
+            prewarm.Completion.IsCompletedSuccessfully.ShouldBeTrue();
+            shell.IsPreparingViews.ShouldBeFalse();
+            window.PrewarmHost.Children.ShouldBeEmpty();
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public async Task A_prewarm_step_that_fails_is_skipped_and_the_rest_are_built()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            var window = new MainWindow(shell);
+            window.Show();
+            shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == shell.Snapshots);
+            Dispatcher.UIThread.RunJobs();
+            var shown = window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem();
+            var prewarm = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance)
+            {
+                StandaloneViews = [("Broken", static () => throw new InvalidOperationException("broken view")), (nameof(AboutPage), static () => new AboutPage())],
+            };
+
+            var run = prewarm.RunAsync(window, TestContext.Current.CancellationToken);
+            while (!run.IsCompleted)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Yield();
+            }
+
+            await run;
+            prewarm.Built.ShouldBe([nameof(AboutPage)], "the Snapshots page was shown already, so it is not built again; the broken one is skipped");
+            window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem().ShouldBeSameAs(shown);
+            prewarm.Completion.IsCompletedSuccessfully.ShouldBeTrue();
+            window.PrewarmHost.Children.ShouldBeEmpty("a failed step leaves nothing behind");
             window.Close();
         });
     }

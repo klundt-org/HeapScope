@@ -124,8 +124,11 @@ public sealed partial class App : Avalonia.Application
 
             window.Show();
 
-            // Builds the pages at idle priority, so after the first window renders (sprint 3.12, task 4); never faults.
-            _ = _host.Services.GetRequiredService<ViewPrewarmer>().RunAsync(window, lifetime.ApplicationStopping);
+            // Builds the pages at idle priority, so after the first window renders (sprint 3.12, task 4); never faults. A close
+            // stops it at once, not after the host's stop (the review's M12: it went on against a disposed shell).
+            _prewarmStop = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
+            window.Closing += (_, _) => _prewarmStop.Cancel();
+            _ = _host.Services.GetRequiredService<ViewPrewarmer>().RunAsync(window, _prewarmStop.Token);
 
             var options = _host.Services.GetRequiredService<UiOptions>();
             if (options.ScreenshotFolder is { } screenshots)
@@ -165,6 +168,9 @@ public sealed partial class App : Avalonia.Application
     }
 
     private const string ProductName = "HeapScope";
+
+    // Stops the background build of the pages when the window closes (sprint 3.12 review M12).
+    private CancellationTokenSource? _prewarmStop;
 
     /// <summary>Logs the cold start cost: process start to the first frame of the main window (backlog: UI cold start).</summary>
     private static void LogFirstWindow(IServiceProvider services)

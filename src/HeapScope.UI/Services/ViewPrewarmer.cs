@@ -98,6 +98,9 @@ public sealed class ViewPrewarmer
         (nameof(AboutPage), static () => new AboutPage()),
     ];
 
+    /// <summary>The views a run builds alone: <see cref="Views"/>, or a test's own (sprint 3.12 review M12: a step that fails).</summary>
+    internal IReadOnlyList<(string Name, Func<Control> Create)> StandaloneViews { get; init; } = Views;
+
     /// <summary>The views built by the last run, in order (for its log line and tests).</summary>
     public IReadOnlyList<string> Built => _built;
 
@@ -123,7 +126,7 @@ public sealed class ViewPrewarmer
             var pages = await Dispatcher.UIThread.InvokeAsync(
                 () => window.GetVisualDescendants().OfType<LazyContentControl>().Where(p => p.Page is SnapshotsViewModel).ToList(), DispatcherPriority.ApplicationIdle);
             var steps = pages.Select(page => (Func<TimeSpan?>)(() => Prebuild(page)))
-                .Concat(Views.Select(view => (Func<TimeSpan?>)(() => Build(window.PrewarmHost, view.Name, view.Create))));
+                .Concat(StandaloneViews.Select(view => (Func<TimeSpan?>)(() => Build(window.PrewarmHost, view.Name, view.Create))));
             foreach (var step in steps)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -144,6 +147,11 @@ public sealed class ViewPrewarmer
                 // of 2026-11-14); collected here, at idle, it costs about 8 ms.
                 work += await Dispatcher.UIThread.InvokeAsync(CollectGarbage, DispatcherPriority.ApplicationIdle, CancellationToken.None);
             }
+        }
+        catch (Exception ex)
+        {
+            // Outside a step (finding the pages, the collection): the prewarm is never the app's problem (the review's M12).
+            _logger.LogWarning(ex, "View prewarm stopped by an error after {Built} views; the others are built when first shown", _built.Count);
         }
         finally
         {
