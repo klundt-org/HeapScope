@@ -301,6 +301,8 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            logger?.LogInformation("{Section} shown as: {Message}", "Synthetic job", ex.Message);
             LastResult = ex.Message;
         }
     }

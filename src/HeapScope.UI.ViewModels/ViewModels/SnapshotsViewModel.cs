@@ -315,6 +315,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            _logger?.LogInformation("{Section} shown as: {Message}", "Snapshot open", ex.Message);
             Status = ex.Message;
         }
         finally
@@ -413,6 +415,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            _logger?.LogInformation("{Section} shown as: {Message}", "Snapshot open", ex.Message);
             Status = ex.Message;
         }
         finally
@@ -479,6 +483,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            _logger?.LogInformation("{Section} shown as: {Message}", "Snapshot close", ex.Message);
             Status = ex.Message;
         }
 

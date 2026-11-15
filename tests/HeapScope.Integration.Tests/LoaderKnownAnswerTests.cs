@@ -172,6 +172,25 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         handed.Flags.Span.SequenceEqual(Graph.Flags.Span).ShouldBeTrue();
     }
 
+    // Sprint 3.12 review M8: a length that runs past its segment is a damaged object, not a big one: counted as unreadable,
+    // its segment incomplete, and the snapshot no longer a complete graph.
+    [Fact]
+    public void An_object_whose_length_runs_past_its_segment_is_unreadable_and_its_segment_incomplete()
+    {
+        var segments = shared.Source.Dump.Heap.Segments.OrderBy(s => s.ObjectRange.Start).ToList();
+        var largest = segments.MaxBy(s => s.EnumerateObjects().Count())!;
+        var at = segments.TakeWhile(s => s != largest).Sum(s => (long)s.EnumerateObjects().Count()) + (largest.EnumerateObjects().Count() / 2);
+
+        var damaged = new ClrMdDumpLoader(new ClrMdLoaderOptions { OverrunAtObjectForTests = at })
+            .Load(shared.Source.DumpPath, cancellationToken: TestContext.Current.CancellationToken);
+        using var graph = damaged.Graph;
+
+        damaged.Diagnostics.UnreadableObjects.ShouldBe(1);
+        damaged.Diagnostics.IncompleteSegments.ShouldBe(1);
+        damaged.Capabilities.HasFlag(Core.SnapshotCapabilities.CompleteGraph).ShouldBeFalse();
+        graph.ObjectCount.ShouldBeLessThan(Graph.ObjectCount, "nothing after it in its segment can be found");
+    }
+
     // Sprint 3.12 review H3: an object of a collectible type holds its LoaderAllocator, even when the type has no pointers.
     [Fact]
     public void An_object_of_a_collectible_type_without_pointers_references_its_loader_allocator()

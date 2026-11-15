@@ -56,6 +56,12 @@ public sealed record ClrMdLoaderOptions
     internal long? FallBackAtObjectForTests { get; init; }
 
     /// <summary>
+    /// Gives the object with this number a length that runs past its segment, as a damaged array or string would (sprint 3.12
+    /// review M8): tests prove it is counted as unreadable and its segment as incomplete.
+    /// </summary>
+    internal long? OverrunAtObjectForTests { get; init; }
+
+    /// <summary>
     /// Folders holding installed shared runtimes (<c>...\shared\Microsoft.NETCore.App</c>). Null means the machine
     /// defaults (<c>DOTNET_ROOT</c> and Program Files); tests pass their own.
     /// </summary>

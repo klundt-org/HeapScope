@@ -171,7 +171,7 @@ internal sealed class TypeGrowthDetector : IInspection
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{current.Count} types with {currentObjects} reachable objects ({currentBytes} bytes) now, {before.Count} types with {beforeObjects} ({beforeBytes} bytes) in the baseline; {framework} framework types left out; reported: {Describe(ordered.Take(50))}{(ordered.Length > 50 ? $" and {ordered.Length - 50} more" : string.Empty)}; largest growth below the thresholds: {Describe(nearMisses.OrderByDescending(r => r.Growth).Take(5))}");
-        return new InspectionResult(ordered.Length, ordered.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), Table(ordered), basis, Counts: new(current.Count, framework));
+        return new InspectionResult(ordered.Length, ordered.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), Table(ordered), basis, Counts: new(current.Count, framework, ListsRows: true));
     }
 
     /// <summary>The framework's own types: by namespace, or by a System or Microsoft module.</summary>

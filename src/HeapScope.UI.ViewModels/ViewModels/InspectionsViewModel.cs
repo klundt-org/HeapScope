@@ -395,6 +395,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)
@@ -618,6 +620,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            _logger.LogInformation("{Section} shown as: {Message}", "Inspections against a baseline", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)

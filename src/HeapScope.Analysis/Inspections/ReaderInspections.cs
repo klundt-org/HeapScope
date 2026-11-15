@@ -162,7 +162,8 @@ internal sealed class EmptyCollectionsInspection : IInspection
             .Select(s => new CollectionRow(s.Object, 0, s.Capacity, s.BackingBytes, (long)graph.GetSize(s.Object) + s.BackingBytes))
             .OrderByDescending(r => r.Wasted).ThenBy(r => r.Object)
             .ToArray();
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows), Counts: new(counts.Scanned, counts.Unreadable));
+        var basis = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{counts.Scanned} collections of the covered types read, {counts.Unreadable} whose count could not be read; {rows.Length} empty with a capacity");
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows), basis, Counts: new(counts.Scanned, counts.Unreadable));
     }
 }
 
@@ -192,7 +193,8 @@ internal sealed class OversizedCollectionsInspection : IInspection
             .Select(s => new CollectionRow(s.Object, s.Count, s.Capacity, (s.Capacity - s.Count) * s.ElementBytes, (long)graph.GetSize(s.Object) + s.BackingBytes))
             .OrderByDescending(r => r.Wasted).ThenBy(r => r.Object)
             .ToArray();
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows), Counts: new(counts.Scanned, counts.Unreadable));
+        var basis = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{counts.Scanned} collections of the covered types read, {counts.Unreadable} whose count could not be read; {rows.Length} with Capacity>=2*Count+{Slack}");
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows), basis, Counts: new(counts.Scanned, counts.Unreadable));
     }
 }
 

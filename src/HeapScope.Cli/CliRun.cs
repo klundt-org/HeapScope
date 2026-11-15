@@ -77,7 +77,12 @@ internal static partial class CliCommands
         {
             // What the user was told, in the log too (sprint 2.3.7 review H4).
             logger.LogInformation("Command {Command} failed: {Message}", command, ex.Message);
-            await error.WriteLineAsync("Error: " + ex.Message).ConfigureAwait(false);
+
+            // An unexpected worker failure asks for the log (B5): the command line says where it is (the review's M16).
+            var where = ex is WorkerOperationException { ErrorCode: HeapScope.Contracts.HeapScopeErrorCode.Unknown } or WorkerCrashedException
+                ? $" Details are in the log in {logFolder}."
+                : string.Empty;
+            await error.WriteLineAsync("Error: " + ex.Message + where).ConfigureAwait(false);
             exitCode = Failure;
         }
         catch (Exception ex)

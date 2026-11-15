@@ -132,7 +132,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
                 cells[5] = InspectionRows.Number(row.Collection.Bytes);
                 cells[6] = InspectionRows.Hex(row.Collection.Address);
             }),
-            basis, Counts: new(current.Count, skipped.Total));
+            basis, Counts: new(current.Count, skipped.Total, ListsRows: true));
     }
 
     /// <summary>Why a growth comparison may mislead (review M8): a baseline captured later, or from another process.</summary>

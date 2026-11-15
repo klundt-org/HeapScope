@@ -205,4 +205,30 @@ public sealed class ProvenanceLogTests
         var refused = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new HeapScope.Core.RequestRefusedException("Unknown sort column Size."), logger, "QueryTypeSummaryAsync"));
         (refused.ErrorCode, refused.Message).ShouldBe(((int)HeapScopeErrorCode.InvalidArgument, "Unknown sort column Size."));
     }
+
+    // Sprint 3.12 review M17: the control methods run through the guard too, so their failures are logged like any other.
+    [Fact]
+    public async Task A_control_method_that_fails_is_logged_through_the_guard()
+    {
+        var logger = new RecordingLogger<HeapScope.Worker.Rpc.ControlHandler>();
+        var control = new HeapScope.Worker.Rpc.ControlHandler(new WorkerOptions("unused", null), new ResultSetStore(), new Lifetime(), logger);
+
+        var error = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => control.GetInfoAsync(WorkerProtocol.Version - 1, TestContext.Current.CancellationToken));
+
+        error.ErrorCode.ShouldBe((int)HeapScopeErrorCode.ProtocolMismatch);
+        logger.Lines.ShouldHaveSingleItem().ShouldStartWith("GetInfoAsync refused (ProtocolMismatch): ");
+    }
+
+    private sealed class Lifetime : Microsoft.Extensions.Hosting.IHostApplicationLifetime
+    {
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void StopApplication()
+        {
+        }
+    }
 }

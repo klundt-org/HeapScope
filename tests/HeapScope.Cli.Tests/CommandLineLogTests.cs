@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace HeapScope.Cli.Tests;
 
 /// <summary>
@@ -48,5 +50,17 @@ public sealed class CommandLineLogTests
         line.ShouldContain("--filter (16 chars)");
         line.ShouldNotContain("4111");
         line.ShouldContain("--top 5", customMessage: "a number of another option is written as given");
+    }
+
+    // Sprint 3.12 review M16: the worker's lines (its error line holds the exception, its stack and the request) go to the
+    // file log only, never to the console a CI log keeps.
+    [Fact]
+    public void The_workers_lines_never_reach_the_console()
+    {
+        using var host = CliHost.Build(attachPipe: null);
+        var rules = host.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.Extensions.Logging.LoggerFilterOptions>>().Value.Rules;
+
+        rules.ShouldContain(r => r.CategoryName == "Worker" && r.LogLevel == Microsoft.Extensions.Logging.LogLevel.None
+            && r.ProviderName == typeof(Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider).FullName);
     }
 }

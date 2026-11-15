@@ -129,7 +129,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         cancellationToken.ThrowIfCancellationRequested();
 
         using var builder = new HeapGraphBuilder();
-        var (unreadable, incompleteSegments, freeBytes, clrTypes) = AddObjects(heap, builder, _options.FallBackAtObjectForTests, progress, cancellationToken);
+        var (unreadable, incompleteSegments, freeBytes, clrTypes) = AddObjects(heap, builder, (_options.FallBackAtObjectForTests, _options.OverrunAtObjectForTests), progress, cancellationToken);
         var objects = meter.End("objects");
 
         builder.FreezeObjects(cancellationToken);
@@ -201,7 +201,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// finalizable list is merged rather than looked up. An object this walk cannot read (no type for its method table) hands
     /// the rest of its segment to ClrMD's own walk, which counts unreadable objects as before (sprint 1.8).
     /// </summary>
-    private static (long Unreadable, int IncompleteSegments, long[] FreeBytes, ClrType?[] ClrTypes) AddObjects(ClrHeap heap, HeapGraphBuilder builder, long? fallBackAt, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
+    private static (long Unreadable, int IncompleteSegments, long[] FreeBytes, ClrType?[] ClrTypes) AddObjects(ClrHeap heap, HeapGraphBuilder builder, (long? FallBackAt, long? OverrunAt) forTests, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
         // Free objects are the gaps the GC left between live ones (fragmentation, sprint 1.6), per heap kind.
         var free = new long[Enum.GetValues<HeapKind>().Length];
@@ -294,7 +294,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     continue;
                 }
 
-                if (++objects == fallBackAt
+                if (++objects == forTests.FallBackAt
                     || walk.MethodTable(address) is not { } methodTable || TypeOf(address, methodTable) is not { } type || walk.Size(address, type) is not { } size)
                 {
                     // What this walk cannot read, ClrMD's own walk reads as it always did, from here to the segment's end.
@@ -304,6 +304,11 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     count += rest;
                     overran |= restOverran;
                     break;
+                }
+
+                if (objects == forTests.OverrunAt)
+                {
+                    size = end - address + 1;
                 }
 
                 if (size > end - address)

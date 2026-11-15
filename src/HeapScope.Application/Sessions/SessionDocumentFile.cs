@@ -244,6 +244,30 @@ internal static class SessionDocumentFile
         return kept;
     }
 
+    /// <summary>
+    /// The values this build does not know in a document's set-aside entries, as "Snapshots: Kind=Future" (sprint 3.12 review
+    /// M18: the log says why an entry is not shown).
+    /// </summary>
+    internal static IEnumerable<string> UnknownValues(SessionDocument document)
+    {
+        foreach (var (name, entries, type) in new[]
+        {
+            (nameof(SessionDocument.Snapshots), document.UnknownSnapshots, typeof(SessionSnapshot)),
+            (nameof(SessionDocument.Runs), document.UnknownRuns, typeof(SessionRun)),
+        })
+        {
+            var enums = EnumMembers(type);
+            foreach (var entry in entries)
+            {
+                var values = enums
+                    .Where(e => entry.TryGetProperty(e.Key, out var value) && value.ValueKind == JsonValueKind.String
+                        && !Enum.TryParse(e.Value, value.GetString(), ignoreCase: true, out _))
+                    .Select(e => $"{e.Key}={entry.GetProperty(e.Key).GetString()}");
+                yield return $"{name}: {string.Join(", ", values)}";
+            }
+        }
+    }
+
     // The members of a record whose type is an enum (or a nullable one), by name.
     private static Dictionary<string, Type> EnumMembers(Type type) =>
         type.GetProperties(BindingFlags.Public | BindingFlags.Instance)

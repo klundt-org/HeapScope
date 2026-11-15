@@ -574,7 +574,8 @@ public sealed class SessionLibraryTests : IDisposable
     [Fact]
     public void Entries_with_a_value_a_newer_build_added_are_kept_and_saved_back_unchanged()
     {
-        var library = new SessionLibrary(_root, _time);
+        var log = new RecordingLogger<SessionLibrary>();
+        var library = new SessionLibrary(_root, _time, log);
         var folder = library.Current.Folder;
         library.AddToCurrent(Snapshot(Path.Combine(folder, "a.dmp")));
         var path = Path.Combine(folder, SessionLibrary.DocumentName);
@@ -594,6 +595,11 @@ public sealed class SessionLibraryTests : IDisposable
         saved["Snapshots"]!.AsArray().Select(s => s!["File"]!.GetValue<string>()).ShouldBe(["a.dmp", "b.dmp", "future.snap"]);
         saved["Snapshots"]![2]!["Kind"]!.GetValue<string>().ShouldBe("LiveCapture");
         saved["Runs"]!.AsArray().ShouldHaveSingleItem()!["CaptureKind"]!.GetValue<string>().ShouldBe("LiveCapture");
+
+        // The review's M18: the log says which entries are not shown and why, once per session.
+        log.Lines.Count(l => l.Contains("entries kept as they are and not shown", StringComparison.Ordinal)).ShouldBe(1);
+        log.Lines.ShouldContain(l => l.Contains("2 entries kept as they are and not shown", StringComparison.Ordinal)
+            && l.Contains("Snapshots: Kind=LiveCapture", StringComparison.Ordinal) && l.Contains("Runs: CaptureKind=LiveCapture", StringComparison.Ordinal));
     }
 
     [Fact]

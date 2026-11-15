@@ -270,6 +270,7 @@ public sealed class SessionLibrary
 
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
+    private readonly HashSet<string> _setAsideNoted = new(PathIdentity.Comparer());
 
     // _gate guards _currentFolder only and is never held across file work, so CurrentFolder and HasCurrent stay cheap on
     // the UI thread (peer review P1). _currentWork serializes reading or creating the current session; _writeGate
@@ -316,6 +317,7 @@ public sealed class SessionLibrary
                     var read = SessionDocumentFile.Read(folder);
                     if (read.Status == SessionReadStatus.Read)
                     {
+                        NoteSetAside(read.Session!);
                         return read.Session!;
                     }
 
@@ -413,6 +415,11 @@ public sealed class SessionLibrary
             {
                 _logger.LogWarning("The session {Folder} cannot be opened: {Reason}", full, read.Reason);
                 throw new SessionUnreadableException($"The session {full} cannot be opened: {read.Reason}. {read.NextStep}");
+            }
+
+            if (read.Session is { } readSession)
+            {
+                NoteSetAside(readSession);
             }
 
             if (read.Session is not { } session)
@@ -892,6 +899,34 @@ public sealed class SessionLibrary
         return removed;
     }
 
+    /// <summary>
+    /// Logs, once per session and process, the entries a newer HeapScope wrote with values this build does not know (sprint
+    /// 3.12, B4; review M18): kept and saved as they are, but not shown, so "my snapshot vanished" has an answer.
+    /// </summary>
+    private void NoteSetAside(Session session)
+    {
+        var document = session.Document;
+        var count = document.UnknownSnapshots.Count + document.UnknownRuns.Count;
+        if (count == 0)
+        {
+            return;
+        }
+
+        lock (_setAsideNoted)
+        {
+            if (!_setAsideNoted.Add(session.Folder))
+            {
+                return;
+            }
+        }
+
+        _logger.LogInformation(
+            "Session {Folder}: {Count} entries kept as they are and not shown, with values a newer HeapScope wrote: {Values}",
+            session.Folder,
+            count,
+            string.Join("; ", SessionDocumentFile.UnknownValues(document).Take(50)));
+    }
+
     /// <summary>Reads a session folder; null when it has no readable, well-formed <c>session.json</c>.</summary>
     public static Session? TryRead(string folder) => SessionDocumentFile.Read(folder).Session;
 
@@ -913,6 +948,7 @@ public sealed class SessionLibrary
             var read = SessionDocumentFile.Read(folder);
             if (read.Session is { } session)
             {
+                NoteSetAside(session);
                 var d = session.Document;
                 result.Add(new SessionSummary(folder, d.Name, d.CreatedUtc, d.LastOpenedUtc, d.Snapshots.Count, FolderSize(folder)));
             }

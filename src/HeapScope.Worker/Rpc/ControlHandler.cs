@@ -50,7 +50,11 @@ internal sealed class ControlHandler(
     /// <summary>Changes with every worker process (ARCHITECTURE.md 4.3).</summary>
     public Guid InstanceId { get; } = Guid.NewGuid();
 
-    public Task<WorkerInfo> GetInfoAsync(int clientProtocolVersion, CancellationToken cancellationToken)
+    /// <remarks>Through the guard like every method (sprint 3.12 review M17): a protocol mismatch is logged too.</remarks>
+    public Task<WorkerInfo> GetInfoAsync(int clientProtocolVersion, CancellationToken cancellationToken) =>
+        GuardAsync(clientProtocolVersion, () => Task.FromResult(Info(clientProtocolVersion)), LogLevel.Debug);
+
+    private WorkerInfo Info(int clientProtocolVersion)
     {
         if (clientProtocolVersion != WorkerProtocol.Version)
         {
@@ -70,7 +74,7 @@ internal sealed class ControlHandler(
             GC.GetTotalMemory(forceFullCollection: false),
             GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
             options.EnableTestHooks);
-        return Task.FromResult(info);
+        return info;
     }
 
     public Task<SyntheticJobResult> RunSyntheticJobAsync(SyntheticJobRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
@@ -94,15 +98,19 @@ internal sealed class ControlHandler(
             }
         });
 
-    public Task ShutdownAsync(CancellationToken cancellationToken)
-    {
-        Logger.LogInformation("Shutdown requested by the client");
+    /// <remarks>Through the guard like every method (sprint 3.12 review M17).</remarks>
+    public Task ShutdownAsync(CancellationToken cancellationToken) =>
+        GuardAsync(
+            () =>
+            {
+                Logger.LogInformation("Shutdown requested by the client");
 
-        // Stop after the reply has been written.
-        _ = Task.Delay(TimeSpan.FromMilliseconds(50), CancellationToken.None)
-            .ContinueWith(_ => lifetime.StopApplication(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
-        return Task.CompletedTask;
-    }
+                // Stop after the reply has been written.
+                _ = Task.Delay(TimeSpan.FromMilliseconds(50), CancellationToken.None)
+                    .ContinueWith(_ => lifetime.StopApplication(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+                return Task.FromResult(true);
+            },
+            LogLevel.Debug);
 
     private static void Validate(SyntheticJobRequest request)
     {

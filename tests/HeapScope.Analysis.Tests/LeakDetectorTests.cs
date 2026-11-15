@@ -494,6 +494,45 @@ public sealed class LeakDetectorTests
         Rows(result)[0][^1].ShouldBe(InspectionScopes.Finalizable, "they are not reachable");
         result.Basis!.ShouldContain("reported: App.Connection 900 (36000 bytes); App.Handle 300 (12000 bytes)");
         Run("finalizer-backlog", Queue(999), new FakeReader()).Count.ShouldBe(0);
+
+        // The review's M15: under the threshold every waiting object is left out, and the counts say so.
+        result.Counts.ShouldBe(new InspectionCounts(1_200, 0, ListsRows: true));
+        Run("finalizer-backlog", Queue(999), new FakeReader()).Counts.ShouldBe(new InspectionCounts(999, 999, ListsRows: true));
+    }
+
+    // The review's M15: a disposed flag that cannot be read is left out, never counted as "not disposed", and disposed objects
+    // of a type under the minimum are left out too; the line lists the disposed types and says how many more there are.
+    [Fact]
+    public void Disposed_but_referenced_counts_unreadable_flags_and_types_under_the_minimum_as_left_out()
+    {
+        var builder = new SyntheticGraphBuilder();
+        var reader = new FakeReader();
+        var list = builder.Array("App.Resource[]", 420, 8, references: true);
+        builder.Root(list, detail: "App.Pool.s_all");
+        for (var i = 0; i < 300; i++)
+        {
+            var resource = builder.Object("App.Resource", 32);
+            builder.Reference(list, resource);
+            if (i < 250)
+            {
+                // 150 disposed and held, 100 alive; the last 50 have no readable flag.
+                reader.Fields[(resource.Address, "_disposed")] = new ObjectValue(ObjectValueKind.Boolean) { Boolean = i < 150 };
+            }
+        }
+
+        for (var i = 0; i < 120; i++)
+        {
+            var widget = builder.Object("App.Widget", 32);
+            builder.Reference(list, widget);
+            reader.Fields[(widget.Address, "_disposed")] = new ObjectValue(ObjectValueKind.Boolean) { Boolean = i < 5 };
+        }
+
+        var result = Run("disposed-but-referenced", builder.Build(), reader);
+
+        Rows(result).Select(r => r[0]).ShouldBe(["App.Resource"]);
+        result.Counts.ShouldNotBeNull().LeftOut.ShouldBe(50 + 5, "50 unreadable flags, 5 disposed widgets under the minimum");
+        result.Basis!.ShouldContain("flag unreadable on 50; disposed in types under 100: 5");
+        result.Counts!.ToString().ShouldEndWith("rows listed at most 50");
     }
 
     [Fact]
@@ -646,6 +685,15 @@ public sealed class LeakDetectorTests
         // The list's count cannot be read: scanned and left out, never silently skipped.
         Run("empty-collections", graph, reader).Counts.ShouldBe(new InspectionCounts(1, 1));
         Run("oversized-collections", graph, reader).Counts.ShouldBe(new InspectionCounts(1, 1));
+
+        // The review's M15: every inspection says what it rests on, and a line says the row cap only where it lists rows.
+        foreach (var inspection in InspectionCatalog.All.Where(i => !i.UsesBaseline))
+        {
+            var result = Run(inspection.Name, graph, reader, null, inspection.UsesReferrers ? referrers : null);
+            result.Basis.ShouldNotBeNullOrWhiteSpace(inspection.Name);
+        }
+
+        new InspectionCounts(3, 1).ToString().ShouldBe("scanned 3, left out 1");
         InspectionCatalog.All.Count.ShouldBe(17);
     }
 

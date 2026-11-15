@@ -266,7 +266,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
                 cells[7] = InspectionScopes.Reachable;
             },
             row => row.Members),
-            basis, Counts: new(read, skipped.Total));
+            basis, Counts: new(read, skipped.Total, ListsRows: true));
     }
 
     /// <summary>
