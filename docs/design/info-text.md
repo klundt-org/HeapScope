@@ -165,6 +165,76 @@ Approved by the owner on 2026-11-12, 2026-11-13 and 2026-11-14.
 | Snapshot tab | Button (task 9) | Trust this DAC and reopen | approved 2026-11-13 |
 | Snapshot tab | Button tooltip (task 9) | Asks you to trust the DAC (Data Access Component) next to this dump, then opens the dump again so field values and strings are read. If its index cache was written by an older version, this takes as long as a first open. | approved 2026-11-13 |
 
+## Sprint 3.13 additions
+
+Drafts for the owner (sprint 3.13, the tutorial). The Learn page's icon is in Table 1. `LessonCatalogTests` checks that the
+lessons and scenarios say the texts below word for word, so a change goes here first.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Left navigation | Item | Learn | draft |
+| Learn | Progress beside the title | {N} of {N} done | draft |
+| Learn | Without the sample | The sample is not in this installation. Reinstall HeapScope from its release archive. | draft |
+| Learn, Processes | When HeapScope runs as administrator | HeapScope runs as administrator, so the sample would too. Start HeapScope without administrator rights to run it. | draft |
+| Learn | Button and its tooltip | Start lesson; "Starts the lesson's sample process and shows the page the lesson starts on. A lesson running already is stopped first." | draft |
+| Learn | A finished lesson's icon (tooltip) | Done | draft |
+| Learn | Buttons | Check answer; Stop lesson, with the tooltip "Stops the lesson and its sample process." | draft |
+| Learn | Status, a lesson started | Lesson started: sample {pid} runs. Follow the steps; they stay on the right while you work. | draft |
+| Learn | Status, no answer chosen | Choose an answer first. | draft |
+| Learn | Status, a wrong answer | Not this one. Follow the steps again and look for the type the sample planted. | draft |
+| Learn | Status, the right answer | Right: the sample planted {type}. Lesson done; stop its sample, or start the next lesson. | draft |
+| Learn | Status, a lesson stopped | Lesson stopped. | draft |
+| Learn | Status, a scenario this sample lacks | This HeapScope's sample has no scenario {name}. Reinstall HeapScope from its release archive. | draft |
+| Every page | The lesson panel on the right | Heading "Lesson", the lesson's title and steps, and the button "Answer on the Learn page" | draft |
+| Processes | Section and its tooltip | Sample process; "Starts a small .NET process of HeapScope's own with the problems you choose, so you can capture it, record it and find them. It runs as you and stops when HeapScope closes." | draft |
+| Processes | Check box and its tooltip | Keep growing; "Adds more of each problem every second, so Live, an allocation recording, Compare and Trend show it growing." | draft |
+| Processes | Buttons | Start sample; Stop sample, with the tooltip "Stops the selected sample. Needs a row marked Sample." | draft |
+| Processes | Kind column | Sample, on the row of a sample this HeapScope started | draft |
+| Processes | Status, a sample started or stopped | Sample {pid} started: {scenarios}. / Sample {pid} stopped. | draft |
+| Processes, Learn, command line | Refusals | Choose at least one scenario. / There is no scenario {name} in this HeapScope's sample. / {name} and {name} cannot run together: both block the finalizer thread. Choose one. / 3 samples are running. Stop one first. / The sample did not start: {its error, or: it exited without a word} / The sample did not get ready within 60 seconds and was stopped. / The sample could not list its scenarios. Reinstall HeapScope from its release archive. | draft |
+| Command line | `sample`, `sample list` | "HeapScope's own sample process, with memory problems planted on purpose, to learn HeapScope on (the Learn page in the app)."; "List the sample's scenarios: what each one plants, and the type it plants."; columns Scenario, Grows, Plants | draft |
+| Command line | `sample start` | "Start the sample with the scenarios chosen and keep it running until Ctrl+C or 'sample stop'. Capture it from another terminal."; `--scenarios`: "The scenarios to run, separated by commas (see 'sample list')."; `--grow`: "Keep growing the scenarios that can, a step every second, for Live, Compare and Trend."; output "Sample {pid} runs: {scenarios}.", "Capture it: heapscope-cli capture --pid {pid}", "Stop it: Ctrl+C here, or heapscope-cli sample stop --pid {pid}", "Sample {pid} stopped." | draft |
+| Command line | `sample stop` | "Stop a sample that 'sample start' runs. Only HeapScope's sample is stopped; any other process is refused."; `--pid`: "The sample's process id, as 'sample start' printed it."; refusal "{pid} is not HeapScope's sample, so it was not stopped. 'heapscope-cli list' shows the running .NET processes." | draft |
+
+### The sample's scenarios
+
+Each is a check box on the Processes page (its title, with what it plants as the tooltip) and a row of `heapscope-cli sample list`.
+
+| Scenario | Title | Plants | Status |
+|---|---|---|---|
+| StaticCache | A static cache that only grows | A static dictionary of entries, each with a byte payload, that nothing removes. | draft |
+| EventHandler | Event handlers never removed | Short-lived subscribers attached to long-lived publishers and never detached. | draft |
+| Closure | A closure that holds its data | Lambdas stored in a static list, each capturing a buffer. | draft |
+| UndisposedList | Undisposed objects kept in a list | Disposable objects added to a static list and never disposed or removed. | draft |
+| UnboundedDictionary | A dictionary keyed without bound | A static dictionary whose keys never repeat, so it grows with every request. | draft |
+| Timer | Timers never stopped | Periodic timers whose callbacks keep their owners alive. | draft |
+| DisposedReferenced | Disposed objects still referenced | Objects disposed but still held by a static list. | draft |
+| PendingAsync | Async methods that never finish | Async methods awaiting tasks that never complete, kept alive by their continuations. | draft |
+| FinalizerBacklog | A finalizer queue that never drains | Finalizable objects queued behind a finalizer that never returns. | draft |
+| Waste | Memory wasted by shape | Duplicate strings, empty and oversized collections, sparse arrays and a finalizer backlog of its own. | draft |
+| Inspection | Patterns the inspections find | Large arrays, the large object heap, finalizable and pinned objects. | draft |
+| SteadyAllocation | Steady allocation from one place | Orders priced over and over, each allocating short-lived objects, so an allocation trace names the call site. | draft |
+
+### The lessons
+
+Each lesson's answer is checked against the type its scenario planted, offered among three types every heap holds
+(System.String, System.Byte[], System.Object[]).
+
+| Lesson | Title | Summary | Steps | Question | Status |
+|---|---|---|---|---|---|
+| static-cache | A cache that never lets go | Find what a static cache keeps alive and why it is never collected. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Snapshots page, sort the types by Retained and find the largest of the sample's own types (namespace Fixtures.Leaks).<br>3. Double-click it to open its objects, then choose Why alive: the path ends at a static field, which keeps every entry alive. | Which type does the static cache keep alive? | draft |
+| event-handlers | Event handlers never removed | Find subscribers that a long-lived publisher keeps alive. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Event handler leaks.<br>3. Double-click its row to open the subscribers as a set; its Paths view shows the publishers' events holding them. | Which type do the events keep alive? | draft |
+| closure | A closure that holds its data | Follow a retention path through a compiler-generated closure. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Snapshots page, sort the types by Retained and find the largest of the sample's own types (namespace Fixtures.Leaks).<br>3. Double-click it and choose Why alive: the path goes through a display class, which holds a lambda's captured variables. | Which type do the stored lambdas capture? | draft |
+| undisposed-list | Objects that are never disposed | Find disposable objects a list keeps after they are no longer used. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Snapshots page, type Fixtures.Leaks in the filter to see the sample's own types.<br>3. Double-click the largest one and choose Why alive: a static list holds its objects. | Which type does the list keep without disposing it? | draft |
+| unbounded-dictionary | A dictionary that grows with every request | Compare two captures to see which type grows. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. Wait a few seconds while the sample keeps growing, then capture and open a second dump.<br>3. On the Compare tab, compare the second with the first and sort by Bytes +/-. | Which type grows between the two captures? | draft |
+| timers | Timers never stopped | Find the objects that running timers keep alive. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Timer leaks.<br>3. Double-click its row to open the timers as a set: each timer's callback keeps its owner alive. | Which type do the timers' callbacks keep alive? | draft |
+| disposed-referenced | Disposed objects still referenced | Find objects that were disposed but are still held. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Disposed but referenced.<br>3. Double-click its row to open them as a set; its Paths view shows who still holds them. | Which type is disposed but still referenced? | draft |
+| pending-async | Async methods that never finish | Find async methods waiting on tasks that never complete. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Async methods that never complete.<br>3. Double-click its row to open the waiting state machines as a set: they keep their data alive. | Which type do the waiting methods keep alive? | draft |
+| finalizer-backlog | A finalizer queue that never drains | Find objects waiting for a finalizer that never returns. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Finalizer backlog.<br>3. Its rows are the objects waiting on the finalizer queue; double-click one to open them as a set. | Which type waits on the finalizer queue? | draft |
+| waste | Memory wasted by shape | Find duplicate strings and collections that hold nothing. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Duplicate strings, Empty collections and Oversized collections.<br>3. Double-click a row to open its objects as a set; its Paths view shows who holds the waste. | Which of the sample's types holds the wasted collections? | draft |
+| large-objects | Large objects and pinned memory | Find what lives on the large object heap and what is pinned. | 1. On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.<br>2. On the Inspections tab, run Large object heap and Large arrays.<br>3. Double-click a row to open its objects as a set; its Paths view shows who holds them. | Which of the sample's types holds the large arrays? | draft |
+| steady-allocation | Where allocations come from | Record allocations and find the type and call site that allocate most. | 1. On the Processes page, select the row marked Sample and choose Record allocations; stop after a few seconds.<br>2. On the Allocations page, sort the types by Bytes and open the top Back traces. | Which of the sample's types is allocated most? | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

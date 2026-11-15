@@ -312,7 +312,21 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `MonitorCommand` [1.7], `ReferrersCommand` (`referrers --address | --type`) [2.1], `PathsCommand` (`paths --address | --type`) [2.2], `--retained` on `summary`, `instances` and `object` with `StderrProgress` [2.3],
   `RetainersCommand` (`retainers`, `retained-by`) [2.4], `SetCommand` (`set`) [3.1], `TrendCommand` (`trend`) [3.3];
   `CliCommands.Output.cs` holds the output every command shares: fetching rows, CSV, JSON (one
-  writer, rows keyed by column name with typed numbers) [1.9].
+  writer, rows keyed by column name with typed numbers) [1.9]. `SampleCommands.cs`: `sample list|start|stop` (start runs in
+  the foreground; stop only a process whose command line runs the sample with scenarios) [3.13].
+- **Tutorial [3.13, ADR-042].** Sample: `ScenarioCatalog` (each scenario's name, title, what it plants, its known answer and
+  the type it plants, the scenarios it cannot run with, how it starts and grows), `SampleArguments`, `SteadyAllocation` (the
+  allocation scenario's call site), `Program` (`--list` as JSON, `READY pid=`, growth on a timer). Application:
+  `Tutorial/SampleService` (reads the catalog from the sample, starts, tracks and stops samples; refusals as
+  `SampleRefusedException`), `SampleLaunch` (the executable, or the dll through the dotnet host), `ISampleProcess` and
+  `ISampleProcessStarter` (the seam tests fake), `LessonProgress` (`learn-progress.json` in the data folder). UI.ViewModels:
+  `LessonCatalog` and `Lesson` (one lesson per scenario, its steps and question, the answer among decoys),
+  `LearnViewModel`, `LessonItem`, the sample section of `ProcessesViewModel` (`SampleScenarioItem`, the Kind column), and
+  `ShellViewModel.CurrentLesson` (the panel beside every page). UI: `Views/Pages/LearnPage`, the lesson panel in
+  `MainWindow`. Capture: `ProcessDiscovery.IsOwnImage` lists the sample. build: `Sample.Deploy.targets` (the sample beside
+  the app and CLI, self-contained per RID; framework-dependent in the dotnet tool). Tests: `HeapScope.Sample.Tests`
+  (catalog, lessons, the wording table), `SampleServiceTests`, `ProcessesSampleTests`, `LearnViewModelTests`,
+  `SampleCommandTests`, Integration `SampleTests` (growth, an allocation trace, the service and the CLI on the real sample).
 - **perf/HeapScope.Benchmarks.** The budget benchmarks, the developer tool `trace-report` [1.5; Avalonia's UI thread
   since 3.8] and `phase2-indices`,
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache

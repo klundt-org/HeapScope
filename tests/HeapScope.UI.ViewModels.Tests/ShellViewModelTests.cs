@@ -47,6 +47,32 @@ public sealed class ShellViewModelTests : IDisposable
         _shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, snapshots), snapshots, processes, new AboutViewModel(_operations));
     }
 
+    // Sprint 3.13: the running lesson's steps beside every page, but not on the Learn page, which shows them itself.
+    [Fact]
+    public void The_lesson_panel_shows_beside_other_pages_but_not_on_the_Learn_page()
+    {
+        var snapshots = new SnapshotsViewModel(
+            new Application.Snapshots.SnapshotSession(_worker, _operations.Jobs), _operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        var processes = new ProcessesViewModel(new FakeCaptureService(_sessions, _operations.Jobs), snapshots, new FakeUserInteraction());
+        var learn = new LearnViewModel(null, new Application.Tutorial.LessonProgress(new HeapScope.Core.HeapScopeFolders(_sessions)));
+        var shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, snapshots), snapshots, processes, new AboutViewModel(_operations), learn: learn);
+        var changed = new List<string?>();
+        shell.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        shell.CurrentLesson.ShouldBeNull();
+        learn.Current = learn.Lessons[0];
+        shell.CurrentLesson.ShouldBe(learn.Lessons[0]);
+        changed.ShouldContain(nameof(ShellViewModel.CurrentLesson));
+
+        shell.ShowLearnCommand.Execute(null);
+        shell.CurrentLesson.ShouldBeNull("the Learn page shows the steps itself");
+        shell.SelectedItem = shell.NavigationItems[0];
+        shell.CurrentLesson.ShouldBe(learn.Lessons[0]);
+
+        learn.Current = null;
+        shell.CurrentLesson.ShouldBeNull();
+    }
+
     [Fact]
     public void Shell_has_title_navigation_and_starts_on_home()
     {

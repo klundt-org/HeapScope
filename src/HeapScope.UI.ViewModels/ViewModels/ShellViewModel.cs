@@ -47,6 +47,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsJobsPanelVisible))]
+    [NotifyPropertyChangedFor(nameof(CurrentLesson))]
     private NavigationItem _selectedItem;
 
     [ObservableProperty]
@@ -55,8 +56,11 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     /// <summary>The Learn page (sprint 3.13), whose running lesson the shell shows beside every page; null without it.</summary>
     public LearnViewModel? Learn { get; }
 
-    /// <summary>The lesson running, shown beside every page; null when none (or no Learn page).</summary>
-    public LessonItem? CurrentLesson => Learn?.Current;
+    /// <summary>
+    /// The lesson running, shown beside every page but the Learn page (which shows its steps itself); null when none, on the
+    /// Learn page, or without one.
+    /// </summary>
+    public LessonItem? CurrentLesson => SelectedItem?.Page is LearnViewModel ? null : Learn?.Current;
 
     /// <summary>Shows the Learn page, from the lesson panel beside the other pages.</summary>
     [RelayCommand]

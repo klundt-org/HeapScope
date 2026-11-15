@@ -3,6 +3,27 @@
 The [README](../README.md) shows what HeapScope does. This guide covers how each part works, and
 [INSTALL.md](../INSTALL.md) takes you from download to a first snapshot.
 
+## Try it: learn on HeapScope's own sample
+
+HeapScope ships with a small .NET process of its own, the sample, with memory problems planted on purpose. Each problem is
+a scenario: a static cache that only grows, event handlers never removed, timers never stopped, async methods that never
+finish, a finalizer backlog, wasted memory, large objects, and steady allocation from one call site, among others. Because
+HeapScope knows what each one planted, you can practice on it and be told whether you found it.
+
+- **The Learn page** (low on the left, Ctrl+7) lists the lessons, one per scenario. Choose one and press Start lesson: its
+  sample starts and HeapScope shows the page the lesson starts on. The steps stay in a panel on the right of every page while
+  you work. When you have found the problem, answer the lesson's question on the Learn page: the answer is checked against
+  the type the sample planted. Lessons you finish are marked done and remembered. Stop lesson stops its sample.
+- **The Processes page** has a Sample process section to start the sample yourself: tick the scenarios, and Keep growing to
+  add more of each problem every second (for Live, an allocation recording, Compare and Trend). The sample's row is marked
+  Sample in the Kind column, ready to capture or record. Stop sample stops it.
+- **On the command line**, `heapscope-cli sample list` lists the scenarios, `heapscope-cli sample start --scenarios
+  StaticCache,Timer` runs the sample until Ctrl+C (add `--grow` to keep it growing), and `heapscope-cli sample stop --pid
+  <pid>` stops it from another terminal. Capture it with `heapscope-cli capture --pid <pid>`.
+
+The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once, and stops
+when HeapScope closes. Two scenarios that both block the finalizer thread (FinalizerBacklog and Waste) cannot run together.
+
 ## Finding your way
 
 - **Info icons.** The (i) beside a page or tab title says what it is for, when to use it and how to start. One beside a group
@@ -60,7 +81,7 @@ The [README](../README.md) shows what HeapScope does. This guide covers how each
   those on screen. String text, field values and command lines are left out unless you say yes for that export.
 - **Jobs.** Long work shows a progress row above the status line while it runs, with Cancel. Finished jobs move to the
   Jobs page; the status line says how many finished and how many failed, and a click on it opens the page.
-- **Keyboard.** F1 lists every shortcut on the About page: Ctrl+1 to 8 (Cmd on macOS) for the pages, Alt+1 to 4 for the Snapshots
+- **Keyboard.** F1 lists every shortcut on the About page: Ctrl+1 to 9 (Cmd on macOS) for the pages, Alt+1 to 4 for the Snapshots
   tabs, Ctrl+F for the filter, Ctrl+L for the analysis path, F5 to refresh.
 - **Appearance.** HeapScope follows your system's light or dark theme, and changes with it while it runs. To choose one,
   start the app with `--Ui:Theme Light` or `--Ui:Theme Dark`.

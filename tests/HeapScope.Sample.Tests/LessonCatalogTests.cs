@@ -73,4 +73,29 @@ public sealed class LessonCatalogTests
             Lesson.IsRight(Lesson.Decoys[0], answer).ShouldBeFalse();
         }
     }
+
+    /// <summary>
+    /// The owner approves the wording table (docs/design/info-text.md, "Sprint 3.13 additions"), not the code: each lesson and
+    /// each scenario says its row there word for word, so a change goes to the table first.
+    /// </summary>
+    [Fact]
+    public void Every_lesson_and_scenario_says_its_row_in_the_wording_table()
+    {
+        var table = File.ReadAllText(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
+        var rows = table.Split('\n').Where(l => l.StartsWith("| ", StringComparison.Ordinal)).ToList();
+
+        string RowOf(string key) => rows.SingleOrDefault(r => r.StartsWith($"| {key} | ", StringComparison.Ordinal))
+            ?? throw new Xunit.Sdk.XunitException($"info-text.md has no row for {key}");
+
+        foreach (var lesson in LessonCatalog.All)
+        {
+            var steps = string.Join("<br>", lesson.Steps.Select((step, i) => $"{i + 1}. {step}"));
+            RowOf(lesson.Id).ShouldStartWith($"| {lesson.Id} | {lesson.Title} | {lesson.Summary} | {steps} | {lesson.Question} | ", customMessage: lesson.Id);
+        }
+
+        foreach (var scenario in ScenarioCatalog.All)
+        {
+            RowOf(scenario.Name).ShouldStartWith($"| {scenario.Name} | {scenario.Title} | {scenario.Plants} | ", customMessage: scenario.Name);
+        }
+    }
 }

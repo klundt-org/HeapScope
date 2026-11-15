@@ -173,10 +173,20 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    nor captured, in the app or the CLI; `ProcessDiscovery.IsOwnImage` now lists it. `SampleCommandTests` (usage, a refused
    stop, the command line rule), `ProcessDiscoveryTests` (the sample is not own), and `SampleTests` (the real CLI starts,
    lists, captures and stops the sample, and the start command then ends with 0).
-10. [ ] A "Try it" walkthrough in the User Guide, scenario by scenario, and the README's demo; every text of the Learn page and the
+10. [x] A "Try it" walkthrough in the User Guide, scenario by scenario, and the README's demo; every text of the Learn page and the
    lessons as drafts in info-text.md for the owner. Proof: the doc link test; InfoIconTests for the page's icon.
-11. [ ] Docs: ARCHITECTURE.md and its pages (code map, process model), DEVELOPER.md (building and testing the sample, adding a
+   Done 2026-11-15: USER-GUIDE "Try it: learn on HeapScope's own sample" (the Learn page, the Processes page's section, the
+   CLI) and README "Learn: never profiled memory before?". info-text.md "Sprint 3.13 additions": 23 rows of page, status,
+   refusal and command line texts, the 12 scenarios and the 12 lessons, all drafts; `LessonCatalogTests` checks the
+   scenarios and lessons against those rows word for word. The lesson steps were checked against the controls they name
+   (Capture dump, Record allocations, the inspections' titles, Why alive, a set's Paths view, Bytes +/-, Back traces) and
+   reworded where they named views that do not exist. The screenshot run gains `16-learn` (a lesson running on the real
+   sample, its panel beside the page). The keyboard line says Ctrl+1 to 9 (Learn is Ctrl+7).
+11. [x] Docs: ARCHITECTURE.md and its pages (code map, process model), DEVELOPER.md (building and testing the sample, adding a
    scenario and a lesson), THIRD-PARTY-NOTICES if anything is added. Proof: the Markdown sweep.
+   Done 2026-11-15: ARCHITECTURE 3 (HeapScope.Sample, HeapScope.Sample.Tests, build/) and 4; process-model 4.1 (the sample
+   process); code-map "Tutorial"; DEVELOPER 3.1 (running the sample, adding a scenario and a lesson). Nothing was added to
+   THIRD-PARTY-NOTICES: the sample uses only HeapScope's own fixtures. The Markdown sweep runs with /wrap-sprint.
 
 **Decisions** (2026-11-15; the owner: "just keep going, no reason to wait on me", so each was decided autonomously with its
 recommended default):

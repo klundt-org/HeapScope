@@ -19,6 +19,14 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   end up at normal priority in a below-normal process); sprint 3.12's recordings (task 6) found no UI stall waiting for a
   processor, even with four cores busy, so they are left as they are (budgets.md).
 
+- **Sample process** (sprint 3.13, ADR-042; `heapscope-sample` in `sample/`, or `dotnet` running `heapscope-sample.dll`
+  in the CLI's dotnet tool): the tutorial's sample, started by `SampleService` from the Processes page, the Learn page or
+  `heapscope-cli sample start`, with `--scenarios A,B [--grow-every ms] --parent-pid <pid>`. It runs as the user (refused
+  while HeapScope runs elevated), at most three at once, prints `READY pid=<pid>` when its scenarios are planted and exits
+  with the process that started it. `--list` prints the scenario catalog as JSON, which the app reads rather than
+  duplicating. Process discovery lists it, although it is under the installation's folder, since it is there to be
+  captured. No IPC: HeapScope sees it as any other .NET process.
+
 ### 4.2 Lifecycle
 1. Application's `WorkerHost` starts the worker with `--pipe <name> --parent-pid <pid>`. The pipe name is
    `HeapScope.W.<24 random hex digits>` (sprint 2.3.5; off Windows a pipe is a Unix domain socket in the temp folder,

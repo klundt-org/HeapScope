@@ -205,6 +205,19 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
         await CaptureAsync("14-jobs");
         Show(shell.NavigationItems.Single(i => i.Title == "About").Page);
         await CaptureAsync("15-about");
+
+        // Sprint 3.13: the Learn page with its first lesson running, the real sample started, so the lesson panel shows too.
+        if (services.GetService<LearnViewModel>() is { } learn)
+        {
+            Show(learn);
+            learn.Selected = learn.Lessons[0];
+            await learn.StartLessonCommand.ExecuteAsync(null);
+            Show(learn);
+            await SettleAsync();
+            await CaptureAsync("16-learn");
+            learn.StopLessonCommand.Execute(null);
+        }
+
         return 0;
     }
 

@@ -118,7 +118,7 @@ Capture and sessions (sprint 1.1):
 
 ```
 HeapScope.sln
-build/                         Shared MSBuild targets (worker deployment next to UI and CLI); the gate, test, fixture
+build/                         Shared MSBuild targets (worker and sample deployment next to UI and CLI); the gate, test, fixture
                                dump, publish, license, package and SkiaSharp native scripts shared by CI and the local
                                gate (sprint 3.6, ADR-038); release archives, the CLI's dotnet tool and the checks that
                                run them as a user would (sprint 3.9, ADR-039); the demo data, screenshots and the
@@ -142,6 +142,9 @@ src/
   HeapScope.UI                 The desktop app on Avalonia (Windows, Linux, macOS; sprint 2.3.6, ADR-025): shell,
                                views, controls, smoke runs. Executable HeapScope.
   HeapScope.Cli                Command line front end.
+  HeapScope.Sample             The tutorial's sample (sprint 3.13, ADR-042): executable heapscope-sample, a .NET process
+                               with problems planted on purpose, scenario by scenario, shipped in sample/ beside the app
+                               and the CLI. References fixtures/Leaks.
 tests/
   Shared/                      Helpers compiled into every test project (the repository root finder, sprint 1.9; the
                                per-test data folder, sprint 3.8)
@@ -166,6 +169,8 @@ tests/
   HeapScope.Integration.Tests  Real worker processes, fixtures, real dumps, known answers. References Storage,
                                Analysis and the three loaders to test them in process, and runs the built CLI and app.
   HeapScope.Benchmarks.Tests   The benchmarks' rules on recorded numbers (`UiStallAttribution`, sprint 3.12).
+  HeapScope.Sample.Tests       The sample's scenarios and command line, and the Learn page's lessons against them and the
+                               wording table (sprint 3.13).
 perf/
   HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.) and the
                                trace readers (`trace-report`, `ui-stalls`, `cpu-profile`).
@@ -264,7 +269,7 @@ Rules:
 
 ## 4. Process model and IPC
 
-Three kinds of process (the app, the CLI, the analysis worker), how the worker is started, watched and restarted, the
+Three kinds of process (the app, the CLI, the analysis worker) and the tutorial's sample, how the worker is started, watched and restarted, the
 JSON-RPC transport and its contracts with the protocol version history, progress and cancellation, and large result sets
 read in pages. Full text: [architecture/process-model.md](architecture/process-model.md).
 

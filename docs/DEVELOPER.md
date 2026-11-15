@@ -396,6 +396,23 @@ of debuggable code) and exit when the process given as parent exits.
   `DisabledLeakTests`, `LeakyApiGrowthTests`). Test harness: `FixtureProcess` (start LeakyConsole or LeakyApi,
   drive, capture any number of dumps, always killed), `DumpAnalysis` (ClrMD checks), `TempFolder`.
 
+### 3.1 The tutorial's sample (sprint 3.13, ADR-042)
+
+`src/HeapScope.Sample` builds `heapscope-sample`, which the app and the CLI ship in `sample/` and start for the Learn page,
+the Processes page's Sample process section and `heapscope-cli sample`. By hand: `dotnet run --project src/HeapScope.Sample
+-- --scenarios StaticCache,Timer [--count N] [--grow-every MS] [--parent-pid P]` prints `READY pid=<pid>` and waits;
+`--list` prints the catalog as JSON. Unlike the fixtures it ships to users, so it holds only what a lesson needs.
+
+Adding a feature a user would learn (the Definition of Done item, section 9):
+1. A scenario in `ScenarioCatalog` (`src/HeapScope.Sample`): its name, title, what it plants, its known answer in
+   `fixtures/KnownAnswers` where there is one, the type it plants (the lesson's answer), the scenarios it cannot run with,
+   and how it starts and grows. `ScenarioCatalogTests` checks that the answer type is the known answer's.
+2. A lesson in `LessonCatalog` (`src/HeapScope.UI.ViewModels`): its scenarios, the page it starts on, its steps and its
+   question. Or, when no lesson fits, the scenario and the reason in `LessonCatalog.NoLesson`.
+3. Their texts in `docs/design/info-text.md`, "Sprint 3.13 additions" (the scenarios' and lessons' tables), as drafts for
+   the owner. `LessonCatalogTests` checks the catalogs against each other and against those rows word for word.
+4. An integration test on the real sample when the scenario needs one (`SampleTests`).
+
 ## 4. Coding conventions
 - **Naming**: .NET conventions. `PascalCase` types and members, `_camelCase` private fields, `s_camelCase`
   private static fields, `I` prefix for interfaces, `Async` suffix on async methods.
