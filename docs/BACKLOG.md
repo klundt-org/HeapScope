@@ -50,7 +50,8 @@ Sprint 3.11:
 Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
 
 **High**
-- A hands-on tutorial (product owner, 2026-11-14; a phase 3.5 candidate): a Learn item low on the left navigation that
+- A hands-on tutorial (product owner, 2026-11-14; a phase 3.5 candidate; folded into sprint 3.13's scope on 2026-11-15,
+  built so each Phase 4 feature adds its scenario and lesson): a Learn item low on the left navigation that
   gives the user captures, snapshots and allocation traces with a varied set of planted problems, and walks them through
   finding and diagnosing each with the app's own pages. Open questions: generated each time by a bundled scenario app
   (teaches capture too, matches the machine's runtime and DAC, can vary names and sizes per run) or pre-built files (no

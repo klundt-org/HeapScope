@@ -15,6 +15,26 @@ each sprint is in `docs/reviews/sprint-X.Y.md`.
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 3.12.0: First-show performance and refactor analysis (sprint 3.12)
+
+- **Faster first loads**: HeapScope now reads a dump's objects itself instead of asking for each one's type, so a 4.4 GB dump
+  of 58 million objects loads in about 13 s instead of 21 s, with the same memory and the same results.
+- **Pages ready when you open them**: after the window appears, HeapScope prepares its pages in the background ("Getting
+  pages ready" in the status bar), so the Snapshots page opens without the first-time pause.
+- **A Settings page**: choose whether the text you type in filters is written into HeapScope's logs (on by default), delete
+  the logs, or delete everything HeapScope keeps (Purge all asks first and never touches dumps you opened from your own
+  folders). The command line has the same: `heapscope-cli settings` and `heapscope-cli purge logs|all`.
+- **Dumps whose runtime component is gone**: when a dump's DAC (Data Access Component) cannot be used, HeapScope opens the
+  index cache an older version wrote instead of refusing the dump. Everything the graph holds works; field values and strings
+  are refused with the reason, and Trust this DAC and reopen reads them once you trust the DAC beside the dump.
+- **Clearer failures**: an unexpected failure in the analysis worker shows a fixed message with an id that finds it in the
+  log, never a raw exception; requests the worker refuses still say why.
+- **More precise results**: objects of types from an unloadable context now keep their context alive in the graph, a damaged
+  array or string length is counted as unreadable instead of misread, group rows in Retainers mark their retained size as a
+  lower bound, and every inspection's log line says what it scanned and left out.
+- **Paths on macOS** compare without case, as on Windows, so one file is never opened as two snapshots.
+- Limited: a snapshot opened from an older index cache cannot read field values or strings until its DAC is usable.
+
 ## 3.11.0: Screens that explain themselves (sprint 3.11)
 
 - **Info icons**: every page and tab has an (i) beside its title that says what it is for, when to use it and how to start, and
