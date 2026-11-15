@@ -106,16 +106,20 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
 
 **Tasks**:
 
-1. [ ] ADR-042, the tutorial: a shipped sample process whose scenarios and the app's lessons are catalogs, the extension contract
+1. [x] ADR-042, the tutorial: a shipped sample process whose scenarios and the app's lessons are catalogs, the extension contract
    for later features, the packaging, and what the sample may and may not do (never elevated, stops with HeapScope, at most
    three). DEVELOPER.md's Definition of Done gains the item "a feature a user would learn adds its scenario and lesson, or its
    sprint says why not". Proof: the ADR and its index line; the Markdown sweep.
-2. [ ] The sample, `src/HeapScope.Sample` (executable `heapscope-sample`): the fixtures' leak library (`fixtures/Leaks`, shared
+   Done 2026-11-15: ADR-042 and its index line; DEVELOPER.md section 9's new item.
+2. [x] The sample, `src/HeapScope.Sample` (executable `heapscope-sample`): the fixtures' leak library (`fixtures/Leaks`, shared
    so the known answers hold for both) behind a scenario catalog (`ScenarioCatalog`: name, title, what it plants, what it
    cannot run with, its known answer's name), `--scenarios a,b`, `--list` (the catalog as JSON, which the app reads, so the app
    never names a scenario its sample lacks), `--parent-pid`, and refusals with the reason for scenarios that cannot run
    together. Proof: unit tests of the catalog (names unique, conflicts both ways, every scenario's known answer exists) and of
    the argument rules; an architecture rule that the sample references only the leak library.
+   Done 2026-11-15: eleven scenarios (the five classic leaks, the four detector leaks, Waste, Inspection), `--list` as JSON,
+   the finalizer-blocking scenarios started after the last full collection as the fixtures do. `ScenarioCatalogTests`
+   (unique names, known answers, conflicts both ways, the argument rules); `LayerRules` holds the sample to the leak library.
 3. [ ] Keeps growing: `--grow-every <ms>` adds a share of each chosen leak at an interval, and the steady allocation scenario
    allocates from known call sites, so Live, an allocation trace, Compare and Trend all show something. Proof: tests that the
    item counts grow by the step; an integration test that two dumps of a growing sample differ by the known step and a trace

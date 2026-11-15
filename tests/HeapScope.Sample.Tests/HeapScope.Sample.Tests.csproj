@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- The tutorial's sample (sprint 3.13): its scenario catalog and command line. -->
+    <ProjectReference Include="..\..\src\HeapScope.Sample\HeapScope.Sample.csproj" />
+  </ItemGroup>
+</Project>

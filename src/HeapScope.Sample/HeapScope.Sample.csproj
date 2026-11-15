@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- The tutorial's sample process (sprint 3.13, ADR-042), shipped in sample/ beside worker/. -->
+    <AssemblyName>heapscope-sample</AssemblyName>
+    <RootNamespace>HeapScope.Sample</RootNamespace>
+    <!-- It plants problems on purpose and stands in for an application, so it is always optimized (fixtures/Directory.Build.props). -->
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="HeapScope.Sample.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The fixtures' planted problems, shared so one known answer serves the fixture tests and the lessons. -->
+    <ProjectReference Include="..\..\fixtures\Leaks\Leaks.csproj" />
+  </ItemGroup>
+</Project>

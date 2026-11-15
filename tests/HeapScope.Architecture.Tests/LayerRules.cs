@@ -68,6 +68,9 @@ internal static class LayerRules
         ["HeapScope.UI"] = new(
             ["HeapScope.Application", "HeapScope.Contracts", "HeapScope.UI.ViewModels"],
             ["Avalonia", "Avalonia.Desktop", "Avalonia.Themes.Fluent", "Avalonia.Controls.DataGrid", "Avalonia.Headless", "Avalonia.Fonts.Inter", "CommunityToolkit.Mvvm"]),
+
+        // The tutorial's sample (sprint 3.13, ADR-042): the fixtures' planted problems only, nothing of HeapScope.
+        ["HeapScope.Sample"] = new(["Leaks"], [], AllowsMicrosoftExtensions: false),
     };
 
     /// <summary>Assembly names that differ from project names.</summary>
@@ -75,6 +78,7 @@ internal static class LayerRules
     {
         ["heapscope-cli"] = "HeapScope.Cli",
         ["HeapScope"] = "HeapScope.UI",
+        ["heapscope-sample"] = "HeapScope.Sample",
     };
 
     public static IReadOnlyCollection<string> KnownProjects => s_rules.Keys;
