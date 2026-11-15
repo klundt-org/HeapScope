@@ -136,7 +136,8 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    process's own gen 0 and gen 1 collections were a quarter of the lag under load. A 64 MB gen 0 budget halved the GC time
    inside the lags under load in A/B smoke runs set by environment variable (budgets.md); the rest of the lag is styles and
    templates (task 4). The worker's Server GC threads are not in the UI's lags. Corrected by the review (H2): the
-   `System.GC.Gen0Size` runtime setting shipped with it does nothing, so it was removed and the budget is not shipped.
+   `System.GC.Gen0Size` runtime setting shipped with it does nothing, so it was removed; the app now starts itself again with
+   the environment variable (M2, the owner's decision of 2026-11-14).
 7. [x] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
    numbers in `budgets.md`.
    Done 2026-11-13: first window 0.77 to 0.87 s warm, 6.9 s on the first run after publishing, about 1.0 to 1.1 s with four
@@ -265,7 +266,9 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     for both systems; a Linux CI test that two files differing only in case open as two snapshots.
     Done 2026-11-13: `PathIdentity` (Contracts: `Same`, `IsUnder`, `Comparer`) at every path comparison of the worker's open,
     the session library (its folders, deletions, in-use marks), bookmarks, settings, the app's open and trace lists and the CLI's
-    trend. `PathIdentityTests` (Worker, so CI's Linux job runs it): both systems' rules, whole folder names, and two dumps
+    trend. Completed by the review (M3): macOS ignores case too; the loader's DAC search and capture's own-process check use
+    the same source file (an internal copy, since they cannot reference Contracts), and an architecture test fails on any
+    other file that decides by system how paths compare. `PathIdentityTests` (Worker, so CI's Linux job runs it): both systems' rules, whole folder names, and two dumps
     whose names differ only in case opening as two snapshots where the system tells them apart.
 22. [x] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,
     instead of failing the session. Proof: a session with an unknown kind opens, and saving keeps the entry.

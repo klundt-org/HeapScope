@@ -283,7 +283,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `InfoIconTests` checks the screens say it word for word); one style in `Themes/Styles.axaml` shows tooltips on disabled
   controls. `IcicleGeometry` (UI.ViewModels) makes two or more neighbors under one parent, each narrower than 6 pixels
   (`GroupBelow`), one "+N smaller" bar, in one linear walk per level.
-  `Assets/heapscope.ico`: the app's icon, from `build/make-icon.cs`. `Smoke/SmokeRunner`: the unattended smoke runs [1.9,
+  `Assets/heapscope.ico`: the app's icon, from `build/make-icon.cs`. `Gen0Budget`: the relaunch with the app's gen 0 budget [3.12]. `Smoke/SmokeRunner`: the unattended smoke runs [1.9,
   2.3.6], with `SmokePhases` (each phase's lag, longest operation and slow operations, one place) and `SmokeVerdict` [3.12]; `Smoke/ScreenshotRunner`: every page as PNG files [3.10]. Sprint 2.4: the Snapshot tab's subjects are views of their own (`Views/Subjects/`), the
   Retainers tab (`RetainersTab`), `Controls/IcicleChart` (drawn in one pass, geometry from the view models),
   `Controls/NoteText` (a status or note line that takes no space when empty), and `GridBehaviors`' `VisibleColumnGroups`,
@@ -293,7 +293,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   against `Shortcuts` and hands export requests to the shell; the Snapshots page's left column holds the analysis path
   and the bookmarks; the About page lists the shortcuts; filter boxes are named `FilterBox` (Command+F).
 - **Cli.** `Program` calls `CliApp.RunAsync` (parse, then the host from `CliHost`: the worker attach pipe, symbol options;
-  a usage error exits 64 with no host), so `HeapScope.Cli.Tests` runs the CLI in process [3.8, P10]. `CliCommands.cs`
+  a usage error exits 64 with no host), so `HeapScope.Cli.Tests` runs the CLI in process [3.8, P10]. `SettingsCommands.cs`:
+  `settings` and `purge logs|all` over the Settings page's service [3.12]. `CliCommands.cs`
   keeps the command table and exit codes; `CliRun.cs` the run boundary, which hands each command a `CliContext`
   (services, output, error output, logger); `CliOptions.cs` the shared options; `CliProgress.cs` the progress lines and
   the one open with progress; `CaptureCommands` (`list`, `capture`), `OpenCommand`, `SummaryCommand`, `WorkerCommands`

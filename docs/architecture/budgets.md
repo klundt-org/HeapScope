@@ -166,9 +166,10 @@ project's tests at about 3 cores (`load-window2.log`), alternating the default a
 (`DOTNET_GCgen0size`). GC time inside the logged lags per run: with four more cores busy, 392, 408 and 430 ms by default
 against 145, 174 and 211 ms with 64 MB; on the quieter machine 237, 265 and 224 ms against 214, 270, 146 and 157 ms. Slow
 operations (over 100 ms) per run under load 5, 7 and 10 against 6, 7 and 7; the worst lag moved little (203 to 275 ms
-against 189 to 266 ms), since styles and templates are the rest of it. The budget is not shipped: the runtime reads it only
-from the environment variable, and ignores `System.GC.Gen0Size` in the runtime configuration (the sprint 3.12 review, H2: a
-test program counted 73 gen 0 collections with and without it, 14 with the variable). A worker CPU cap, EcoQoS or GC heap
+against 189 to 266 ms), since styles and templates are the rest of it. The runtime reads the budget only from the environment
+variable, and ignores `System.GC.Gen0Size` in the runtime configuration (the sprint 3.12 review, H2: a test program counted 73
+gen 0 collections with and without it, 14 with the variable), so the app starts itself again with the variable (review M2;
+process-model.md); the first window is timed from the first process's start, so the relaunch counts in it. A worker CPU cap, EcoQoS or GC heap
 affinity would not have helped, since no stall waited for a processor.
 
 UI cold start on Avalonia (sprint 3.12, task 7), the published ReadyToRun build on 2026-11-13: the first window rendered

@@ -13,7 +13,7 @@ Outside a sprint:
 Swept in sprint 3.12:
 - The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and
   6). No stall waited for a processor; the UI's own gen 0 and gen 1 collections were a quarter of the lag under load (a 64 MB
-  gen 0 budget halved them, but is not shipped: review H2) and styles and templates most of the rest (prewarmed, task 4). The smoke gate's lag check stays at
+  gen 0 budget halved them; the app relaunches itself with it, review H2 and M2) and styles and templates most of the rest (prewarmed, task 4). The smoke gate's lag check stays at
   twice the 100 ms budget, as OS scheduling noise remains in it.
 - The slower first load (from 3.10): traced and fixed (tasks 8 and R4; Medium from about 21 s to 13 s).
 - UI cold start on Avalonia (from 0.3): measured (task 7); template preloading built (task 4).

@@ -106,7 +106,11 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   the files and bytes it deletes and keeps (the log being written); Purge all, the question and the answer, what it deletes
   (sessions, bookmarks, logs, files, bytes) and keeps, each failure, or why it was refused; the current session let go of.
   The worker follows the `settings.json` of its client's own data folder (`--settings-folder`), and a file that is there but
-  cannot be read keeps the last setting read, or filter text out (review H4, H5).
+  cannot be read keeps the last setting read, or filter text out (review H4, H5). Every process says on its start line which
+  file it follows and whether filter text is logged, and logs each change it sees ("Filter text in logs is now off", M19).
+  Purge logs names the logs it kept (being written by running HeapScope processes) and the files it could not delete; Purge
+  all logs one line per session (its files, bytes and the dumps kept outside it, 50 sessions at most), a refusal where it is
+  decided, and an outcome when a snapshot cannot be closed (M5, M10, M13, M14).
 - Start and first shows (sprint 3.12): "First window rendered N ms after process start"; the background build of the pages
   ("Prewarmed {View} in N ms", "in place" for the Snapshots page; a step that fails is a warning naming the view; "View
   prewarm done|stopped: N views in N ms of UI work over N ms (views)", "Prewarm garbage collected (gen 1) in N ms", or
@@ -114,7 +118,10 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   100 ms with the UI thread's CPU and the GC pauses in them. The smoke runs' lines ("Smoke slow operations" and the others)
   are in DEVELOPER.md.
 - Session files (sprint 3.12, B4): an entry with an enum value this build does not know is kept as it was and saved
-  unchanged.
+  unchanged, and logged once per session and process with the values ("Snapshots: Kind=LiveCapture", review M18).
+- Every worker method runs through `GuardAsync`, the control methods and closes included (review M17), and the view models
+  log what they showed for a worker failure ("{Section} shown as: {Message}"). The command line keeps the worker's lines out
+  of its console (file log only, M16) and names the log folder for an unexpected failure.
 - Object sets (sprint 3.1): a set is logged by its shape (`ObjectSetSpecs.Shape`: the kind, the first 20 type keys with
   their modules, the namespace or assembly, the inspection, row and baseline, and for objects their count and a short
   hash of the sorted addresses, never the addresses), in every request's provenance too. A resolution logs the
