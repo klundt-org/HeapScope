@@ -149,10 +149,14 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    sample, Stop sample) and a Kind column; the started sample is listed, selected and marked. `ProcessesSampleTests` (start
    with the chosen scenarios, marked and selected, stopped; a refusal shown); `ViewTests` bind the page cleanly. The screenshot
    run is checked with task 10's texts.
-7. [ ] Lessons (`LessonCatalog`, UI.ViewModels): one entry per lesson: its title, the scenarios it starts, the page it starts
+7. [x] Lessons (`LessonCatalog`, UI.ViewModels): one entry per lesson: its title, the scenarios it starts, the page it starts
    on, its steps, its question and the answer checked against the scenario's known answer (the planted type among decoys).
    Every scenario has a lesson or a reason, every lesson's scenarios exist in the sample's catalog. Proof: catalog tests both
    ways; a test per lesson that its answer is the known answer's type.
+   Done 2026-11-15: twelve lessons, one per scenario (`NoLesson` empty); each lesson's answer is its scenario's `AnswerType`,
+   read from the sample's catalog at run time; the choices are it and three types every heap holds, in a fixed order per
+   lesson. `LessonCatalogTests` (in HeapScope.Sample.Tests, which sees both catalogs) and `ScenarioCatalogTests` (each answer
+   type is its known answer's). The texts go to info-text.md with task 10.
 8. [ ] The Learn page, low on the left navigation above Settings: the lessons with their progress, a lesson started (its sample
    running), its steps beside the page it opens, the answer checked, progress kept per user in the data folder. Proof: view
    model tests (start, steps, a right and a wrong answer, progress saved and read back); the view test; the screenshot run.

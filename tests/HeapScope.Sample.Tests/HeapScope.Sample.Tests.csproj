@@ -2,5 +2,7 @@
   <ItemGroup>
     <!-- The tutorial's sample (sprint 3.13): its scenario catalog and command line. -->
     <ProjectReference Include="..\..\src\HeapScope.Sample\HeapScope.Sample.csproj" />
+    <!-- The Learn page's lessons, checked against the scenarios. -->
+    <ProjectReference Include="..\..\src\HeapScope.UI.ViewModels\HeapScope.UI.ViewModels.csproj" />
   </ItemGroup>
 </Project>
