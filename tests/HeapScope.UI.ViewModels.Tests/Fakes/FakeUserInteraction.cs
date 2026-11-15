@@ -60,10 +60,16 @@ internal sealed class FakeUserInteraction : HeapScope.UI.Services.IUserInteracti
         return Task.CompletedTask;
     }
 
+    /// <summary>Answers given in turn before <see cref="Answer"/>; the titles of the questions asked.</summary>
+    public Queue<bool> Answers { get; } = new();
+
+    public List<string> Titles { get; } = [];
+
     public Task<bool> ConfirmAsync(string title, string message)
     {
+        Titles.Add(title);
         Questions.Add(message);
-        return Task.FromResult(Answer);
+        return Task.FromResult(Answers.Count > 0 ? Answers.Dequeue() : Answer);
     }
 
     /// <summary>Files asked to be opened or shown in their folder (the Live timeline).</summary>

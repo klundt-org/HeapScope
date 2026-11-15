@@ -49,7 +49,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// 2 since sprint 1.8: truncated dumps lose CompleteGraph and ExactCounts, finalizer registrations are a fact. 3 since
     /// sprint 2.3.5: core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
     /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists.
-    /// Caches written before are rebuilt.
+    /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
+    /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
+    /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
     public const int CurrentVersion = 4;
 
@@ -59,6 +61,21 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// </summary>
     /// <exception cref="UntrustedDacException">The only matching DAC lies next to the dump and is not trusted.</exception>
     public static void CheckDacTrust(string dumpPath, ClrMdLoaderOptions options) => ClrMdDump.CheckDacTrust(dumpPath, options);
+
+    /// <inheritdoc cref="ClrMdDump.CheckDac"/>
+    public static Exception? CheckDac(string dumpPath, ClrMdLoaderOptions options) => ClrMdDump.CheckDac(dumpPath, options);
+
+    /// <summary>
+    /// The process name this loader records for the dump and where it came from (sprint 3.12): an older index cache opened in
+    /// place of a rebuild takes the current name, the one thing loader version 4 reads differently. Reads no DAC.
+    /// </summary>
+    /// <exception cref="SnapshotFormatException">The file is not a readable memory dump.</exception>
+    public static (string? Name, string Source) ReadProcessName(string dumpPath, ClrMdLoaderOptions options)
+    {
+        using var target = ClrMdDump.OpenDataTarget(dumpPath, options);
+        var choice = ProcessName(target);
+        return (choice.Name, choice.Source);
+    }
 
     /// <summary>The ClrMD library's version, for the worker's versions line (sprint 2.3.7).</summary>
     public static string LibraryVersion { get; } =
@@ -82,7 +99,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             throw new FileNotFoundException($"The dump {fullPath} does not exist.", fullPath);
         }
 
-        var stopwatch = Stopwatch.StartNew();
+        var meter = new LoadMeter();
         progress?.Report(new LoadProgress("Opening dump", 0, null));
         // A Linux or macOS core file (sprint 2.3.5) has no minidump header: its capture time is the file's write time (a
         // load note says so), and its truncation check reads its own headers (CoreFileHeader).
@@ -108,22 +125,23 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             throw new SnapshotFormatException("The dump was taken while a garbage collection was running, so its heap cannot be walked. Capture another dump.");
         }
 
-        var open = stopwatch.Elapsed;
+        var open = meter.End("open");
         cancellationToken.ThrowIfCancellationRequested();
 
         using var builder = new HeapGraphBuilder();
-        var (unreadable, incompleteSegments, freeBytes) = AddObjects(heap, builder, progress, cancellationToken);
-        var objects = stopwatch.Elapsed - open;
+        var (unreadable, incompleteSegments, freeBytes, clrTypes) = AddObjects(heap, builder, (_options.FallBackAtObjectForTests, _options.OverrunAtObjectForTests), progress, cancellationToken);
+        var objects = meter.End("objects");
 
         builder.FreezeObjects(cancellationToken);
 
         // Freezing copied the chunked object buffers into the final columns; about 20 bytes per object of chunks are
         // garbage now. Without an aggressive collection the GC keeps that memory committed through the reference pass,
-        // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump).
+        // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump). A phase of its own since 3.12 (R5).
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        var freeze = meter.End("freeze and collect");
         var weakHandles = AddDependentHandlesAndCollectWeak(runtime, builder, cancellationToken);
-        AddReferences(heap, builder, progress, cancellationToken);
-        var references = stopwatch.Elapsed - open - objects;
+        AddReferences(heap, builder, clrTypes, progress, cancellationToken);
+        var references = meter.End("references");
 
         progress?.Report(new LoadProgress("Reading roots", 0, null));
         AddGcRoots(heap, target.DataReader, builder, cancellationToken);
@@ -134,11 +152,11 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         var staticRoots = AddStaticFieldRoots(runtime, builder, cancellationToken);
         var debuggable = FindDebuggableModules(runtime);
-        var roots = stopwatch.Elapsed - open - objects - references;
+        var roots = meter.End("roots");
 
         progress?.Report(new LoadProgress("Building graph", 0, null));
         var graph = builder.Build(cancellationToken);
-        var build = stopwatch.Elapsed - open - objects - references - roots;
+        var build = meter.End("build");
 
         var processName = ProcessName(target);
         var info = new SnapshotInfo(
@@ -162,7 +180,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             info,
             capabilities,
             new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source),
-            new LoadTimings(open, objects, references, roots, build));
+            new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
     }
 
     /// <summary>
@@ -175,76 +193,264 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// <summary>The absolute part of the incomplete-segment test.</summary>
     internal const ulong IncompleteSegmentBytes = 1024 * 1024;
 
-    private static (long Unreadable, int IncompleteSegments, long[] FreeBytes) AddObjects(ClrHeap heap, HeapGraphBuilder builder, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
+    /// <summary>
+    /// The objects (sprint 1.2; its hot loop reworked in sprint 3.12, R4 and the owner's item 1 of task 8): each object's
+    /// method table is read from the dump and mapped through a table filled once per type, so ClrMD's type factory runs once
+    /// per type rather than once per object (8.6 s of a 54 s Medium load), and its size is computed once from the type's base
+    /// and component sizes, as ClrMD computes it. Segments are walked in address order, so objects arrive sorted and the
+    /// finalizable list is merged rather than looked up. An object this walk cannot read (no type for its method table) hands
+    /// the rest of its segment to ClrMD's own walk, which counts unreadable objects as before (sprint 1.8).
+    /// </summary>
+    private static (long Unreadable, int IncompleteSegments, long[] FreeBytes, ClrType?[] ClrTypes) AddObjects(ClrHeap heap, HeapGraphBuilder builder, (long? FallBackAt, long? OverrunAt) forTests, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
         // Free objects are the gaps the GC left between live ones (fragmentation, sprint 1.6), per heap kind.
         var free = new long[Enum.GetValues<HeapKind>().Length];
         var finalizable = FinalizableObjects(heap, cancellationToken);
-        var typeIndices = new Dictionary<ulong, int>();
-        long total = 0;
-        foreach (var segment in heap.Segments)
+        var reader = heap.Runtime.DataTarget.DataReader;
+        var walk = new ObjectWalk(heap, reader);
+        var types = new Dictionary<ulong, WalkedType>();
+        var clrTypes = new List<ClrType?>();
+        var segments = heap.Segments.OrderBy(s => s.ObjectRange.Start).ToList();
+        long total = segments.Sum(s => (long)s.ObjectRange.Length);
+        long done = 0, unreadable = 0, count = 0, objects = 0;
+        var incomplete = 0;
+        var nextFinalizable = 0;
+
+        // The type of an object, through the table filled once per method table; null when the dump gives none.
+        WalkedType? TypeOf(ulong address, ulong methodTable)
         {
-            total += (long)segment.ObjectRange.Length;
+            if (types.TryGetValue(methodTable, out var known))
+            {
+                return known;
+            }
+
+            var type = heap.GetObjectType(address);
+            if (type is null || type.MethodTable != methodTable)
+            {
+                return null;
+            }
+
+            var typeIndex = -1;
+            if (!type.IsFree)
+            {
+                typeIndex = builder.Types.GetOrAdd(
+                    type.Name ?? $"<unknown type 0x{type.MethodTable:x}>",
+                    type.MethodTable,
+                    (uint)type.StaticSize,
+                    (uint)type.ComponentSize,
+                    type.Module?.Name is { } module ? RecordedPath.FileName(module) : null,
+                    KindOf(type));
+                while (clrTypes.Count <= typeIndex)
+                {
+                    clrTypes.Add(null);
+                }
+
+                clrTypes[typeIndex] = type;
+            }
+
+            var walked = new WalkedType(type, typeIndex, (ulong)type.StaticSize, (ulong)type.ComponentSize, type.IsFree, type.IsString);
+            types.Add(methodTable, walked);
+            return walked;
         }
 
-        long done = 0, unreadable = 0, count = 0;
-        var incomplete = 0;
-        foreach (var segment in heap.Segments)
+        void Add(ClrSegment segment, ulong address, WalkedType type, ulong size)
         {
-            var fixedKind = FixedHeapKind(segment.Kind);
+            var kind = FixedHeapKind(segment.Kind) ?? GenerationKind(segment.GetGeneration(address));
+            if (type.IsFree)
+            {
+                free[(int)kind] += (long)size;
+                return;
+            }
+
+            // The finalizable objects in address order, merged with the walk: segments are walked in address order and objects
+            // within each in order, ClrMD's fallback included, so one cursor serves the whole walk (review M6).
+            while (nextFinalizable < finalizable.Length && finalizable[nextFinalizable] < address)
+            {
+                nextFinalizable++;
+            }
+
+            var registered = nextFinalizable < finalizable.Length && finalizable[nextFinalizable] == address;
+            var flags = registered && !type.Clr.IsFinalizeSuppressed(address) ? ObjectFlags.HasFinalizer : ObjectFlags.None;
+            builder.AddObject(address, type.TypeIndex, size, kind, flags);
+        }
+
+        foreach (var segment in segments)
+        {
             ulong walked = 0;
-            foreach (var obj in segment.EnumerateObjects(carefully: false))
+            var end = segment.ObjectRange.End;
+            var address = segment.FirstObjectAddress;
+            var overran = false;
+            while (address >= segment.ObjectRange.Start && address < end)
             {
                 if (++count % CheckInterval == 0)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    progress?.Report(new LoadProgress("Reading objects", done + (long)(obj.Address - segment.ObjectRange.Start), total));
+                    progress?.Report(new LoadProgress("Reading objects", done + (long)(address - segment.ObjectRange.Start), total));
                 }
 
-                // An object without a readable type has no size either (ClrMD throws for it), so it is counted before
-                // its size is read; a truncated dump has many (sprint 1.8).
-                var type = obj.Type;
-                if (type is null)
+                if (walk.AllocationContextEnd(address) is { } skipTo)
                 {
+                    address = skipTo;
+                    continue;
+                }
+
+                if (++objects == forTests.FallBackAt
+                    || walk.MethodTable(address) is not { } methodTable || TypeOf(address, methodTable) is not { } type || walk.Size(address, type) is not { } size)
+                {
+                    // What this walk cannot read, ClrMD's own walk reads as it always did, from here to the segment's end.
+                    var (rest, restWalked, restUnreadable, restOverran) = WalkWithClrMd(segment, address, TypeOf, Add, cancellationToken);
+                    walked += restWalked;
+                    unreadable += restUnreadable;
+                    count += rest;
+                    overran |= restOverran;
+                    break;
+                }
+
+                if (objects == forTests.OverrunAt)
+                {
+                    size = end - address + 1;
+                }
+
+                if (size > end - address)
+                {
+                    // A length that runs past the segment (review M8): a damaged object, not one this big. Counted as unreadable,
+                    // and the segment as incomplete, since nothing after it can be found.
                     unreadable++;
-                    continue;
+                    overran = true;
+                    break;
                 }
 
-                walked += obj.Size;
-                if (obj.IsFree)
-                {
-                    free[(int)(fixedKind ?? GenerationKind(segment.GetGeneration(obj.Address)))] += (long)obj.Size;
-                    continue;
-                }
-
-                if (!typeIndices.TryGetValue(type.MethodTable, out var typeIndex))
-                {
-                    typeIndex = builder.Types.GetOrAdd(
-                        type.Name ?? $"<unknown type 0x{type.MethodTable:x}>",
-                        type.MethodTable,
-                        (uint)type.StaticSize,
-                        (uint)type.ComponentSize,
-                        type.Module?.Name is { } module ? RecordedPath.FileName(module) : null,
-                        KindOf(type));
-                    typeIndices.Add(type.MethodTable, typeIndex);
-                }
-
-                var kind = fixedKind ?? GenerationKind(segment.GetGeneration(obj.Address));
-                var flags = finalizable.Contains(obj.Address) && !type.IsFinalizeSuppressed(obj.Address) ? ObjectFlags.HasFinalizer : ObjectFlags.None;
-                builder.AddObject(obj.Address, typeIndex, obj.Size, kind, flags);
+                walked += size;
+                Add(segment, address, type, size);
+                address = walk.Next(segment, address, size);
             }
 
             done += (long)segment.ObjectRange.Length;
             var missing = segment.ObjectRange.Length > walked ? segment.ObjectRange.Length - walked : 0;
-            if ((missing > IncompleteSegmentBytes && missing > segment.ObjectRange.Length * IncompleteSegmentShare)
-                || !IsInDump(heap.Runtime.DataTarget.DataReader, segment.ObjectRange))
+            if (overran
+                || (missing > IncompleteSegmentBytes && missing > segment.ObjectRange.Length * IncompleteSegmentShare)
+                || !IsInDump(reader, segment.ObjectRange))
             {
                 incomplete++;
             }
         }
 
         progress?.Report(new LoadProgress("Reading objects", total, total));
-        return (unreadable, incomplete, free);
+        return (unreadable, incomplete, free, [.. clrTypes]);
+    }
+
+    /// <summary>
+    /// ClrMD's own walk of a segment from <paramref name="from"/> (the sprint 1.2 loop): for what the method table walk cannot
+    /// read. An object without a readable type has no size either, so it is counted as unreadable (sprint 1.8); one whose size
+    /// runs past the segment ends the walk as unreadable (review M8). Objects before <paramref name="from"/>, which the method
+    /// table walk added, are not added again.
+    /// </summary>
+    private static (long Count, ulong Walked, long Unreadable, bool Overran) WalkWithClrMd(
+        ClrSegment segment,
+        ulong from,
+        Func<ulong, ulong, WalkedType?> typeOf,
+        Action<ClrSegment, ulong, WalkedType, ulong> add,
+        CancellationToken cancellationToken)
+    {
+        long count = 0, unreadable = 0;
+        ulong walked = 0;
+        foreach (var obj in segment.EnumerateObjects(new MemoryRange(from, segment.ObjectRange.End), carefully: false))
+        {
+            if (++count % CheckInterval == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            if (obj.Address < from)
+            {
+                continue;
+            }
+
+            if (obj.Type is not { } clrType || typeOf(obj.Address, clrType.MethodTable) is not { } type)
+            {
+                unreadable++;
+                continue;
+            }
+
+            var size = obj.Size;
+            if (size > segment.ObjectRange.End - obj.Address)
+            {
+                return (count, walked, unreadable + 1, true);
+            }
+
+            walked += size;
+            add(segment, obj.Address, type, size);
+        }
+
+        return (count, walked, unreadable, false);
+    }
+
+    /// <summary>A type as the object walk keeps it: ClrMD's, its index in the graph (-1 for free space) and its sizes.</summary>
+    private sealed record WalkedType(ClrType Clr, int TypeIndex, ulong BaseSize, ulong ComponentSize, bool IsFree, bool IsString);
+
+    /// <summary>
+    /// Reading objects from the dump by their method tables (sprint 3.12): the header word, the component count of arrays and
+    /// strings, the allocation contexts to skip and the alignment, as the runtime lays objects out and ClrMD reads them.
+    /// </summary>
+    private sealed class ObjectWalk
+    {
+        private readonly IDataReader _reader;
+        private readonly int _pointerSize;
+        private readonly ulong _minObjectSize;
+        private readonly Dictionary<ulong, ulong> _allocationContexts;
+
+        public ObjectWalk(ClrHeap heap, IDataReader reader)
+        {
+            _reader = reader;
+            _pointerSize = reader.PointerSize;
+            _minObjectSize = (ulong)_pointerSize * 3;
+
+            // An allocation context is a thread's unused allocation buffer: no objects in it, and a free object's room after it.
+            _allocationContexts = new Dictionary<ulong, ulong>();
+            foreach (var context in heap.EnumerateAllocationContexts())
+            {
+                if (context.Start != 0 && context.End > context.Start)
+                {
+                    _allocationContexts.TryAdd(context.Start, context.End + Align(_minObjectSize, (ulong)_pointerSize));
+                }
+            }
+        }
+
+        public ulong? AllocationContextEnd(ulong address) => _allocationContexts.TryGetValue(address, out var end) ? end : null;
+
+        /// <summary>The object's method table (its header word without the GC's mark bits), or null when it cannot be read.</summary>
+        public ulong? MethodTable(ulong address)
+        {
+            var methodTable = _reader.ReadPointer(address) & ~3UL;
+            return methodTable == 0 ? null : methodTable;
+        }
+
+        /// <summary>The object's size: its base size plus, for arrays and strings, its component count times the component size.</summary>
+        public ulong? Size(ulong address, WalkedType type)
+        {
+            if (type.ComponentSize == 0)
+            {
+                return type.BaseSize;
+            }
+
+            if (!_reader.Read(address + (ulong)_pointerSize, out uint count))
+            {
+                return null;
+            }
+
+            // A string's size counts its terminating character, and no object is smaller than the minimum: as ClrMD sizes them.
+            var components = type.IsString ? (ulong)count + 1 : count;
+            return Math.Max(type.BaseSize + (components * type.ComponentSize), _minObjectSize);
+        }
+
+        /// <summary>The next object's address: past this one, aligned as its segment aligns objects, at least a minimum object on.</summary>
+        public ulong Next(ClrSegment segment, ulong address, ulong size)
+        {
+            var alignment = segment.Kind is GCSegmentKind.Large or GCSegmentKind.Pinned ? 8UL : (ulong)_pointerSize;
+            return address + Math.Max(Align(size, alignment), _minObjectSize);
+        }
+
+        private static ulong Align(ulong size, ulong alignment) => (size + alignment - 1) & ~(alignment - 1);
     }
 
     /// <summary>The page granularity of the memory probe below.</summary>
@@ -274,9 +480,10 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return reader.Read(range.End - 1, probe) == 1;
     }
 
-    private static HashSet<ulong> FinalizableObjects(ClrHeap heap, CancellationToken cancellationToken)
+    /// <summary>The objects registered for finalization, ascending (merged with the object walk, sprint 3.12 R4).</summary>
+    private static ulong[] FinalizableObjects(ClrHeap heap, CancellationToken cancellationToken)
     {
-        var result = new HashSet<ulong>();
+        var result = new List<ulong>();
         foreach (var obj in heap.EnumerateFinalizableObjects())
         {
             if (result.Count % CheckInterval == 0)
@@ -287,7 +494,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             result.Add(obj.Address);
         }
 
-        return result;
+        result.Sort();
+        return [.. result.Distinct()];
     }
 
     private static List<ulong> AddDependentHandlesAndCollectWeak(ClrRuntime runtime, HeapGraphBuilder builder, CancellationToken cancellationToken)
@@ -324,13 +532,34 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return weak;
     }
 
-    private static void AddReferences(ClrHeap heap, HeapGraphBuilder builder, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
+    /// <summary>
+    /// Each object's references (sprint 1.2), read with its type known from the object pass, and none read for a type that
+    /// holds no references (strings, arrays of numbers: sprint 3.12, R4). An object of a collectible type also references its
+    /// type's LoaderAllocator, as the GC marks it: ClrMD yields no such reference, so the loader adds it (sprint 3.12 review H3).
+    /// </summary>
+    private static void AddReferences(ClrHeap heap, HeapGraphBuilder builder, ClrType?[] clrTypes, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
         var buffer = ArrayPool<ulong>.Shared.Rent(1024);
+        var reader = heap.Runtime.DataTarget.DataReader;
+        var allocators = new Dictionary<int, ulong>();
+
+        // The LoaderAllocator object of a collectible type, read once per type through its handle; 0 when the dump has none.
+        ulong LoaderAllocatorOf(ClrType type, int typeIndex)
+        {
+            if (!allocators.TryGetValue(typeIndex, out var allocator))
+            {
+                allocator = type.LoaderAllocatorHandle is not 0 and var handle ? reader.ReadPointer(handle) : 0;
+                allocators.Add(typeIndex, allocator);
+            }
+
+            return allocator;
+        }
+
         try
         {
             var count = builder.ObjectCount;
             var addresses = builder.FrozenAddresses;
+            var typeIndices = builder.FrozenTypeIndices;
             for (var i = 0; i < count; i++)
             {
                 if (i % CheckInterval == 0)
@@ -339,8 +568,32 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     progress?.Report(new LoadProgress("Reading references", i, count));
                 }
 
+                var type = (uint)typeIndices[i] < (uint)clrTypes.Length ? clrTypes[typeIndices[i]] : null;
+                if (type is { ContainsPointers: false, IsCollectible: false })
+                {
+                    continue;
+                }
+
                 var used = 0;
-                foreach (var target in heap.GetObject(addresses[i]).EnumerateReferenceAddresses(carefully: false, considerDependantHandles: false))
+                if (type is not { ContainsPointers: false })
+                {
+                    var targets = type is null
+                        ? heap.GetObject(addresses[i]).EnumerateReferenceAddresses(carefully: false, considerDependantHandles: false)
+                        : heap.GetObject(addresses[i], type).EnumerateReferenceAddresses(carefully: false, considerDependantHandles: false);
+                    foreach (var target in targets)
+                    {
+                        Append(target);
+                    }
+                }
+
+                // The LoaderAllocator that keeps an unloadable context's types and statics alive (review H3).
+                if (type is { IsCollectible: true } && LoaderAllocatorOf(type, typeIndices[i]) is not 0 and var allocator
+                    && !buffer.AsSpan(0, used).Contains(allocator))
+                {
+                    Append(allocator);
+                }
+
+                void Append(ulong target)
                 {
                     if (used == buffer.Length)
                     {

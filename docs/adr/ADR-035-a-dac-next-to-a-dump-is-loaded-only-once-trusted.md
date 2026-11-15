@@ -1,4 +1,4 @@
-# ADR-035 A DAC next to a dump is loaded only once trusted (added in sprint 3.6, amends ADR-017)
+# ADR-035 A DAC next to a dump is loaded only once trusted (added in sprint 3.6, amends ADR-017; amended by ADR-041)
 
 - Context: the peer review of 3.5.0 (P2) found that a DAC in the dump's folder was loaded as native code into the
   worker, matched only on values the dump supplies (PE time stamp and size, or build id and version). A zip holding a
@@ -30,3 +30,4 @@
   (`VerifyDacOnWindows`, on by default) is expected to refuse an unsigned DAC before loading it; that is not yet
   confirmed by a test (Backlog), and on Linux and macOS the trust step is the only check. Every full-dump cache open now
   opens the dump with ClrMD and runs the DAC lookup; its cost on a large dump is to be measured (Backlog).
+- Amended in sprint 3.12 (ADR-041): a snapshot opened without the DAC (after a "no", or from an older cache in place of a rebuild) names the untrusted DAC (`SnapshotDescriptor.UntrustedDac`), and the app's Trust this DAC and reopen asks the same question, trusts it by its hash and opens the dump again. A missing DAC is refused from the start too, with its own reason.

@@ -87,6 +87,9 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner) : IUserInteract
     public Task<bool> ConfirmAsync(string title, string message) =>
         MessageWindow.ShowAsync(owner(), title, message, MessageButtons.YesNo);
 
+    public Task<bool> ConfirmAsync(string title, string message, string confirm, string cancel) =>
+        MessageWindow.ShowAsync(owner(), title, message, MessageButtons.YesNo, (confirm, cancel));
+
     public async Task<string?> PickSaveFileAsync(string title, string suggestedName)
     {
         if (owner() is not { } window)

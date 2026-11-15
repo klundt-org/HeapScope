@@ -97,12 +97,12 @@ internal sealed class FinalizerBacklogDetector : IInspection
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{ready.Count} objects on the finalizer queue in {types.Count} types (threshold {MinReady}, rows from {MinTypeObjects} per type); {registered} objects registered for finalization; reported: {Describe(reported)}; others: {others.Count} types with {others.Sum(o => (long)o.Members.Count)} objects, largest {Describe(others.Take(5))}");
-        return new InspectionResult(rows.Count, rows.Sum(r => r.Bytes), null, note, DetectorTables.Types([.. rows], null, InspectionScopes.Finalizable), basis);
+        return new InspectionResult(rows.Count, rows.Sum(r => r.Bytes), null, note, DetectorTables.Types([.. rows], null, InspectionScopes.Finalizable), basis, Counts: new(ready.Count, ready.Count >= MinReady ? 0 : ready.Count, ListsRows: true));
     }
 
     private static string Describe(IEnumerable<(string Name, int Type, List<int> Members, long Bytes)> types)
     {
-        var text = string.Join("; ", types.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Name} {t.Members.Count} ({t.Bytes} bytes)")));
+        var text = DetectorGraph.Listed(types.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Name} {t.Members.Count} ({t.Bytes} bytes)")));
         return text.Length == 0 ? "none" : text;
     }
 }

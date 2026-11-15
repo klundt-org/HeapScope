@@ -164,7 +164,7 @@ public sealed class BookmarksViewModelTests : IDisposable
     {
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
         var loggers = new SingleLoggerFactory(_logger);
-        return new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction(), loggers, new BookmarkStore(Path.Combine(_folder, "data")));
+        return new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction(), loggers, new BookmarkStore(Path.Combine(_folder, "data")));
     }
 
     private async Task OpenAsync(SnapshotsViewModel snapshots, string name)

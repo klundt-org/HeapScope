@@ -120,7 +120,9 @@ public sealed record InspectionProgress(string Phase, long Done, long Total);
 /// <paramref name="Basis"/> says what the answer rests on (objects scanned, skipped, groups compared), for the log
 /// only: it backs up a disputed result without any value from the dump (sprint 2.3.7 review H3).
 /// </summary>
-public sealed record InspectionResult(long Count, long Bytes, long? WastedBytes, string? Note, InspectionTable Rows, string? Basis = null);
+/// <paramref name="Counts"/> (sprint 3.12, B7) is the same for every inspection: what it scanned, what it left out (unread,
+/// excluded by a rule) and the cap on rows its log line lists.
+public sealed record InspectionResult(long Count, long Bytes, long? WastedBytes, string? Note, InspectionTable Rows, string? Basis = null, InspectionCounts? Counts = null);
 
 /// <summary>Kinds of inspection columns (mirrored by the worker's result columns).</summary>
 public enum InspectionColumnKind

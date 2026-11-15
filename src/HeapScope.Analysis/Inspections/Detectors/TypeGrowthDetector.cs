@@ -76,17 +76,17 @@ internal sealed class TypeGrowthDetector : IInspection
     {
         if (context.Baseline is not { } baseline)
         {
-            return new InspectionResult(0, 0, null, "Growth needs a baseline: choose an earlier snapshot of the same process (in the CLI, --baseline).", Table([]), "no baseline");
+            return new InspectionResult(0, 0, null, "Growth needs a baseline: choose an earlier snapshot of the same process (in the CLI, --baseline).", Table([]), "no baseline", Counts: new(0, 0));
         }
 
         if (context.Info.Kind != SnapshotKind.FullDump || baseline.Info.Kind != SnapshotKind.FullDump)
         {
-            return new InspectionResult(0, 0, null, "Growth by type compares two full dumps: a gcdump names nested types differently and holds survivors without their roots. Choose a full dump of the same process as the baseline.", Table([]), string.Create(CultureInfo.InvariantCulture, $"baseline {baseline.Info.Kind} against {context.Info.Kind}: not compared"));
+            return new InspectionResult(0, 0, null, "Growth by type compares two full dumps: a gcdump names nested types differently and holds survivors without their roots. Choose a full dump of the same process as the baseline.", Table([]), string.Create(CultureInfo.InvariantCulture, $"baseline {baseline.Info.Kind} against {context.Info.Kind}: not compared"), Counts: new(0, 0));
         }
 
         if (context.Info.CapturedAtUtc is { } now && baseline.Info.CapturedAtUtc is { } then && then > now)
         {
-            return new InspectionResult(0, 0, null, "The baseline was captured after this snapshot, so growth is not compared. Choose an earlier snapshot as the baseline.", Table([]), "baseline captured later: not compared");
+            return new InspectionResult(0, 0, null, "The baseline was captured after this snapshot, so growth is not compared. Choose an earlier snapshot as the baseline.", Table([]), "baseline captured later: not compared", Counts: new(0, 0));
         }
 
         var graph = context.Graph;
@@ -171,7 +171,7 @@ internal sealed class TypeGrowthDetector : IInspection
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{current.Count} types with {currentObjects} reachable objects ({currentBytes} bytes) now, {before.Count} types with {beforeObjects} ({beforeBytes} bytes) in the baseline; {framework} framework types left out; reported: {Describe(ordered.Take(50))}{(ordered.Length > 50 ? $" and {ordered.Length - 50} more" : string.Empty)}; largest growth below the thresholds: {Describe(nearMisses.OrderByDescending(r => r.Growth).Take(5))}");
-        return new InspectionResult(ordered.Length, ordered.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), Table(ordered), basis);
+        return new InspectionResult(ordered.Length, ordered.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), Table(ordered), basis, Counts: new(current.Count, framework, ListsRows: true));
     }
 
     /// <summary>The framework's own types: by namespace, or by a System or Microsoft module.</summary>
@@ -191,7 +191,7 @@ internal sealed class TypeGrowthDetector : IInspection
 
     private static string Describe(IEnumerable<Row> rows)
     {
-        var text = string.Join("; ", rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Name} [{r.Module}] {r.Objects} (was {r.Before}), {r.Bytes} bytes (was {r.BytesBefore})")));
+        var text = DetectorGraph.Listed(rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Name} [{r.Module}] {r.Objects} (was {r.Before}), {r.Bytes} bytes (was {r.BytesBefore})")));
         return text.Length == 0 ? "none" : text;
     }
 

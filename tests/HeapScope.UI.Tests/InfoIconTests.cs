@@ -221,7 +221,7 @@ public sealed class InfoIconTests(UiSession ui)
                 .Select(File.ReadAllText));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).ToList();
 
-        texts.Count.ShouldBe(48);
+        texts.Count.ShouldBe(49);
         foreach (var text in texts)
         {
             sources.ShouldContain("InfoTexts." + text.Name, customMessage: text.Name);
@@ -266,7 +266,7 @@ public sealed class InfoIconTests(UiSession ui)
         var table = File.ReadAllText(Path.Combine(repo, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
         var pages = Rows(Between(table, "## Table 1", "## Table 2"));
         var groups = Rows(Between(table, "## Table 2", "## Table 3"));
-        var singles = Rows(Between(table, "## Table 3", "## Evidence"));
+        var singles = Rows(Between(table, "## Table 3", "## Sprint 3.12 additions"));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).Select(static f => (string)f.GetRawConstantValue()!).ToHashSet();
         var src = Path.Combine(repo, "src", "HeapScope.UI");
         var screens = string.Concat(
@@ -307,6 +307,34 @@ public sealed class InfoIconTests(UiSession ui)
         static List<string[]> Rows(string section) =>
             section.Split('\n').Where(static l => l.StartsWith("| ", StringComparison.Ordinal) && !l.StartsWith("| Page", StringComparison.Ordinal) && !l.StartsWith("| Where", StringComparison.Ordinal))
                 .Select(static l => l.Trim('|').Split(" | ").Select(static c => c.Trim()).ToArray()).ToList();
+    }
+
+    /// <summary>
+    /// Sprint 3.12's approved rows (`docs/design/info-text.md`, Sprint 3.12 additions): the Settings page's icon text is its
+    /// info text, and each approved tooltip is on a screen word for word. Rows still marked draft are not checked.
+    /// </summary>
+    [Fact]
+    public void The_sprint_3_12_texts_the_owner_approved_are_on_a_screen()
+    {
+        var repo = global::HeapScope.Tests.Shared.RepoRoot.Path;
+        var table = File.ReadAllText(Path.Combine(repo, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
+        var start = table.IndexOf("## Sprint 3.12 additions", StringComparison.Ordinal);
+        var end = table.IndexOf("## Evidence", start, StringComparison.Ordinal);
+        var rows = table[start..end].Split('\n')
+            .Where(static l => l.StartsWith("| ", StringComparison.Ordinal) && !l.StartsWith("| Page", StringComparison.Ordinal))
+            .Select(static l => l.Trim('|').Split(" | ").Select(static c => c.Trim()).ToArray())
+            .Where(static r => r[3].StartsWith("approved", StringComparison.Ordinal))
+            .ToList();
+        var screens = string.Concat(Directory.EnumerateFiles(Path.Combine(repo, "src", "HeapScope.UI", "Views"), "*.axaml", SearchOption.AllDirectories).Select(File.ReadAllText))
+            .Replace("&quot;", "\"", StringComparison.Ordinal).Replace("&amp;", "&", StringComparison.Ordinal);
+
+        rows.Single(r => r[0] == "Settings" && r[1].StartsWith("Page icon", StringComparison.Ordinal))[2].ShouldBe(InfoTexts.Settings);
+        var tooltips = rows.Where(static r => r[1].EndsWith("(tooltip)", StringComparison.Ordinal)).ToList();
+        tooltips.Count.ShouldBe(3);
+        foreach (var row in tooltips)
+        {
+            screens.ShouldContain("\"" + row[2] + "\"", customMessage: row[0] + ", " + row[1]);
+        }
     }
 
     /// <summary>An icon in a header acts on its own: a click opens its text and leaves the expander as it was.</summary>

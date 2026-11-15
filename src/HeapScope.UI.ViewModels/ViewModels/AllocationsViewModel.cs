@@ -80,7 +80,7 @@ public sealed partial class AllocationsViewModel : ObservableObject
     public async Task OpenPathAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        if (Traces.FirstOrDefault(t => string.Equals(t.Trace.Path, Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)) is { } open)
+        if (Traces.FirstOrDefault(t => HeapScope.Contracts.PathIdentity.Same(t.Trace.Path, Path.GetFullPath(path))) is { } open)
         {
             Selected = open;
             TraceShown?.Invoke(this, EventArgs.Empty);

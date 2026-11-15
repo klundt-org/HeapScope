@@ -45,7 +45,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
     {
         ArgumentNullException.ThrowIfNull(request);
         var inspection = InspectionCatalog.Find(request.Name)
-            ?? throw new ArgumentException($"Unknown inspection {request.Name}. Inspections: {string.Join(", ", InspectionCatalog.All.Select(i => i.Name))}.");
+            ?? throw new RequestRefusedException($"Unknown inspection {request.Name}. Inspections: {string.Join(", ", InspectionCatalog.All.Select(i => i.Name))}.");
         var stopwatch = Stopwatch.StartNew();
 
         // The set keeps the lease: its rows read the graph while it lives.
@@ -53,7 +53,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
         SnapshotLease? baselineLease = null;
         try
         {
-            if (InspectionAvailability.Explain(inspection, snapshot.Capabilities, snapshot.Info) is { } why)
+            if (InspectionAvailability.Explain(inspection, snapshot) is { } why)
             {
                 throw new CapabilityNotSupportedException(why);
             }
@@ -69,16 +69,16 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             {
                 if (id == request.SnapshotId)
                 {
-                    throw new ArgumentException("The baseline must be another snapshot: an earlier one of the same process.");
+                    throw new RequestRefusedException("The baseline must be another snapshot: an earlier one of the same process.");
                 }
 
                 var (earlier, held) = access.Lease(id);
                 baselineLease = held;
 
                 // A baseline the detector cannot read (a gcdump) is refused, never silently ignored (review H8).
-                if (InspectionAvailability.Explain(inspection, earlier.Capabilities, earlier.Info) is { } unusable)
+                if (InspectionAvailability.Explain(inspection, earlier) is { } unusable)
                 {
-                    throw new ArgumentException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: {unusable} Choose a full dump of the same process, captured earlier.");
+                    throw new RequestRefusedException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: {unusable} Choose a full dump of the same process, captured earlier.");
                 }
 
                 earlier.TryGetService<IObjectReader>(out var baselineReader);
@@ -132,7 +132,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 result.WastedBytes?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "n/a",
                 result.Rows.Count,
                 stopwatch.Elapsed.TotalSeconds,
-                result.Basis ?? "not recorded",
+                (result.Counts is { } counts ? counts + "; " : string.Empty) + (result.Basis ?? "not recorded"),
                 result.Note ?? "none");
             // Kept so a detector's row opens as a set (sprint 3.1) without running the inspection again.
             if (result.Rows.HasMembers)

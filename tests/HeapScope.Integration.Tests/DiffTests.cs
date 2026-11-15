@@ -77,7 +77,7 @@ public sealed class DiffTests(LeakyApiPair pair) : IClassFixture<LeakyApiPair>, 
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private SnapshotSession Session => _session ??= new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+    private SnapshotSession Session => _session ??= TestSessions.Create(_host, new JobTracker(TimeProvider.System));
 
     [Fact]
     public async Task Every_leak_grows_by_its_known_answers_and_its_item_type_leads_its_fixture_types()

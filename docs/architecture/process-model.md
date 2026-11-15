@@ -7,14 +7,17 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 
 ### 4.1 Processes
 - **UI process** (Avalonia; AnyCPU, so 64-bit on x64 and arm64): shell, view models, Application services, capture.
+  Workstation GC with the runtime's default gen 0 budget. A larger one (64 MB, sprint 3.12, task 6) cut the total GC time in
+  the UI's lags under load, but made each pause longer: a snapshot open's longest operation doubled, so it is not used
+  (budgets.md; review H2 and M2).
 - **CLI process** (AnyCPU, 64-bit): same Application services, console output.
 - **Worker process** (64-bit, the machine's architecture; `HeapScope.Worker`, or `dotnet` running
   `HeapScope.Worker.dll` in the CLI's dotnet tool): one per UI or CLI instance. Holds every loaded snapshot
   of the session (a diff needs both snapshots in one address space). Uses Server GC, non-concurrent
   (section 9), and runs at below-normal process priority so its ordinary threads yield to the UI and the profiled
   application. This does not cover Server GC threads, which the runtime creates at highest thread priority (they
-  end up at normal priority in a below-normal process); taming GC threads (job object CPU rate, EcoQoS, heap
-  affinity) is a backlog item to be decided with a trace.
+  end up at normal priority in a below-normal process); sprint 3.12's recordings (task 6) found no UI stall waiting for a
+  processor, even with four cores busy, so they are left as they are (budgets.md).
 
 ### 4.2 Lifecycle
 1. Application's `WorkerHost` starts the worker with `--pipe <name> --parent-pid <pid>`. The pipe name is
@@ -34,7 +37,11 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 5. For debugging, a worker can be started by hand with `--pipe <name>` and a client attached to it with the
    `Worker:AttachPipeName` option (CLI: `--pipe <name>`); an attached worker is disconnected, not shut down.
 6. Test hooks (`CrashForTestingAsync`, `HangForTestingAsync`) exist only when the worker is started with
-   `--enable-test-hooks` (`Worker:EnableTestHooks`); otherwise they fail with `TestHooksDisabled`.
+   `--enable-test-hooks` (`Worker:EnableTestHooks`); otherwise they fail with `TestHooksDisabled`. With it,
+   `--test-hide-installed-dacs` (sprint 3.12) makes the worker take no DAC from an installed runtime, so a test opens a
+   real dump as on a machine without its runtime. The client passes it only from test code (`WorkerHostOptions` keeps the
+   property internal, out of configuration binding); the worker's start line says it is on, and ignoring it without
+   `--enable-test-hooks` is logged.
 
 ### 4.3 Crash handling
 - The client watches both `Process.Exited` and `JsonRpc.Disconnected`. Either one moves the worker to
@@ -58,7 +65,10 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   `SnapshotChanged`, and since 3.6 `DacNotTrusted` with its error data) and logs every outcome once with the operation and the request (section 11): an answer with what
   was answered, an expected refusal (capability, invalid argument, changed file, unknown snapshot or result set, missing
   or untrusted DAC, memory) at Information without a stack, other coded failures as warnings with their stack, unexpected ones as
-  errors; errors the worker creates as codes are logged too (sprint 2.3.7). The client's message stays plain and the
+  errors; errors the worker creates as codes are logged too (sprint 2.3.7). Since 3.12 (B5) only a
+  `RequestRefusedException` (Core; the worker's own request checks) is `InvalidArgument`: any other exception, an
+  `ArgumentException` from a bug included, is unexpected, logged as an error with its stack and an id (the trace id, or a new one when there is none), and
+  the user sees a fixed message with that id, never the exception's own text. The client's message stays plain and the
   log keeps the details. The front ends catch `WorkerException`, the base of the three worker exception types. The UI
   adds last-chance handlers (dispatcher, app domain, unobserved tasks) that log and show a plain message; the
   CLI command boundary prints a plain message and logs the stack trace.
@@ -191,6 +201,12 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   error code as before); front ends read it through `SnapshotAvailability` (`IsAvailable`, `WhyUnavailable`), which
   counts an id the worker did not list as unavailable. `ISnapshotService.GetTypeSummaryAsync` is removed:
   `QueryTypeSummaryAsync` with its defaults gives the same rows.
+  Version 22 (sprint 3.12, ADR-041): `SnapshotDescriptor.UntrustedDac` (a `DacTrustDetails`), the untrusted DAC next to the
+  dump when that is why field values and strings are refused, for the app's Trust this DAC and reopen. Same shape, new
+  meaning: `OpenSnapshotRequest.CheckDac` now governs only the trust question; a missing DAC refuses value reads whatever
+  it says, and `ProbeSnapshotAsync` reports a cache an older loader wrote as `Invalid` (it is rebuilt on open). Also in
+  3.12, without a version of their own: the dominator tree's `RetainedIs` column (M6), and `InvalidArgument` only for a
+  `RequestRefusedException`, every other failure `Unknown` with a fixed message and an id (B5).
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

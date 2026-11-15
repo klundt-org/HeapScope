@@ -133,12 +133,12 @@ internal sealed class PendingAsyncMethodsDetector : IInspection
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{boxTypes} state machine box types; {pending} reachable application async calls waiting in {found.Count} methods, {ended} ended but still referenced, {unreadable} unreadable; {skipped}; reported: {Describe(reported)}; largest below the threshold: {Describe(ordered.Skip(reported.Count).Take(5))}; {Reachability.Describe(reachable)}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), DetectorTables.Types(rows, "StateMachine"), basis);
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), DetectorTables.Types(rows, "StateMachine"), basis, Counts: new(scanned, unreadable + skipped.Total, ListsRows: true));
     }
 
     private static string Describe(IEnumerable<KeyValuePair<string, Method>> methods)
     {
-        var text = string.Join("; ", methods.Select(m => string.Create(CultureInfo.InvariantCulture, $"{m.Key} {m.Value.Members.Count} ({m.Value.Bytes} bytes)")));
+        var text = DetectorGraph.Listed(methods.Select(m => string.Create(CultureInfo.InvariantCulture, $"{m.Key} {m.Value.Members.Count} ({m.Value.Bytes} bytes)")));
         return text.Length == 0 ? "none" : text;
     }
 

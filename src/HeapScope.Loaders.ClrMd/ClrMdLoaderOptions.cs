@@ -44,6 +44,24 @@ public sealed record ClrMdLoaderOptions
     public bool AllowMicrosoftSymbolServer { get; init; }
 
     /// <summary>
+    /// The locator that downloads a DAC when <see cref="AllowMicrosoftSymbolServer"/> is on; null means ClrMD's own, which
+    /// reaches Microsoft's symbol server. Tests pass their own, to tell a failed download from a DAC that fails to load.
+    /// </summary>
+    internal Microsoft.Diagnostics.Runtime.IFileLocator? SymbolServerLocatorForTests { get; init; }
+
+    /// <summary>
+    /// Hands the walk to ClrMD's own at the object with this number (counted over the whole walk, from 1) as though its method
+    /// table could not be read (sprint 3.12 review M1): tests prove the fallback builds the same graph.
+    /// </summary>
+    internal long? FallBackAtObjectForTests { get; init; }
+
+    /// <summary>
+    /// Gives the object with this number a length that runs past its segment, as a damaged array or string would (sprint 3.12
+    /// review M8): tests prove it is counted as unreadable and its segment as incomplete.
+    /// </summary>
+    internal long? OverrunAtObjectForTests { get; init; }
+
+    /// <summary>
     /// Folders holding installed shared runtimes (<c>...\shared\Microsoft.NETCore.App</c>). Null means the machine
     /// defaults (<c>DOTNET_ROOT</c> and Program Files); tests pass their own.
     /// </summary>

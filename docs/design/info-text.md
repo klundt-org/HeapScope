@@ -128,6 +128,42 @@ A control that can be disabled shows its tooltip anyway, so it can say why. Tool
 
 Dropped: the Two snapshots and Trend across snapshots row, since their Table 1 icons already say it. The Trend button's tooltip goes with it.
 
+## Sprint 3.12 additions
+
+Approved by the owner on 2026-11-12, 2026-11-13 and 2026-11-14.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Settings | Page icon (Table 1) | Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine. | approved 2026-11-13 |
+| Settings | Include filter text in logs (tooltip) | Write the text you type in filters and searches into HeapScope's logs, to help troubleshoot a result. It can hold values from your dumps (account numbers, tokens), so turn it off before you share a log. | approved |
+| Settings | Purge logs (tooltip) | Delete HeapScope's log files. Logs that running HeapScope processes write now are kept until they close. | approved 2026-11-15 (the command line's sentence, since review M5) |
+| Settings | Purge all (tooltip) | Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched. | approved |
+| Settings | Purge all confirmation | Title "Delete everything HeapScope keeps?"; body "This deletes HeapScope's logs and its whole library: N sessions, N files, N GB. Dumps you opened from your own folders stay. This cannot be undone."; buttons "Delete everything" and "Cancel". | approved |
+| Settings | Status after Purge logs (B1) | Deleted {N} log files ({size}). | approved 2026-11-13 |
+| Settings | Status after Purge all (B1) | Deleted everything HeapScope keeps: {N} sessions, {N} files ({size}). | approved 2026-11-13 |
+| Settings | Status when files could not be deleted (B1) | {N} files could not be deleted, usually because another program has them open: {files}. Close it and try again. | approved 2026-11-13 |
+| Settings | Status when Purge all is refused (B1) | Nothing was deleted: {reason}, for example "Capture app is running; wait for it or cancel it first." | approved 2026-11-13 |
+| Settings | Status when the setting cannot be saved (B1) | The setting could not be saved to {file}: {message} | approved 2026-11-13 |
+| Settings | Section, check box and buttons (B1) | Logging; Include filter text in logs; Purge logs; Purge all | as the owner named them, 2026-11-12 |
+| Every page, the command line | An unexpected worker failure (B5) | The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: {id}. | approved 2026-11-14 |
+| Every page | Status bar while the pages are built after start (task 4) | Getting pages ready | approved 2026-11-14 |
+| Command line | `settings` (review M4) | Command: "Show HeapScope's settings, or change one. They apply to the app and the command line on this machine."; option `--filter-text-in-logs`: "Write the text typed in filters and searches into HeapScope's logs (on, the default) or only its length and terms (off). The app, the worker and the command line follow it."; output "Include filter text in logs: on", "Settings file: {file}", "Log folder: {folder}" | approved 2026-11-15 |
+| Command line | `purge logs`, `purge all` (review M4) | "Delete HeapScope's log files. Logs that running HeapScope processes write now are kept until they close."; "Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders stay."; `--yes`: "Delete without asking; without it, Purge all only says what it would delete."; without `--yes` the page's confirmation body plus "Run it again with --yes to delete."; the page's approved status lines otherwise | approved 2026-11-15 |
+| Settings, command line | Purge all refused while another HeapScope runs (review M20) | Nothing was deleted: Another HeapScope window (pid {pid}) is running; close it first. / Nothing was deleted: A HeapScope command line run (pid {pid}) is running; close it first. | approved 2026-11-15 |
+| Settings | Status when a purge stops (review M10) | Stopped before deleting anything more: {message} Try again; HeapScope's log has the details. | approved 2026-11-15 |
+| Every page | Its tooltip (task 4) | HeapScope is building its pages in the background so they open faster the first time. You can keep working; this ends on its own in a few seconds. | approved 2026-11-14 |
+| Snapshots, Retainers | Tree note, grouped by Type or Namespace (M6) | Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above. | approved |
+| Snapshots, Retainers | Retained cell of a group row (M6) | "≥ " before the size, as in "≥ 1.2 MB". | approved |
+| Every export of the Retainers tree | CSV column (M6) | "Retained is", with "exact" or "at least" on each row. | approved |
+| Every view that reads values | Refusal, DAC not trusted (task 9) | Field values and strings are not read: the DAC (Data Access Component) next to the dump is not trusted. Trust it to read them (on the command line, add --trust-dac {sha256}). | approved 2026-11-13 |
+| Every view that reads values | Refusal, DAC missing (task 9) | Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET {version} runtime was not found. Install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line), then close the snapshot and open the dump again. | approved 2026-11-13 |
+| Snapshot notes | Older index cache (task 9) | Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: {cause}. The one thing this version reads differently, the process name, was read again from the dump. Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache. | approved 2026-11-13 |
+| Snapshots | Status, opened without the DAC (task 9) | Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why. | approved 2026-11-13 |
+| Snapshots | Status, reopen after a worker restart refused (task 9) | {file} was opened from an older index cache because its DAC could not be used, so it was not reopened automatically after the analysis worker restarted. Open it again. | approved 2026-11-13 |
+| Every view that reads values | Refusal, the DAC of another system or architecture (task 9 re-review) | Field values and strings are not read: the dump's DAC (Data Access Component) cannot be used on this machine. {the loader's own sentence, for example: This dump comes from Linux and HeapScope runs on Windows: open it with HeapScope on Linux.} | approved 2026-11-13 |
+| Snapshot tab | Button (task 9) | Trust this DAC and reopen | approved 2026-11-13 |
+| Snapshot tab | Button tooltip (task 9) | Asks you to trust the DAC (Data Access Component) next to this dump, then opens the dump again so field values and strings are read. If its index cache was written by an older version, this takes as long as a first open. | approved 2026-11-13 |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

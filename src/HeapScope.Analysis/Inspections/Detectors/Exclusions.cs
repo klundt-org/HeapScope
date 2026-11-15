@@ -49,6 +49,9 @@ internal sealed class Exclusions
         keys[key] = keys.GetValueOrDefault(key) + 1;
     }
 
+    /// <summary>Everything left out, every reason together.</summary>
+    public long Total => _byReason.Values.Sum(keys => keys.Values.Sum());
+
     /// <summary>"left out: reason count (Key (n), Key (n), Key (n)), ..."; "none left out" when empty.</summary>
     public override string ToString() =>
         _order.Count == 0

@@ -42,7 +42,7 @@ public sealed class NavigatorViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
         _worker.Service.Rows.Add(["App.Order", "2", "80"]);
         _worker.Service.InstanceRows.Add(["0x1000", "App.Order", "40", "Gen2", ""]);
         _worker.Service.InstanceRows.Add(["0x2000", "App.Order", "40", "Gen0", ""]);

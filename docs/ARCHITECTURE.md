@@ -125,7 +125,8 @@ build/                         Shared MSBuild targets (worker deployment next to
                                app's icon, by hand (sprint 3.10, ADR-040)
 src/
   HeapScope.Core               Domain model: snapshot abstraction, capability model, compact graph,
-                               type table, root model, string table. No dependencies at all.
+                               type table, root model, string table; the data folder, private files and the user's
+                               settings every process shares (sprint 3.12). No dependencies at all.
   HeapScope.Analysis           Algorithms over the compact graph.
   HeapScope.Storage            On-disk index cache format, versioning, read/write.
   HeapScope.Capture            Process discovery, dump/gcdump capture, live counters, timed snapshots.
@@ -144,10 +145,16 @@ src/
 tests/
   Shared/                      Helpers compiled into every test project (the repository root finder, sprint 1.9; the
                                per-test data folder, sprint 3.8)
+  SharedSession/               Compiled into the integration, view model and UI tests: `TestSessions`, the one way a test
+                               opens a snapshot session, with a fixed memory budget (sprint 3.12).
+  SharedCapture/               Compiled into the tests that capture: `HeldDumpWriter`, which holds a capture while it writes
+                               so a cancel or a second capture meets it there (sprint 3.12, task 11).
   HeapScope.Core.Tests
   HeapScope.Analysis.Tests     Synthetic graphs with known answers.
   HeapScope.Storage.Tests
-  HeapScope.Loaders.ClrMd.Tests DAC lookup (local only) with real PE files; the loader itself runs in Integration.Tests.
+  HeapScope.Loaders.ClrMd.Tests DAC lookup (local only) with real PE files; the load meter; on each CI system's fixture dump
+                               the missing DAC rules and the object walk against ClrMD's (sprint 3.12). The loader's
+                               known answers run in Integration.Tests.
   HeapScope.Capture.Tests      Capture preflight (elevation, disk, partial files) with fakes; the real probe.
   HeapScope.Application.Tests  Job tracking, logging and worker client logic with fakes.
   HeapScope.Cli.Tests          The CLI in process: usage errors, tables as text, cells by name (sprint 3.8).
@@ -158,8 +165,10 @@ tests/
   HeapScope.Architecture.Tests Enforces the dependency rules below.
   HeapScope.Integration.Tests  Real worker processes, fixtures, real dumps, known answers. References Storage,
                                Analysis and the three loaders to test them in process, and runs the built CLI and app.
+  HeapScope.Benchmarks.Tests   The benchmarks' rules on recorded numbers (`UiStallAttribution`, sprint 3.12).
 perf/
-  HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.).
+  HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.) and the
+                               trace readers (`trace-report`, `ui-stalls`, `cpu-profile`).
 .github/workflows/ci.yml       CI on GitHub's runners: Windows and Linux, and the builds per system (sprints 2.3.5,
 2.3.6; no macOS runners since 2026-10-31).
 .github/workflows/fuzz.yml     Nightly mutation tests with more iterations (sprint 3.7).
@@ -237,7 +246,8 @@ flowchart TD
 | UI | Application, Contracts, UI.ViewModels | Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Controls.DataGrid, Avalonia.Headless, Avalonia.Fonts.Inter, CommunityToolkit.Mvvm (MIT packages, ADR-025; the Inter font in its package is SIL OFL 1.1, allowed for fonts only, ADR-040) |
 
 Rules:
-- Core references nothing, not even Microsoft.Extensions.*. It is pure domain types and data structures.
+- Core references nothing, not even Microsoft.Extensions.*. It holds domain types and data structures, plus the data
+  folder, private files and user settings every process shares.
   ThirdParty.GcDump references no Microsoft.Extensions.* either.
 - UI and UI.ViewModels never reference Loaders, Analysis, Storage, Capture, Worker or any diagnostics library directly
   (diagnostics libraries do load into the UI process, through Capture via Application). UI.ViewModels references no

@@ -101,7 +101,7 @@ public sealed class TypeDiffSourceTests : IDisposable
     {
         Should.Throw<ArgumentException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, SortColumn: "Size")))
             .Message.ShouldContain("BytesDelta");
-        Should.Throw<ArgumentOutOfRangeException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, (TypeGrouping)9)));
+        Should.Throw<HeapScope.Core.RequestRefusedException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, (TypeGrouping)9)));
     }
 
     public void Dispose()

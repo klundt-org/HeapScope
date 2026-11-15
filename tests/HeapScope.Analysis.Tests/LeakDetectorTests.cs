@@ -494,6 +494,45 @@ public sealed class LeakDetectorTests
         Rows(result)[0][^1].ShouldBe(InspectionScopes.Finalizable, "they are not reachable");
         result.Basis!.ShouldContain("reported: App.Connection 900 (36000 bytes); App.Handle 300 (12000 bytes)");
         Run("finalizer-backlog", Queue(999), new FakeReader()).Count.ShouldBe(0);
+
+        // The review's M15: under the threshold every waiting object is left out, and the counts say so.
+        result.Counts.ShouldBe(new InspectionCounts(1_200, 0, ListsRows: true));
+        Run("finalizer-backlog", Queue(999), new FakeReader()).Counts.ShouldBe(new InspectionCounts(999, 999, ListsRows: true));
+    }
+
+    // The review's M15: a disposed flag that cannot be read is left out, never counted as "not disposed", and disposed objects
+    // of a type under the minimum are left out too; the line lists the disposed types and says how many more there are.
+    [Fact]
+    public void Disposed_but_referenced_counts_unreadable_flags_and_types_under_the_minimum_as_left_out()
+    {
+        var builder = new SyntheticGraphBuilder();
+        var reader = new FakeReader();
+        var list = builder.Array("App.Resource[]", 420, 8, references: true);
+        builder.Root(list, detail: "App.Pool.s_all");
+        for (var i = 0; i < 300; i++)
+        {
+            var resource = builder.Object("App.Resource", 32);
+            builder.Reference(list, resource);
+            if (i < 250)
+            {
+                // 150 disposed and held, 100 alive; the last 50 have no readable flag.
+                reader.Fields[(resource.Address, "_disposed")] = new ObjectValue(ObjectValueKind.Boolean) { Boolean = i < 150 };
+            }
+        }
+
+        for (var i = 0; i < 120; i++)
+        {
+            var widget = builder.Object("App.Widget", 32);
+            builder.Reference(list, widget);
+            reader.Fields[(widget.Address, "_disposed")] = new ObjectValue(ObjectValueKind.Boolean) { Boolean = i < 5 };
+        }
+
+        var result = Run("disposed-but-referenced", builder.Build(), reader);
+
+        Rows(result).Select(r => r[0]).ShouldBe(["App.Resource"]);
+        result.Counts.ShouldNotBeNull().LeftOut.ShouldBe(50 + 5, "50 unreadable flags, 5 disposed widgets under the minimum");
+        result.Basis!.ShouldContain("flag unreadable on 50; disposed in types under 100: 5");
+        result.Counts!.ToString().ShouldEndWith("rows listed at most 50");
     }
 
     [Fact]
@@ -619,6 +658,54 @@ public sealed class LeakDetectorTests
     }
 
     // As the worker runs them: the detectors that count reachable objects get them, the baseline's included.
+    // Sprint 3.12 (B7): every inspection says what its answer rests on in the same terms, scanned and left out, and the
+    // collection inspections count the collections they could not read ("why is my collection not listed?").
+    [Fact]
+    public void Every_inspection_records_what_it_scanned_and_what_it_left_out()
+    {
+        var builder = new SyntheticGraphBuilder();
+        var holder = builder.Object("App.Holder");
+        builder.Root(holder, detail: "App.Holder.s_instance");
+        var list = builder.Object("System.Collections.Generic.List<System.Int32>", 32);
+        builder.Reference(holder, list);
+        using var graph = builder.Build();
+        var reader = new FakeReader();
+        using var referrers = ReverseReferences.Build(graph, cancellationToken: Ct);
+
+        foreach (var inspection in InspectionCatalog.All)
+        {
+            var result = Run(inspection.Name, graph, reader, inspection.UsesBaseline ? new InspectionBaseline(graph, s_info, reader) : null, inspection.UsesReferrers ? referrers : null);
+
+            var counts = result.Counts.ShouldNotBeNull(inspection.Name);
+            counts.Scanned.ShouldBeGreaterThanOrEqualTo(0, inspection.Name);
+            counts.LeftOut.ShouldBeGreaterThanOrEqualTo(0, inspection.Name);
+            counts.ToString().ShouldStartWith("scanned ", customMessage: inspection.Name);
+        }
+
+        // The list's count cannot be read: scanned and left out, never silently skipped.
+        Run("empty-collections", graph, reader).Counts.ShouldBe(new InspectionCounts(1, 1));
+        Run("oversized-collections", graph, reader).Counts.ShouldBe(new InspectionCounts(1, 1));
+
+        // The review's M15: every inspection says what it rests on, and a line says the row cap only where it lists rows.
+        foreach (var inspection in InspectionCatalog.All.Where(i => !i.UsesBaseline))
+        {
+            var result = Run(inspection.Name, graph, reader, null, inspection.UsesReferrers ? referrers : null);
+            result.Basis.ShouldNotBeNullOrWhiteSpace(inspection.Name);
+        }
+
+        new InspectionCounts(3, 1).ToString().ShouldBe("scanned 3, left out 1");
+        InspectionCatalog.All.Count.ShouldBe(17);
+    }
+
+    [Fact]
+    public void A_log_lines_list_of_rows_stops_at_one_cap()
+    {
+        var listed = DetectorGraph.Listed(Enumerable.Range(1, InspectionCounts.ListedCap + 10).Select(i => "row" + i));
+
+        listed.ShouldEndWith("row50 and 10 more");
+        DetectorGraph.Listed(["a", "b"]).ShouldBe("a; b");
+    }
+
     private static InspectionResult Run(string name, HeapGraph graph, FakeReader reader, InspectionBaseline? baseline = null, ReverseReferences? referrers = null)
     {
         var inspection = InspectionCatalog.Find(name)!;
@@ -667,9 +754,17 @@ public sealed class LeakDetectorTests
 
         public string? ReadString(ulong address, int maxLength) => null;
 
-        public void ReadStrings(IReadOnlyList<ulong> addresses, int maxLength, Action<int, string?> onEach, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public void ReadStrings(IReadOnlyList<ulong> addresses, int maxLength, Action<int, string?> onEach, CancellationToken cancellationToken)
+        {
+            for (var i = 0; i < addresses.Count; i++)
+            {
+                onEach(i, null);
+            }
+        }
 
-        public void ReadStringPieces(IReadOnlyList<ulong> addresses, StringPieceHandler onPiece, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public void ReadStringPieces(IReadOnlyList<ulong> addresses, StringPieceHandler onPiece, CancellationToken cancellationToken)
+        {
+        }
 
         public IReadOnlyDictionary<ulong, string> ReadReferencePaths(ulong address, int maxElements, CancellationToken cancellationToken) =>
             Paths.GetValueOrDefault(address) ?? [];

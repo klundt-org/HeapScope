@@ -51,9 +51,14 @@ internal static class WorkerErrors
         SnapshotChangedException => HeapScopeErrorCode.SnapshotChanged,
         IndexCacheInUseException or IOException or UnauthorizedAccessException => HeapScopeErrorCode.SnapshotUnavailable,
         OutOfMemoryException or InsufficientExecutionStackException => HeapScopeErrorCode.InsufficientMemory,
-        ArgumentException => HeapScopeErrorCode.InvalidArgument,
+        // Only a refusal the worker means (sprint 3.12, B5); any other ArgumentException is a bug, handled as unexpected.
+        RequestRefusedException => HeapScopeErrorCode.InvalidArgument,
         _ => null,
     };
+
+    /// <summary>What the user sees when the worker fails unexpectedly (the owner's wording, 2026-11-14).</summary>
+    public static string UnexpectedMessage(string id) =>
+        $"The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: {id}.";
 
     /// <summary>The message users see for an exception with <paramref name="code"/>: plain language and a next step.</summary>
     public static string MessageOf(Exception exception, HeapScopeErrorCode code) => code switch
@@ -138,8 +143,11 @@ internal static class WorkerErrors
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger?.LogError(ex, "{Operation} failed unexpectedly; request {Request}", operation, Provenance.Describe(request));
-            throw;
+            // A bug, not a refusal (sprint 3.12, B5): its stack in the log, and for the user the owner's fixed words with the id
+            // that finds this line, never the exception's own text (ClrMD's, TraceEvent's or a NullReferenceException's).
+            var id = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N")[..16];
+            logger?.LogError(ex, "{Operation} failed unexpectedly (id {Id}); request {Request}", operation, id, Provenance.Describe(request));
+            throw new LocalRpcException(UnexpectedMessage(id), ex) { ErrorCode = (int)HeapScopeErrorCode.Unknown };
         }
     }
 }

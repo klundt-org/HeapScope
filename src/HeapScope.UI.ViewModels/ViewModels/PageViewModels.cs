@@ -148,7 +148,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
     private string? WhyKept(SessionSummary summary)
     {
         var folder = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(summary.Folder));
-        if (string.Equals(library?.CurrentFolder, folder, StringComparison.OrdinalIgnoreCase))
+        if (PathIdentity.Same(library?.CurrentFolder, folder))
         {
             return $"{summary.Name} is the current session (new captures go into it), so it is kept. Open another session first.";
         }
@@ -158,8 +158,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
             return $"{summary.Name} is in use: {user} writes into it. Stop it first.";
         }
 
-        var under = folder + System.IO.Path.DirectorySeparatorChar;
-        return snapshots?.Snapshots.Any(s => System.IO.Path.GetFullPath(s.Handle.Path).StartsWith(under, StringComparison.OrdinalIgnoreCase)) == true
+        return snapshots?.Snapshots.Any(s => PathIdentity.IsUnder(System.IO.Path.GetFullPath(s.Handle.Path), folder)) == true
             ? $"{summary.Name} has a snapshot open. Close it on the Snapshots page first."
             : null;
     }
@@ -302,6 +301,8 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            logger?.LogInformation("{Section} shown as: {Message}", "Synthetic job", ex.Message);
             LastResult = ex.Message;
         }
     }

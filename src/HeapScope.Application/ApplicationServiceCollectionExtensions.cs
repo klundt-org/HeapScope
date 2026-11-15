@@ -81,6 +81,16 @@ public static class ApplicationServiceCollectionExtensions
             sp.GetRequiredService<Sessions.SessionLibrary>(),
             sp.GetRequiredService<TimeProvider>(),
             sp.GetService<Microsoft.Extensions.Logging.ILogger<Allocations.AllocationSession>>()));
+        services.AddSingleton(sp => new Settings.SettingsService(
+            sp.GetRequiredService<Sessions.SessionLibrary>(),
+            sp.GetRequiredService<Bookmarks.BookmarkStore>(),
+            sp.GetRequiredService<Snapshots.SnapshotSession>(),
+            sp.GetRequiredService<JobTracker>(),
+            sp.GetRequiredService<Allocations.AllocationSession>(),
+            sp.GetService<Logging.FileLoggerProvider>(),
+            null,
+            sp.GetService<Microsoft.Extensions.Options.IOptions<WorkerHostOptions>>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<Settings.SettingsService>>()));
         services.TryAddSingleton<Monitoring.ICounterSource, Monitoring.EventPipeCounterSource>();
         services.AddSingleton(sp => new Monitoring.MonitorService(
             sp.GetRequiredService<Sessions.ICaptureService>(),

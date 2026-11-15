@@ -42,7 +42,7 @@ public sealed class InspectionsTests : IClassFixture<AllLeaksDump>, IAsyncDispos
 
     public InspectionsTests(AllLeaksDump shared)
     {
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("waste.dmp");
         File.Copy(shared.DumpPath, _dump);
     }

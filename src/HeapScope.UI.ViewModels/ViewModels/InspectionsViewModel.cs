@@ -395,6 +395,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)
@@ -438,7 +440,12 @@ public sealed partial class InspectionsViewModel : ObservableObject
                 return;
             }
 
-            var key = run.Rows.Info.Columns.Select((c, i) => (c, i)).First(c => !c.c.IsHidden).i;
+            var key = run.Rows.Info.Columns.Select((c, i) => (c, i)).FirstOrDefault(c => !c.c.IsHidden, (null!, -1)).i;
+            if (key < 0)
+            {
+                throw new InvalidOperationException("The worker's result has no visible column. The worker and the app are from different builds.");
+            }
+
             tile.FirstRows = [.. first.Rows.Take(TileRows).Select(r => r[key] ?? string.Empty)];
             if (isFragmentation)
             {
@@ -463,6 +470,13 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A result this build cannot show (a column missing) fails its own tile only (sprint 3.12, B6): it used to end
+            // the whole run, and every inspection after it reported as failed.
+            _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
+            tile.Status = "This result could not be shown: " + ex.Message;
         }
     }
 
@@ -606,6 +620,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            _logger.LogInformation("{Section} shown as: {Message}", "Inspections against a baseline", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)
@@ -618,7 +633,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
 
     private void ShowFragments(IReadOnlyList<ResultColumn> columns, IReadOnlyList<IReadOnlyList<string?>> rows)
     {
-        int At(string name) => columns.Select((c, i) => (c, i)).Single(c => c.c.Name == name).i;
+        int At(string name) => ResultColumns.Require(columns, name);
         var (heap, live, free, pinned, pinnedBytes) = (At(InspectionColumns.Heap), At(InspectionColumns.Live), At(InspectionColumns.Free), At(InspectionColumns.PinnedObjects), At(InspectionColumns.PinnedBytes));
         Fragments.Clear();
         foreach (var row in rows)

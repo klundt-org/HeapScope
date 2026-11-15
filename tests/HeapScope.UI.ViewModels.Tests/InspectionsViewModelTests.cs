@@ -42,7 +42,7 @@ public sealed class InspectionsViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
     }
 
     private InspectionsViewModel Inspections => _snapshots.Inspections;
@@ -80,6 +80,25 @@ public sealed class InspectionsViewModelTests : IDisposable
         Inspections.HasFragments.ShouldBeTrue();
         Inspections.Fragments.Select(f => (f.Heap, f.Live, f.Free, f.PinnedObjects)).ShouldBe([("Gen0", 1000L, (long?)100, 0L), ("Gen2", 8000L, (long?)3000, 1L)]);
         Inspections.Fragments[1].FreeFraction.ShouldBe(3000.0 / 11000, 1e-9);
+    }
+
+    // Sprint 3.12 (B6): a fragmentation result without a column used to throw past the tile and end the whole run.
+    [Fact]
+    public async Task A_result_missing_a_column_fails_its_own_tile_only()
+    {
+        _worker.Service.ColumnsOfInspection = name => name == InspectionNames.Fragmentation
+            ? [.. FakeWorkerService.InspectionColumnsFor(name).Where(c => c.Name != InspectionColumns.PinnedBytes)]
+            : null;
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await Inspections.RunTask;
+
+        Inspections.Status.ShouldBeNull();
+        var fragmentation = Inspections.Tiles.Single(t => t.Info.Name == InspectionNames.Fragmentation);
+        fragmentation.Status.ShouldNotBeNull().ShouldStartWith("This result could not be shown: ");
+        fragmentation.Status.ShouldContain(InspectionColumns.PinnedBytes);
+        Inspections.Tiles.Where(t => t.IsAvailable && t != fragmentation).ShouldAllBe(t => t.Status == null && t.Run != null);
     }
 
     [Fact]

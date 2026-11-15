@@ -15,12 +15,13 @@ Initial budgets (sprints refine them with measurements):
 
 | Budget | Target | Measured |
 |---|---|---|
-| Medium (~4 GB, ~50M objects) first load on a 16 GB laptop | < 3 min | 35.1 to 48.2 s on a fixture Medium dump (3.10, `load-dump`, 32 GB machine); 15.8 s in 1.2; about 20 s end to end in the UI smoke run |
+| Medium (~4 GB, ~50M objects) first load on a 16 GB laptop | < 3 min | 13.0 to 13.3 s on the fixture Medium dump (3.12, `load-dump`, 32 GB machine, after task 8); 35.1 to 48.2 s in 3.10; 15.8 s in 1.2; about 20 s end to end in the UI smoke run |
 | Medium reopen from index cache | < 20 s in memory; < 2 s mapped | 0.6 s in memory, 0.6 s mapped warm; 0.8 s and 1.0 s cold (0.5, synthetic 50M); 0.6 s for the fixture Medium (1.2) |
 | Worker peak memory, Medium, in-memory mode (machines with room, e.g. 32 GB) | < 1.5x the dump's managed heap size | 2.4 GB for a 3.36 GB managed heap, 0.71x (1.2) |
 | Worker peak memory, Medium first load on a 16 GB laptop (graph, builder buffers and ClrMD caches) | < 4 GB | 2.4 GB (1.2, fixture Medium at 1.14 references per object) |
 | Worker private memory, Medium, mapped mode (after load) | < 1 GB | +9 MB private, +202 MB working set for the mapped graph (sprint 0.5, synthetic 50M) |
 | UI dispatcher block | never > 100 ms | every UI sprint |
+| Slow UI operations (over 100 ms) in a smoke open run, cold first shows included | at most 12 (exit 7 above; measured 0 to 4, 5 to 10 under load, sprint 3.12) | every UI sprint |
 | Type summary and diff on loaded Medium | < 5 s | type aggregation 0.05 s on Medium, 0.03 s on DenseHeap (54M objects); CLI `summary` end to end from the index cache 1.9 s and 2.0 s (1.3); CLI `diff` of Medium against DenseHeap end to end from the index caches 2.8 to 2.9 s, of which the aggregations 0.05 to 0.08 s each (1.4) |
 | Phase 2 indices (reverse references, semi-NCA dominators, retained sizes; prototype, 1.9) | under 60 s and within the 4 GB worker budget on a Medium-scale real heap | Medium 9.5 s, peak 3,514 MB (met in memory); DenseHeap 12.9 s, peak 4,119 MB in memory (missed by 23 MB), 2,360 MB with the graph mapped (met); hence computation follows the memory mode (section 6.4) |
 | Retention paths (2.2, `retention` on real index caches) | the root path tree within the 60 s Phase 2 budget; a type's key paths and an object's paths interactive (under 5 s) | Medium tree 0.8 to 1.2 s (219 MB), key paths up to 1.7 s (16M objects), an object's paths at most 6 ms, peak 2,802 MB in memory and 1,197 MB mapped; DenseHeap tree 1.6 to 2.3 s, key paths at most 0.4 s, an object's paths at most 176 ms, peak 3,320 MB in memory and 1,416 MB mapped. Met on the 32 GB machine; a 16 GB machine is not measured (section 6.4) |
@@ -60,8 +61,8 @@ Remeasured in sprint 3.10, on new dumps (the older ones need a runtime no longer
 three runs each with desktop applications open, the same machine. Medium (3,984 MB, 54.8M objects): first load 35.1 to 48.2 s,
 reopen in memory 0.9 to 1.3 s, peak 2,197 to 2,470 MB. DenseHeap (4,017 MB, 48.6M objects): first load 53.5 to 75.0 s, reopen
 1.0 to 1.2 s, peak 2,361 to 2,364 MB. All budgets met. Medium's first load is 2 to 3 times the table's 15.8 s and later's 19 s.
-The object pass alone ranged from 13 to 25 s between runs of one dump, and the loader has gained work since, but neither has been
-shown to be the cause (Backlog).
+The object pass alone ranged from 13 to 25 s between runs of one dump, and the loader has gained work since; sprint 3.12's
+trace settled it (task 8, below): the machine's load and ClrMD's per-object type factory.
 
 The leak fixture heaps are sparse (1.1 to 1.2 references per object). The DenseHeap fixture (`fixtures/DenseHeap`,
 captured with `fixtures/scripts/New-DenseDump.ps1`) builds a Medium-size heap at real-application density out of the
@@ -131,3 +132,81 @@ are first shows of a page, which the run logs; every checked phase stayed inside
 first shows over 100 ms went from 3 to 7 per run to 5 to 13. Inter and its tabular figures account for little of that: with
 neither, an unpublished build still showed more of them than the build before, so the cost is mostly the new styles and templates
 compiling on first use. The published folder grew from 352 MB to 359 MB, the font and the license folder included.
+
+UI stalls attributed (sprint 3.12, task 3). Five WPR recordings (CPU sampling, context switches, ready thread, .NET events) of
+the published ReadyToRun build on 2026-11-12, 23:47 to 00:05, on the 24-thread, 32 GB development machine with its usual
+background work mostly stopped (another project's tests ran at times; the load log is `artifacts/bench/3.12/load-quiet.log`).
+`ui-stalls` (perf/HeapScope.Benchmarks) splits each stall the app's watchdog logged (lags and long operations over 100 ms)
+into causes by the UI thread's context switches, ready time, the runtime's GC and JIT events and its CPU samples' stacks.
+Shares of the total lag time per run:
+
+| Run | Lags over 100 ms | GC | Styles and templates | JIT | Layout | Rendering | Other code | Blocked (not running) | Waiting for a CPU |
+|---|---|---|---|---|---|---|---|---|---|
+| Quiet, run 1 | 16, 4,290 ms | 13% | 18% | 10% | 6% | 6% | 13% | 35% | 0% |
+| Quiet, run 2 | 10, 2,643 ms | 14% | 16% | 14% | 6% | 3% | 18% | 29% | 0% |
+| Four busy cores (task 6) | 23, 5,857 ms | 25% | 23% | 12% | 9% | 7% | 16% | 7% | 0% |
+
+What the recordings show:
+- The UI thread never waited for a processor in any stall, even with four cores busy: the lag under load (Backlog, from 0.3)
+  is not CPU starvation of the UI thread, so a CPU rate cap, EcoQoS or GC heap affinity for the worker would not reach it.
+  Under load the UI process's own garbage collections grow to a quarter of the lag: gen 0 and gen 1 collections the UI's
+  small allocations trigger (non-concurrent, 14 to 93 ms each in these stalls) and background gen 2 collections.
+- The first shows of a page are mostly styles and control templates built on first use (Avalonia's styling and template
+  frames), then GC, layout and rendering.
+- Cold start's first window (1.5 s in run 1) is about 280 ms of JIT and 310 ms of the runtime's own code (type loading,
+  ReadyToRun fixups; no symbols for it), and about 880 ms off the processor: one wait of 112 ms was inside Microsoft
+  Defender's real-time scan (`mprtp`) of a file being loaded; the others carried no user-mode stack.
+- One 220 ms lag in each quiet run has the UI thread off the processor the whole time with no stack (the app's own
+  watchdog also measured 0 ms of UI CPU in it): not work on the UI thread; its cause is not in these recordings.
+- The traced runs are slower than untraced ones (the first window took 7.0 and 8.5 s while recording, 0.8 to 4.9 s without);
+  the shares, not the times, are the result.
+
+The UI's gen 0 budget (sprint 3.12, task 6), A/B smoke runs of the published build on 2026-11-13 with Defender and another
+project's tests at about 3 cores (`load-window2.log`), alternating the default against a 64 MB gen 0 budget
+(`DOTNET_GCgen0size`). GC time inside the logged lags per run: with four more cores busy, 392, 408 and 430 ms by default
+against 145, 174 and 211 ms with 64 MB; on the quieter machine 237, 265 and 224 ms against 214, 270, 146 and 157 ms. Slow
+operations (over 100 ms) per run under load 5, 7 and 10 against 6, 7 and 7; the worst lag moved little (203 to 275 ms
+against 189 to 266 ms), since styles and templates are the rest of it. The runtime reads the budget only from the environment
+variable, and ignores `System.GC.Gen0Size` in the runtime configuration (the sprint 3.12 review, H2: a test program counted 73
+gen 0 collections with and without it, 14 with the variable). A worker CPU cap, EcoQoS or GC heap affinity would not have
+helped, since no stall waited for a processor.
+In the owner's quiet window of 2026-11-15 the larger budget was measured again, this time for the longest single
+operation too, and lost: with 64 MB (the app relaunched with the variable) a snapshot open's gen 0 pauses grew to 80 to 109 ms
+each, against 10 to 58 ms by default, so the open phase's longest operation went from 108 to 143 ms to 209 to 255 ms and the
+first window from 721 to 955 ms to 801 to 1,182 ms (six alternating pairs); 32 MB, set directly, was worse than the default
+too (141 to 173 ms against 113 to 131 ms, four pairs). Fewer, longer pauses break the 100 ms operation budget, which is what a
+user feels as stutter; the total GC time task 6 measured is not. The app keeps the runtime's default gen 0 budget, and the
+relaunch built to ship the larger one was removed (review M2, the owner's decision).
+
+UI cold start on Avalonia (sprint 3.12, task 7), the published ReadyToRun build on 2026-11-13: the first window rendered
+6.9 s after start on the first run after publishing (the files read and scanned for the first time), then 0.77 to 0.87 s
+on later runs, and 0.99 to 1.10 s with four more cores busy; the Compare tab's first show had a maximum lag of 23 to 60 ms
+and a longest operation of 49 to 121 ms.
+
+Cold first shows prewarmed (sprint 3.12, task 4): after the first window, at the dispatcher's idle priority and one view per
+step, the app builds the Snapshots page in its place (kept for its first show) and builds the other pages and the views a
+page shows only with data alone, then drops them and collects gen 1 (about 8 ms); about 0.2 to 0.3 s of UI work over 0.35
+to 0.45 s, its worst lag 53 to 88 ms, with "Getting pages ready" in the status bar meanwhile (`ViewPrewarmer`,
+`Ui:Prewarm=false` turns it off). A/B smoke runs of the published build on 2026-11-14 in the owner's quiet window,
+alternating on and off (a local script under the git-ignored `artifacts/`), demo dumps, six pairs: slow operations (over 100 ms) per run 1 to 2
+on against 2 to 9 off; the Snapshots page's first show at most 16 to 17 ms against 58 to 83 ms; the open phase's longest
+operation 92 to 140 ms (median about 109) against 113 to 204 ms (about 134); the Allocations page's first show level (55 to
+69 ms against 41 to 71 ms); the Retainers tab's first show about 14 ms slower (median about 100 ms against 86 ms, cause not
+found). Medium dump, three pairs: the Snapshots page's first show 16 to 21 ms against 70 to 95 ms, the open phase's longest
+operation 129 to 181 ms against 158 to 209 ms, slow operations 4 to 5 against 4 to 6. Two designs were measured and
+dropped: every page built in place made the Retainers and Allocations first shows 20 to 45 ms slower (the hidden Jobs, Live
+and Processes pages stayed bound to their view models and followed the run's jobs), and the dropped views' garbage left to
+the default gen 0 budget was collected inside the Allocations page's first show. The open phase's 100 ms operation check failed in
+most runs of both arms on this day, and in one of two runs of the build before task 6: the machine, not this change.
+
+The first load's object pass (sprint 3.12, task 8, with R4). The WPR recording of a Medium load (58.0M objects, 2026-11-12)
+showed the loading thread on a processor for 50.7 of 56.5 s: CPU work, not reading the dump (1.1 s of page-in waits, the
+file in the cache). ClrMD's type factory resolved each object's type (8.6 s), arrays asked the DAC each (2.8 s), sizes were
+read twice and the finalizable check hashed every object. The same build loaded the same dump in 40.1, 51.6 and 24.0 s in
+three runs that day, and in 20.8 to 21.5 s the next: much of the "slower first load" since 1.2 is the machine's load, not
+the loader. The loader now maps method tables to types itself, once per type, computes sizes as ClrMD does, walks segments in
+address order, merges the finalizable list, and reads references with each object's type known, skipping types that hold
+none unless collectible (review H3). Medium, alternating the two builds three times each on 2026-11-13: object pass 10.9 to 11.1 s down to 4.9 to 5.1 s,
+reference pass 7.4 to 7.6 s down to 5.3 to 5.6 s, first load 20.9 to 21.5 s down to 13.0 to 13.3 s, peak private bytes the
+same (2,769 to 2,774 MB). The graph is the same: its columns hash identically on the fixture dump and the Medium dump
+(`load-dump` prints the hash).

@@ -6,7 +6,9 @@ brackets.
 Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
 - **Core.** `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
-  `--data-folder`) [3.8]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
+  `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
+  (what the logs may hold, followed within a second by every process) [3.12]; `RequestRefusedException` (a request the worker
+  refuses for a reason the user can act on; any other exception at its boundary is a bug) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
   string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
@@ -23,7 +25,10 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   section 6.5) [0.5]; `PrivateFiles` (owner-only folders and files: 0700 and 0600 off Windows, an owner-only access list
   on Windows) [2.3.6, 3.7]; `Loading/DacChoice` (the DAC a dump was read with and why) [2.3.7]; `IndexCachePaths` (a
   snapshot's index cache, its sidecar kinds and the writer's temporary files, for Storage and for deletion) [3.4].
-- **Analysis.** `FrameworkTypes` (one rule for framework types, P19) and no static caches: reachability and dominator
+  `ValueReadsRefused` (why a snapshot's field values and strings are refused) and `Loading/LoadPhaseCost` (a load phase's
+  process CPU, GC pause and pages read from disk) [3.12].
+- **Analysis.** `Inspections/InspectionCounts` (what each inspection scanned and left out, rows listed at most 50) [3.12].
+  `FrameworkTypes` (one rule for framework types, P19) and no static caches: reachability and dominator
   group tables are returned as values the worker keeps per snapshot (P20) [3.8]. `TypeAggregation`: one parallel pass over the objects, counting objects, shallow bytes and bytes per
   heap kind for every type, computed once per snapshot and kept on the snapshot's entry in the worker [1.3].
   `TypeGroups`: rows by type, namespace or assembly. Type rows are one per type table entry (method table), never merged
@@ -90,12 +95,16 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   the DAC of the system HeapScope runs on, matched on Linux and macOS by `ImageIdentity` (ELF GNU build id, Mach-O
   UUID) against the DAC itself or, when the dump archives it under the runtime's identity, against `libcoreclr` in the
   same folder; ClrMD reads a core file's runtime version as 0.0 at times, and the runtime's folder name names it then
-  [2.3.5].
+  [2.3.5]. Since 3.12: the loader's own object walk (`AddObjects`, method tables mapped to types once each, ClrMD's walk
+  for what it cannot read; ADR-010 amended), the LoaderAllocator edge of collectible types, `LoadMeter` (per phase cost),
+  `CheckDac` and `ReadProcessName` (ADR-041), and an internal copy of `PathIdentity` (`HeapScope.Shared`; Capture has one
+  too).
 - **Loaders.GcDump.** `GcDumpLoader`, `RootClass` (pseudo node names to root kinds), `TypeNames` (names normalized to
   the full dump loader's form), `ObservedReadStream` (progress and cancellation while the vendored reader reads) [1.8].
 - **ThirdParty.GcDump.** The vendored dotnet-gcdump code (PerfView's `MemoryGraph`, `GCHeapDump` and the EventPipe heap
   dumper), MIT, with its five changes listed in its `CHANGES.md` [1.8, 1.9, 3.7].
-- **Contracts.** The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
+- **Contracts.** `PathIdentity`, the one rule for when two paths name the same file (case ignored on Windows and macOS),
+  its source also compiled into Loaders.ClrMd and Capture as an internal copy [3.12]. The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
   `IResultSetService`, `IHeapQueryService`, `IRetentionService`, `IInspectionService`, `IAllocationTraceService`, listed
   in `WorkerContracts.All`; `IWorkerService` aggregates them for clients), `WorkerProtocol`, `HeapScopeErrorCode`, the wire enums and `CapabilityDescriptions`
   [0.3]; `DacTrustDetails`, the error data of `DacNotTrusted` [3.6]; `SnapshotFeatureIds`, `FeatureAvailability` (the
@@ -116,7 +125,9 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   summaries and instances [2.3]. `DominatorDtos.cs`: the tree request and result, `DominatorTreeColumns`,
   `DominatorTreeKeys` (the row keys clients link with), the icicle request and segments, the set retention request,
   result and `RetainedBySetColumns`; `ResultColumn.Bound` with `ValueBound` and `ValueBoundTexts` [2.4].
-- **Worker.** `Program` and `ParentProcessWatcher` (the worker exits with its front end) [0.3]; `Rpc/`:
+- **Worker.** `Program` and `ParentProcessWatcher` (the worker exits with its front end) [0.3]; `WorkerOptions`'
+  `--settings-folder` (the client's settings file) and `WorkerErrors`' fixed message with an id for an unexpected failure
+  [3.12]; `Rpc/`:
   `WorkerRpcServer`, `ResultSetStore`, `ThrottledProgress` [0.3]. Since 3.8 (peer review P5) one handler per contract,
   registered by `WorkerRpcTargets` (`RpcTarget.For<TContract, THandler>`): `ControlHandler`, `TestHooksHandler`,
   `SnapshotHandler`, `ResultSetHandler`, `HeapQueryHandler`, `RetentionHandler`, `InspectionHandler`,
@@ -135,9 +146,12 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   their fields named for up to 1,000 referrers) and `TypeReferrersSource` (a type's referrers by type, sortable), served
   by `HeapQueryHandler` with `DerivedQueries` [2.1]; `ColumnSort` (sort by column name, ties by name, unknown columns
   refused) shared by the row sources [1.9]; `ObjectFormatter` [1.6]; `InspectionAvailability` [1.6].
-  `Snapshots/`: `SnapshotStore` (open, cache, memory mode); `SnapshotKinds` (per kind: the loader and its version, the
-  snapshot over a graph, the kind's notes) [1.9], and whether the kind holds garbage, what an unreached object means
-  and why its objects cannot be matched by address [3.8]; `DerivedData`, per-snapshot derived data on the snapshot's
+  `Snapshots/`: `SnapshotStore` (the open snapshots, their cache and memory mode) and `SnapshotOpener` (one open: the
+  index cache or the dump, the cache write, the memory mode, the older cache in place of a rebuild that cannot reach the
+  DAC, the identity line) [3.12]; `DacRefusals` (the words for a DAC that cannot be used, ADR-041) [3.12];
+  `SnapshotKinds` (per kind: the loader and its version, the oldest version that may open in place of a rebuild, the DAC
+  check and the process name read again [3.12], the snapshot over a graph, the kind's notes) [1.9], and whether the kind
+  holds garbage, what an unreached object means and why its objects cannot be matched by address [3.8]; `DerivedData`, per-snapshot derived data on the snapshot's
   entry, dropped in one step when it closes: each slot is one shared computation with its own lease; a caller that
   cancels only stops waiting, and the computation is canceled when the last waiter leaves before it finishes and nobody
   joins within a 2 s grace period (so a grid's re-query joins it), or when the snapshot closes (`DerivedWaiter`, after
@@ -173,7 +187,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed) and `RunRecord`, a file per type
   [P11]; `Sessions/SessionFileCheck` (a session's file, or which check refused it) [3.7 review M2].
   `Workers/` (`WorkerHost`, `IWorkerClient`, exceptions, log forwarding), `Jobs/JobTracker`,
-  `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Snapshots/`: `SnapshotSession` (summaries, diffs with both
+  `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's setting and its
+  Purge logs and Purge all, with `PurgePlan`) [3.12]; `Snapshots/`: `SnapshotSession` (summaries, diffs with both
   snapshots reopened after a restart through `UseBothAsync`, instances, objects, inspections, referrers [2.1], retention paths [2.2], retained sizes [2.3]) and
   `ResultSetHandle` (section 4.6) [1.3 to 1.6]; `Sessions/`: `SessionLibrary`, `CaptureService` (per-kind capture settings in one table)
   [1.1, 1.9] and `TraceService` [1.5]; `Snapshots/GrowthThreshold` (the `--fail-on-growth` CI gate's limit, a size or a
@@ -207,7 +222,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `QueryTypeTrendAsync` over up to 20 snapshots (`UseManyAsync`), and `ObjectSetQuery.Baseline` as a compared set's
   other snapshot [3.3].
 - **UI.ViewModels** (sprint 2.3.6, moved from the WPF app; no UI toolkit). Since 3.8 every query runs through
-  `QueryRunner` (its activity, progress, and a refusal logged as shown; grids through `GridQueryViewModel`) [P8]. `Services/`: `IUiDispatcher` (post to the UI
+  `QueryRunner` (its activity, progress, and a refusal logged as shown; grids through `GridQueryViewModel`) [P8]. `SettingsViewModel` (the Settings page above About) [3.12]. `Services/`: `IUiDispatcher` (post to the UI
   thread, `YieldToRenderAsync`) with `ImmediateUiDispatcher` for tests, `IUserInteraction` (asynchronous dialogs; opening a file or showing it in its folder since the timeline row) with
   `AutomaticUserInteraction` for smoke runs. `ViewModels/`: the shell, pages and jobs [0.3]; `GridQueryViewModel<TRow>`
   (the query lifecycle shared by the grids: debounced filter, latest query wins, column-name sort, first page preloaded
@@ -260,14 +275,15 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   and `UiHost` (DI, `UiOptions`). `Views/`: `MainWindow` (the shell, the attribution strip as `AttributionText`,
   ADR-022; back and forward by mouse buttons and Alt+arrows) and `Pages/`, one user control per page and per Snapshots
   tab, compiled bindings throughout; `LazyContentControl` builds a page when first shown and keeps it (switching pages
-  is a visibility change) [1.5]; `MessageWindow` (Avalonia has no message box). `Controls/`: `GridBehaviors` (rows
+  is a visibility change) [1.5], or before, unseen (`Prebuild`) [3.12]; `MessageWindow` (Avalonia has no message box). `Controls/`: `GridBehaviors` (rows
   through `VirtualCollectionView`, header clicks sent to the view model's sort command with the arrow from its
   `SortState`, open by double-click or Enter, column groups shown from the view model, columns from a result set's
   list), `VirtualCollectionView<TRow>` (the pass-through `IDataGridCollectionView`: the grid reads rows by index and
   never copies or walks the list; whole-list walks are counted in `VirtualCollectionViews.Enumerations`, which the UI
   tests keep at zero), `HighlightedText`, `ProportionalPanel` (the heap kinds bar), `TimelineChart`, converters.
   `Services/`: `AvaloniaUiDispatcher`, `AvaloniaUserInteraction` (the system file picker), `DispatcherWatchdog`,
-  `ThemeChooser`, `AppFonts`, `NativeMethods` (Windows only). `Themes/`: `Light.axaml` and `Dark.axaml` (theme dictionaries with
+  `ViewPrewarmer` (after the first window, at idle, builds the Snapshots page in place and the other heavy views alone, with
+  "Getting pages ready" in the status bar; `Ui:Prewarm=false` turns it off) [3.12], `ThemeChooser`, `AppFonts`, `NativeMethods` (Windows only). `Themes/`: `Light.axaml` and `Dark.axaml` (theme dictionaries with
   the same keys), `Styles.axaml` and `Icons.axaml` (ADR-040). `Controls/` since 3.10: `DuotoneIcon`, `ButtonIcon`, `EmptyState`,
   `ThemeBrush` (a background named by a data row, which follows the theme), `NumberHeaders`, `SignConverters`. In
   `UI.ViewModels`, `PlatformHints` holds the next steps that depend on whether this system can capture. Sprint 3.11:
@@ -277,7 +293,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   controls. `IcicleGeometry` (UI.ViewModels) makes two or more neighbors under one parent, each narrower than 6 pixels
   (`GroupBelow`), one "+N smaller" bar, in one linear walk per level.
   `Assets/heapscope.ico`: the app's icon, from `build/make-icon.cs`. `Smoke/SmokeRunner`: the unattended smoke runs [1.9,
-  2.3.6]; `Smoke/ScreenshotRunner`: every page as PNG files [3.10]. Sprint 2.4: the Snapshot tab's subjects are views of their own (`Views/Subjects/`), the
+  2.3.6], with `SmokePhases` (each phase's lag, longest operation and slow operations, one place) and `SmokeVerdict` [3.12]; `Smoke/ScreenshotRunner`: every page as PNG files [3.10]. Sprint 2.4: the Snapshot tab's subjects are views of their own (`Views/Subjects/`), the
   Retainers tab (`RetainersTab`), `Controls/IcicleChart` (drawn in one pass, geometry from the view models),
   `Controls/NoteText` (a status or note line that takes no space when empty), and `GridBehaviors`' `VisibleColumnGroups`,
   `ExpandCommand`, `CollapseCommand` and `ScrollToSelection`. Sprint 2.7: `Controls/GridExports` (every grid's
@@ -286,7 +302,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   against `Shortcuts` and hands export requests to the shell; the Snapshots page's left column holds the analysis path
   and the bookmarks; the About page lists the shortcuts; filter boxes are named `FilterBox` (Command+F).
 - **Cli.** `Program` calls `CliApp.RunAsync` (parse, then the host from `CliHost`: the worker attach pipe, symbol options;
-  a usage error exits 64 with no host), so `HeapScope.Cli.Tests` runs the CLI in process [3.8, P10]. `CliCommands.cs`
+  a usage error exits 64 with no host), so `HeapScope.Cli.Tests` runs the CLI in process [3.8, P10]. `SettingsCommands.cs`:
+  `settings` and `purge logs|all` over the Settings page's service [3.12]. `CliCommands.cs`
   keeps the command table and exit codes; `CliRun.cs` the run boundary, which hands each command a `CliContext`
   (services, output, error output, logger); `CliOptions.cs` the shared options; `CliProgress.cs` the progress lines and
   the one open with progress; `CaptureCommands` (`list`, `capture`), `OpenCommand`, `SummaryCommand`, `WorkerCommands`
@@ -301,7 +318,9 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache
   (build, sidecar write, reopen in both modes) [2.1]; `retention`, the root path tree, key paths and object searches of
   a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `dominators`, the reverse index and
-  dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread).
+  dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread);
+  `ui-stalls` (WPR recordings of the UI split by cause, `UiStallAttribution`, tested in tests/HeapScope.Benchmarks.Tests)
+  and `cpu-profile` (where a process's busiest thread spent a recording) [3.12].
 - **Leak detectors [2.6, ADR-020 amended].** Analysis: `Inspections/Detectors/`, a file per detector since 3.8 (peer review P19), with `DetectorGraph`, `Fields`, `Readers`, `TypeTally` and `RuntimeLayouts` (the runtime field names): `GrowingStaticCollectionsDetector`
   (a static field's collection counted by its own fields; growth since a baseline, or large without one),
   `EventHandlerLeaksDetector` (subscribers of a publisher type's event field, through the incoming references and

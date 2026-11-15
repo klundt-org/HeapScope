@@ -134,11 +134,11 @@
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
-        <DataGridTextColumn Header="Objects" x:DataType="vm:DominatorRowItem" Binding="{Binding Objects, StringFormat='{}{0:N0}'}" Width="100" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Retained" x:DataType="vm:DominatorRowItem" Binding="{Binding Retained, StringFormat='{}{0:N0}'}" Width="130" CellStyleClasses="number" />
-        <DataGridTextColumn Header="%" x:DataType="vm:DominatorRowItem" Binding="{Binding Percent, StringFormat='{}{0:N1}'}" Width="60" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Bytes" x:DataType="vm:DominatorRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="110" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Address" x:DataType="vm:DominatorRowItem" Binding="{Binding AddressText}" Width="150" CellStyleClasses="address" />
+        <DataGridTextColumn Header="Objects" x:DataType="vm:DominatorRowItem" Binding="{Binding Objects, StringFormat='{}{0:N0}', Mode=OneWay}" Width="100" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Retained" x:DataType="vm:DominatorRowItem" Binding="{Binding RetainedText, Mode=OneWay}" Width="130" CellStyleClasses="number" />
+        <DataGridTextColumn Header="%" x:DataType="vm:DominatorRowItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Bytes" x:DataType="vm:DominatorRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Address" x:DataType="vm:DominatorRowItem" Binding="{Binding AddressText, Mode=OneWay}" Width="150" CellStyleClasses="address" />
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>

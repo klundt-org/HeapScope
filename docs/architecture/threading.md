@@ -20,12 +20,13 @@ references such as "ARCHITECTURE.md 8" still name the right section.
   a warm-up job, then an n-object synthetic job, and exits 0 when no single dispatcher operation exceeded 100 ms
   and the probe lag stayed under the smoke gate
   (2x budget), 3 when it did not, 4 when the job failed, 5 when the first window took over 30 s, 6 when a grid walked a
-  whole row list (every smoke run logs the UI's private and managed memory and the count of such walks, sprint 2.3.6
+  whole row list, 7 when an open run had more than 12 UI operations over 100 ms (sprint 3.12, not headless) (every smoke run logs the UI's private and managed memory and the count of such walks, sprint 2.3.6
   review). Measured in sprint 0.3, steady state during a 5M job:
   2 to 16 ms (Debug) and 43 ms (Release, cold); intermittently 105 to 130 ms in Debug at job completion while the
-  full integration suite runs (backlog item). One-time cold costs are not covered by the budget yet: first window
-  render about 1 s, first job row about 130 to 190 ms, first showing of the Compare tab with rows 97 to 238 ms (1.4)
-  (backlog: UI cold start). `--smoke-compare <dump>` (with `--smoke-open`) logs that first show and checks a warm
+  full integration suite runs (backlog item). One-time cold costs were not covered by the budget then: first window
+  render about 1 s, first job row about 130 to 190 ms, first showing of the Compare tab with rows 97 to 238 ms (1.4).
+  Since sprint 3.12 the open run's slow operations, first shows included, count against a ceiling of 12 (exit 7), and
+  cold start is measured on Avalonia (task 7, budgets.md). `--smoke-compare <dump>` (with `--smoke-open`) logs that first show and checks a warm
   re-query of the comparison. Sprint 2.3.6 (Avalonia, Release build, this machine): Small dump checked lag 102 to
   105 ms and longest operation at most 64 ms (the upper bound; the lower bound was 44 to 46 ms; WPF, timed exactly:
   lag 90 to 127, operation 44 to 68), Medium lag 71 ms and operation at most 69 ms; cold first shows (not checked) at
@@ -53,11 +54,15 @@ references such as "ARCHITECTURE.md 8" still name the right section.
   page keeps its snapshot panel built without a snapshot. In the WPF app a hidden panel was laid out, so templates were
   applied when the page was built; Avalonia neither measures nor templates a control with `IsVisible` false, so a hidden
   panel's templates are applied on its first show (sprint 2.3.6). The navigator's types, instances and object views are
-  built with the window; navigating swaps their data.
-- **Smoke runs measure phases**: `--smoke-open` warms up with a synthetic job and the Snapshots page shown once (logged
+  built with the window; navigating swaps their data. Since sprint 3.12 `ViewPrewarmer` pays the styles and templates at
+  idle after the first window: the Snapshots page built in place, the other pages and views built alone and dropped
+  (`Ui:Prewarm`, budgets.md).
+- **Smoke runs measure phases**: every smoke run first waits for the prewarm (its slow operations logged apart, not
+  counted). `--smoke-open` warms up with a synthetic job and the Snapshots page shown once (logged
   as a cold cost), then checks the open phase (logged on its own line), a drill-down (largest type's instances, the
   largest object, its references; the first show is logged as a cold cost, a re-sort and a second object are checked)
-  and, with `--smoke-compare`, the comparison. The checked maxima of all phases are combined for the exit code.
+  and, with `--smoke-compare`, the comparison. The checked maxima of all phases are combined for the exit code, and their
+  slow operations counted against the ceiling (`SmokePhases`, sprint 3.12).
   `--smoke-live N` (sprint 1.7) charts N made-up samples on the Live page at up to 200 a second (each a redraw of up to
   30 minutes of history, far more often than the real one a second) and checks the whole feed; it writes no timeline.
   `--smoke-trace <file>` also records a CPU trace of the run (sprint 1.5); tracing slows the UI enough that traced runs

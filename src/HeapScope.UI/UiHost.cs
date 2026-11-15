@@ -109,6 +109,7 @@ internal static class UiHost
             : new AvaloniaUserInteraction(() => sp.GetService<MainWindow>()));
         builder.Services.AddHeapScopeViewModels();
         builder.Services.AddSingleton<MainWindow>();
+        builder.Services.AddSingleton<ViewPrewarmer>();
         return builder.Build();
     }
 }

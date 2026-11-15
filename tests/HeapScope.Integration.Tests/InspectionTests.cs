@@ -44,7 +44,7 @@ public sealed class InspectionTests : IClassFixture<AllLeaksDump>, IAsyncDisposa
 
     public InspectionTests(AllLeaksDump shared)
     {
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("inspection.dmp");
         File.Copy(shared.DumpPath, _dump);
     }

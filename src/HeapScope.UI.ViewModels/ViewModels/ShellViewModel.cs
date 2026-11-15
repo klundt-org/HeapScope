@@ -52,13 +52,17 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _workerStatus = "Worker not started";
 
+    /// <summary>True while the app builds its pages in the background after start (sprint 3.12, task 4); the status bar shows it.</summary>
+    [ObservableProperty]
+    private bool _isPreparingViews;
+
     [ObservableProperty]
     private bool _isCrashBannerVisible;
 
     [ObservableProperty]
     private string? _crashMessage;
 
-    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null)
+    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null)
     {
         Exports = exports ?? new GridExportService(new AutomaticUserInteraction());
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
@@ -75,6 +79,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             new NavigationItem("Processes", processes ?? throw new ArgumentNullException(nameof(processes))),
             .. live is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Live", live)],
             new NavigationItem("Jobs", JobsPage),
+            .. settings is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Settings", settings)],
             new NavigationItem("About", about ?? throw new ArgumentNullException(nameof(about))),
         ];
         Live = live;

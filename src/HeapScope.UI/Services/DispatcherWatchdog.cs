@@ -54,6 +54,7 @@ public sealed class DispatcherWatchdog : IDisposable
     private long _maxLagTicks;
     private readonly OperationBound _operations = new();
     private long _resetTimestamp;
+    private int _slowOperations;
     private int _lagProbePending;
     private int _operationProbePending;
     private int _disposed;
@@ -82,12 +83,16 @@ public sealed class DispatcherWatchdog : IDisposable
     /// <summary>An upper bound of the longest single UI operation: the longest time from one highest-priority probe's run to the next one's.</summary>
     public TimeSpan MaxOperationBound => TimeSpan.FromSeconds((double)_operations.MaxBound / Stopwatch.Frequency);
 
-    /// <summary>Clears the maxima; probes posted before the reset do not count toward the new maximum.</summary>
+    /// <summary>UI operations over <see cref="Budget"/> since start or <see cref="Reset"/> (sprint 3.12: the smoke run's ceiling).</summary>
+    public int SlowOperations => Volatile.Read(ref _slowOperations);
+
+    /// <summary>Clears the maxima and the slow operations; probes posted before the reset do not count toward the new maximum.</summary>
     public void Reset()
     {
         var now = Stopwatch.GetTimestamp();
         Interlocked.Exchange(ref _resetTimestamp, now);
         Interlocked.Exchange(ref _maxLagTicks, 0);
+        Interlocked.Exchange(ref _slowOperations, 0);
         _operations.Reset(now);
     }
 
@@ -124,6 +129,11 @@ public sealed class DispatcherWatchdog : IDisposable
 
                     if (wait > Budget.TotalSeconds * Stopwatch.Frequency)
                     {
+                        if (posted >= Interlocked.Read(ref _resetTimestamp))
+                        {
+                            Interlocked.Increment(ref _slowOperations);
+                        }
+
                         _logger.LogWarning("A UI operation ran for at least {ElapsedMs:N0} ms", wait * 1000.0 / Stopwatch.Frequency);
                     }
                 },

@@ -94,13 +94,16 @@ public sealed partial class App : Avalonia.Application
 
             // What this run was started with (sprint 2.3.7 review H4); the log file's header names the build and system.
             startLogger.LogInformation(
-                "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}",
+                "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}; filter text in logs {FilterText} ({SettingsFile})",
                 ProductName,
                 Contracts.ProductInfo.InformationalVersion,
                 _args.Length == 0 ? "(none)" : string.Join(' ', _args),
                 Program.IsHeadless,
                 _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory,
-                _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().MinimumLevel);
+                _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().MinimumLevel,
+                Application.Settings.SettingsService.FilterTextInLogs ? "on" : "off",
+                Application.Settings.SettingsService.SettingsFileFollowed);
+
             RequestedThemeVariant = ThemeChooser.Choose(_host.Services.GetService<IConfiguration>()?["Ui:Theme"]);
             await _host.StartAsync();
 
@@ -118,6 +121,12 @@ public sealed partial class App : Avalonia.Application
             }
 
             window.Show();
+
+            // Builds the pages at idle priority, so after the first window renders (sprint 3.12, task 4); never faults. A close
+            // stops it at once, not after the host's stop (the review's M12: it went on against a disposed shell).
+            _prewarmStop = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
+            window.Closing += (_, _) => _prewarmStop.Cancel();
+            _ = _host.Services.GetRequiredService<ViewPrewarmer>().RunAsync(window, _prewarmStop.Token);
 
             var options = _host.Services.GetRequiredService<UiOptions>();
             if (options.ScreenshotFolder is { } screenshots)
@@ -157,6 +166,9 @@ public sealed partial class App : Avalonia.Application
     }
 
     private const string ProductName = "HeapScope";
+
+    // Stops the background build of the pages when the window closes (sprint 3.12 review M12).
+    private CancellationTokenSource? _prewarmStop;
 
     /// <summary>Logs the cold start cost: process start to the first frame of the main window (backlog: UI cold start).</summary>
     private static void LogFirstWindow(IServiceProvider services)

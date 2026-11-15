@@ -43,6 +43,7 @@ internal static class Program
     public static int Main(string[] args)
     {
         var headless = IsHeadless = args.Contains(HeadlessSwitch, StringComparer.OrdinalIgnoreCase);
+
         var appArgs = args.Where(a => !string.Equals(a, HeadlessSwitch, StringComparison.OrdinalIgnoreCase)).ToArray();
         try
         {

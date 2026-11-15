@@ -1,0 +1,52 @@
+<!--
+  HeapScope
+  Copyright (C) 2026 Ray Klundt
+  https://github.com/rklundt/HeapScope
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, version 3 only, with additional terms
+  under Section 7 of that license.
+
+  Additional terms, including attribution requirements, apply.
+  See the ADDITIONAL-TERMS.md file distributed with this program.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program (see the LICENSE file). If not, see
+  <https://www.gnu.org/licenses/>.
+
+  Commercial licenses are available. See COMMERCIAL.md.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:HeapScope.UI.Controls"
+             xmlns:vm="using:HeapScope.UI.ViewModels"
+             x:Class="HeapScope.UI.Views.Pages.SettingsPage"
+             x:DataType="vm:SettingsViewModel">
+  <ScrollViewer>
+  <StackPanel Margin="4">
+    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,12">
+      <TextBlock Classes="pageTitle" Text="Settings" VerticalAlignment="Center" />
+      <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Settings}" />
+    </StackPanel>
+    <!-- Sprint 3.12, B1: the Logging section; the texts are the owner's (docs/design/info-text.md, Sprint 3.12 additions). -->
+    <TextBlock Text="Logging" FontWeight="SemiBold" Margin="0,0,0,6" />
+    <CheckBox Content="Include filter text in logs" IsChecked="{Binding IncludeFilterTextInLogs}"
+              ToolTip.Tip="Write the text you type in filters and searches into HeapScope's logs, to help troubleshoot a result. It can hold values from your dumps (account numbers, tokens), so turn it off before you share a log." />
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+      <Button Content="Purge logs" Command="{Binding PurgeLogsCommand}"
+              ToolTip.Tip="Delete HeapScope's log files. Logs that running HeapScope processes write now are kept until they close." />
+      <Button Content="Purge all" Command="{Binding PurgeAllCommand}"
+              ToolTip.Tip="Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched." />
+    </StackPanel>
+    <SelectableTextBlock Margin="0,8,0,0" Text="{Binding LogFolder, StringFormat='Logs: {0}'}" TextWrapping="Wrap" Classes="subtle" />
+    <SelectableTextBlock Margin="0,8,0,0" Text="{Binding Status}" TextWrapping="Wrap"
+                         IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+  </ScrollViewer>
+</UserControl>

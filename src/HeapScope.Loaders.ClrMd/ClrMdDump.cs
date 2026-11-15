@@ -43,6 +43,10 @@ internal static class ClrMdDump
         {
             targetOptions.FileLocator = LocalOnlyFileLocator.Instance;
         }
+        else if (options.SymbolServerLocatorForTests is { } locator)
+        {
+            targetOptions.FileLocator = locator;
+        }
 
         try
         {
@@ -93,6 +97,9 @@ internal static class ClrMdDump
             throw new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request));
         }
 
+        // The download comes first, apart from creating the runtime (sprint 3.12 review of task 9): a DAC the symbol server
+        // did not give is missing, while one it gave that then fails to load points at the dump, as a local one would.
+        path ??= Download(clr, platform, request, fileName);
         choice = new DacChoice(dumpPath, path, rule ?? "downloaded from Microsoft's symbol server", looked);
 
         try
@@ -100,8 +107,7 @@ internal static class ClrMdDump
             // A DAC matched by build id is the exact build (its own id, or its runtime's with the pair checked), which is
             // stronger than ClrMD's version check; that check is skipped then, since ClrMD reads a core file's runtime
             // version as 0.0 at times (sprint 2.3.5, the Linux CI run).
-            var runtime = path is null ? clr.CreateRuntime()
-                : clr.CreateRuntime(path, ignoreMismatch: request.BuildId is { Length: > 0 });
+            var runtime = clr.CreateRuntime(path, ignoreMismatch: request.BuildId is { Length: > 0 });
             options.DacChosen?.Invoke(choice);
             return runtime;
         }
@@ -115,30 +121,104 @@ internal static class ClrMdDump
     }
 
     /// <summary>
-    /// Checks, without loading anything, that the DAC this dump's runtime needs may be loaded (sprint 3.6 review H1): a
-    /// dump opened from its index cache loads no DAC at open, but its field reader will later, and only the open can ask
-    /// the user to trust a DAC found next to the dump.
+    /// Why the DAC this dump's runtime needs cannot be loaded now, found without loading anything, or null when it can. A
+    /// dump opened from its index cache loads no DAC at open, but its field reader will later (sprint 3.6 review H1), so
+    /// the open says first: a DAC that needs trust (the app asks), and since sprint 3.12 a missing one, so value reads are
+    /// refused from the start instead of failing one by one.
     /// </summary>
-    /// <exception cref="UntrustedDacException">The only matching DAC lies next to the dump and is not trusted.</exception>
-    public static void CheckDacTrust(string dumpPath, ClrMdLoaderOptions options)
+    /// <returns>
+    /// An <see cref="UntrustedDacException"/> (the only matching DAC lies next to the dump, untrusted), a
+    /// <see cref="RuntimeComponentMissingException"/> (no matching DAC here and no download allowed, or a dump of another
+    /// system), or null: a DAC is found, the symbol server may still give one, or the dump cannot be read here, which the
+    /// reader reports when it is used.
+    /// </returns>
+    public static Exception? CheckDac(string dumpPath, ClrMdLoaderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         try
         {
             using var target = OpenDataTarget(dumpPath, options);
-            var platform = CurrentPlatform();
-            if (target.ClrVersions.Length > 0
-                && DacLocator.Mismatch(target.DataReader.TargetPlatform, target.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.AllowMicrosoftSymbolServer) is null)
+            if (target.ClrVersions.Length == 0)
             {
-                _ = ResolveDac(target.ClrVersions[0], dumpPath, options, platform, out _, out _, out _, out _);
+                return null;
             }
+
+            var platform = CurrentPlatform();
+            if (DacLocator.Mismatch(target.DataReader.TargetPlatform, target.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.AllowMicrosoftSymbolServer) is { } mismatch)
+            {
+                return new RuntimeComponentMissingException(mismatch);
+            }
+
+            var path = ResolveDac(target.ClrVersions[0], dumpPath, options, platform, out var request, out var fileName, out var looked, out _);
+            return path is null && !options.AllowMicrosoftSymbolServer
+                ? new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request))
+                : null;
         }
-        catch (Exception ex) when (ex is not UntrustedDacException and not OperationCanceledException)
+        catch (Exception ex) when (ex is UntrustedDacException or RuntimeComponentMissingException)
         {
-            // Only a DAC that needs trust stops a cache open (sprint 3.6 re-review): a missing or unreadable DAC, or a
-            // dump ClrMD cannot open, is reported by the field reader when it is used, as before.
+            return ex;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A dump ClrMD cannot open here is reported by the field reader when it is used, as before (sprint 3.6 re-review).
+            return null;
         }
     }
+
+    /// <summary>As <see cref="CheckDac"/>, refusing only a DAC that needs trust: the question the app asks before a cache open.</summary>
+    /// <exception cref="UntrustedDacException">The only matching DAC lies next to the dump and is not trusted.</exception>
+    public static void CheckDacTrust(string dumpPath, ClrMdLoaderOptions options)
+    {
+        if (CheckDac(dumpPath, options) is UntrustedDacException untrusted)
+        {
+            throw untrusted;
+        }
+    }
+
+    /// <summary>
+    /// The DAC Microsoft's symbol server gives for <paramref name="clr"/>, through the dump's file locator (ClrMD's own, which
+    /// downloads, when <see cref="ClrMdLoaderOptions.AllowMicrosoftSymbolServer"/> is on), looked up as ClrMD's own runtime
+    /// creation does: the DACs of this system and architecture, by time stamp and size, or by the build id of the binary they
+    /// are archived under, whose platform is the dump's (a Linux dump's Windows DAC is archived under its Linux runtime).
+    /// </summary>
+    /// <exception cref="RuntimeComponentMissingException">The server gave none, or could not be reached.</exception>
+    private static string Download(ClrInfo clr, OSPlatform platform, DacRequest request, string fileName)
+    {
+        try
+        {
+            var locator = clr.DataTarget.FileLocator;
+            var dumpPlatform = clr.DataTarget.DataReader.TargetPlatform;
+            var architecture = RuntimeInformation.ProcessArchitecture;
+            foreach (var dac in clr.DebuggingLibraries.Where(d => d.Kind == DebugLibraryKind.Dac && d.Platform == platform && d.TargetArchitecture == architecture))
+            {
+                var found = dac.IndexBuildId.IsDefaultOrEmpty
+                    ? locator?.FindPEImage(dac.FileName, dac.IndexTimeStamp, dac.IndexFileSize, checkProperties: false)
+                    : locator?.FindPEImage(dac.FileName, dac.ArchivedUnder, dac.IndexBuildId, dumpPlatform, checkProperties: false);
+                if (found is not null)
+                {
+                    return found;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // A timeout can surface as a canceled task: a failed download, not the user's cancel. A real cancel is the
+            // caller's to see: the opener checks its token before it treats this as a missing DAC.
+            throw NotDownloaded(request, fileName, ex.Message, ex);
+        }
+
+        throw NotDownloaded(request, fileName, "the server has no matching file, or the dump does not identify one", null);
+    }
+
+    // No local DAC, and the symbol server gave none (sprint 3.12, the 3.10 review M29): the DAC is missing, not the dump
+    // damaged, so an older index cache can still open in place of the rebuild.
+    private static RuntimeComponentMissingException NotDownloaded(DacRequest request, string fileName, string why, Exception? inner) =>
+        new(
+            request.RuntimeVersion,
+            fileName,
+            $"The .NET {request.RuntimeVersion} runtime's DAC ({fileName}) was not found locally and was not downloaded from Microsoft's symbol server: {why.TrimEnd('.')}. "
+            + "Check the network, or install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line).",
+            inner);
 
     /// <summary>
     /// The DAC to load for <paramref name="clr"/>, or null when none is found locally: trusted folders first, then the

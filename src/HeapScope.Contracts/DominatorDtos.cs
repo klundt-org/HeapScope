@@ -143,6 +143,18 @@ public static class DominatorTreeColumns
 
     /// <summary>1 when the row is expanded in this answer.</summary>
     public const string Expanded = "Expanded";
+
+    /// <summary>
+    /// Whether the row's <see cref="Retained"/> is <see cref="RetainedExact"/> (an object) or <see cref="RetainedAtLeast"/> (a group
+    /// or a "more" row, its members' sizes added up; sprint 3.12, M6 of the 3.11 review). Exported with the rows.
+    /// </summary>
+    public const string RetainedIs = "Retained is";
+
+    /// <summary>A <see cref="RetainedIs"/> value.</summary>
+    public const string RetainedExact = "exact";
+
+    /// <summary>A <see cref="RetainedIs"/> value.</summary>
+    public const string RetainedAtLeast = "at least";
 }
 
 /// <summary>

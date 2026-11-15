@@ -60,7 +60,7 @@ The [README](../README.md) shows what HeapScope does. This guide covers how each
   those on screen. String text, field values and command lines are left out unless you say yes for that export.
 - **Jobs.** Long work shows a progress row above the status line while it runs, with Cancel. Finished jobs move to the
   Jobs page; the status line says how many finished and how many failed, and a click on it opens the page.
-- **Keyboard.** F1 lists every shortcut on the About page: Ctrl+1 to 7 (Cmd on macOS) for the pages, Alt+1 to 4 for the Snapshots
+- **Keyboard.** F1 lists every shortcut on the About page: Ctrl+1 to 8 (Cmd on macOS) for the pages, Alt+1 to 4 for the Snapshots
   tabs, Ctrl+F for the filter, Ctrl+L for the analysis path, F5 to refresh.
 - **Appearance.** HeapScope follows your system's light or dark theme, and changes with it while it runs. To choose one,
   start the app with `--Ui:Theme Light` or `--Ui:Theme Dark`.
@@ -68,9 +68,12 @@ The [README](../README.md) shows what HeapScope does. This guide covers how each
 ## Logs and getting help
 
 HeapScope writes a log file per run, which records the versions, the snapshots opened and why each result was produced
-(never values from a dump): `%LOCALAPPDATA%\HeapScope\logs` on Windows, `~/.local/share/HeapScope/logs` on Linux and
+(never field values or strings read from a dump; the text you type in filters, unless you turn that off with Include filter
+text in logs on the Settings page or `heapscope-cli settings --filter-text-in-logs off`): `%LOCALAPPDATA%\HeapScope\logs` on Windows, `~/.local/share/HeapScope/logs` on Linux and
 `~/Library/Application Support/HeapScope/logs` on macOS (under the folder `HEAPSCOPE_DATA_FOLDER` names, when set).
 The About page shows the folder and copies the version details for a support request. For more detail in one run,
 start the app with `--Logging:File:MinimumLevel Debug`, or set the environment variable
 `Logging__File__MinimumLevel=Debug` (the CLI reads settings from the environment, not from its arguments). Logs are kept
-14 days. They hold file paths and type names, so share them only with someone you trust.
+14 days. They hold file paths and type names, so share them only with someone you trust. Purge logs on the Settings page
+(or `heapscope-cli purge logs`) deletes them, but the ones running HeapScope processes write; Purge all deletes the logs,
+every session of the library and the bookmarks, never a dump you opened from your own folders.

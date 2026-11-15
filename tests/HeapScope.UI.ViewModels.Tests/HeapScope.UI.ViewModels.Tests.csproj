@@ -7,4 +7,8 @@
     <Compile Include="..\HeapScope.Application.Tests\RecordingLogger.cs" Link="Shared\RecordingLogger.cs" />
     <Compile Include="..\HeapScope.Application.Tests\RecordingLoggerOfT.cs" Link="Shared\RecordingLoggerOfT.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The one way tests make a SnapshotSession (sprint 3.12). -->
+    <Compile Include="..\SharedSession\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

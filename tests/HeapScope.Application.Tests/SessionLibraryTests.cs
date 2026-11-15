@@ -570,6 +570,38 @@ public sealed class SessionLibraryTests : IDisposable
         JsonNode.Parse(File.ReadAllText(path))!["FutureField"]!.GetValue<string>().ShouldBe("kept");
     }
 
+    // Sprint 3.12 (B4): one entry with a snapshot kind a newer build added made the whole session unreadable to this one.
+    [Fact]
+    public void Entries_with_a_value_a_newer_build_added_are_kept_and_saved_back_unchanged()
+    {
+        var log = new RecordingLogger<SessionLibrary>();
+        var library = new SessionLibrary(_root, _time, log);
+        var folder = library.Current.Folder;
+        library.AddToCurrent(Snapshot(Path.Combine(folder, "a.dmp")));
+        var path = Path.Combine(folder, SessionLibrary.DocumentName);
+        var json = JsonNode.Parse(File.ReadAllText(path))!;
+        var future = json["Snapshots"]![0]!.DeepClone();
+        future["File"] = "future.snap";
+        future["Kind"] = "LiveCapture";
+        json["Snapshots"]!.AsArray().Add(future);
+        json["Runs"] = new JsonArray(new JsonObject { ["Id"] = Guid.NewGuid().ToString(), ["CaptureKind"] = "LiveCapture" });
+        File.WriteAllText(path, json.ToJsonString());
+
+        var read = library.Open(Path.GetFileName(folder)).ShouldNotBeNull();
+        read.Document.Snapshots.Select(s => s.File).ShouldBe(["a.dmp"], "this build shows what it can read");
+        library.AddToCurrent(Snapshot(Path.Combine(folder, "b.dmp")));
+
+        var saved = JsonNode.Parse(File.ReadAllText(path))!;
+        saved["Snapshots"]!.AsArray().Select(s => s!["File"]!.GetValue<string>()).ShouldBe(["a.dmp", "b.dmp", "future.snap"]);
+        saved["Snapshots"]![2]!["Kind"]!.GetValue<string>().ShouldBe("LiveCapture");
+        saved["Runs"]!.AsArray().ShouldHaveSingleItem()!["CaptureKind"]!.GetValue<string>().ShouldBe("LiveCapture");
+
+        // The review's M18: the log says which entries are not shown and why, once per session.
+        log.Lines.Count(l => l.Contains("entries kept as they are and not shown", StringComparison.Ordinal)).ShouldBe(1);
+        log.Lines.ShouldContain(l => l.Contains("2 entries kept as they are and not shown", StringComparison.Ordinal)
+            && l.Contains("Snapshots: Kind=LiveCapture", StringComparison.Ordinal) && l.Contains("Runs: CaptureKind=LiveCapture", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Opening_a_session_makes_it_current()
     {

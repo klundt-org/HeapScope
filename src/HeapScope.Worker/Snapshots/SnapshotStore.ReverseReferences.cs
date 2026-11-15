@@ -107,10 +107,4 @@ internal sealed partial class SnapshotStore
             peakCommit / (1024 * 1024));
         return index;
     }
-
-    /// <summary>Where a snapshot's index cache is and what it is; optional indices name it (sprint 2.1).</summary>
-    /// <param name="CachePath">The index cache the snapshot was opened from or wrote; null when none was written.</param>
-    /// <param name="Identity">The cache's identity; 0 when none was written.</param>
-    /// <param name="Forced">The memory mode the open request forced, if any; optional indices follow it too.</param>
-    private sealed record IndexState(string? CachePath, ulong Identity, SnapshotFingerprint Fingerprint, MemoryMode Mode, MemoryMode? Forced);
 }

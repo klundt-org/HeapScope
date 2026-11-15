@@ -33,7 +33,8 @@ namespace HeapScope.Worker.Tests;
 
 /// <summary>
 /// Every answer of the worker leaves one line saying what was asked and what was answered (sprint 2.3.7 review H3, M2),
-/// with names and numbers only: field values, string contents and filter text never reach the log (ARCHITECTURE.md 12).
+/// with names and numbers only: field values and string contents never reach the log (ARCHITECTURE.md 12), and filter text
+/// only while the user allows it (sprint 3.12, B1).
 /// </summary>
 public sealed class ProvenanceLogTests
 {
@@ -51,9 +52,9 @@ public sealed class ProvenanceLogTests
         var line = logger.Lines.ShouldHaveSingleItem();
         line.ShouldStartWith("QueryInstancesAsync answered in ");
         line.ShouldContain("SnapshotId=11111111-2222-3333-4444-555555555555");
-        line.ShouldContain("TypeName=App.Order, Module=App.dll, Filter=(15 chars; 1 terms, 0 excluding, 0 on the module)");
+        line.ShouldContain("TypeName=App.Order, Module=App.dll, Filter=");
+        line.ShouldContain("(15 chars; 1 terms, 0 excluding, 0 on the module)");
         line.ShouldContain("TotalObjects=10, TotalBytes=400");
-        line.ShouldNotContain("secret");
     }
 
     [Fact]
@@ -101,14 +102,22 @@ public sealed class ProvenanceLogTests
     }
 
     [Fact]
-    public void A_filter_is_logged_by_its_shape_never_its_text()
+    public void A_filter_is_logged_with_its_text_and_shape_or_by_its_shape_only_when_the_user_turned_the_text_off()
     {
-        // 2.7 review: an exclusion or a module term explains a missing row.
-        var line = Provenance.Describe(new TypeSummaryRequest(s_snapshot, Filter: "order -secret m:App.dll"));
+        // 2.7 review: an exclusion or a module term explains a missing row. Sprint 3.12 (B1, owner 2026-11-12): its text too,
+        // quoted on one line, unless the Settings page turned that off.
+        var request = new TypeSummaryRequest(s_snapshot, Filter: "order -secret m:App.dll");
 
-        line.ShouldContain("Filter=(23 chars; 1 terms, 1 excluding, 1 on the module)");
-        line.ShouldNotContain("secret");
-        line.ShouldNotContain("order");
+        var with = Provenance.Describe(request, includeFilterText: true);
+        var without = Provenance.Describe(request, includeFilterText: false);
+        var quoted = Provenance.Describe(new TypeSummaryRequest(s_snapshot, Filter: "a \"b\"\nc"), includeFilterText: true);
+
+        with.ShouldContain("Filter=\"order -secret m:App.dll\" (23 chars; 1 terms, 1 excluding, 1 on the module)");
+        quoted.ShouldContain("Filter=\"a \\\"b\\\"\\nc\" (", customMessage: "quoted and escaped, on one line");
+        quoted.ShouldNotContain("\n");
+        without.ShouldContain("Filter=(23 chars; 1 terms, 1 excluding, 1 on the module)");
+        without.ShouldNotContain("secret");
+        without.ShouldNotContain("order");
     }
 
     [Fact]
@@ -171,8 +180,55 @@ public sealed class ProvenanceLogTests
     {
         var logger = new RecordingLogger();
 
-        await Should.ThrowAsync<InvalidOperationException>(() => WorkerErrors.GuardAsync<int>(() => throw new InvalidOperationException("broken"), logger, "QueryTypeSummaryAsync"));
+        await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new InvalidOperationException("broken"), logger, "QueryTypeSummaryAsync"));
 
         logger.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Error);
+    }
+
+    // Sprint 3.12 (B5, the owner's wording of 2026-11-14): the user sees the fixed message with the id that finds the logged
+    // stack, never the exception's own text; a bug's ArgumentException is unexpected too, a refusal is not.
+    [Fact]
+    public async Task An_unexpected_failure_shows_the_fixed_message_with_the_id_of_its_log_line()
+    {
+        var logger = new RecordingLogger();
+
+        var shown = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new ArgumentOutOfRangeException("index", "Index was out of range."), logger, "QueryTypeSummaryAsync"));
+
+        shown.ErrorCode.ShouldBe((int)HeapScopeErrorCode.Unknown);
+        shown.Message.ShouldStartWith("The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: ");
+        shown.Message.ShouldNotContain("Index was out of range");
+        var id = shown.Message[(shown.Message.LastIndexOf(' ') + 1)..^1];
+        var line = logger.Lines.ShouldHaveSingleItem();
+        line.ShouldContain("failed unexpectedly (id " + id + ")");
+        logger.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Error);
+
+        var refused = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new HeapScope.Core.RequestRefusedException("Unknown sort column Size."), logger, "QueryTypeSummaryAsync"));
+        (refused.ErrorCode, refused.Message).ShouldBe(((int)HeapScopeErrorCode.InvalidArgument, "Unknown sort column Size."));
+    }
+
+    // Sprint 3.12 review M17: the control methods run through the guard too, so their failures are logged like any other.
+    [Fact]
+    public async Task A_control_method_that_fails_is_logged_through_the_guard()
+    {
+        var logger = new RecordingLogger<HeapScope.Worker.Rpc.ControlHandler>();
+        var control = new HeapScope.Worker.Rpc.ControlHandler(new WorkerOptions("unused", null), new ResultSetStore(), new Lifetime(), logger);
+
+        var error = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => control.GetInfoAsync(WorkerProtocol.Version - 1, TestContext.Current.CancellationToken));
+
+        error.ErrorCode.ShouldBe((int)HeapScopeErrorCode.ProtocolMismatch);
+        logger.Lines.ShouldHaveSingleItem().ShouldStartWith("GetInfoAsync refused (ProtocolMismatch): ");
+    }
+
+    private sealed class Lifetime : Microsoft.Extensions.Hosting.IHostApplicationLifetime
+    {
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void StopApplication()
+        {
+        }
     }
 }

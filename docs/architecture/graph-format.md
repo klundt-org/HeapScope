@@ -58,7 +58,8 @@ Supporting tables:
   paths prefer a `StaticField` root over the storage handle, so they say `s_cache` and not
   `StrongHandle -> Object[]`. Statics of collectible types (unloadable `AssemblyLoadContext`) live as long as their
   loader allocator, so their `StaticField` roots are recorded without `Retaining`; the runtime's own references keep
-  them alive while the context is alive (a collectible fixture is a backlog item).
+  them alive while the context is alive, among them each collectible object's edge to its LoaderAllocator, which the loader
+  adds (sprint 3.12; the RuntimeKinds fixture has objects of a pointer-free collectible type).
 - **Frozen objects.** Objects in frozen (NonGC) segments, such as string literals and `RuntimeType` objects, are never
   collected. They have no root; reachability, dominator and garbage analyses (2.x) treat every `HeapKind.Frozen`
   object as alive (a virtual root), so a literal referenced by nothing live is not reported as garbage.
@@ -122,9 +123,23 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
 - ClrMD reads the dump through its lock-free memory-mapped reader (`DataTargetOptions.UseLockFreeMemoryMapReader`):
   dump pages are file-backed, not private memory, and the walk is about twice as fast as the default cached reader
   (Medium: 15.8 s and 2.4 GB peak, against 36.6 s and 4.2 GB). ClrMD's data cache stays capped at 512 MB.
-- Object pass per segment (`ClrSegment.EnumerateObjects`): the heap kind comes from the segment kind, or from
-  `GetGeneration` on ephemeral and region segments; types are interned by method table on first sight;
-  `HasFinalizer` is `EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`.
+- Object pass per segment, segments in address order (since sprint 3.12, R4 and task 8): the loader reads each object's
+  method table from the dump (the header word, its low two bits masked) and maps it through a table filled once per method
+  table (`ClrHeap.GetObjectType`), so ClrMD's type factory runs once per type; the size is the type's base size plus the
+  component count (read as a `uint` at one pointer) times the component size, strings counting their terminator, at least
+  three pointers, aligned to a pointer (8 bytes on large and pinned segments); allocation contexts are skipped to their
+  end plus a minimum object. An object whose method table maps to no type hands the rest of its segment to ClrMD's own
+  `EnumerateObjects`, which counts unreadable objects as before. The heap kind comes from the segment kind, or from
+  `GetGeneration` on ephemeral and region segments. Objects arrive sorted, so `HasFinalizer` merges the sorted finalizable
+  list (`EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`) with one cursor. A length that runs past its
+  segment counts as unreadable and marks the segment incomplete (the review's M8). The proof that it builds ClrMD's graph:
+  `LoaderKnownAnswerTests` compare every object's address, type, size and finalizer flag with ClrMD's walk, and a walk
+  handed to ClrMD in mid-segment (a test hook) builds the same graph (Windows CI); `WalkComparisonTests` compare every object on
+  each CI system's own fixture dump, a Linux core dump included; `load-dump`'s graph hash was equal
+  before and after on the fixture and the Medium dump (budgets.md). ADR-010 records the layout it assumes.
+- References: ClrMD's, read with the type known from the object pass, none for a type without pointers; an object of a
+  collectible type also references its type's LoaderAllocator, as the GC marks it, which ClrMD does not yield (the review's
+  H3; the RuntimeKinds fixture has such objects).
 - After `FreezeObjects` the loader runs one aggressive, compacting collection: the phase-one chunks (about 20 bytes
   per object) are garbage then, and otherwise stay committed through the reference pass, which is where a load peaks.
 - Dependent handles become edges before the reference pass; weak handles become non-retaining `WeakHandle` roots.
@@ -355,7 +370,7 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
   blocking, compacting gen2 collection with `GCLargeObjectHeapCompactionMode.CompactOnce`, so the memory really
   returns to the OS. Measured in 1.2 (`load-dump`, Medium): 0.5 s, private bytes down to 59 MB after the drop and
   66 MB with the graph mapped.
-- The worker's `SnapshotStore` applies this policy: a valid index cache is opened in the mode the budget chooses;
+- The worker's `SnapshotOpener` (moved out of `SnapshotStore` in sprint 3.12, R1) applies this policy: a valid index cache is opened in the mode the budget chooses;
   otherwise the dump is loaded, the cache written, and the graph either kept in memory or switched to mapped. After a
   load, the mode is chosen once the load's garbage is collected, counting the graph's own memory as available (it
   would be freed by going mapped), so a first load and a later reopen decide the same way. The clean-up collection

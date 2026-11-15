@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -43,6 +45,7 @@ public static class RuntimeFixtures
     private static readonly List<PohHolder> s_poh = [];
     private static readonly List<LohHolder> s_loh = [];
     private static readonly List<GCHandle> s_pinnedHandles = [];
+    private static readonly List<object> s_collectible = [];
     private static readonly ManualResetEventSlim s_parked = new(false);
     private static string s_literal = string.Empty;
     private static Thread? s_localThread;
@@ -64,12 +67,37 @@ public static class RuntimeFixtures
             s_pinnedHandles.Add(GCHandle.Alloc(new PinnedPoint[4], GCHandleType.Pinned));
         }
 
+        s_collectible.AddRange(CollectibleCounters(count));
         s_literal = FrozenLiteral;
         s_localThread = StartParked(ParkWithLocal, "HeapScope fixture local root");
         s_interiorThread = StartParked(ParkWithInteriorPointer, "HeapScope fixture interior root");
     }
 
     public static string Literal => s_literal;
+
+    /// <summary>The name of the collectible type below.</summary>
+    public const string CollectibleTypeName = "Fixtures.Collectible.Counter";
+
+    /// <summary>
+    /// Instances of a type without reference fields from a collectible assembly (sprint 3.12 review H3): the GC keeps the
+    /// assembly's LoaderAllocator alive through each of them, so a heap graph must have that edge although the type has no
+    /// pointers.
+    /// </summary>
+    private static List<object> CollectibleCounters(int count)
+    {
+        var assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("Fixtures.Collectible"), AssemblyBuilderAccess.RunAndCollect);
+        var builder = assembly.DefineDynamicModule("Fixtures.Collectible")
+            .DefineType(CollectibleTypeName, TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class);
+        builder.DefineField("Value", typeof(long), FieldAttributes.Public);
+        var type = builder.CreateType();
+        var result = new List<object>(count);
+        for (var i = 0; i < count; i++)
+        {
+            result.Add(Activator.CreateInstance(type)!);
+        }
+
+        return result;
+    }
 
     private static Thread StartParked(Action<ManualResetEventSlim> park, string name)
     {

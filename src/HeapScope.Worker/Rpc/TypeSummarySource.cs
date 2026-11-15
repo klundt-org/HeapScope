@@ -24,6 +24,7 @@
 using System.Globalization;
 using HeapScope.Analysis;
 using HeapScope.Contracts;
+using HeapScope.Core;
 using HeapScope.Core.Graph;
 
 namespace HeapScope.Worker.Rpc;
@@ -99,7 +100,7 @@ internal sealed class TypeSummarySource : IResultSource
         ArgumentNullException.ThrowIfNull(request);
         if (!Enum.IsDefined(request.GroupBy))
         {
-            throw new ArgumentOutOfRangeException(nameof(request), $"Unknown grouping {(int)request.GroupBy}.");
+            throw new RequestRefusedException($"Unknown grouping {(int)request.GroupBy}.");
         }
 
         Sort(generations, request.GroupBy == TypeGrouping.Type, request.IncludeRetained).Validate(request.SortColumn ?? TypeSummaryColumns.Bytes);
@@ -116,7 +117,7 @@ internal sealed class TypeSummarySource : IResultSource
         ArgumentNullException.ThrowIfNull(request);
         if (!Enum.IsDefined(request.GroupBy))
         {
-            throw new ArgumentOutOfRangeException(nameof(request), $"Unknown grouping {(int)request.GroupBy}.");
+            throw new RequestRefusedException($"Unknown grouping {(int)request.GroupBy}.");
         }
 
         var byType = request.GroupBy == TypeGrouping.Type;

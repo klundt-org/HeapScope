@@ -52,6 +52,14 @@ public sealed class RuntimeComponentMissingException : Exception
         Searched = searched;
     }
 
+    /// <summary>A DAC not found locally that the symbol server did not give either (sprint 3.12): why, and what to do.</summary>
+    public RuntimeComponentMissingException(string runtimeVersion, string fileName, string message, Exception? innerException)
+        : base(message, innerException)
+    {
+        RuntimeVersion = runtimeVersion;
+        FileName = fileName;
+    }
+
     public string? RuntimeVersion { get; }
 
     public string? FileName { get; }

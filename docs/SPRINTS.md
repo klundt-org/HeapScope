@@ -3,7 +3,7 @@
 Phases: **0.x** architecture, framework and skeleton; **1.x** quick wins; **2.x** heavy hitters; **3.x** depth to
 match dotMemory (planned 2026-10-28); **Phase 4 candidates** what Phase 3 leaves out; the Backlog ([BACKLOG.md](BACKLOG.md)) everything else. Closed sprints are
 in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-1.md),
-[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 and 3.10](sprints/phase-3.md).
+[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 to 3.12](sprints/phase-3.md).
 
 ## Status
 
@@ -45,7 +45,8 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.9 | Packaging and distribution | Closed | 2026-11-01 | sprint-3.9 |
 | 3.10 | Visual design and README | Closed | 2026-11-05 | sprint-3.10 |
 | 3.11 | Screens that explain themselves | Closed | 2026-11-10 | sprint-3.11 |
-| 3.12 | First-show performance and refactor analysis | Planned | | |
+| 3.12 | First-show performance and refactor analysis | Closed | 2026-11-15 | sprint-3.12 |
+| 3.13 | Tutorial | Planned | | |
 
 ---
 
@@ -68,24 +69,40 @@ Closed 2026-11-05; its section is in [sprints/phase-3.md](sprints/phase-3.md) an
 Closed 2026-11-10; its section is in [sprints/phase-3.md](sprints/phase-3.md) and its review in
 [reviews/sprint-3.11.md](reviews/sprint-3.11.md). ADR-040 records the info icons, and ADR-032 the match of pinned objects.
 
-## Sprint 3.12: First-show performance and refactor analysis
+## Sprint 3.13: Tutorial
 
-**Goal**: know why pages hitch the first time they open, and what in the code is worth refactoring, before Phase 4 adds to both.
+**Goal**: a user can start a sample process of HeapScope's own from the app, choose what it does, look at it with every view
+(capture, Live, allocations, Compare, Trend, inspections) and stop it, without a process of their own or elevation.
 
-**Background**: the product owner asked for this on 2026-11-05, from the 3.10 review. M16: cold first shows over 100 ms went from 3 to 7 per
-run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 ms and the cause only inferred.
+**Background**: the product owner asked for this on 2026-11-10, after trouble finding a process whose allocations could be
+recorded. The test fixtures already do most of it (LeakyConsole's leaks, detector and waste patterns, its parent watch;
+LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once and then idles, so a trace of it is empty.
 
 **Scope, to settle at /start-sprint**:
-- Trace a cold first show (`--smoke-trace`, with JIT events), attribute the blips, and fix what the trace supports. Consider a ceiling
-  on logged first shows, and a run on a Medium dump, not only the demo dumps.
-- A refactor analysis of the codebase: what to change, why and at what cost, as a ranked list the owner decides on. It proposes; any
-  refactor it leads to is the owner's call. It includes `PlatformHints` (3.10 review M36).
-- To consider pulling in: the Backlog's slower first load (the object pass), and the tests that fail only under full load.
-- The older cache fallback, moved from 3.10 by the product owner (2026-11-05; 3.10 review M14, M29 to M31, M37). After a loader update,
-  a dump whose DAC is gone or not trusted cannot rebuild its cache, so it does not open. Open the older cache instead, with a note. It must
-  cover every way a rebuild can lack the DAC (a symbol server failure, an untrusted DAC after a "no"), set the oldest loader version it accepts,
-  free the first read's memory before the second, and say which views are refused without a DAC. Its first version caused most of the
-  findings on 3.10's Moderate fixes, so review it as a feature.
+- Ship one sample app in every package, started as the user, never elevated, signed and licensed like the rest. Framework
+  dependent (small, needs the .NET runtime) or self-contained (larger packages): decide with a measured size.
+- The user picks one or more scenarios: the five classic leaks (static cache, event handler, closure, undisposed list,
+  unbounded dictionary), the detector leaks (timer, disposed but referenced, pending async, finalizer backlog), waste and
+  inspection patterns, and steady allocation from known call sites. Scenarios that cannot run together (finalizer backlog
+  and waste) are refused with the reason.
+- A mode that keeps allocating and keeps growing, so Live, an allocation trace, Compare and Trend all show something.
+- Start and stop from the UI (likely the Processes page), the sample's row marked as such; it stops when HeapScope exits or
+  crashes (the parent watch), and never more than a few run at once.
+- Perhaps `heapscope-cli sample start|stop`, so the README can walk through a demo.
+- A "try it" walkthrough in the User Guide, scenario by scenario, saying what each view should show; the known answers of
+  each scenario hold the walkthrough to the truth.
+- How the sample is built and tested apart from the fixtures (shared code, or the fixtures built from it), and an ADR.
+- The hands-on tutorial (product owner, 2026-11-14; the Backlog's "phase 3.5 candidate", the same feature from the other side):
+  a Learn item low on the left navigation whose lessons walk the user through finding and diagnosing each planted problem with
+  the app's own pages, generated by the sample by default; each lesson checks the answer against what the sample planted, as
+  the fixtures' known answers do. Its texts go through info-text.md.
+- Built to grow (product owner, 2026-11-15): Phase 4 adds features, and each must be able to add its scenario and its lesson
+  as it is built, without reworking the tutorial. So scenarios and lessons are catalogs, as inspections are
+  (`InspectionCatalog`): a scenario is one entry in the sample (what it plants, its known answer, what it cannot run with), a
+  lesson one entry in the app (the page it starts on, its steps, the check of the answer), each with a test that the catalog
+  covers it, and a version so a session can say which ones it ran. The sample and the lessons ship together, so a lesson never
+  points at a scenario its build lacks. The ADR records the extension contract; DEVELOPER.md's Definition of Done gains an
+  item from this sprint on: a feature a user would learn adds its scenario and lesson, or says in its sprint why not.
 
 **Tasks**: to be filled by /start-sprint.
 
@@ -97,7 +114,9 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
 
 ## Phase 4 candidates
 
-Not planned; picked from when Phase 3 closes (product owner, 2026-10-28: what Phase 3 does not address).
+Not planned; picked from when Phase 3 closes (product owner, 2026-10-28: what Phase 3 does not address). Each one, when
+built, adds its scenario to the sample and its lesson to the tutorial (sprint 3.13's extension contract; product owner,
+2026-11-15), for example a WPF leak scenario with the WPF detectors, a sunburst lesson, or a live session lesson.
 - A profiler-style live session: allocation data streamed beside the timeline, and snapshots faster than a full dump.
 - What was allocated between two snapshots in Compare, from a trace recorded between them (from 2.5; needs traces in
   `session.json` on the snapshots' clock, and each tick's type id and module to join a diff's rows, ADR-028).

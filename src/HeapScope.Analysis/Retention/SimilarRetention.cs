@@ -27,6 +27,8 @@ using System.Text;
 using HeapScope.Analysis.Sets;
 using HeapScope.Core.Graph;
 
+using HeapScope.Core;
+
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
@@ -263,7 +265,7 @@ public static class SimilarRetention
             {
                 if (assignment.Patterns.Count == MaxPatterns)
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"The set's objects are retained in more than {MaxPatterns:N0} different ways. Open a smaller set (one type, or a group of a larger set) and group it again."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The set's objects are retained in more than {MaxPatterns:N0} different ways. Open a smaller set (one type, or a group of a larger set) and group it again."));
                 }
 
                 var key = span.ToArray();

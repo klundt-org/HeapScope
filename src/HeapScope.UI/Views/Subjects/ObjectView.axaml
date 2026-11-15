@@ -82,10 +82,10 @@
                       ctl:GridBehaviors.Rows="{Binding ReferenceRows}" ctl:GridBehaviors.OpenCommand="{Binding OpenCommand}"
                       ToolTip.Tip="Double-click or Enter opens the referenced object.">
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Field" x:DataType="vm:ReferenceRowItem" Binding="{Binding Field}" Width="140" />
-                <DataGridTextColumn Header="Address" x:DataType="vm:ReferenceRowItem" Binding="{Binding AddressText}" Width="140" CellStyleClasses="address" />
-                <DataGridTextColumn Header="Type" x:DataType="vm:ReferenceRowItem" Binding="{Binding Type}" Width="*" MinWidth="240" />
-                <DataGridTextColumn Header="Bytes" x:DataType="vm:ReferenceRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="90" CellStyleClasses="number" />
+                <DataGridTextColumn Header="Field" x:DataType="vm:ReferenceRowItem" Binding="{Binding Field, Mode=OneWay}" Width="140" />
+                <DataGridTextColumn Header="Address" x:DataType="vm:ReferenceRowItem" Binding="{Binding AddressText, Mode=OneWay}" Width="140" CellStyleClasses="address" />
+                <DataGridTextColumn Header="Type" x:DataType="vm:ReferenceRowItem" Binding="{Binding Type, Mode=OneWay}" Width="*" MinWidth="240" />
+                <DataGridTextColumn Header="Bytes" x:DataType="vm:ReferenceRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="90" CellStyleClasses="number" />
               </DataGrid.Columns>
             </DataGrid>
           </DockPanel>
@@ -100,11 +100,11 @@
                       ctl:GridBehaviors.Rows="{Binding IncomingRows}" ctl:GridBehaviors.OpenCommand="{Binding OpenCommand}"
                       ToolTip.Tip="Double-click or Enter opens the referencing object.">
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Field" x:DataType="vm:ReferrerRowItem" Binding="{Binding Field}" Width="140" />
-                <DataGridTextColumn Header="Address" x:DataType="vm:ReferrerRowItem" Binding="{Binding AddressText}" Width="140" CellStyleClasses="address" />
-                <DataGridTextColumn Header="Type" x:DataType="vm:ReferrerRowItem" Binding="{Binding Type}" Width="*" MinWidth="240" />
-                <DataGridTextColumn Header="Bytes" x:DataType="vm:ReferrerRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="90" CellStyleClasses="number" />
-                <DataGridTextColumn x:DataType="vm:ReferrerRowItem" Binding="{Binding References, StringFormat='{}{0:N0}'}" Width="60" CellStyleClasses="number">
+                <DataGridTextColumn Header="Field" x:DataType="vm:ReferrerRowItem" Binding="{Binding Field, Mode=OneWay}" Width="140" />
+                <DataGridTextColumn Header="Address" x:DataType="vm:ReferrerRowItem" Binding="{Binding AddressText, Mode=OneWay}" Width="140" CellStyleClasses="address" />
+                <DataGridTextColumn Header="Type" x:DataType="vm:ReferrerRowItem" Binding="{Binding Type, Mode=OneWay}" Width="*" MinWidth="240" />
+                <DataGridTextColumn Header="Bytes" x:DataType="vm:ReferrerRowItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="90" CellStyleClasses="number" />
+                <DataGridTextColumn x:DataType="vm:ReferrerRowItem" Binding="{Binding References, StringFormat='{}{0:N0}', Mode=OneWay}" Width="60" CellStyleClasses="number">
                   <DataGridTextColumn.Header>
                     <TextBlock Text="Refs" ToolTip.Tip="How many of that object's references point at this one." />
                   </DataGridTextColumn.Header>
@@ -134,9 +134,9 @@
             <DataGrid x:Name="KeyPathsGrid" ctl:GridExports.ExportName="KeyRetentionPaths" DockPanel.Dock="Top" ItemsSource="{Binding KeyPaths}" CanUserSortColumns="False" MaxHeight="140" Margin="0,0,0,6"
                       ctl:GridBehaviors.OpenCommand="{Binding OpenCommand}">
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Roots" x:DataType="vm:KeyPathItem" Binding="{Binding Objects, StringFormat='{}{0:N0}'}" Width="60" CellStyleClasses="number" />
-                <DataGridTextColumn Header="Root" x:DataType="vm:KeyPathItem" Binding="{Binding Root}" Width="*" MinWidth="240" />
-                <DataGridTextColumn Header="Path" x:DataType="vm:KeyPathItem" Binding="{Binding PathText}" Width="2*" MinWidth="240" />
+                <DataGridTextColumn Header="Roots" x:DataType="vm:KeyPathItem" Binding="{Binding Objects, StringFormat='{}{0:N0}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+                <DataGridTextColumn Header="Root" x:DataType="vm:KeyPathItem" Binding="{Binding Root, Mode=OneWay}" Width="*" MinWidth="240" />
+                <DataGridTextColumn Header="Path" x:DataType="vm:KeyPathItem" Binding="{Binding PathText, Mode=OneWay}" Width="2*" MinWidth="240" />
               </DataGrid.Columns>
             </DataGrid>
             <TreeView x:Name="RetentionTree" ItemsSource="{Binding RetentionTree}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">

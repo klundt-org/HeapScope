@@ -68,10 +68,26 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// </summary>
     public const int SmokeGridEnumerated = 6;
 
+    /// <summary>Smoke mode exit code: more UI operations over 100 ms than <see cref="SlowOperationCeiling"/> (sprint 3.12, task 5).</summary>
+    public const int SmokeSlowOperations = 7;
+
+    /// <summary>
+    /// The ceiling on slow first shows (sprint 3.12, task 5): UI operations over the 100 ms budget in a whole open run, cold
+    /// first shows included. Measured on 2026-11-13 with the published build on the demo dumps: 0 to 4 on the development
+    /// machine, 5 to 10 with four more cores busy (budgets.md); the ceiling sits above that, so a regression that adds slow
+    /// first shows fails the run, and the ordinary spread does not. Not checked headless.
+    /// </summary>
+    public const int SlowOperationCeiling = 12;
+
     /// <summary>The exit code of the smoke run <paramref name="options"/> ask for, or null when they ask for none.</summary>
     public async Task<int?> RunAsync(UiOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        if (options.IsSmokeRun)
+        {
+            await WaitForPrewarmAsync();
+        }
+
         int? result = options switch
         {
             { SmokeSyntheticObjects: int objects } => await RunSmokeAsync(objects),
@@ -96,6 +112,31 @@ internal sealed class SmokeRunner(IServiceProvider services)
         }
 
         return SmokeVerdict.Final(result.Value, enumerations, Program.IsHeadless, App.FirstWindowTime);
+    }
+
+    /// <summary>
+    /// Waits for the background build of the pages (sprint 3.12, task 4), so the run measures what a user meets after it,
+    /// and logs its slow operations apart: no page is shown while it runs, so they are not first shows and not in the ceiling.
+    /// </summary>
+    private async Task WaitForPrewarmAsync()
+    {
+        var logger = _services.GetRequiredService<ILogger<SmokeRunner>>();
+        var watchdog = _services.GetRequiredService<DispatcherWatchdog>();
+        var prewarm = _services.GetRequiredService<ViewPrewarmer>();
+        var phases = new SmokePhases(watchdog);
+        phases.Begin();
+        try
+        {
+            await prewarm.Completion.WaitAsync(TimeSpan.FromMinutes(2));
+        }
+        catch (TimeoutException)
+        {
+            logger.LogWarning("Smoke prewarm: not done after 2 minutes; the run goes on");
+        }
+
+        await IdleAsync();
+        var phase = phases.End("prewarm", cold: true);
+        logger.LogInformation("Smoke prewarm ({State}): {Measured}; slow operations {Slow}", prewarm.IsEnabled ? "on" : "off", phase.Measured, phase.SlowOperations);
     }
 
     // Waits until the UI thread has nothing left to do, rendering included.
@@ -147,15 +188,13 @@ internal sealed class SmokeRunner(IServiceProvider services)
         var watchdog = services.GetRequiredService<DispatcherWatchdog>();
         var shell = services.GetRequiredService<ShellViewModel>();
         var live = shell.Live ?? throw new InvalidOperationException("The Live page is not registered.");
+        var phases = new SmokePhases(watchdog);
 
         shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == live);
         await IdleAsync();
         await Task.Delay(500);
-        logger.LogInformation(
-            "Smoke live warm-up: Live page first shown (cold): maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
-        watchdog.Reset();
+        logger.LogInformation("Smoke live warm-up: Live page first shown (cold): {Measured}", phases.End("live first show", cold: true).Measured);
+        phases.Begin();
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         live.SelectedProcess = new ProcessRow(Environment.ProcessId, "synthetic", string.Empty, string.Empty, 0, string.Empty, false);
@@ -170,16 +209,15 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await IdleAsync();
         await Task.Delay(500);
         var completed = live.Samples.Count == Math.Min(count, LiveViewModel.WindowSamples) && !live.IsRunning;
-        var (lag, operation) = (watchdog.MaxLag, watchdog.MaxOperationBound);
+        var feed = phases.End("live feed", cold: false);
         logger.LogInformation(
-            "Smoke live: {Count:N0} samples in {Seconds:N1} s, {Kept:N0} charted ({Status}), maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke live: {Count:N0} samples in {Seconds:N1} s, {Kept:N0} charted ({Status}), {Measured}",
             count,
             stopwatch.Elapsed.TotalSeconds,
             live.Samples.Count,
             live.RunWarning ?? live.Status ?? "ok",
-            lag.TotalMilliseconds,
-            operation.TotalMilliseconds);
-        return SmokeVerdict.Phase(completed, operation, lag);
+            feed.Measured);
+        return SmokeVerdict.Phase(completed, feed.MaxOperation, feed.MaxLag);
     }
 
     /// <summary>
@@ -200,16 +238,14 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await home.RunSyntheticCommand.ExecuteAsync(null);
         await IdleAsync();
         await Task.Delay(500);
-        watchdog.Reset();
+        var phases = new SmokePhases(watchdog);
+        phases.Begin();
         var shell = services.GetRequiredService<ShellViewModel>();
         shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == snapshots);
         await IdleAsync();
         await Task.Delay(500);
-        logger.LogInformation(
-            "Smoke warm-up: Snapshots page first shown (cold): maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
-        watchdog.Reset();
+        logger.LogInformation("Smoke warm-up: Snapshots page first shown (cold): {Measured}", phases.End("snapshots first show", cold: true).Measured);
+        phases.Begin();
 
         // --smoke-trace records this process from here to the end of the run (sprint 1.5), for diagnosing lags.
         using var traceStop = new CancellationTokenSource();
@@ -221,8 +257,6 @@ internal sealed class SmokeRunner(IServiceProvider services)
         // The trace stops however the run ends: a failing step must not leave it recording (sprint 1.5 review).
         VirtualRowList<TypeRowItem> rows;
         bool completed;
-        TimeSpan lag;
-        TimeSpan operation;
         try
         {
             await snapshots.OpenPathAsync(dump);
@@ -240,54 +274,43 @@ internal sealed class SmokeRunner(IServiceProvider services)
                 string.Join("; ", Enumerable.Range(0, Math.Min(rows.Count, 50)).Select(rows.GetRow).Where(r => r.IsLoaded).Select(r => $"{r.Name} {r.Objects}")));
             await Task.Delay(500);
 
-            // The phases below reset the watchdog after their cold first show, so the checked maxima are combined here: the
-            // open and the types grid, then each phase's warm part.
-            lag = watchdog.MaxLag;
-            operation = watchdog.MaxOperationBound;
-            logger.LogInformation(
-                "Smoke open phase: maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
-                lag.TotalMilliseconds,
-                operation.TotalMilliseconds);
-            void Combine()
+            // The open and the types grid are checked; each phase below logs its cold first show and ends its warm part here,
+            // after the drain, so the checked maxima are every warm part's (SmokePhases.Checked).
+            logger.LogInformation("Smoke open phase: {Measured}", phases.End("open", cold: false).Measured);
+            if (completed)
             {
-                lag = lag > watchdog.MaxLag ? lag : watchdog.MaxLag;
-                operation = operation > watchdog.MaxOperationBound ? operation : watchdog.MaxOperationBound;
+                completed = await RunSmokeDrillAsync(snapshots, phases, logger);
+                await Task.Delay(500);
+                phases.End("drill", cold: false);
             }
 
             if (completed)
             {
-                completed = await RunSmokeDrillAsync(snapshots, watchdog, logger);
+                completed = await RunSmokeInspectionsAsync(snapshots, phases, logger);
                 await Task.Delay(500);
-                Combine();
+                phases.End("inspections", cold: false);
             }
 
             if (completed)
             {
-                completed = await RunSmokeInspectionsAsync(snapshots, watchdog, logger);
+                completed = await RunSmokeRetainersAsync(snapshots, phases, logger);
                 await Task.Delay(500);
-                Combine();
-            }
-
-            if (completed)
-            {
-                completed = await RunSmokeRetainersAsync(snapshots, watchdog, logger);
-                await Task.Delay(500);
-                Combine();
+                phases.End("retainers drill", cold: false);
             }
 
             if (completed && services.GetRequiredService<UiOptions>().SmokeAllocationsPath is { } allocationTrace)
             {
-                completed = await RunSmokeAllocationsAsync(shell, allocationTrace, watchdog, logger);
+                completed = await RunSmokeAllocationsAsync(shell, allocationTrace, phases, logger);
                 shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == snapshots);
                 await Task.Delay(500);
-                Combine();
+                phases.End("allocations drill", cold: false);
             }
 
             if (completed && services.GetRequiredService<UiOptions>().SmokeComparePath is { } other)
             {
-                completed = await RunSmokeCompareAsync(snapshots, other, watchdog, logger);
+                completed = await RunSmokeCompareAsync(snapshots, other, phases, logger);
                 await Task.Delay(500);
-                Combine();
+                phases.End("compare", cold: false);
             }
         }
         finally
@@ -307,15 +330,20 @@ internal sealed class SmokeRunner(IServiceProvider services)
             }
         }
 
+        var (lag, operation) = phases.Checked;
         logger.LogInformation(
-            "Smoke open: snapshot shown {Completed} ({Status}), {Pages} of {TotalPages} row pages fetched, maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke open: snapshot shown {Completed} ({Status}), {Pages} of {TotalPages} row pages fetched, {Measured}",
             completed,
             snapshots.Status ?? "ok",
             rows.RequestedPages.Count,
             (rows.Count + VirtualRowList.PageSize - 1) / VirtualRowList.PageSize,
-            lag.TotalMilliseconds,
-            operation.TotalMilliseconds);
-        return SmokeVerdict.Phase(completed, operation, lag);
+            new SmokePhase("run", false, lag, operation, phases.SlowOperations).Measured);
+        logger.LogInformation(
+            "Smoke slow operations: {Count} UI operations over 100 ms in the run, ceiling {Ceiling}; by phase: {Phases}",
+            phases.SlowOperations,
+            SlowOperationCeiling,
+            string.Join(", ", phases.All.Where(p => p.SlowOperations > 0).Select(p => $"{p.Name} {p.SlowOperations}")) is { Length: > 0 } byPhase ? byPhase : "none");
+        return SmokeVerdict.Ceiling(SmokeVerdict.Phase(completed, operation, lag), phases.SlowOperations, SlowOperationCeiling, Program.IsHeadless);
     }
 
     /// <summary>
@@ -323,7 +351,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// showing of each view is logged as a cold cost; a re-sort of the objects and a second object are the checked part.
     /// Returns whether every step showed its data.
     /// </summary>
-    private static async Task<bool> RunSmokeDrillAsync(SnapshotsViewModel snapshots, DispatcherWatchdog watchdog, ILogger logger)
+    private static async Task<bool> RunSmokeDrillAsync(SnapshotsViewModel snapshots, SmokePhases phases, ILogger logger)
     {
         var navigator = snapshots.Navigator;
         var type = snapshots.Types.Rows.GetRow(0);
@@ -384,7 +412,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
         var referrersShown = referrers.Totals is not null;
         await IdleAsync();
         logger.LogInformation(
-            "Smoke drill: {Type} has {Objects:N0} objects; first object {Object} ({Status}), {Incoming}, {Retention}, {Retained}; {Title}: {Totals}; {PathsTitle}: {Paths} key paths; first show (cold): maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke drill: {Type} has {Objects:N0} objects; first object {Object} ({Status}), {Incoming}, {Retention}, {Retained}; {Title}: {Totals}; {PathsTitle}: {Paths} key paths; first show (cold): {Measured}",
             instances.TypeName,
             objects.Count,
             first.Title,
@@ -396,12 +424,11 @@ internal sealed class SmokeRunner(IServiceProvider services)
             referrers.Totals ?? referrers.Status,
             typePaths.Title,
             typePaths.Paths.Count,
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.End("drill first show", cold: true).Measured);
 
         // Checked part: back to the objects, a re-sort, retained sizes (sprint 2.3, the dominators warm), and another object
-        // with its referrers and retention (the views and the indices warm).
-        watchdog.Reset();
+        // with its referrers and retention (the views and the indices warm). The caller ends it.
+        phases.Begin();
         navigator.BackCommand.Execute(null);
         instances.SortByCommand.Execute(Contracts.InstanceColumns.Address);
         await instances.QueryTask;
@@ -440,8 +467,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
             ("first object's retained size", first.RetainedSummary?.StartsWith("Retains", StringComparison.Ordinal) == true),
             ("second object's retained size", second.RetainedSummary?.StartsWith("Retains", StringComparison.Ordinal) == true),
         ];
-        var failed = checks.Where(c => !c.Passed).Select(c => c.Check).ToArray();
-        return failed.Length == 0 || Failed(logger, string.Join(", ", failed));
+        return SmokePhases.Failed(checks) is not { } failed || Failed(logger, failed);
     }
 
     private static bool Failed(ILogger logger, string step)
@@ -466,9 +492,9 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// Shows the Inspections tab (sprint 1.6): every inspection runs in the worker while the tab stays responsive; the
     /// rows of the selected one are fetched as the grid would. Returns whether every available inspection finished.
     /// </summary>
-    private static async Task<bool> RunSmokeInspectionsAsync(SnapshotsViewModel snapshots, DispatcherWatchdog watchdog, ILogger logger)
+    private static async Task<bool> RunSmokeInspectionsAsync(SnapshotsViewModel snapshots, SmokePhases phases, ILogger logger)
     {
-        watchdog.Reset();
+        phases.Begin();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         snapshots.Tab = SnapshotTabs.Inspections;
         var inspections = snapshots.Inspections;
@@ -478,13 +504,12 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await IdleAsync();
         var finished = inspections.Tiles.Count > 0 && inspections.Tiles.All(t => !t.IsAvailable || (t.Run is not null && t.Status is null));
         logger.LogInformation(
-            "Smoke inspections: {Count} inspections in {Seconds:N1} s ({Findings}), selected {Selected}; maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke inspections: {Count} inspections in {Seconds:N1} s ({Findings}), selected {Selected}; {Measured}",
             inspections.Tiles.Count,
             stopwatch.Elapsed.TotalSeconds,
             string.Join("; ", inspections.Tiles.Select(t => $"{t.Info.Name}: {t.Status ?? t.Summary}")),
             inspections.Selected?.Title ?? "none",
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.SoFar("inspections so far").Measured);
         snapshots.Tab = SnapshotTabs.Snapshot;
         return finished;
     }
@@ -494,9 +519,10 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// dominators in the worker; logged, not checked), then the checked part in the warm tab: expand the first row and focus
     /// on it, as a user would. Returns whether the tree showed rows each time.
     /// </summary>
-    private static async Task<bool> RunSmokeRetainersAsync(SnapshotsViewModel snapshots, DispatcherWatchdog watchdog, ILogger logger)
+    private static async Task<bool> RunSmokeRetainersAsync(SnapshotsViewModel snapshots, SmokePhases phases, ILogger logger)
     {
         var retainers = snapshots.Retainers;
+        phases.Begin();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         snapshots.Tab = SnapshotTabs.Retainers;
         await retainers.QueryTask;
@@ -505,21 +531,20 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await IdleAsync();
         var shown = retainers.Rows.Count > 0 && retainers.Rows.GetRow(0).IsLoaded;
         logger.LogInformation(
-            "Smoke retainers: {Shown} ({Status}) in {Seconds:N1} s, {Rows:N0} rows, {Bars:N0} icicle bars, first {First}; first show (cold): maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke retainers: {Shown} ({Status}) in {Seconds:N1} s, {Rows:N0} rows, {Bars:N0} icicle bars, first {First}; first show (cold): {Measured}",
             shown,
             retainers.Status ?? retainers.IcicleStatus ?? "ok",
             stopwatch.Elapsed.TotalSeconds,
             retainers.Rows.Count,
             retainers.IcicleSegments.Count,
             shown ? retainers.Rows.GetRow(0).Name : "none",
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.End("retainers first show", cold: true).Measured);
         if (!shown)
         {
             return false;
         }
 
-        watchdog.Reset();
+        phases.Begin();
         var first = retainers.Rows.GetRow(0);
         retainers.ToggleCommand.Execute(first);
         await retainers.QueryTask;
@@ -532,12 +557,11 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await IdleAsync();
         var focused = retainers.HasFocus && retainers.Rows.Count > 0 && retainers.Rows.GetRow(0).IsLoaded;
         logger.LogInformation(
-            "Smoke retainers drill: expanded to {Expanded:N0} rows, focused {Focused} ({Totals}); maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke retainers drill: expanded to {Expanded:N0} rows, focused {Focused} ({Totals}); {Measured}",
             expanded,
             focused,
             retainers.Totals,
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.SoFar("retainers drill so far").Measured);
         retainers.ShowTopCommand.Execute(null);
         await retainers.QueryTask;
         snapshots.Tab = SnapshotTabs.Snapshot;
@@ -548,8 +572,9 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// Shows an allocations trace on the Allocations page (sprint 2.5): its first show is logged as a cold cost; expanding
     /// the first back trace and switching to the call tree are the checked part. Returns whether both showed rows.
     /// </summary>
-    private static async Task<bool> RunSmokeAllocationsAsync(ShellViewModel shell, string path, DispatcherWatchdog watchdog, ILogger logger)
+    private static async Task<bool> RunSmokeAllocationsAsync(ShellViewModel shell, string path, SmokePhases phases, ILogger logger)
     {
+        phases.Begin();
         var allocations = shell.Allocations;
         if (allocations is null)
         {
@@ -572,21 +597,20 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await IdleAsync();
         var shown = trace.Tree.Rows.Count > 0 && trace.Tree.Rows.GetRow(0).IsLoaded;
         logger.LogInformation(
-            "Smoke allocations: {Shown} ({Status}) in {Seconds:N1} s, {Types:N0} types, {Stacks} top stacks, first back trace {First}; first show (cold): maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke allocations: {Shown} ({Status}) in {Seconds:N1} s, {Types:N0} types, {Stacks} top stacks, first back trace {First}; first show (cold): {Measured}",
             shown,
             trace.Tree.Status ?? trace.StacksStatus ?? "ok",
             stopwatch.Elapsed.TotalSeconds,
             trace.Types.Rows.Count,
             trace.Stacks.Count,
             shown ? trace.Tree.Rows.GetRow(0).Name : "none",
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.End("allocations first show", cold: true).Measured);
         if (!shown)
         {
             return false;
         }
 
-        watchdog.Reset();
+        phases.Begin();
         trace.Tree.ToggleCommand.Execute(trace.Tree.Rows.GetRow(0));
         await trace.Tree.QueryTask;
         await TouchRowsAsync(trace.Tree.Rows);
@@ -597,11 +621,10 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await IdleAsync();
         var callTree = trace.Tree.Rows.Count > 0 && trace.Tree.Rows.GetRow(0).IsLoaded;
         logger.LogInformation(
-            "Smoke allocations drill: expanded to {Expanded:N0} rows, call tree {CallTree}; maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke allocations drill: expanded to {Expanded:N0} rows, call tree {CallTree}; {Measured}",
             expanded,
             callTree,
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.SoFar("allocations drill so far").Measured);
         return callTree;
     }
 
@@ -609,8 +632,9 @@ internal sealed class SmokeRunner(IServiceProvider services)
     /// Opens a second dump and shows the comparison (sprint 1.4): the pickers fill themselves with the two open snapshots,
     /// the grid's first rows are fetched as the grid would. Returns whether the comparison showed rows.
     /// </summary>
-    private static async Task<bool> RunSmokeCompareAsync(SnapshotsViewModel snapshots, string dump, DispatcherWatchdog watchdog, ILogger logger)
+    private static async Task<bool> RunSmokeCompareAsync(SnapshotsViewModel snapshots, string dump, SmokePhases phases, ILogger logger)
     {
+        phases.Begin();
         // Show the (empty) tab first and let it render, then open: the tab's first layout and the rows are logged apart.
         snapshots.Tab = SnapshotTabs.Compare;
         await IdleAsync();
@@ -621,19 +645,18 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await TouchRowsAsync(rows);
         var shown = rows.Count > 0 && rows.GetRow(0).IsLoaded;
         logger.LogInformation(
-            "Smoke compare: {Shown} ({Status}), {Rows:N0} rows, first {First}; {Totals}; first show (cold): maximum dispatcher lag {LagMs:N0} ms, longest dispatcher operation at most {OperationMs:N0} ms",
+            "Smoke compare: {Shown} ({Status}), {Rows:N0} rows, first {First}; {Totals}; first show (cold): {Measured}",
             shown,
             snapshots.Compare.Status ?? snapshots.Status ?? "ok",
             rows.Count,
             shown ? rows.GetRow(0).Name : "none",
             snapshots.Compare.Totals,
-            watchdog.MaxLag.TotalMilliseconds,
-            watchdog.MaxOperationBound.TotalMilliseconds);
+            phases.End("compare first show", cold: true).Measured);
 
         // The checked part, like the other smoke runs after their warm-up: a re-query and its rows in the warm grid
         // (one-time cold costs of the tab are logged above and tracked by the UI cold start backlog item).
         await IdleAsync();
-        watchdog.Reset();
+        phases.Begin();
         snapshots.Compare.SortByCommand.Execute(TypeDiffColumns.ObjectsDelta);
         await snapshots.Compare.QueryTask;
         rows = snapshots.Compare.Rows;

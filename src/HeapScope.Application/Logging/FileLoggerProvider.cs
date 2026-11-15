@@ -98,6 +98,18 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
     /// <summary>The folder this provider writes to (messages that point users to the log name it, review M16).</summary>
     public string Directory => _directory;
 
+    /// <summary>The file this process writes now, or null before its first line (sprint 3.12: Purge logs keeps it).</summary>
+    public string? CurrentPath
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _writer is null ? null : GetPath(_writerDate, _part);
+            }
+        }
+    }
+
     /// <summary>The lowest level written.</summary>
     public LogLevel MinimumLevel => _minimumLevel;
 

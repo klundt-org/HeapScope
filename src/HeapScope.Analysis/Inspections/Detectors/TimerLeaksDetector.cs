@@ -161,7 +161,7 @@ internal sealed class TimerLeaksDetector : IInspection
             .ToArray();
         var basis = string.Create(
             CultureInfo.InvariantCulture,
-            $"{active} periodic timers in the queue, {canceled} canceled, {paused} paused or fired, {oneShot} one-shot, {unreadable} unreadable; by callback owner: {string.Join("; ", targets.OrderByDescending(t => t.Value.Timers).Take(Math.Max(10, rows.Length)).Select(t => $"{t.Key} {t.Value.Timers} ({t.Value.Kind})"))}");
+            $"{active} periodic timers in the queue, {canceled} canceled, {paused} paused or fired, {oneShot} one-shot, {unreadable} unreadable; by callback owner: {DetectorGraph.Listed(targets.OrderByDescending(t => t.Value.Timers).Select(t => $"{t.Key} {t.Value.Timers} ({t.Value.Kind})"))}");
         return new InspectionResult(
             rows.Length,
             rows.Sum(r => r.Bytes),
@@ -178,7 +178,7 @@ internal sealed class TimerLeaksDetector : IInspection
                 cells[6] = InspectionScopes.Reachable;
             },
             row => row.Members),
-            basis);
+            basis, Counts: new(active + canceled + paused + oneShot + unreadable, unreadable + targets.Where(t => t.Value.Timers < MinTimers).Sum(t => (long)t.Value.Timers), ListsRows: true));
     }
 
     private static string ModuleOf(HeapGraph graph, (ulong Address, string Type) owner) =>

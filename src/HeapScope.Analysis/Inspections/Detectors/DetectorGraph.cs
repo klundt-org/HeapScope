@@ -94,6 +94,14 @@ internal static class DetectorGraph
         return top.Count > shown ? string.Create(CultureInfo.InvariantCulture, $"{text} and {top.Count - shown:N0} more types") : text;
     }
 
+    /// <summary>"a; b; c and 12 more": a log line's list of rows, cut at <see cref="InspectionCounts.ListedCap"/> (sprint 3.12, B7).</summary>
+    public static string Listed(IEnumerable<string> items)
+    {
+        var all = items.ToList();
+        var text = string.Join("; ", all.Take(InspectionCounts.ListedCap));
+        return all.Count > InspectionCounts.ListedCap ? string.Create(CultureInfo.InvariantCulture, $"{text} and {all.Count - InspectionCounts.ListedCap} more") : text;
+    }
+
     /// <summary>The framework's own types, by namespace.</summary>
     public static bool IsFramework(string name) => FrameworkTypes.IsFramework(name);
 

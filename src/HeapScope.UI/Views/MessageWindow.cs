@@ -34,7 +34,7 @@ namespace HeapScope.UI.Views;
 /// </summary>
 public sealed class MessageWindow : Window
 {
-    private MessageWindow(string title, string message, MessageButtons buttons)
+    private MessageWindow(string title, string message, MessageButtons buttons, (string Yes, string No)? labels = null)
     {
         Title = title;
         Width = 460;
@@ -47,8 +47,9 @@ public sealed class MessageWindow : Window
         var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         if (buttons == MessageButtons.YesNo)
         {
-            row.Children.Add(Button("Yes", true, isDefault: true));
-            row.Children.Add(Button("No", false, isCancel: true));
+            // A destructive question's own words leave the safe answer as the default (sprint 3.12, Purge all).
+            row.Children.Add(Button(labels?.Yes ?? "Yes", true, isDefault: labels is null));
+            row.Children.Add(Button(labels?.No ?? "No", false, isDefault: labels is not null, isCancel: true));
         }
         else
         {
@@ -67,9 +68,10 @@ public sealed class MessageWindow : Window
     internal static event Action<MessageWindow>? Showing;
 
     /// <summary>Shows the window and returns true for Yes or OK, false for No or when it is closed.</summary>
-    public static async Task<bool> ShowAsync(Window? owner, string title, string message, MessageButtons buttons)
+    /// <param name="labels">The two buttons' words for a question, instead of Yes and No; Cancel is then the default.</param>
+    public static async Task<bool> ShowAsync(Window? owner, string title, string message, MessageButtons buttons, (string Yes, string No)? labels = null)
     {
-        var window = new MessageWindow(title, message, buttons);
+        var window = new MessageWindow(title, message, buttons, labels);
         Showing?.Invoke(window);
         if (owner is { IsVisible: true })
         {

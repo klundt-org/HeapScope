@@ -134,6 +134,10 @@ public static class InfoTexts
     public const string Jobs =
         "Lists long work such as opening a dump, capturing or recording, with its progress and how it ended. Use it to see what finished or failed, and why. Jobs appear here by themselves; press Cancel on one that is running.";
 
+    /// <summary>Settings (sprint 3.12).</summary>
+    public const string Settings =
+        "Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
+
     /// <summary>About.</summary>
     public const string About =
         "Shows the version, the system, the log folder and every keyboard shortcut. Use it when you need a shortcut, or want to ask for support. F1 comes here from any page, and Copy details puts the support details on the clipboard.";

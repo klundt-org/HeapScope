@@ -94,6 +94,6 @@ internal sealed class UndisposedServiceScopesDetector : IInspection
             ? "Scopes of requests in flight, and of Blazor Server circuits, are open by design: compare this count with the requests in flight when the dump was taken."
             : null;
         var basis = string.Create(CultureInfo.InvariantCulture, $"{open} reachable scopes not disposed, {closed} disposed, {roots} root, {unreadable} unreadable; {Reachability.Describe(reachable)}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, note, DetectorTables.Types(rows, null), basis);
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, note, DetectorTables.Types(rows, null), basis, Counts: new(open + closed + roots + unreadable, unreadable));
     }
 }

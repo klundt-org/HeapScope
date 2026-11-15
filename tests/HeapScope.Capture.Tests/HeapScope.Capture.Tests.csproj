@@ -6,4 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\HeapScope.Capture\HeapScope.Capture.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\HeapScope.Application.Tests\RecordingLogger.cs" Link="Shared\RecordingLogger.cs" />
+  </ItemGroup>
 </Project>

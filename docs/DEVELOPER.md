@@ -51,7 +51,12 @@ dotnet test --solution HeapScope.sln
 - The DAC trust check on a real dump of any system: `HEAPSCOPE_FIXTURE_DUMP=<dump> dotnet test --project
   tests/HeapScope.Loaders.ClrMd.Tests --filter-class "*PlantedDacTests"` (CI's Linux job runs it, with
   `HEAPSCOPE_REQUIRE_FIXTURE=1` so a skip fails). It plants the DAC next to the dump and removes it after; a folder that
-  already holds a DAC or runtime library is skipped, never overwritten.
+  already holds a DAC or runtime library is skipped, never overwritten. `--filter-class "*MissingDacTests"` (sprint 3.12;
+  CI's Windows and Linux jobs) checks a missing DAC and the symbol server's download rule on a copy of the dump, with a
+  stand-in server. `build/fixture-dump.sh <dump> cli=<heapscope-cli>` makes such a dump locally.
+- A real dump on a machine without its runtime (sprint 3.12): integration tests start a worker with
+  `WorkerHostOptions { EnableTestHooks = true, HideInstalledDacsForTests = true }` (`--test-hide-installed-dacs`), which
+  takes no DAC from an installed runtime (`SnapshotTests`, the older cache fallback).
 - Packages (sprint 3.7): nuget.org only (`nuget.config`); every project has a `packages.lock.json` and CI restores in
   locked mode, so after changing `Directory.Packages.props` or a project's references run `dotnet restore HeapScope.sln
   --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions.
@@ -140,8 +145,8 @@ dotnet test --solution HeapScope.sln
   retained bytes and its immediate dominator. The first retained query of a snapshot computes its dominators (seconds
   on a Medium heap, phases on stderr) and saves them as `<snapshot>.dom.hsidx` next to the index cache; later runs reuse
   them. The address is hex with or without `0x`; no object at it
-  exits 1. A snapshot without field values (a gcdump) prints the object's graph facts and, on stderr, why the fields are
-  missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log.
+  exits 1. A snapshot without field values (a gcdump, or a full dump whose DAC is missing or not trusted: sprint 3.12)
+  prints the object's graph facts and, on stderr, why the fields are missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log.
   `referrers <snapshot> (--address <hex> | --type <name> [--module <file>] [--sort references|objects|targets|bytes|type])
   [--top N | --all] [--format table|csv|json]` (sprint 2.1) lists who references one object (each referrer once, with
   its references to it and, on a full dump, the field that holds it, for objects with up to 1,000 referrers) or the
@@ -238,6 +243,23 @@ dotnet test --solution HeapScope.sln
   ("Smoke open types"), which CI checks against the known answers. Every smoke run also works with `--headless`.
   Add `--smoke-allocations <file.nettrace>` to `--smoke-open` to also show an allocations trace on the Allocations page
   ("Smoke allocations": its cold first show logged; expanding the first back trace and the call tree checked; sprint 2.5).
+  `--smoke-open` also counts the UI operations over 100 ms in every phase ("Smoke slow operations", by phase) and fails
+  a passing run with more than 12 with exit 7 (sprint 3.12, task 5; not headless). Exit codes: 0 ok, 3 lag over the gate, 4
+  a step failed, 5 the first window over 30 s, 6 a whole-list grid walk, 7 too many slow operations.
+  Every smoke run first waits for the background build of the pages after start (sprint 3.12, task 4; "Smoke prewarm",
+  its slow operations logged apart and not counted, as no page is shown meanwhile). For an A/B run without it, set
+  `Ui__Prewarm=false` in the environment (or pass `--Ui:Prewarm false`); alternate the two, one smoke run each (task 4's
+  script stayed local under `artifacts/`, which git ignores).
+- Settings and housekeeping (sprint 3.12 review M4, as the Settings page): `heapscope-cli settings
+  [--filter-text-in-logs on|off]` shows the settings file, the log folder and Include filter text in logs, or changes it;
+  `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write; `heapscope-cli purge all` says what
+  it would delete, and with `--yes` deletes the logs, every session of the library and the bookmarks (never a dump of the
+  user's own folders). Purge all is refused while a capture, recording or open runs in the same process, and while another
+  HeapScope app or command line run is running (by the pid in its log's name); Purge logs keeps the logs running HeapScope
+  processes write.
+- GC settings for an A/B run of the app: the runtime reads them only from the environment (`DOTNET_GCgen0size=4000000` is
+  a 64 MB gen 0 budget, in hexadecimal); `System.GC.Gen0Size` in a runtime configuration is ignored. Compare the longest
+  single operation, not only total GC time (sprint 3.12: a larger budget cut the total and doubled the longest pause).
 - Traces: `heapscope-cli trace --pid <id> [--duration 30] [--profile cpu|gc|allocations] [--out file.nettrace]` records an
   EventPipe trace of any .NET process (no dotnet-trace needed; Ctrl+C stops early and keeps it). An `allocations` trace
   is read by `heapscope-cli allocations <file> [--from s] [--to s] [--type <name>] [--types N] [--stacks N] [--frames N]
@@ -248,6 +270,19 @@ dotnet test --solution HeapScope.sln
   the callers of a frame). It finds the UI thread by Avalonia's dispatcher (WPF's for old traces) and counts a sample
   idle when the thread waits in its run loop (sprint 3.8). Traced runs are slower: use them to find where time goes,
   not to check budgets.
+- Why the UI stalled (sprint 3.12): record a smoke run with Windows' own recorder in an administrator prompt
+  (`wpr -start CPU -start DotNET -filemode`, run the smoke run, `wpr -stop run.etl`), then
+  `dotnet run -c Release --project perf/HeapScope.Benchmarks -- ui-stalls --etl run.etl --log <the run's heapscope-...-ui-PID.log>`
+  (`--min-ms 100`, `--frames N` for the heaviest leaf frames of the unexplained samples). Each lag and long operation the
+  app's watchdog logged is split into waiting for a CPU, GC, JIT, styles and templates, layout, rendering, other code and
+  blocked, with the collections in it and, for a mostly blocked stall, where the UI thread waited. The first read converts
+  the recording (minutes for a few GB) into an `.etlx` beside it, which later reads reuse. The split's rules are
+  `UiStallAttribution`, tested in `tests/HeapScope.Benchmarks.Tests`.
+- Where a process spent its time (sprint 3.12, for a slow load): record as above, then
+  `dotnet run -c Release --project perf/HeapScope.Benchmarks -- cpu-profile --etl run.etl --process HeapScope.Worker`
+  (`--top 25`, `--stretch-s 5`, `--modules a,b`; HeapScope and ClrMD by default): its busiest thread on the processor,
+  ready for one, or off it by wait reason (a page read from a mapped dump waits as PageIn or Executive) per stretch, and its
+  heaviest methods, inclusive and at the leaf.
 - Live sources (sprint 3.8, ADR-037): `dotnet run -c Release --project perf/HeapScope.Benchmarks -- live-tail --seconds
   10` records an allocating copy of itself and reads the trace file while it grows, reporting events read and lost,
   the delay to the reader and its memory.
@@ -340,7 +375,7 @@ of debuggable code) and exit when the process given as parent exits.
   [--parent-pid P]`;
   prints `READY pid=<pid>` and waits to be dumped and killed. `--semantics` adds the conditional weak table and
   embedded struct fixtures, `--runtime-semantics` the finalizable, POH, LOH, pinned handle, frozen literal and
-  parked thread fixtures, `--late-garbage` dead table entries and weak-only objects created after the last full GC,
+  parked thread fixtures and objects of a pointer-free type from a collectible assembly (3.12, review H3), `--late-garbage` dead table entries and weak-only objects created after the last full GC,
   `--inspection` one object with fields of every kind (1.5), `--waste` duplicated strings, empty and oversized
   collections, large and sparse arrays, finalizable objects and pinned buffers with known amounts (1.6, `Waste.json`),
   `--retention-patterns` objects held by known distinct retention patterns and a type with inherited and generic
@@ -467,7 +502,10 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - `dump-stats --dump <path> [--by-address 1] [--cache-mb N]`: a raw ClrMD walk (the 0.4 baseline): objects, heap,
   references, timings, peak private bytes and working set; no budget check.
 - `stack-roots --dump <path>`: stack roots per thread and frame (diagnostic; no budget check).
-- `load-dump --dump <path> [--cache-mb 512] [--keep-cache 1]`: HeapScope's loader on a real dump: counts, density,
+- `load-dump --dump <path> [--cache-mb 512] [--keep-cache 1] [--any-gc 1]` (run with `DOTNET_GCHeapCount` set to half the
+  processors in hex, as the worker runs; since 3.12 it refuses another GC setup without `--any-gc`, and prints each phase's
+  process CPU, GC pause and pages read from disk (hard faults) and a hash of the graph built, whole and per column, so a loader change can be shown to build the
+  same graph): HeapScope's loader on a real dump: counts, density,
   dropped data and segment completeness, private bytes when each phase starts and at peak, the cache write, the switch
   to mapped mode and both reopens, checked against the ARCHITECTURE.md 10 budgets (exit code 1 on a miss).
   `--cancel-at <phase>` cancels as a phase starts and checks the 2 s cancellation budget.

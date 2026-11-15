@@ -122,10 +122,10 @@
                           </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                       </DataGridTemplateColumn>
-                      <DataGridTextColumn Header="Total" x:DataType="vm:AllocationRowItem" Binding="{Binding Total, StringFormat='{}{0:N0}'}" Width="120" CellStyleClasses="number" />
-                      <DataGridTextColumn Header="%" x:DataType="vm:AllocationRowItem" Binding="{Binding Percent, StringFormat='{}{0:N1}'}" Width="60" CellStyleClasses="number" />
-                      <DataGridTextColumn Header="Own" x:DataType="vm:AllocationRowItem" Binding="{Binding Own, StringFormat='{}{0:N0}'}" Width="110" CellStyleClasses="number" />
-                      <DataGridTextColumn Header="Samples" x:DataType="vm:AllocationRowItem" Binding="{Binding Samples, StringFormat='{}{0:N0}'}" Width="80" CellStyleClasses="number" />
+                      <DataGridTextColumn Header="Total" x:DataType="vm:AllocationRowItem" Binding="{Binding Total, StringFormat='{}{0:N0}', Mode=OneWay}" Width="120" CellStyleClasses="number" />
+                      <DataGridTextColumn Header="%" x:DataType="vm:AllocationRowItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+                      <DataGridTextColumn Header="Own" x:DataType="vm:AllocationRowItem" Binding="{Binding Own, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CellStyleClasses="number" />
+                      <DataGridTextColumn Header="Samples" x:DataType="vm:AllocationRowItem" Binding="{Binding Samples, StringFormat='{}{0:N0}', Mode=OneWay}" Width="80" CellStyleClasses="number" />
                     </DataGrid.Columns>
                   </DataGrid>
                 </DockPanel>
@@ -140,11 +140,11 @@
                 <ctl:NoteText DockPanel.Dock="Top" Text="{Binding StacksStatus}" TextWrapping="Wrap" />
                 <DataGrid x:Name="StacksGrid" ctl:GridExports.ExportName="AllocationStacks" ItemsSource="{Binding Stacks}" SelectedItem="{Binding SelectedStack, Mode=TwoWay}" CanUserSortColumns="False" IsReadOnly="True">
                   <DataGrid.Columns>
-                    <DataGridTextColumn Header="#" x:DataType="vm:AllocationStackItem" Binding="{Binding Rank}" Width="40" CellStyleClasses="number" />
-                    <DataGridTextColumn Header="Bytes" x:DataType="vm:AllocationStackItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="120" CellStyleClasses="number" />
-                    <DataGridTextColumn Header="%" x:DataType="vm:AllocationStackItem" Binding="{Binding Percent, StringFormat='{}{0:N1}'}" Width="60" CellStyleClasses="number" />
-                    <DataGridTextColumn Header="Allocated in" x:DataType="vm:AllocationStackItem" Binding="{Binding Top}" Width="*" MinWidth="240" />
-                    <DataGridTextColumn Header="Called from" x:DataType="vm:AllocationStackItem" Binding="{Binding Caller}" Width="*" MinWidth="240" />
+                    <DataGridTextColumn Header="#" x:DataType="vm:AllocationStackItem" Binding="{Binding Rank, Mode=OneWay}" Width="40" CellStyleClasses="number" />
+                    <DataGridTextColumn Header="Bytes" x:DataType="vm:AllocationStackItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="120" CellStyleClasses="number" />
+                    <DataGridTextColumn Header="%" x:DataType="vm:AllocationStackItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+                    <DataGridTextColumn Header="Allocated in" x:DataType="vm:AllocationStackItem" Binding="{Binding Top, Mode=OneWay}" Width="*" MinWidth="240" />
+                    <DataGridTextColumn Header="Called from" x:DataType="vm:AllocationStackItem" Binding="{Binding Caller, Mode=OneWay}" Width="*" MinWidth="240" />
                   </DataGrid.Columns>
                 </DataGrid>
               </DockPanel>
