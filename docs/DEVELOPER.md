@@ -657,6 +657,8 @@ owner still apply.
 - ARCHITECTURE.md, DEVELOPER.md, SPRINTS.md and CLAUDE.md reflect what was actually built, and the Markdown sweep
   of `/wrap-sprint` found every other tracked Markdown file current.
 - No layering violations (architecture test passes).
+- Since sprint 3.13 (ADR-042): a feature a user would learn adds its scenario to the sample and its lesson to the Learn page,
+  with its known answer and approved texts, or its sprint says why not.
 
 ## 10. Severity rubric
 - **High / Urgent**: incorrect analysis results, crashes, data loss, security or privacy issues, layering

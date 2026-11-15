@@ -46,3 +46,4 @@ section 13 links here).
 - [ADR-039](ADR-039-distribution.md) Distribution (added in sprint 3.9, amends ADR-025)
 - [ADR-040](ADR-040-visual-design.md) Visual design (added in sprint 3.10)
 - [ADR-041](ADR-041-older-index-cache-in-place-of-a-rebuild-without-a-dac.md) An older index cache in place of a rebuild without a DAC (added in sprint 3.12, amends ADR-006, ADR-032, ADR-035 and ADR-036)
+- [ADR-042](ADR-042-tutorial-sample-and-lessons-as-catalogs.md) The tutorial: a shipped sample and lessons, both catalogs (added in sprint 3.13)
