@@ -94,7 +94,7 @@ public sealed partial class App : Avalonia.Application
 
             // What this run was started with (sprint 2.3.7 review H4); the log file's header names the build and system.
             startLogger.LogInformation(
-                "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}; filter text in logs {FilterText} ({SettingsFile})",
+                "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}; filter text in logs {FilterText} ({SettingsFile}); gen 0 budget {Gen0Budget}",
                 ProductName,
                 Contracts.ProductInfo.InformationalVersion,
                 _args.Length == 0 ? "(none)" : string.Join(' ', _args),
@@ -102,7 +102,8 @@ public sealed partial class App : Avalonia.Application
                 _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory,
                 _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().MinimumLevel,
                 Application.Settings.SettingsService.FilterTextInLogs ? "on" : "off",
-                Application.Settings.SettingsService.SettingsFileFollowed);
+                Application.Settings.SettingsService.SettingsFileFollowed,
+                Gen0Budget.Current);
 
             // The privacy this process applies, whenever the user changes it (sprint 3.12 review M19).
             Application.Settings.SettingsService.FilterTextInLogsChanged += include => startLogger.LogInformation("Filter text in logs is now {State}", include ? "on" : "off");
@@ -175,8 +176,8 @@ public sealed partial class App : Avalonia.Application
     /// <summary>Logs the cold start cost: process start to the first frame of the main window (backlog: UI cold start).</summary>
     private static void LogFirstWindow(IServiceProvider services)
     {
-        using var self = System.Diagnostics.Process.GetCurrentProcess();
-        FirstWindowTime = DateTime.Now - self.StartTime;
+        // From the user's launch, the first process's start for a relaunched one (sprint 3.12 review M2: the relaunch counts).
+        FirstWindowTime = DateTime.Now - Gen0Budget.LaunchedAt();
         services.GetRequiredService<ILogger<App>>().LogInformation("First window rendered {Ms:N0} ms after process start", FirstWindowTime.Value.TotalMilliseconds);
     }
 

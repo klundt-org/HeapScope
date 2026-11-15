@@ -428,6 +428,10 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             info.ArgumentList.Add(launch.Assembly);
         }
 
+        // The app's gen 0 budget is the UI's own (sprint 3.12 review M2); the worker keeps its GC settings.
+        info.Environment.Remove("DOTNET_GCgen0size");
+        info.Environment.Remove("HEAPSCOPE_LAUNCHED_AT");
+
         if (!info.Environment.TryGetValue("DOTNET_GCHeapCount", out var heapCount) || string.IsNullOrEmpty(heapCount))
         {
             // Hexadecimal, as the runtime reads it.

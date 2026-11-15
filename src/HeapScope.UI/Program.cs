@@ -43,6 +43,13 @@ internal static class Program
     public static int Main(string[] args)
     {
         var headless = IsHeadless = args.Contains(HeadlessSwitch, StringComparer.OrdinalIgnoreCase);
+
+        // The gen 0 budget can only be given to a new process (sprint 3.12 review M2): this one starts it and steps aside.
+        if (Gen0Budget.Relaunch(args, headless) is { } relaunched)
+        {
+            return relaunched;
+        }
+
         var appArgs = args.Where(a => !string.Equals(a, HeadlessSwitch, StringComparison.OrdinalIgnoreCase)).ToArray();
         try
         {
