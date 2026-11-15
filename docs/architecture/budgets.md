@@ -15,7 +15,7 @@ Initial budgets (sprints refine them with measurements):
 
 | Budget | Target | Measured |
 |---|---|---|
-| Medium (~4 GB, ~50M objects) first load on a 16 GB laptop | < 3 min | 35.1 to 48.2 s on a fixture Medium dump (3.10, `load-dump`, 32 GB machine); 15.8 s in 1.2; about 20 s end to end in the UI smoke run |
+| Medium (~4 GB, ~50M objects) first load on a 16 GB laptop | < 3 min | 13.0 to 13.3 s on the fixture Medium dump (3.12, `load-dump`, 32 GB machine, after task 8); 35.1 to 48.2 s in 3.10; 15.8 s in 1.2; about 20 s end to end in the UI smoke run |
 | Medium reopen from index cache | < 20 s in memory; < 2 s mapped | 0.6 s in memory, 0.6 s mapped warm; 0.8 s and 1.0 s cold (0.5, synthetic 50M); 0.6 s for the fixture Medium (1.2) |
 | Worker peak memory, Medium, in-memory mode (machines with room, e.g. 32 GB) | < 1.5x the dump's managed heap size | 2.4 GB for a 3.36 GB managed heap, 0.71x (1.2) |
 | Worker peak memory, Medium first load on a 16 GB laptop (graph, builder buffers and ClrMD caches) | < 4 GB | 2.4 GB (1.2, fixture Medium at 1.14 references per object) |
@@ -61,8 +61,8 @@ Remeasured in sprint 3.10, on new dumps (the older ones need a runtime no longer
 three runs each with desktop applications open, the same machine. Medium (3,984 MB, 54.8M objects): first load 35.1 to 48.2 s,
 reopen in memory 0.9 to 1.3 s, peak 2,197 to 2,470 MB. DenseHeap (4,017 MB, 48.6M objects): first load 53.5 to 75.0 s, reopen
 1.0 to 1.2 s, peak 2,361 to 2,364 MB. All budgets met. Medium's first load is 2 to 3 times the table's 15.8 s and later's 19 s.
-The object pass alone ranged from 13 to 25 s between runs of one dump, and the loader has gained work since, but neither has been
-shown to be the cause (Backlog).
+The object pass alone ranged from 13 to 25 s between runs of one dump, and the loader has gained work since; sprint 3.12's
+trace settled it (task 8, below): the machine's load and ClrMD's per-object type factory.
 
 The leak fixture heaps are sparse (1.1 to 1.2 references per object). The DenseHeap fixture (`fixtures/DenseHeap`,
 captured with `fixtures/scripts/New-DenseDump.ps1`) builds a Medium-size heap at real-application density out of the
@@ -168,9 +168,15 @@ against 145, 174 and 211 ms with 64 MB; on the quieter machine 237, 265 and 224 
 operations (over 100 ms) per run under load 5, 7 and 10 against 6, 7 and 7; the worst lag moved little (203 to 275 ms
 against 189 to 266 ms), since styles and templates are the rest of it. The runtime reads the budget only from the environment
 variable, and ignores `System.GC.Gen0Size` in the runtime configuration (the sprint 3.12 review, H2: a test program counted 73
-gen 0 collections with and without it, 14 with the variable), so the app starts itself again with the variable (review M2;
-process-model.md); the first window is timed from the first process's start, so the relaunch counts in it. A worker CPU cap, EcoQoS or GC heap
-affinity would not have helped, since no stall waited for a processor.
+gen 0 collections with and without it, 14 with the variable). A worker CPU cap, EcoQoS or GC heap affinity would not have
+helped, since no stall waited for a processor.
+In the owner's quiet window of 2026-11-15 the larger budget was measured again, this time for the longest single
+operation too, and lost: with 64 MB (the app relaunched with the variable) a snapshot open's gen 0 pauses grew to 80 to 109 ms
+each, against 10 to 58 ms by default, so the open phase's longest operation went from 108 to 143 ms to 209 to 255 ms and the
+first window from 721 to 955 ms to 801 to 1,182 ms (six alternating pairs); 32 MB, set directly, was worse than the default
+too (141 to 173 ms against 113 to 131 ms, four pairs). Fewer, longer pauses break the 100 ms operation budget, which is what a
+user feels as stutter; the total GC time task 6 measured is not. The app keeps the runtime's default gen 0 budget, and the
+relaunch built to ship the larger one was removed (review M2, the owner's decision).
 
 UI cold start on Avalonia (sprint 3.12, task 7), the published ReadyToRun build on 2026-11-13: the first window rendered
 6.9 s after start on the first run after publishing (the files read and scanned for the first time), then 0.77 to 0.87 s
@@ -182,7 +188,7 @@ step, the app builds the Snapshots page in its place (kept for its first show) a
 page shows only with data alone, then drops them and collects gen 1 (about 8 ms); about 0.2 to 0.3 s of UI work over 0.35
 to 0.45 s, its worst lag 53 to 88 ms, with "Getting pages ready" in the status bar meanwhile (`ViewPrewarmer`,
 `Ui:Prewarm=false` turns it off). A/B smoke runs of the published build on 2026-11-14 in the owner's quiet window,
-alternating on and off (`artifacts/bench/3.12/ab3.sh`), demo dumps, six pairs: slow operations (over 100 ms) per run 1 to 2
+alternating on and off (a local script under the git-ignored `artifacts/`), demo dumps, six pairs: slow operations (over 100 ms) per run 1 to 2
 on against 2 to 9 off; the Snapshots page's first show at most 16 to 17 ms against 58 to 83 ms; the open phase's longest
 operation 92 to 140 ms (median about 109) against 113 to 204 ms (about 134); the Allocations page's first show level (55 to
 69 ms against 41 to 71 ms); the Retainers tab's first show about 14 ms slower (median about 100 ms against 86 ms, cause not
@@ -200,7 +206,7 @@ read twice and the finalizable check hashed every object. The same build loaded 
 three runs that day, and in 20.8 to 21.5 s the next: much of the "slower first load" since 1.2 is the machine's load, not
 the loader. The loader now maps method tables to types itself, once per type, computes sizes as ClrMD does, walks segments in
 address order, merges the finalizable list, and reads references with each object's type known, skipping types that hold
-none. Medium, alternating the two builds three times each on 2026-11-13: object pass 10.9 to 11.1 s down to 4.9 to 5.1 s,
+none unless collectible (review H3). Medium, alternating the two builds three times each on 2026-11-13: object pass 10.9 to 11.1 s down to 4.9 to 5.1 s,
 reference pass 7.4 to 7.6 s down to 5.3 to 5.6 s, first load 20.9 to 21.5 s down to 13.0 to 13.3 s, peak private bytes the
 same (2,769 to 2,774 MB). The graph is the same: its columns hash identically on the fixture dump and the Medium dump
 (`load-dump` prints the hash).

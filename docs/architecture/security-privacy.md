@@ -71,8 +71,13 @@ references such as "ARCHITECTURE.md 12" still name the right section.
 - The UI and the CLI say once per capture that the dump contains secrets and where it was written.
 - Dumps live in the session folders under `%LOCALAPPDATA%\HeapScope\sessions` (each dump made owner-only when it is
   finished, above) unless `--out` puts them elsewhere; HeapScope never moves them. The app deletes a snapshot with its
-  caches, a session, or the sessions not opened for a chosen number of days, after showing the files (sprint 3.4); the
-  CLI deletes nothing.
+  caches, a session, or the sessions not opened for a chosen number of days, after showing the files (sprint 3.4). Since
+  sprint 3.12 the Settings page's Purge logs and Purge all, and `heapscope-cli purge logs|all --yes`, delete HeapScope's
+  logs, or its logs, the library's sessions and the bookmarks; never a dump outside the library, the trusted DACs or the
+  index cache key; Purge all asks first (the command line wants `--yes`) and waits for other HeapScope processes.
+- Filter text in logs (sprint 3.12, B1): the text typed in filters and searches is written into the logs unless the user
+  turns that off (Settings, or `heapscope-cli settings --filter-text-in-logs off`); field values and strings read from a
+  dump never are (logging.md).
 - Elevated targets require HeapScope to run elevated (ADR-014). HeapScope never tries to elevate silently.
 - Traces (`trace`, `--smoke-trace`, sprint 1.5) hold method and type names and event data such as exception messages,
   not heap contents; the CLI says so after each one, and they are written where the user asks (never uploaded).

@@ -92,13 +92,15 @@ collected, so for a stable gate capture after a full GC in the target, or compar
 ### Private by design: dumps are full of secrets?
 
 A dump holds everything the process had in memory, passwords included, so HeapScope never uploads one. Analysis runs on your
-machine, and the logs never hold values from a dump. The one thing it can fetch is a runtime component a dump needs, from
+machine, and the logs never hold field values or strings read from a dump; the text you type in filters is logged unless
+you turn that off in Settings. The one thing it can fetch is a runtime component a dump needs, from
 Microsoft's symbol server, and only if you allow it. That request sends module identifiers, never dump contents.
 
 ### Built for big dumps: tired of your profiler freezing?
 
 Analysis runs in a separate worker process, so the window keeps responding, and if the worker crashes you can restart it
-from a banner. Measured on 3.10, three runs each, on a 24-core machine with 32 GB of RAM:
+from a banner. Measured on 3.10, three runs each, on a 24-core machine with 32 GB of RAM (since 3.12 a 4.4 GB dump of 58
+million objects loads first in 13.0 to 13.3 s, with a peak of about 2.7 GB):
 
 | Dump | First load | Reopen | Peak memory, first load |
 |---|---|---|---|
@@ -109,7 +111,8 @@ Retained sizes take more: computing them in memory peaked at about 3.3 and 3.9 G
 
 ### Results you can check: someone doubts a number?
 
-The log records why each result was produced, with no values from the dump in it, so a finding can be backed up later. The
+The log records why each result was produced, with no field values or strings from the dump in it, so a finding can be
+backed up later. The
 test suite checks results against fixture dumps whose answers are known.
 
 ## What to expect
@@ -125,7 +128,7 @@ HeapScope is in pre-release. Plainly:
 - **Unsigned builds.** Windows SmartScreen will warn you. [INSTALL.md](INSTALL.md) shows how to check a download against its
   checksums and build provenance.
 - **Modern .NET only.** It analyzes .NET 5 and later, not .NET Framework.
-- **A size limit.** It is built for dumps up to about 8 GB and 50 million objects, and measured so far up to 4.4 GB and 57.5
+- **A size limit.** It is built for dumps up to about 8 GB and 50 million objects, and measured so far up to 4.4 GB and 58
   million objects. Larger ones are not a target yet.
 
 ## Get started

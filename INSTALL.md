@@ -151,12 +151,16 @@ found, the message says what to do, including downloading it from Microsoft's sy
 Sessions and logs go to `%LOCALAPPDATA%\HeapScope` on Windows, `~/.local/share/HeapScope` on Linux (under `$XDG_DATA_HOME` when it is set) and
 `~/Library/Application Support/HeapScope` on macOS, or to the folder the `HEAPSCOPE_DATA_FOLDER` environment variable names. Sessions hold
 full dumps, which can contain anything the dumped process held (passwords and keys included). A snapshot's index cache
-goes next to its dump, or into that folder when the dump's folder cannot be written. Logs are described in the [user guide](docs/USER-GUIDE.md#logs-and-getting-help),
+goes next to its dump, or into that folder when the dump's folder cannot be written. The folder also holds `settings.json`,
+which the Settings page and `heapscope-cli settings` write. Logs are described in the [user guide](docs/USER-GUIDE.md#logs-and-getting-help),
 under "Logs and getting help".
 
 ## Settings
 
-HeapScope reads its settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
+The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: whether the text
+typed in filters is written into the logs. It is saved in `settings.json` in the data folder.
+
+HeapScope reads its other settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
 environment variables that name the setting with `__` between its parts. For example, a DAC folder:
 
 ```json
@@ -182,6 +186,7 @@ release, so copy it across; for the dotnet tool, use environment variables, sinc
 
 There is no installer and nothing in the registry. To update, extract the new release next to the old one (and point
 the Linux links at it, and copy any `appsettings.json`); to remove HeapScope, delete its folder and the links. Your
-data folder, with its dumps, stays until you delete it; on Windows, trace conversions may also leave files in
+data folder, with its dumps, stays until you delete it (Purge all on the Settings page, or `heapscope-cli purge all --yes`,
+deletes its logs, sessions and bookmarks first); on Windows, trace conversions may also leave files in
 `%TEMP%\HeapScope`. The [releases page](https://github.com/rklundt/HeapScope/releases) lists every version; watch the repository's
 releases on GitHub to hear of new ones.

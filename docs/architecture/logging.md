@@ -22,7 +22,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   Inspections tab runs each inspection through `SnapshotSession.RunInspectionAsync`, not as a job, and the Object view's
   load runs outside `QueryRunner`, so their worker lines carry no trace id of the front end's; match them by snapshot id and
   time. The Backlog's query runner item (refactor analysis, rank 1) brings them under an activity. Job start and end lines carry the job id, title, time and
-  outcome; the CLI logs its command line (paths and numbers as given, other values by their length) and exit code.
+  outcome; the CLI logs its command line (paths and numbers as given, a `--filter` value quoted or by its length as the setting
+  says, other values by their length) and exit code.
 - **Provenance of results (sprint 2.3.7, review H2 to H4)**: the log backs up any result a user contests.
   - Each process's start: versions, system, architecture, runtime, options; the worker adds the protocol, its path, the
     GC settings and a versions line (loaders, index cache format, retention semantics, ClrMD, each inspection's version).

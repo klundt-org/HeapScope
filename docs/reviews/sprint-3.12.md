@@ -3,7 +3,8 @@
 Reviewers: solution-architect, senior-dev, gc-specialist, support-engineer (2026-11-14), on `sprint/3.12` against `sprint-3.11`.
 Each reviewer read the working tree (none had a shell for `git diff`). Findings that overlap are merged and keep the highest
 severity. Task 9 (the older cache fallback, ADR-041) had its own feature review and re-review earlier in the sprint, recorded
-in its Done note in SPRINTS.md; this review looked at it only for what those missed. Counts: 5 High, 19 Moderate, 16 Low.
+in its Done note in SPRINTS.md; this review looked at it only for what those missed. Counts: 5 High, 21 Moderate (2 from
+the confirmations), 31 Low (15 from the confirmations).
 
 Before the review: Debug build with 0 warnings; 1,730 tests, 1,716 passed, 4 failed. One was real: the architecture test found
 two public types in `Inspection.cs` (B7's `InspectionCounts`), now in its own file. Three integration tests failed under the
@@ -57,7 +58,7 @@ flaky list), `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_jo
   `LoaderKnownAnswerTests.An_object_of_a_collectible_type_without_pointers_references_its_loader_allocator` fails without the
   added edge, and `Object_and_reference_counts_equal_clrmd` counts it.
 - Status: Fixed. The first fix was confirmed by gc-specialist (2026-11-14) by reading the code; the edge added after the
-  fixture's finding goes back to gc-specialist with M1.
+  fixture's finding was confirmed by gc-specialist with M1 (2026-11-14).
 
 ### H4. A worker given another data folder read another settings file
 - Reviewer: support-engineer.
@@ -99,7 +100,11 @@ fixture, M2's relaunch, M4's CLI commands, M7's hard faults, M8).
   Decision: fix (owner). Fixed: ADR-010 amended with the decision and the layout it assumes; `LoaderKnownAnswerTests` compare every object (address, type, size, finalizer flag) with ClrMD's walk, prove a walk handed to ClrMD in mid-segment (a test hook) builds the same graph (duplicates skipped: ClrMD's range walk may start before the hand-over), and run on every CI system; the load benchmark's hash adds roots, dropped roots, free bytes per kind, unreadable and incomplete counts; the RuntimeKinds fixture holds objects of a pointer-free collectible type (H3). Status: Fixed. Confirmed by gc-specialist (2026-11-14). solution-architect did not confirm: the comparison ran on Windows only (the integration tests do not run on Linux), while three places said every CI system; fixed with `WalkComparisonTests` (Loaders.ClrMd.Tests, on each CI system's own fixture dump, Linux's core dump included; CI requires it) and the three texts corrected; ADR-010 says which systems CI verifies and which are assumed (gc-specialist's Low). Confirmed by solution-architect (2026-11-15).
 - M2. Shipping the gen 0 budget (H2): only the environment variable sets it, so the app would relaunch itself with it, at
   the cost of a second process start on every launch, or drop it (gc-specialist, H2).
-  Decision: fix (owner). Fixed: the app starts itself again with `DOTNET_GCgen0size` (`Gen0Budget`), once, not on macOS, headless, under `dotnet` or with `Ui__Gen0Budget=default`; smoke and screenshot runs wait for its exit code; the worker is started without the variable; the first window is timed from the first process. `Gen0BudgetTests`; a published smoke run showed the 64 MB budget in the relaunched app's start line and its exit code passed through. Its A/B (start time and lags against the default) waits for a quiet window. Status: Fixed. Confirmed by gc-specialist (2026-11-14); its Lows on the start line and Explorer are L22 and M21.
+  Decision: fix (owner). Fixed: the app starts itself again with `DOTNET_GCgen0size` (`Gen0Budget`), once, not on macOS, headless, under `dotnet` or with `Ui__Gen0Budget=default`; smoke and screenshot runs wait for its exit code; the worker is started without the variable; the first window is timed from the first process. `Gen0BudgetTests`; a published smoke run showed the 64 MB budget in the relaunched app's start line and its exit code passed through. Its A/B (start time and lags against the default) waits for a quiet window. Status: Fixed. Confirmed by gc-specialist (2026-11-14); its Lows on the start line and Explorer are L22 and M21. Then measured
+  in the owner's quiet window (2026-11-15): the 64 MB budget made each gen 0 pause in a snapshot open 80 to 109 ms (10 to 58 by
+  default), doubling the open phase's longest operation (209 to 255 ms against 108 to 143), and 32 MB was worse than the default
+  too; the owner dropped the budget and the relaunch (2026-11-15), and the code, its tests and docs were removed (budgets.md).
+  Final status: measured and dropped.
 - M3. One path identity rule is not at every path comparison (solution-architect; senior-dev Low; solution-architect Low):
   Core-side projects cannot reach `PathIdentity` (Contracts), so `DacLocator` keeps its own copy; `ProcessDiscovery` compares
   ignoring case on every system; `SettingsService` and `PageViewModels` build their own "is under"; macOS, case-insensitive by
@@ -174,7 +179,7 @@ From the confirmations (the owner decided both on 2026-11-15):
   its window) and the sample process sprint 3.13 plans (solution-architect Moderate, gc-specialist Low). Decision: fix (owner,
   2026-11-15). Fixed: the relaunched app removes both variables from its own environment once started (`Gen0Budget.Settle`,
   `Gen0BudgetTests`); the worker's removal stays as a second guard. Status: Fixed. Confirmed by solution-architect and
-  gc-specialist (2026-11-15).
+  gc-specialist (2026-11-15). Closed with M2: the relaunch is gone, so nothing sets the variable.
 
 M2's relaunch changed after its confirmation: the second integration run hung for 46 minutes and the skeleton test found no
 window, because the first process exited while its relaunched copy held the test's output open. The first process now always
@@ -226,7 +231,7 @@ From the confirmations (Lows, listed only):
 - L20. `DacLocator.IsUnderAny` builds its own "is under"; the architecture test catches only the ternary form of a copy
   (solution-architect).
 - L21. The mid-segment hand-over test does not check that the hook fired (gc-specialist).
-- L22. The start line reports the gen 0 variable, not the budget the GC applied (gc-specialist).
+- L22. The start line reported the gen 0 variable, not the budget the GC applied (gc-specialist; gone with M2).
 - L23. ClrMD's walk's overrun branch has no test (gc-specialist).
 - L24. (Fixed with M1's second pass: ADR-010 says what CI verifies and what is assumed.)
 - L25. Disposed but referenced: types with fewer reachable objects than the minimum are not probed or counted, and a type
@@ -234,13 +239,24 @@ From the confirmations (Lows, listed only):
 - L26. The command line's console no longer shows the worker's warnings (a symbol server download, the older cache
   fallback); the notes the command prints still carry the fallback (support-engineer).
 - L27. `TestHooksHandler` runs outside `GuardAsync` (support-engineer; test hooks only).
-- L28. The first process that waits for the relaunched app stays resident; its memory is not measured yet (gc-specialist).
+- L28. The first process that waited for the relaunched app stayed resident (gc-specialist; gone with M2).
 - L29. Purge all sees another HeapScope only by a log in the same log folder: not a run with another log folder on the same
   library, one that has not logged yet, or one that starts between the plan and the delete (solution-architect).
+- L30. Killing the first process alone left the relaunched app running (solution-architect; gone with M2).
 - L31. A process whose name or start time cannot be read does not count as another HeapScope (support-engineer).
-- L30. Killing the first process alone (not its tree) leaves the relaunched app running; process-model.md says so now
-  (solution-architect).
 
 ## Markdown sweep
 
-Pending (after the Moderate decisions).
+2026-11-15, after the fixes: every tracked Markdown file read against the code (past review files and the license files left
+as they are), plus the local CLAUDE.md. Changed: README.md (what the logs hold, the 3.12 load numbers and the largest dump
+measured), INSTALL.md (`settings.json`, the Settings page and `heapscope-cli settings`, Purge all), docs/USER-GUIDE.md (Ctrl+1
+to 8, filter text in logs, Purge logs and Purge all), ARCHITECTURE.md (what Core holds, what Loaders.ClrMd.Tests run),
+DEVELOPER.md (the collectible fixture, the local A/B scripts, GC settings for an A/B run), SPRINTS.md (the phase file's link),
+docs/sprints/phase-3.md (its title), BACKLOG.md (two items task 2 and task 11 settled), code-map.md (sprint 3.12's types and
+tools), graph-format.md (`SnapshotOpener`), budgets.md (the 3.12 load numbers, the settled cause, the collectible edge, the
+gen 0 measurement), threading.md (exit 7, the ceiling, the prewarm), security-privacy.md (the purges, filter text in logs),
+logging.md (the CLI's `--filter`), process-model.md (the error id, the version 22 note), docs/design/refactor-analysis.md
+(a status line), info-text.md (the drafts approved; the Purge logs tooltip, stale since M5, takes the approved command line
+sentence, and the page with it), `.claude/agents/solution-architect.md` (`WorkerProtocol.Version`), CLAUDE.md (the new CLI
+commands, exit 7, the benchmarks, the vendored reference). THIRD-PARTY-NOTICES.md matches the packages (none changed) and the
+vendored code. No em or en dash in any changed file.

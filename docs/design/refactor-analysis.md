@@ -7,9 +7,12 @@ It proposes; the product owner decides. Nothing here is built without the owner'
 Cost: **S** under a day, **M** a few days, **L** a week or more. Phase 4 means the candidates in [SPRINTS.md](../SPRINTS.md).
 The reviewers found no layering violation: every project reference matches ARCHITECTURE.md 3.1.
 
+Status (2026-11-15): B1 to B8 and R1 to R5 were built in sprint 3.12 (SPRINTS tasks 15 to 26); the ranked candidates
+below wait for the owner's scheduling. The text describes the code as the analysis found it on 2026-11-12.
+
 ## 1. Bugs the analysis found
 
-These give wrong results, break a standing rule or fail silently today. They are fixes, not refactors.
+These gave wrong results, broke a standing rule or failed silently when the analysis ran. They are fixes, not refactors.
 
 | # | Bug | Where | Cost | Found by |
 |---|---|---|---|---|

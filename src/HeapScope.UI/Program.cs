@@ -36,9 +36,6 @@ internal static class Program
 {
     public const string HeadlessSwitch = "--headless";
 
-    /// <summary>The gen 0 budget this process runs with, for its start line (sprint 3.12 review M2).</summary>
-    public static string Gen0BudgetInUse { get; private set; } = "the runtime's default";
-
     /// <summary>Whether the app runs on the headless platform (no display).</summary>
     public static bool IsHeadless { get; private set; }
 
@@ -46,14 +43,6 @@ internal static class Program
     public static int Main(string[] args)
     {
         var headless = IsHeadless = args.Contains(HeadlessSwitch, StringComparer.OrdinalIgnoreCase);
-
-        // The gen 0 budget can only be given to a new process (sprint 3.12 review M2): this one starts it and steps aside.
-        if (Gen0Budget.Relaunch(args, headless) is { } relaunched)
-        {
-            return relaunched;
-        }
-
-        Gen0BudgetInUse = Gen0Budget.Settle();
 
         var appArgs = args.Where(a => !string.Equals(a, HeadlessSwitch, StringComparison.OrdinalIgnoreCase)).ToArray();
         try

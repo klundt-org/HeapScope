@@ -3,7 +3,7 @@
 Phases: **0.x** architecture, framework and skeleton; **1.x** quick wins; **2.x** heavy hitters; **3.x** depth to
 match dotMemory (planned 2026-10-28); **Phase 4 candidates** what Phase 3 leaves out; the Backlog ([BACKLOG.md](BACKLOG.md)) everything else. Closed sprints are
 in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-1.md),
-[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 and 3.10](sprints/phase-3.md).
+[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 to 3.11](sprints/phase-3.md).
 
 ## Status
 
@@ -135,9 +135,11 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
    Done 2026-11-13: no stall waited for a processor, even with four cores busy, so none of the three would help; the UI
    process's own gen 0 and gen 1 collections were a quarter of the lag under load. A 64 MB gen 0 budget halved the GC time
    inside the lags under load in A/B smoke runs set by environment variable (budgets.md); the rest of the lag is styles and
-   templates (task 4). The worker's Server GC threads are not in the UI's lags. Corrected by the review (H2): the
-   `System.GC.Gen0Size` runtime setting shipped with it does nothing, so it was removed; the app now starts itself again with
-   the environment variable (M2, the owner's decision of 2026-11-14).
+   templates (task 4). The worker's Server GC threads are not in the UI's lags. Corrected by the review (H2, M2): the
+   `System.GC.Gen0Size` runtime setting shipped with it did nothing; the app was then made to relaunch itself with the
+   environment variable, and measured in the owner's quiet window of 2026-11-15: each pause grew so long that a snapshot
+   open's longest operation doubled (budgets.md). The relaunch was removed and the app keeps the runtime's default budget
+   (the owner, 2026-11-15).
 7. [x] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
    numbers in `budgets.md`.
    Done 2026-11-13: first window 0.77 to 0.87 s warm, 6.9 s on the first run after publishing, about 1.0 to 1.1 s with four
@@ -323,6 +325,9 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
 17. (2026-11-13) The Settings page's info text is approved.
 18. (2026-11-14) The prewarm's status bar text and tooltip are approved; the review's Moderates are all fixed, M2's relaunch
     and M4's command line included (2026-11-14), and M20 and M21 from the confirmations (2026-11-15).
+19. (2026-11-15) The review's drafts in `info-text.md` are approved. The larger gen 0 budget and its relaunch are dropped
+    after the quiet window's measurement; the budget is not a user setting (users cannot judge it, and it would need the
+    relaunch); `DOTNET_GCgen0size` stays the runtime's own for anyone who sets it.
 
 **Review summary** ([reviews/sprint-3.12.md](reviews/sprint-3.12.md)): 5 High, 21 Moderate, 31 Low, from the four reviewers
 and the rounds that confirmed the fixes.
@@ -331,15 +336,14 @@ and the rounds that confirmed the fixes.
   collectible type to its LoaderAllocator, which ClrMD does not yield (H3); a worker given another data folder reading another
   settings file (H4); the logs' privacy setting falling back to "on" when the file could not be read (H5).
 - Fixed and confirmed, Moderate (owner, 2026-11-14 and 2026-11-15, all nineteen and the two the confirmations found): the
-  object walk compared object by object with ClrMD's on every CI system, with ADR-010 amended (M1); the app relaunching itself
-  with its gen 0 budget, which stays its own (M2, M21); one path rule, macOS included (M3); settings and purge on the command
+  object walk compared object by object with ClrMD's on every CI system, with ADR-010 amended (M1); the larger gen 0 budget
+  and the relaunch that shipped it measured and dropped (M2, M21); one path rule, macOS included (M3); settings and purge on the command
   line (M4); purges that keep other HeapScope processes' logs and wait for them (M5, M20); the finalizable merge (M6); hard
   faults (M7); a damaged length (M8); purge safety, errors, tests and logs (M9 to M11, M13, M14); the prewarm's failure paths
   (M12); the inspections' counts (M15); the command line's console (M16); guarded control methods (M17); set-aside session
   entries (M18); the privacy state in the log (M19).
 - Low: listed in the review file, not fixed.
-- Measured: the prewarm (budgets.md, task 4); the relaunch's start time and the waiting process's memory wait for a quiet
-  window (L28).
+- Measured: the prewarm (budgets.md, task 4); the gen 0 budget in the quiet window of 2026-11-15, which reversed task 6.
 
 ## Sprint 3.13: Tutorial
 

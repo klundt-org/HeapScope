@@ -25,7 +25,10 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   section 6.5) [0.5]; `PrivateFiles` (owner-only folders and files: 0700 and 0600 off Windows, an owner-only access list
   on Windows) [2.3.6, 3.7]; `Loading/DacChoice` (the DAC a dump was read with and why) [2.3.7]; `IndexCachePaths` (a
   snapshot's index cache, its sidecar kinds and the writer's temporary files, for Storage and for deletion) [3.4].
-- **Analysis.** `FrameworkTypes` (one rule for framework types, P19) and no static caches: reachability and dominator
+  `ValueReadsRefused` (why a snapshot's field values and strings are refused) and `Loading/LoadPhaseCost` (a load phase's
+  process CPU, GC pause and pages read from disk) [3.12].
+- **Analysis.** `Inspections/InspectionCounts` (what each inspection scanned and left out, rows listed at most 50) [3.12].
+  `FrameworkTypes` (one rule for framework types, P19) and no static caches: reachability and dominator
   group tables are returned as values the worker keeps per snapshot (P20) [3.8]. `TypeAggregation`: one parallel pass over the objects, counting objects, shallow bytes and bytes per
   heap kind for every type, computed once per snapshot and kept on the snapshot's entry in the worker [1.3].
   `TypeGroups`: rows by type, namespace or assembly. Type rows are one per type table entry (method table), never merged
@@ -92,12 +95,16 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   the DAC of the system HeapScope runs on, matched on Linux and macOS by `ImageIdentity` (ELF GNU build id, Mach-O
   UUID) against the DAC itself or, when the dump archives it under the runtime's identity, against `libcoreclr` in the
   same folder; ClrMD reads a core file's runtime version as 0.0 at times, and the runtime's folder name names it then
-  [2.3.5].
+  [2.3.5]. Since 3.12: the loader's own object walk (`AddObjects`, method tables mapped to types once each, ClrMD's walk
+  for what it cannot read; ADR-010 amended), the LoaderAllocator edge of collectible types, `LoadMeter` (per phase cost),
+  `CheckDac` and `ReadProcessName` (ADR-041), and an internal copy of `PathIdentity` (`HeapScope.Shared`; Capture has one
+  too).
 - **Loaders.GcDump.** `GcDumpLoader`, `RootClass` (pseudo node names to root kinds), `TypeNames` (names normalized to
   the full dump loader's form), `ObservedReadStream` (progress and cancellation while the vendored reader reads) [1.8].
 - **ThirdParty.GcDump.** The vendored dotnet-gcdump code (PerfView's `MemoryGraph`, `GCHeapDump` and the EventPipe heap
   dumper), MIT, with its five changes listed in its `CHANGES.md` [1.8, 1.9, 3.7].
-- **Contracts.** `PathIdentity`, the one rule for when two paths name the same file (case ignored on Windows only) [3.12]. The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
+- **Contracts.** `PathIdentity`, the one rule for when two paths name the same file (case ignored on Windows and macOS),
+  its source also compiled into Loaders.ClrMd and Capture as an internal copy [3.12]. The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
   `IResultSetService`, `IHeapQueryService`, `IRetentionService`, `IInspectionService`, `IAllocationTraceService`, listed
   in `WorkerContracts.All`; `IWorkerService` aggregates them for clients), `WorkerProtocol`, `HeapScopeErrorCode`, the wire enums and `CapabilityDescriptions`
   [0.3]; `DacTrustDetails`, the error data of `DacNotTrusted` [3.6]; `SnapshotFeatureIds`, `FeatureAvailability` (the
@@ -118,7 +125,9 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   summaries and instances [2.3]. `DominatorDtos.cs`: the tree request and result, `DominatorTreeColumns`,
   `DominatorTreeKeys` (the row keys clients link with), the icicle request and segments, the set retention request,
   result and `RetainedBySetColumns`; `ResultColumn.Bound` with `ValueBound` and `ValueBoundTexts` [2.4].
-- **Worker.** `Program` and `ParentProcessWatcher` (the worker exits with its front end) [0.3]; `Rpc/`:
+- **Worker.** `Program` and `ParentProcessWatcher` (the worker exits with its front end) [0.3]; `WorkerOptions`'
+  `--settings-folder` (the client's settings file) and `WorkerErrors`' fixed message with an id for an unexpected failure
+  [3.12]; `Rpc/`:
   `WorkerRpcServer`, `ResultSetStore`, `ThrottledProgress` [0.3]. Since 3.8 (peer review P5) one handler per contract,
   registered by `WorkerRpcTargets` (`RpcTarget.For<TContract, THandler>`): `ControlHandler`, `TestHooksHandler`,
   `SnapshotHandler`, `ResultSetHandler`, `HeapQueryHandler`, `RetentionHandler`, `InspectionHandler`,
@@ -283,7 +292,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `InfoIconTests` checks the screens say it word for word); one style in `Themes/Styles.axaml` shows tooltips on disabled
   controls. `IcicleGeometry` (UI.ViewModels) makes two or more neighbors under one parent, each narrower than 6 pixels
   (`GroupBelow`), one "+N smaller" bar, in one linear walk per level.
-  `Assets/heapscope.ico`: the app's icon, from `build/make-icon.cs`. `Gen0Budget`: the relaunch with the app's gen 0 budget [3.12]. `Smoke/SmokeRunner`: the unattended smoke runs [1.9,
+  `Assets/heapscope.ico`: the app's icon, from `build/make-icon.cs`. `Smoke/SmokeRunner`: the unattended smoke runs [1.9,
   2.3.6], with `SmokePhases` (each phase's lag, longest operation and slow operations, one place) and `SmokeVerdict` [3.12]; `Smoke/ScreenshotRunner`: every page as PNG files [3.10]. Sprint 2.4: the Snapshot tab's subjects are views of their own (`Views/Subjects/`), the
   Retainers tab (`RetainersTab`), `Controls/IcicleChart` (drawn in one pass, geometry from the view models),
   `Controls/NoteText` (a status or note line that takes no space when empty), and `GridBehaviors`' `VisibleColumnGroups`,
@@ -309,7 +318,9 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache
   (build, sidecar write, reopen in both modes) [2.1]; `retention`, the root path tree, key paths and object searches of
   a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `dominators`, the reverse index and
-  dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread).
+  dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread);
+  `ui-stalls` (WPR recordings of the UI split by cause, `UiStallAttribution`, tested in tests/HeapScope.Benchmarks.Tests)
+  and `cpu-profile` (where a process's busiest thread spent a recording) [3.12].
 - **Leak detectors [2.6, ADR-020 amended].** Analysis: `Inspections/Detectors/`, a file per detector since 3.8 (peer review P19), with `DetectorGraph`, `Fields`, `Readers`, `TypeTally` and `RuntimeLayouts` (the runtime field names): `GrowingStaticCollectionsDetector`
   (a static field's collection counted by its own fields; growth since a baseline, or large without one),
   `EventHandlerLeaksDetector` (subscribers of a publisher type's event field, through the incoming references and

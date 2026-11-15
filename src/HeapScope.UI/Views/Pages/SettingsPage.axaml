@@ -40,7 +40,7 @@
               ToolTip.Tip="Write the text you type in filters and searches into HeapScope's logs, to help troubleshoot a result. It can hold values from your dumps (account numbers, tokens), so turn it off before you share a log." />
     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
       <Button Content="Purge logs" Command="{Binding PurgeLogsCommand}"
-              ToolTip.Tip="Delete HeapScope's log files. The log being written now is kept until HeapScope closes." />
+              ToolTip.Tip="Delete HeapScope's log files. Logs that running HeapScope processes write now are kept until they close." />
       <Button Content="Purge all" Command="{Binding PurgeAllCommand}"
               ToolTip.Tip="Delete HeapScope's logs and everything in its library: sessions, captures, dumps, traces, timelines, saved indexes and bookmarks. Dumps you opened from your own folders are not touched." />
     </StackPanel>

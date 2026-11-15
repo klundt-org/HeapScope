@@ -1,4 +1,4 @@
-# HeapScope sprints: Phase 3 (depth to match dotMemory), the peer review sprints and packaging (3.9)
+# HeapScope sprints: Phase 3 (depth to match dotMemory), the peer review sprints, packaging (3.9) and 3.10 to 3.11
 
 Closed sprints moved here from [SPRINTS.md](../SPRINTS.md) in sprint 3.8; each keeps its goal, scope,
 acceptance criteria, decisions, tasks and review summary as they stood when it closed. Reviews are in

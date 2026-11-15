@@ -370,7 +370,7 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
   blocking, compacting gen2 collection with `GCLargeObjectHeapCompactionMode.CompactOnce`, so the memory really
   returns to the OS. Measured in 1.2 (`load-dump`, Medium): 0.5 s, private bytes down to 59 MB after the drop and
   66 MB with the graph mapped.
-- The worker's `SnapshotStore` applies this policy: a valid index cache is opened in the mode the budget chooses;
+- The worker's `SnapshotOpener` (moved out of `SnapshotStore` in sprint 3.12, R1) applies this policy: a valid index cache is opened in the mode the budget chooses;
   otherwise the dump is loaded, the cache written, and the graph either kept in memory or switched to mapped. After a
   load, the mode is chosen once the load's garbage is collected, counting the graph's own memory as available (it
   would be freed by going mapped), so a first load and a later reopen decide the same way. The clean-up collection

@@ -248,7 +248,8 @@ dotnet test --solution HeapScope.sln
   a step failed, 5 the first window over 30 s, 6 a whole-list grid walk, 7 too many slow operations.
   Every smoke run first waits for the background build of the pages after start (sprint 3.12, task 4; "Smoke prewarm",
   its slow operations logged apart and not counted, as no page is shown meanwhile). For an A/B run without it, set
-  `Ui__Prewarm=false` in the environment (or pass `--Ui:Prewarm false`); `artifacts/bench/3.12/ab3.sh` alternates the two.
+  `Ui__Prewarm=false` in the environment (or pass `--Ui:Prewarm false`); alternate the two, one smoke run each (task 4's
+  script stayed local under `artifacts/`, which git ignores).
 - Settings and housekeeping (sprint 3.12 review M4, as the Settings page): `heapscope-cli settings
   [--filter-text-in-logs on|off]` shows the settings file, the log folder and Include filter text in logs, or changes it;
   `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write; `heapscope-cli purge all` says what
@@ -256,8 +257,9 @@ dotnet test --solution HeapScope.sln
   user's own folders). Purge all is refused while a capture, recording or open runs in the same process, and while another
   HeapScope app or command line run is running (by the pid in its log's name); Purge logs keeps the logs running HeapScope
   processes write.
-- The app's gen 0 budget (sprint 3.12, M2): the app starts itself again with `DOTNET_GCgen0size`; `Ui__Gen0Budget=default`
-  runs it with the runtime's default instead, for A/B runs (`artifacts/bench/3.12/ab5.sh` alternates the two).
+- GC settings for an A/B run of the app: the runtime reads them only from the environment (`DOTNET_GCgen0size=4000000` is
+  a 64 MB gen 0 budget, in hexadecimal); `System.GC.Gen0Size` in a runtime configuration is ignored. Compare the longest
+  single operation, not only total GC time (sprint 3.12: a larger budget cut the total and doubled the longest pause).
 - Traces: `heapscope-cli trace --pid <id> [--duration 30] [--profile cpu|gc|allocations] [--out file.nettrace]` records an
   EventPipe trace of any .NET process (no dotnet-trace needed; Ctrl+C stops early and keeps it). An `allocations` trace
   is read by `heapscope-cli allocations <file> [--from s] [--to s] [--type <name>] [--types N] [--stacks N] [--frames N]
@@ -373,7 +375,7 @@ of debuggable code) and exit when the process given as parent exits.
   [--parent-pid P]`;
   prints `READY pid=<pid>` and waits to be dumped and killed. `--semantics` adds the conditional weak table and
   embedded struct fixtures, `--runtime-semantics` the finalizable, POH, LOH, pinned handle, frozen literal and
-  parked thread fixtures, `--late-garbage` dead table entries and weak-only objects created after the last full GC,
+  parked thread fixtures and objects of a pointer-free type from a collectible assembly (3.12, review H3), `--late-garbage` dead table entries and weak-only objects created after the last full GC,
   `--inspection` one object with fields of every kind (1.5), `--waste` duplicated strings, empty and oversized
   collections, large and sparse arrays, finalizable objects and pinned buffers with known amounts (1.6, `Waste.json`),
   `--retention-patterns` objects held by known distinct retention patterns and a type with inherited and generic
