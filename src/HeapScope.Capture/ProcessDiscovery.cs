@@ -85,13 +85,13 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
     /// </summary>
     private static bool IsOwn(int processId) =>
         processId == Environment.ProcessId
-        || (ReadImagePath(processId) is { } image && image.StartsWith(s_ownFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        || (ReadImagePath(processId) is { } image && HeapScope.Shared.PathIdentity.IsUnder(image, s_ownFolder))
         || RunsOwnWorkerAssembly(ReadCommandLine(processId), s_ownFolder);
 
     /// <summary>Whether <paramref name="commandLine"/> runs the worker assembly of the installation in <paramref name="ownFolder"/>.</summary>
     internal static bool RunsOwnWorkerAssembly(string? commandLine, string ownFolder) =>
         commandLine is not null
-        && commandLine.Contains(Path.Combine(ownFolder, "worker", "HeapScope.Worker.dll"), StringComparison.OrdinalIgnoreCase);
+        && commandLine.Contains(Path.Combine(ownFolder, "worker", "HeapScope.Worker.dll"), HeapScope.Shared.PathIdentity.Comparison());
 
     private DotNetProcess? Describe(int processId)
     {

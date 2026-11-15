@@ -94,13 +94,18 @@ public sealed partial class App : Avalonia.Application
 
             // What this run was started with (sprint 2.3.7 review H4); the log file's header names the build and system.
             startLogger.LogInformation(
-                "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}",
+                "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}; filter text in logs {FilterText} ({SettingsFile})",
                 ProductName,
                 Contracts.ProductInfo.InformationalVersion,
                 _args.Length == 0 ? "(none)" : string.Join(' ', _args),
                 Program.IsHeadless,
                 _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory,
-                _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().MinimumLevel);
+                _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().MinimumLevel,
+                Application.Settings.SettingsService.FilterTextInLogs ? "on" : "off",
+                Application.Settings.SettingsService.SettingsFileFollowed);
+
+            // The privacy this process applies, whenever the user changes it (sprint 3.12 review M19).
+            Application.Settings.SettingsService.FilterTextInLogsChanged += include => startLogger.LogInformation("Filter text in logs is now {State}", include ? "on" : "off");
             RequestedThemeVariant = ThemeChooser.Choose(_host.Services.GetService<IConfiguration>()?["Ui:Theme"]);
             await _host.StartAsync();
 

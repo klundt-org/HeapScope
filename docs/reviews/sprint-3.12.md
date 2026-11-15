@@ -42,18 +42,22 @@ flaky list), `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_jo
   way is M2.
 - Status: Fixed. Confirmed by gc-specialist (2026-11-14).
 
-### H3. Objects of pointer-free collectible types lost their edge to their LoaderAllocator
+### H3. Objects of collectible types had no edge to their LoaderAllocator
 - Reviewer: gc-specialist.
-- Where: `src/HeapScope.Loaders.ClrMd/ClrMdDumpLoader.cs`, the reference pass (R4's skip of types without pointers).
-- What: for an object of a collectible type ClrMD yields the type's LoaderAllocator as a reference, as the GC marks it; R4
-  skipped every type without pointers, so an instance of a pointer-free collectible type (a class of numbers, an array of
-  primitives from an unloadable context) had no edge.
+- Where: `src/HeapScope.Loaders.ClrMd/ClrMdDumpLoader.cs`, the reference pass.
+- What: the review read R4's skip of types without pointers as dropping the LoaderAllocator edge ClrMD yields for a
+  collectible type. M1's fixture showed otherwise: ClrMD 4.2 marks the type collectible and has its LoaderAllocator handle,
+  but yields no reference from the object, carefully or not, so the edge was never in the graph, before R4 or after. The GC
+  does mark the LoaderAllocator through such objects.
 - Why it matters: a LoaderAllocator held only by such objects looked unreachable: paths, dominators and retained sizes wrong
   for "why won't my context unload". No fixture has collectible types, so the graph hash could not see it.
-- Fix: the skip applies only to types that are neither pointer-carrying nor collectible. The collectible fixture that would
-  test it is in M1.
-- Status: Fixed. Confirmed by gc-specialist (2026-11-14), by reading the code: no test proves it until the collectible
-  fixture (M1).
+- Fix: the skip applies only to types that are neither pointer-carrying nor collectible, and the loader adds the edge itself,
+  reading each collectible type's LoaderAllocator once through its handle (graph-format.md, ADR-010). Test (with M1): the
+  RuntimeKinds fixture now holds objects of a pointer-free type from a RunAndCollect assembly;
+  `LoaderKnownAnswerTests.An_object_of_a_collectible_type_without_pointers_references_its_loader_allocator` fails without the
+  added edge, and `Object_and_reference_counts_equal_clrmd` counts it.
+- Status: Fixed. The first fix was confirmed by gc-specialist (2026-11-14) by reading the code; the edge added after the
+  fixture's finding goes back to gc-specialist with M1.
 
 ### H4. A worker given another data folder read another settings file
 - Reviewer: support-engineer.
@@ -82,7 +86,8 @@ flaky list), `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_jo
 
 ## Moderate
 
-Decisions pending (the owner).
+The owner decided on 2026-11-14: fix all nineteen, the parts recommended for the Backlog included (M1's collectible
+fixture, M2's relaunch, M4's CLI commands, M7's hard faults, M8).
 
 - M1. R4's object walk encodes CoreCLR's object layout beside ClrMD, with no ADR and no CI proof (solution-architect,
   gc-specialist). The header mask, the component count, the minimum object, the alignment and the allocation context skip are

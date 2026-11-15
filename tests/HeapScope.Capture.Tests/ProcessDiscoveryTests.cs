@@ -33,7 +33,8 @@ public sealed class ProcessDiscoveryTests
         var worker = Path.Combine(own, "worker", "HeapScope.Worker.dll");
 
         ProcessDiscovery.RunsOwnWorkerAssembly($"\"dotnet\" \"{worker}\" --pipe HeapScope.W.1", own).ShouldBeTrue();
-        ProcessDiscovery.RunsOwnWorkerAssembly($"dotnet {worker.ToUpperInvariant()} --pipe x", own).ShouldBeTrue();
+        ProcessDiscovery.RunsOwnWorkerAssembly($"dotnet {worker.ToUpperInvariant()} --pipe x", own)
+            .ShouldBe(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(), "by the one path rule (review M3): case counts on Linux");
         ProcessDiscovery.RunsOwnWorkerAssembly("dotnet MyApp.dll", own).ShouldBeFalse();
         ProcessDiscovery.RunsOwnWorkerAssembly($"dotnet {Path.Combine(Path.GetTempPath(), "other", "worker", "HeapScope.Worker.dll")}", own)
             .ShouldBeFalse("another installation's worker is listed like any process");

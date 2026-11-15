@@ -14,7 +14,7 @@ section 13 links here).
 - [ADR-007](ADR-007-out-of-process-worker.md) Out-of-process worker (amended by ADR-025)
 - [ADR-008](ADR-008-headless-core-and-cli.md) Headless core and CLI
 - [ADR-009](ADR-009-application-stack.md) Application stack
-- [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries
+- [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries (amended in sprint 3.12: the loader's own object walk)
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene
 - [ADR-012](ADR-012-git.md) Git
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth

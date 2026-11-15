@@ -53,6 +53,15 @@ public sealed class LogPrivacy
     /// <summary>Reads the settings of <paramref name="folders"/> from now on (a worker given <c>--data-folder</c>).</summary>
     public static void Use(HeapScopeFolders folders) => Volatile.Write(ref s_current, new LogPrivacy(folders));
 
+    /// <summary>
+    /// Raised with the new value when the setting read changes (the review's M19: each process logs the privacy it applies).
+    /// Raised under the instance's lock; a handler must not read <see cref="IncludeFilterText"/>.
+    /// </summary>
+    public event Action<bool>? Changed;
+
+    /// <summary>The settings file this instance follows, for a process's start line.</summary>
+    public string SettingsFile => HeapScopeSettings.PathIn(_folders);
+
     /// <summary>Whether filter and search text may be written into a log line now.</summary>
     public bool IncludeFilterText
     {
@@ -86,7 +95,7 @@ public sealed class LogPrivacy
             // As an unreadable file below (review H5): never the default "on" before the file was read once.
             if (!_readOnce)
             {
-                _includeFilterText = false;
+                Set(false);
             }
 
             return;
@@ -103,7 +112,7 @@ public sealed class LogPrivacy
             // keep filter text out until the file has been read once; the write time is not recorded, so the next check reads again.
             if (!_readOnce)
             {
-                _includeFilterText = false;
+                Set(false);
             }
 
             return;
@@ -111,6 +120,15 @@ public sealed class LogPrivacy
 
         _written = written;
         _readOnce = true;
-        _includeFilterText = settings.IncludeFilterTextInLogs;
+        Set(settings.IncludeFilterTextInLogs);
+    }
+
+    private void Set(bool include)
+    {
+        if (include != _includeFilterText)
+        {
+            _includeFilterText = include;
+            Changed?.Invoke(include);
+        }
     }
 }

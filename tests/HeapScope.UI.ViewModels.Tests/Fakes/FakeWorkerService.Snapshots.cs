@@ -122,7 +122,15 @@ internal sealed partial class FakeWorkerService : ISnapshotService
 
     public Task CloseSnapshotAsync(Guid snapshotId, CancellationToken cancellationToken)
     {
+        if (CloseFailure is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
         Closed.Add(snapshotId);
         return Task.CompletedTask;
     }
+
+    /// <summary>Thrown by every close (sprint 3.12 review M10).</summary>
+    public Exception? CloseFailure { get; set; }
 }

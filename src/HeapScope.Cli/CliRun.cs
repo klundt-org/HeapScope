@@ -60,7 +60,8 @@ internal static partial class CliCommands
         using var activity = new System.Diagnostics.Activity("HeapScope.Cli").Start();
         var command = parseResult.CommandResult.Command.Name;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
-        logger.LogInformation("Command {Command} started: {Arguments}", command, DescribeTokens(parseResult, HeapScope.Application.Settings.SettingsService.FilterTextInLogs));
+        var filterText = HeapScope.Application.Settings.SettingsService.FilterTextInLogs;
+        logger.LogInformation("Command {Command} started: {Arguments}; filter text in logs {FilterText}", command, DescribeTokens(parseResult, filterText), filterText ? "on" : "off");
         int exitCode;
         try
         {

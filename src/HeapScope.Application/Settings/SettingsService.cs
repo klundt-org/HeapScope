@@ -83,6 +83,16 @@ public sealed class SettingsService
     /// </summary>
     public static bool FilterTextInLogs => LogPrivacy.Current.IncludeFilterText;
 
+    /// <summary>The settings file this process follows, for its start line (sprint 3.12 review M19).</summary>
+    public static string SettingsFileFollowed => LogPrivacy.Current.SettingsFile;
+
+    /// <summary>Raised with the new value when this process sees the setting change (sprint 3.12 review M19).</summary>
+    public static event Action<bool>? FilterTextInLogsChanged
+    {
+        add => LogPrivacy.Current.Changed += value;
+        remove => LogPrivacy.Current.Changed -= value;
+    }
+
     /// <summary>The settings file, for the log and the page.</summary>
     public string SettingsPath => HeapScopeSettings.PathIn(_folders);
 
@@ -101,20 +111,33 @@ public sealed class SettingsService
         _logger.LogInformation("Setting saved to {File}: include filter text in logs {State}", SettingsPath, include ? "on" : "off");
     }
 
-    /// <summary>The log files Purge logs would delete: every HeapScope log but the one this process writes now.</summary>
+    /// <summary>
+    /// The log files Purge logs would delete: every HeapScope log but those a running HeapScope process writes now, this one's
+    /// included (the review's M5: another window or a command line run keeps its log), which are listed as kept.
+    /// </summary>
     public Deletion PlanPurgeLogs()
     {
-        var files = LogFiles().ToList();
-        return new Deletion(files, files.Sum(Length));
+        var (files, kept) = LogFiles();
+        return new Deletion(files, files.Sum(Length), Kept: kept);
     }
 
-    /// <summary>Deletes HeapScope's log files but the one this process writes now (kept until HeapScope closes).</summary>
+    /// <summary>Deletes HeapScope's log files but those running HeapScope processes write now (kept until they close).</summary>
     public Deletion PurgeLogs()
     {
         var plan = PlanPurgeLogs();
-        _logger.LogInformation("Purge logs: deleting {Files} files ({Bytes} bytes) in {Folder}; the log written now, {Current}, is kept", plan.Files.Count, plan.Bytes, LogFolder, _logs?.CurrentPath ?? "none");
-        var deletion = Delete(plan.Files);
-        _logger.LogInformation("Purge logs: {Deleted} files deleted ({Bytes} bytes), {Failed} could not be", deletion.Files.Count, deletion.Bytes, deletion.Failed?.Count ?? 0);
+        _logger.LogInformation(
+            "Purge logs: deleting {Files} files ({Bytes} bytes) in {Folder}; kept, being written by running HeapScope processes: {Kept}",
+            plan.Files.Count,
+            plan.Bytes,
+            LogFolder,
+            Listed(plan.Kept ?? []));
+        var deletion = Delete(plan.Files) with { Kept = plan.Kept };
+        _logger.LogInformation(
+            "Purge logs: {Deleted} files deleted ({Bytes} bytes), {Failed} could not be: {Failures}",
+            deletion.Files.Count,
+            deletion.Bytes,
+            deletion.Failed?.Count ?? 0,
+            Listed(deletion.Failed ?? []));
         return deletion;
     }
 
@@ -147,8 +170,15 @@ public sealed class SettingsService
             files.Add(_bookmarks.Path);
         }
 
-        files.AddRange(LogFiles());
-        return new PurgePlan(sessions.Count, new Deletion(files, files.Sum(Length)), refused);
+        var (logs, kept) = LogFiles();
+        files.AddRange(logs);
+        if (refused is not null)
+        {
+            // Logged where it is decided (the review's M13): the page shows it without asking.
+            _logger.LogInformation("Purge all refused: {Reason}", refused);
+        }
+
+        return new PurgePlan(sessions.Count, new Deletion(files, files.Sum(Length), Kept: kept), refused);
     }
 
     /// <summary>
@@ -156,12 +186,14 @@ public sealed class SettingsService
     /// lets go of their files, then the sessions, the bookmarks and the logs. Refused while anything runs.
     /// </summary>
     /// <exception cref="InvalidOperationException">A capture, recording or open runs, or a session is in use.</exception>
+    /// <exception cref="IOException">A session could not be listed.</exception>
+    /// <exception cref="Workers.WorkerException">A snapshot or trace could not be closed: nothing was deleted.</exception>
     public async Task<(PurgePlan Plan, Deletion Deleted)> PurgeAllAsync(CancellationToken cancellationToken)
     {
-        var plan = PlanPurgeAll();
+        // The library's listing and sizes off the caller's thread (the review's M9: the page awaited it on the UI thread).
+        var plan = await Task.Run(PlanPurgeAll, cancellationToken).ConfigureAwait(false);
         if (plan.Refused is { } refused)
         {
-            _logger.LogInformation("Purge all refused: {Reason}", refused);
             throw new InvalidOperationException(refused);
         }
 
@@ -174,14 +206,23 @@ public sealed class SettingsService
             plan.Files.Files.Count,
             plan.Files.Bytes);
 
-        foreach (var handle in _snapshots.Snapshots.Where(h => IsInLibrary(h.Path)))
+        try
         {
-            await _snapshots.CloseAsync(handle, cancellationToken).ConfigureAwait(false);
-        }
+            foreach (var handle in _snapshots.Snapshots.Where(h => IsInLibrary(h.Path)).ToList())
+            {
+                await _snapshots.CloseAsync(handle, cancellationToken).ConfigureAwait(false);
+            }
 
-        foreach (var trace in _allocations?.Traces.Where(t => IsInLibrary(t.Path)) ?? [])
+            foreach (var trace in _allocations?.Traces.Where(t => IsInLibrary(t.Path)).ToList() ?? [])
+            {
+                await _allocations!.CloseAsync(trace, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await _allocations!.CloseAsync(trace, cancellationToken).ConfigureAwait(false);
+            // The outcome of the start line above (the review's M10, M14): what was closed stays closed, nothing was deleted.
+            _logger.LogWarning(ex, "Purge all stopped before deleting anything: a snapshot or trace could not be closed");
+            throw;
         }
 
         return (plan, await Task.Run(() => DeleteEverything(), cancellationToken).ConfigureAwait(false));
@@ -193,7 +234,9 @@ public sealed class SettingsService
         var failed = new List<string>();
         long bytes = 0;
         _library.ForgetCurrent();
-        foreach (var session in _library.ListRecent(int.MaxValue))
+        var logged = 0;
+        var sessions = _library.ListRecent(int.MaxValue);
+        foreach (var session in sessions)
         {
             try
             {
@@ -201,6 +244,18 @@ public sealed class SettingsService
                 deleted.AddRange(deletion.Files);
                 bytes += deletion.Bytes;
                 failed.AddRange(deletion.Failed ?? []);
+
+                // Each session, which files it held and which dumps it recorded outside its folder were kept (the review's M14).
+                if (logged++ < Listing)
+                {
+                    _logger.LogInformation(
+                        "Purge all: session {Folder}: {Files} files ({Bytes} bytes) deleted, {Failed} could not be; kept outside it: {Kept}",
+                        session.Folder,
+                        deletion.Files.Count,
+                        deletion.Bytes,
+                        deletion.Failed?.Count ?? 0,
+                        Listed(deletion.Kept ?? []));
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
             {
@@ -208,12 +263,24 @@ public sealed class SettingsService
             }
         }
 
-        var rest = Delete([.. File.Exists(_bookmarks.Path) ? [_bookmarks.Path] : Array.Empty<string>(), .. LogFiles()]);
+        if (sessions.Count > Listing)
+        {
+            _logger.LogInformation("Purge all: {More} more sessions deleted, not listed one by one", sessions.Count - Listing);
+        }
+
+        var (logs, kept) = LogFiles();
+        var rest = Delete([.. File.Exists(_bookmarks.Path) ? [_bookmarks.Path] : Array.Empty<string>(), .. logs]);
         deleted.AddRange(rest.Files);
         bytes += rest.Bytes;
         failed.AddRange(rest.Failed ?? []);
-        _logger.LogInformation("Purge all: {Deleted} files deleted ({Bytes} bytes), {Failed} could not be: {Failures}", deleted.Count, bytes, failed.Count, failed.Count == 0 ? "none" : string.Join("; ", failed));
-        return new Deletion(deleted, bytes, failed.Count == 0 ? null : failed);
+        _logger.LogInformation(
+            "Purge all: {Deleted} files deleted ({Bytes} bytes), {Failed} could not be: {Failures}; logs kept, being written by running HeapScope processes: {Kept}",
+            deleted.Count,
+            bytes,
+            failed.Count,
+            Listed(failed),
+            Listed(kept));
+        return new Deletion(deleted, bytes, failed.Count == 0 ? null : failed, kept);
     }
 
     // Anything that writes into the library or reads its files now.
@@ -222,23 +289,57 @@ public sealed class SettingsService
             ? $"{job.Title} is running; wait for it or cancel it first."
             : null;
 
-    private bool IsInLibrary(string path)
-    {
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_library.Root)) + Path.DirectorySeparatorChar;
-        return Path.GetFullPath(path).StartsWith(root, HeapScope.Contracts.PathIdentity.Comparison());
-    }
+    private bool IsInLibrary(string path) => HeapScope.Contracts.PathIdentity.IsUnder(Path.GetFullPath(path), Path.GetFullPath(_library.Root));
 
-    private IEnumerable<string> LogFiles()
+    // The most entries a purge's log line lists one by one; the rest are counted (as inspections list rows, sprint 3.12, B7).
+    private const int Listing = 50;
+
+    private static string Listed(IReadOnlyCollection<string> items) => items.Count == 0
+        ? "none"
+        : string.Join("; ", items.Take(Listing)) + (items.Count > Listing ? $" and {items.Count - Listing} more" : string.Empty);
+
+    /// <summary>
+    /// The log files to delete, and those kept: this process's own, and any whose name (<c>heapscope-date-app-pid.log</c>) is
+    /// a running process's, which still writes into it (the review's M5). A pid reused by another program keeps an old log
+    /// until the next purge, which is the safe way to be wrong.
+    /// </summary>
+    private (List<string> Delete, List<string> Kept) LogFiles()
     {
+        var delete = new List<string>();
+        var kept = new List<string>();
         if (!Directory.Exists(LogFolder))
         {
-            return [];
+            return (delete, kept);
         }
 
         var current = _logs?.CurrentPath;
-        return Directory.EnumerateFiles(LogFolder, "heapscope-*.log")
-            .Where(f => current is null || !HeapScope.Contracts.PathIdentity.Same(Path.GetFullPath(f), Path.GetFullPath(current)))
-            .ToList();
+        foreach (var file in Directory.EnumerateFiles(LogFolder, "heapscope-*.log"))
+        {
+            var mine = current is not null && HeapScope.Contracts.PathIdentity.Same(Path.GetFullPath(file), Path.GetFullPath(current));
+            (mine || WrittenByRunningProcess(file) ? kept : delete).Add(file);
+        }
+
+        return (delete, kept);
+    }
+
+    /// <summary>Whether the pid in a log file's name is a running process (the name's fourth part, before any "-part").</summary>
+    internal static bool WrittenByRunningProcess(string file)
+    {
+        var parts = Path.GetFileNameWithoutExtension(file).Split('-');
+        if (parts.Length < 4 || !int.TryParse(parts[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
     }
 
     private static long Length(string file)

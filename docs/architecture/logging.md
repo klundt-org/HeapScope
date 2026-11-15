@@ -30,7 +30,7 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     kind, capabilities, facts, process, runtime, capture time and its source, from the cache or the dump (or a reopen),
     memory mode, cache path and identity, writer and loader versions, counts, dropped references and roots, unreadable
     objects, incomplete segments, static roots, the DAC and why it was trusted, and the notes shown. A load from the dump
-    also logs its phase times (since 3.12 freeze and collect apart, and each phase's CPU, GC pause and page faults). The client logs its handle with the worker id on open, reopen and a changed-file refusal.
+    also logs its phase times (since 3.12 freeze and collect apart, and each phase's process CPU, GC pause and pages read from disk, all three the whole process's). The client logs its handle with the worker id on open, reopen and a changed-file refusal.
     Since 3.12 the source says "older index cache (loader version N) in place of a failed rebuild" when that is where the
     graph came from, and whether the open could ask the DAC question ("DAC question allowed" or "not asked").
   - The older cache in place of a rebuild (sprint 3.12, ADR-041): why a cache was not used ("loader version N, current M; it

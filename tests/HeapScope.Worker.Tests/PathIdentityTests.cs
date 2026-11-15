@@ -44,13 +44,20 @@ public sealed class PathIdentityTests : IDisposable
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, false)]
-    public void Paths_differing_only_in_case_are_one_file_on_windows_only(bool windows, bool same)
+    public void Paths_differing_only_in_case_are_one_file_where_the_system_ignores_case(bool ignoreCase, bool same)
     {
-        PathIdentity.Same(@"C:\dumps\app.dmp", @"C:\dumps\App.dmp", windows).ShouldBe(same);
-        PathIdentity.Same("/dumps/app.dmp", "/dumps/app.dmp", windows).ShouldBeTrue();
-        PathIdentity.Same(null, null, windows).ShouldBeFalse();
-        PathIdentity.Comparer(windows).Equals("a.dmp", "A.dmp").ShouldBe(same);
-        PathIdentity.IsUnder(Path.Combine("root", "Sessions", "x.dmp"), Path.Combine("root", "sessions"), windows).ShouldBe(same);
+        PathIdentity.Same(@"C:\dumps\app.dmp", @"C:\dumps\App.dmp", ignoreCase).ShouldBe(same);
+        PathIdentity.Same("/dumps/app.dmp", "/dumps/app.dmp", ignoreCase).ShouldBeTrue();
+        PathIdentity.Same(null, null, ignoreCase).ShouldBeFalse();
+        PathIdentity.Comparer(ignoreCase).Equals("a.dmp", "A.dmp").ShouldBe(same);
+        PathIdentity.IsUnder(Path.Combine("root", "Sessions", "x.dmp"), Path.Combine("root", "sessions"), ignoreCase).ShouldBe(same);
+    }
+
+    // Sprint 3.12 review M3: Windows and macOS ignore case by default, Linux does not.
+    [Fact]
+    public void Windows_and_macos_ignore_case()
+    {
+        PathIdentity.IgnoresCase.ShouldBe(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS());
     }
 
     [Fact]

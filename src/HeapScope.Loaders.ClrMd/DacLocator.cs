@@ -69,10 +69,10 @@ public static class DacLocator
             : version.ToString();
     }
 
-    // Paths are compared without case on Windows only; Linux file systems are case sensitive (sprint 2.3.5 review).
-    private static StringComparer PathComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    // Paths compared by the one path rule (sprint 2.3.5 review; sprint 3.12 review M3: macOS ignores case too).
+    private static StringComparer PathComparer => HeapScope.Shared.PathIdentity.Comparer();
 
-    private static StringComparison PathComparison => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    private static StringComparison PathComparison => HeapScope.Shared.PathIdentity.Comparison();
 
     /// <summary>The folders searched, in order, without duplicates.</summary>
     public static IReadOnlyList<string> CandidateDirectories(DacRequest request, string dumpPath, ClrMdLoaderOptions options)

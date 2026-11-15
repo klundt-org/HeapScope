@@ -74,7 +74,7 @@ internal static class LoadDumpBenchmark
         Measurement.Line("Dropped", $"{graph.DroppedReferenceCount:N0} references, {graph.DroppedRootCount:N0} roots, {result.Diagnostics.UnreadableObjects:N0} unreadable objects, {result.Diagnostics.IncompleteSegments} incomplete segments; complete graph {result.Capabilities.HasFlag(HeapScope.Core.SnapshotCapabilities.CompleteGraph)}");
         Measurement.Line("Static field roots", $"{result.Diagnostics.StaticFieldRoots:N0}; debuggable modules {result.Diagnostics.DebuggableModules.Count}");
         Measurement.Line("Graph columns", $"{Measurement.Mb(graph.ColumnBytes)} ({(double)graph.ColumnBytes / Math.Max(graph.ObjectCount, 1):N1} bytes per object)");
-        Measurement.Line("Graph hash", GraphHash(graph));
+        Measurement.Line("Graph hash", GraphHash(result));
         Measurement.Line("Column hashes", string.Join(" ", new[] { Of(graph.Addresses.Span), Of(graph.Sizes.Span), Of(graph.HeapKinds.Span), Of(graph.Flags.Span), Of(graph.EdgeStarts.Span), Of(graph.Edges.Span), Of(graph.LargeSizes.Span) }));
         static string Of<T>(ReadOnlySpan<T> span) where T : unmanaged => Convert.ToHexStringLower(System.IO.Hashing.XxHash3.Hash(System.Runtime.InteropServices.MemoryMarshal.AsBytes(span)))[..8];
         Measurement.Line("Open dump", $"{t.Open.TotalSeconds:N1} s");
@@ -206,11 +206,13 @@ internal static class LoadDumpBenchmark
     }
 
     /// <summary>
-    /// One hash of everything the loader built (sprint 3.12, R4): the object columns, the edges and the type table, so a change
-    /// to the loader's hot loop is shown to build the same graph.
+    /// One hash of everything the loader built (sprint 3.12, R4): the object columns, the edges, the type table, the roots, the
+    /// free space per heap kind and what was dropped or unreadable (the review's M1 added the last three), so a change to the
+    /// loader's hot loop is shown to build the same snapshot.
     /// </summary>
-    internal static string GraphHash(HeapScope.Core.Graph.HeapGraph graph)
+    internal static string GraphHash(HeapScope.Core.Loading.LoadResult result)
     {
+        var graph = result.Graph;
         var hash = new System.IO.Hashing.XxHash3();
         hash.Append(System.Runtime.InteropServices.MemoryMarshal.AsBytes(graph.Addresses.Span));
         // Types by where they first appear in address order, so the order a loader meets them in does not change the hash.
@@ -245,7 +247,12 @@ internal static class LoadDumpBenchmark
         }
 
         hash.Append(System.BitConverter.GetBytes(graph.Roots.Count));
+        hash.Append(System.Runtime.InteropServices.MemoryMarshal.AsBytes(graph.Roots.Roots.Span));
         hash.Append(System.BitConverter.GetBytes(graph.DroppedReferenceCount));
+        hash.Append(System.BitConverter.GetBytes(graph.DroppedRootCount));
+        hash.Append(System.Runtime.InteropServices.MemoryMarshal.AsBytes((result.Info.FreeBytes ?? []).ToArray().AsSpan()));
+        hash.Append(System.BitConverter.GetBytes(result.Diagnostics.UnreadableObjects));
+        hash.Append(System.BitConverter.GetBytes(result.Diagnostics.IncompleteSegments));
         return System.Convert.ToHexStringLower(hash.GetCurrentHash());
     }
 }

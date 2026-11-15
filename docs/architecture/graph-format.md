@@ -58,7 +58,8 @@ Supporting tables:
   paths prefer a `StaticField` root over the storage handle, so they say `s_cache` and not
   `StrongHandle -> Object[]`. Statics of collectible types (unloadable `AssemblyLoadContext`) live as long as their
   loader allocator, so their `StaticField` roots are recorded without `Retaining`; the runtime's own references keep
-  them alive while the context is alive (a collectible fixture is a backlog item).
+  them alive while the context is alive, among them each collectible object's edge to its LoaderAllocator, which the loader
+  adds (sprint 3.12; the RuntimeKinds fixture has objects of a pointer-free collectible type).
 - **Frozen objects.** Objects in frozen (NonGC) segments, such as string literals and `RuntimeType` objects, are never
   collected. They have no root; reachability, dominator and garbage analyses (2.x) treat every `HeapKind.Frozen`
   object as alive (a virtual root), so a literal referenced by nothing live is not reported as garbage.
@@ -130,9 +131,14 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
   end plus a minimum object. An object whose method table maps to no type hands the rest of its segment to ClrMD's own
   `EnumerateObjects`, which counts unreadable objects as before. The heap kind comes from the segment kind, or from
   `GetGeneration` on ephemeral and region segments. Objects arrive sorted, so `HasFinalizer` merges the sorted finalizable
-  list (`EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`) rather than looking each object up. The proof
-  that it builds ClrMD's graph is `load-dump`'s graph hash, whole and per column, equal before and after on the fixture and
-  the Medium dump (budgets.md).
+  list (`EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`) with one cursor. A length that runs past its
+  segment counts as unreadable and marks the segment incomplete (the review's M8). The proof that it builds ClrMD's graph:
+  `LoaderKnownAnswerTests` compare every object's address, type, size and finalizer flag with ClrMD's walk, and a walk
+  handed to ClrMD in mid-segment (a test hook) builds the same graph, on every CI system; `load-dump`'s graph hash was equal
+  before and after on the fixture and the Medium dump (budgets.md). ADR-010 records the layout it assumes.
+- References: ClrMD's, read with the type known from the object pass, none for a type without pointers; an object of a
+  collectible type also references its type's LoaderAllocator, as the GC marks it, which ClrMD does not yield (the review's
+  H3; the RuntimeKinds fixture has such objects).
 - After `FreezeObjects` the loader runs one aggressive, compacting collection: the phase-one chunks (about 20 bytes
   per object) are garbage then, and otherwise stay committed through the reference pass, which is where a load peaks.
 - Dependent handles become edges before the reference pass; weak handles become non-retaining `WeakHandle` roots.

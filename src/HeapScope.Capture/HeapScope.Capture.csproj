@@ -13,6 +13,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The one path rule (sprint 3.12 review M3), compiled here as an internal copy: this project cannot reference Contracts. -->
+    <Compile Include="..\HeapScope.Contracts\PathIdentity.cs" Link="Shared\PathIdentity.cs" />
+  </ItemGroup>
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);PATH_IDENTITY_INTERNAL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="HeapScope.Capture.Tests" />
   </ItemGroup>
 </Project>

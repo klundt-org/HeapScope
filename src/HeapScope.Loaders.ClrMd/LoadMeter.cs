@@ -28,8 +28,9 @@ using HeapScope.Core.Loading;
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// Measures a load phase by phase (sprint 3.12, R5): wall time, the process's CPU time, GC pause time and page faults, so a
-/// slow load can be told apart as work, collections or reading the dump from disk.
+/// Measures a load phase by phase (sprint 3.12, R5): wall time, the process's CPU time, GC pause time and hard page faults
+/// (pages read from disk), so a slow load can be told apart as work, collections or reading the dump from disk. CPU, GC and
+/// faults are the whole process's: a query on another snapshot during a load counts in them (the review's M7).
 /// </summary>
 internal sealed partial class LoadMeter
 {
@@ -46,7 +47,7 @@ internal sealed partial class LoadMeter
     public TimeSpan End(string phase)
     {
         var now = Now();
-        var cost = new LoadPhaseCost(phase, now.Elapsed - _last.Elapsed, now.Cpu - _last.Cpu, now.GcPause - _last.GcPause, now.Faults - _last.Faults);
+        var cost = new LoadPhaseCost(phase, now.Elapsed - _last.Elapsed, now.Cpu - _last.Cpu, now.GcPause - _last.GcPause, Delta(_last.Faults, now.Faults));
         _costs.Add(cost);
         _last = now;
         return cost.Elapsed;
@@ -55,18 +56,28 @@ internal sealed partial class LoadMeter
     private Mark Now()
     {
         using var process = Process.GetCurrentProcess();
-        return new Mark(_clock.Elapsed, process.TotalProcessorTime, GC.GetTotalPauseDuration(), PageFaults());
+        return new Mark(_clock.Elapsed, process.TotalProcessorTime, GC.GetTotalPauseDuration(), HardFaults());
     }
 
-    /// <summary>The process's page faults so far: every fault on Windows, major (from disk) faults on Linux; null elsewhere.</summary>
-    internal static long? PageFaults()
+    /// <summary>
+    /// The faults between two readings: Windows counts them in 32 bits, so a count that wrapped is read as the distance forward
+    /// (the review's M7); null when either reading is missing.
+    /// </summary>
+    internal static long? Delta(ulong? before, ulong? after) => before is { } b && after is { } a
+        ? (a >= b ? (long)(a - b) : (long)(uint)(a - b))
+        : null;
+
+    /// <summary>
+    /// The process's hard page faults so far, the pages read from disk: Windows' per-process hard fault count (the review's M7:
+    /// the memory counters' page faults count soft faults too), Linux's major faults; null elsewhere or when not readable.
+    /// </summary>
+    internal static ulong? HardFaults()
     {
         try
         {
             if (OperatingSystem.IsWindows())
             {
-                var counters = new ProcessMemoryCounters { Size = (uint)Marshal.SizeOf<ProcessMemoryCounters>() };
-                return GetProcessMemoryInfo(-1, ref counters, counters.Size) ? counters.PageFaultCount : null;
+                return WindowsHardFaults();
             }
 
             if (OperatingSystem.IsLinux())
@@ -74,7 +85,7 @@ internal sealed partial class LoadMeter
                 // /proc/self/stat: the 12th field, after the parenthesized command name, is majflt.
                 var stat = File.ReadAllText("/proc/self/stat");
                 var fields = stat[(stat.LastIndexOf(')') + 2)..].Split(' ');
-                return long.TryParse(fields[9], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var major) ? major : null;
+                return ulong.TryParse(fields[9], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var major) ? major : null;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or IndexOutOfRangeException or EntryPointNotFoundException or DllNotFoundException)
@@ -85,24 +96,67 @@ internal sealed partial class LoadMeter
         return null;
     }
 
-    [LibraryImport("kernel32.dll", EntryPoint = "K32GetProcessMemoryInfo")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetProcessMemoryInfo(nint process, ref ProcessMemoryCounters counters, uint size);
+    // SYSTEM_PROCESS_INFORMATION on 64-bit Windows: NextEntryOffset at 0, HardFaultCount at 0x10, UniqueProcessId at 0x50.
+    private const int SystemProcessInformation = 5;
+    private const int HardFaultCountOffset = 0x10;
+    private const int ProcessIdOffset = 0x50;
+    private const uint InfoLengthMismatch = 0xC0000004;
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ProcessMemoryCounters
+    /// <summary>This process's hard fault count from the system's process list; null on 32-bit Windows or when it cannot be read.</summary>
+    private static unsafe ulong? WindowsHardFaults()
     {
-        public uint Size;
-        public uint PageFaultCount;
-        public nuint PeakWorkingSetSize;
-        public nuint WorkingSetSize;
-        public nuint QuotaPeakPagedPoolUsage;
-        public nuint QuotaPagedPoolUsage;
-        public nuint QuotaPeakNonPagedPoolUsage;
-        public nuint QuotaNonPagedPoolUsage;
-        public nuint PagefileUsage;
-        public nuint PeakPagefileUsage;
+        if (IntPtr.Size != 8)
+        {
+            return null;
+        }
+
+        var length = 512u * 1024;
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            var buffer = NativeMemory.Alloc(length);
+            try
+            {
+                var status = (uint)NtQuerySystemInformation(SystemProcessInformation, (nint)buffer, length, out var needed);
+                if (status == InfoLengthMismatch)
+                {
+                    length = Math.Max(needed, length) * 2;
+                    continue;
+                }
+
+                if (status != 0)
+                {
+                    return null;
+                }
+
+                var pid = (nint)Environment.ProcessId;
+                var entry = (byte*)buffer;
+                while (true)
+                {
+                    if (*(nint*)(entry + ProcessIdOffset) == pid)
+                    {
+                        return *(uint*)(entry + HardFaultCountOffset);
+                    }
+
+                    var next = *(uint*)entry;
+                    if (next == 0)
+                    {
+                        return null;
+                    }
+
+                    entry += next;
+                }
+            }
+            finally
+            {
+                NativeMemory.Free(buffer);
+            }
+        }
+
+        return null;
     }
 
-    private readonly record struct Mark(TimeSpan Elapsed, TimeSpan Cpu, TimeSpan GcPause, long? Faults);
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtQuerySystemInformation(int informationClass, nint information, uint length, out uint returnLength);
+
+    private readonly record struct Mark(TimeSpan Elapsed, TimeSpan Cpu, TimeSpan GcPause, ulong? Faults);
 }

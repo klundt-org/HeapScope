@@ -50,6 +50,12 @@ public sealed record ClrMdLoaderOptions
     internal Microsoft.Diagnostics.Runtime.IFileLocator? SymbolServerLocatorForTests { get; init; }
 
     /// <summary>
+    /// Hands the walk to ClrMD's own at the object with this number (counted over the whole walk, from 1) as though its method
+    /// table could not be read (sprint 3.12 review M1): tests prove the fallback builds the same graph.
+    /// </summary>
+    internal long? FallBackAtObjectForTests { get; init; }
+
+    /// <summary>
     /// Folders holding installed shared runtimes (<c>...\shared\Microsoft.NETCore.App</c>). Null means the machine
     /// defaults (<c>DOTNET_ROOT</c> and Program Files); tests pass their own.
     /// </summary>

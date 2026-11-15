@@ -493,7 +493,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - `stack-roots --dump <path>`: stack roots per thread and frame (diagnostic; no budget check).
 - `load-dump --dump <path> [--cache-mb 512] [--keep-cache 1] [--any-gc 1]` (run with `DOTNET_GCHeapCount` set to half the
   processors in hex, as the worker runs; since 3.12 it refuses another GC setup without `--any-gc`, and prints each phase's
-  CPU, GC and page faults and a hash of the graph built, whole and per column, so a loader change can be shown to build the
+  process CPU, GC pause and pages read from disk (hard faults) and a hash of the graph built, whole and per column, so a loader change can be shown to build the
   same graph): HeapScope's loader on a real dump: counts, density,
   dropped data and segment completeness, private bytes when each phase starts and at peak, the cache write, the switch
   to mapped mode and both reopens, checked against the ARCHITECTURE.md 10 budgets (exit code 1 on a miss).

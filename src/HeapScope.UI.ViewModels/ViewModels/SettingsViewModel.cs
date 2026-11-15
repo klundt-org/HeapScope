@@ -99,6 +99,12 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ? string.Create(CultureInfo.CurrentCulture, $"Deleted {deletion.Files.Count} log files ({Format.Bytes(deletion.Bytes)}).")
                 : Failed(deletion.Failed!);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The review's M10: the log folder could not be listed; shown with a next step, not the last-chance dialog.
+            _logger?.LogWarning(ex, "Purge logs could not list {Folder}", _settings.LogFolder);
+            Status = Stopped(ex);
+        }
         finally
         {
             IsBusy = false;
@@ -106,12 +112,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanPurge))]
-    private async Task PurgeAllAsync()
+    private async Task PurgeAllAsync(CancellationToken cancellationToken)
     {
         IsBusy = true;
         try
         {
-            var plan = await Task.Run(_settings.PlanPurgeAll);
+            var plan = await Task.Run(_settings.PlanPurgeAll, cancellationToken);
             if (plan.Refused is { } refused)
             {
                 Status = "Nothing was deleted: " + refused;
@@ -128,7 +134,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 return;
             }
 
-            var (done, deleted) = await _settings.PurgeAllAsync(CancellationToken.None);
+            var (done, deleted) = await _settings.PurgeAllAsync(cancellationToken);
             Status = deleted.Complete
                 ? string.Create(CultureInfo.CurrentCulture, $"Deleted everything HeapScope keeps: {done.Sessions} sessions, {deleted.Files.Count} files ({Format.Bytes(deleted.Bytes)}).")
                 : Failed(deleted.Failed!);
@@ -137,11 +143,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             Status = "Nothing was deleted: " + ex.Message;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HeapScope.Application.Workers.WorkerException)
+        {
+            // The review's M10: a folder that could not be listed, or a snapshot the worker could not close; the service logged it.
+            _logger?.LogWarning(ex, "Purge all stopped");
+            Status = Stopped(ex);
+        }
         finally
         {
             IsBusy = false;
         }
     }
+
+    private static string Stopped(Exception ex) => string.Create(
+        CultureInfo.CurrentCulture,
+        $"Stopped before deleting anything more: {ex.Message} Try again; HeapScope's log has the details.");
 
     private static string Failed(IReadOnlyList<string> failed) => string.Create(
         CultureInfo.CurrentCulture,

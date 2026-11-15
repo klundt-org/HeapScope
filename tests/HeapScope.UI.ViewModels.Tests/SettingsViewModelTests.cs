@@ -23,6 +23,9 @@
 
 using System.IO;
 using HeapScope.Application.Bookmarks;
+using HeapScope.Application.Snapshots;
+using HeapScope.Application.Tests;
+using HeapScope.Application.Workers;
 using HeapScope.Application.Jobs;
 using HeapScope.Application.Logging;
 using HeapScope.Application.Sessions;
@@ -47,6 +50,8 @@ public sealed class SettingsViewModelTests : IDisposable
     private readonly SessionLibrary _library;
     private readonly BookmarkStore _bookmarks;
     private readonly FileLoggerProvider _log;
+    private readonly SnapshotSession _snapshots;
+    private readonly RecordingLogger<SettingsService> _serviceLog = new();
     private readonly SettingsService _service;
 
     public SettingsViewModelTests()
@@ -55,7 +60,8 @@ public sealed class SettingsViewModelTests : IDisposable
         _library = new SessionLibrary(Path.Combine(_root, "sessions"));
         _bookmarks = new BookmarkStore(_root);
         _log = new FileLoggerProvider(Folders.Logs, app: "ui");
-        _service = new SettingsService(_library, _bookmarks, TestSessions.Create(_worker, _jobs), _jobs, logs: _log, folders: Folders);
+        _snapshots = TestSessions.Create(_worker, _jobs);
+        _service = new SettingsService(_library, _bookmarks, _snapshots, _jobs, logs: _log, folders: Folders, logger: _serviceLog);
     }
 
     private HeapScopeFolders Folders => new(_root);
@@ -162,6 +168,88 @@ public sealed class SettingsViewModelTests : IDisposable
         running.SetResult(0);
         await job.Result;
     }
+
+    // The review's M11: the purge's safety rule, proved on what a session records. A dump captured to the user's own folder is
+    // kept with its cache in the fallback root; a library dump's cache there goes with it; only the library's snapshots are
+    // closed.
+    [Fact]
+    public async Task Purge_all_keeps_a_dump_a_session_records_outside_its_folder_and_closes_only_the_librarys_snapshots()
+    {
+        var (current, older, _) = Library();
+        var inLibrary = Path.Combine(current, "app.dmp");
+        var outside = Write("outside/mine.dmp");
+        _library.AddTo(current, Snapshot(inLibrary));
+        _library.AddTo(older, Snapshot(outside));
+        var libraryCache = Write(Path.GetRelativePath(_root, IndexCachePaths.InFallback(inLibrary, Folders.Cache)));
+        var outsideCache = Write(Path.GetRelativePath(_root, IndexCachePaths.InFallback(outside, Folders.Cache)));
+        var libraryOpen = await _snapshots.StartOpen(inLibrary).Result;
+        var outsideOpen = await _snapshots.StartOpen(outside).Result;
+        var page = new SettingsViewModel(_service, _interaction);
+
+        await page.PurgeAllCommand.ExecuteAsync(null);
+
+        Directory.Exists(current).ShouldBeFalse();
+        File.Exists(libraryCache).ShouldBeFalse("a library dump's cache in the fallback root goes with it");
+        File.Exists(outside).ShouldBeTrue("a dump of the user's own folder stays");
+        File.Exists(outsideCache).ShouldBeTrue("and its cache");
+        _worker.Service.Closed.ShouldBe([libraryOpen.Descriptor.SnapshotId], "only the library's snapshot is closed");
+        _snapshots.Snapshots.ShouldContain(outsideOpen);
+        _serviceLog.Lines.ShouldContain(l => l.StartsWith("Purge all: session ", StringComparison.Ordinal) && l.Contains(Path.GetFullPath(outside), StringComparison.Ordinal),
+            "each session's line names what was kept outside it (review M14)");
+    }
+
+    [Fact]
+    public async Task Purge_all_is_refused_while_something_writes_into_a_session_and_the_refusal_is_logged()
+    {
+        var (_, older, _) = Library();
+        using var writing = _library.MarkInUse(older, "live monitoring");
+        var page = new SettingsViewModel(_service, _interaction);
+
+        await page.PurgeAllCommand.ExecuteAsync(null);
+
+        page.Status.ShouldBe("Nothing was deleted: Live monitoring writes into a session; stop it first.");
+        _interaction.Questions.ShouldBeEmpty();
+        Directory.Exists(older).ShouldBeTrue();
+        _serviceLog.Lines.ShouldContain("Purge all refused: Live monitoring writes into a session; stop it first.", "the review's M13");
+    }
+
+    // The review's M10: a snapshot the worker cannot close stops the purge with a next step, not the last-chance dialog.
+    [Fact]
+    public async Task A_snapshot_the_worker_cannot_close_stops_purge_all_before_it_deletes_anything()
+    {
+        var (current, _, _) = Library();
+        var inLibrary = Path.Combine(current, "app.dmp");
+        _library.AddTo(current, Snapshot(inLibrary));
+        await _snapshots.StartOpen(inLibrary).Result;
+        _worker.Service.CloseFailure = new WorkerOperationException("The worker stopped.");
+        var page = new SettingsViewModel(_service, _interaction);
+
+        await page.PurgeAllCommand.ExecuteAsync(null);
+
+        page.Status.ShouldBe("Stopped before deleting anything more: The worker stopped. Try again; HeapScope's log has the details.");
+        Directory.Exists(current).ShouldBeTrue();
+        _serviceLog.Lines.ShouldContain(l => l.StartsWith("Purge all stopped before deleting anything", StringComparison.Ordinal));
+        page.IsBusy.ShouldBeFalse();
+    }
+
+    // The review's M5: another HeapScope process (a second window, a command line run) still writes its log.
+    [Fact]
+    public async Task Purge_logs_keeps_the_log_a_running_process_writes()
+    {
+        Library();
+        var running = Write($"logs/heapscope-20261114-cli-{Environment.ProcessId}.log");
+        var gone = Write($"logs/heapscope-20261114-cli-{int.MaxValue}.log");
+        var page = new SettingsViewModel(_service, _interaction);
+
+        await page.PurgeLogsCommand.ExecuteAsync(null);
+
+        File.Exists(running).ShouldBeTrue();
+        File.Exists(gone).ShouldBeFalse();
+        page.Status.ShouldNotBeNull().ShouldStartWith("Deleted 3 log files", customMessage: "the two old ones without a pid, and the gone process's");
+    }
+
+    private static SessionSnapshot Snapshot(string path) =>
+        new(Guid.NewGuid(), path, "app", 42, "10.0.0", DateTimeOffset.UtcNow, 1000);
 
     public void Dispose()
     {

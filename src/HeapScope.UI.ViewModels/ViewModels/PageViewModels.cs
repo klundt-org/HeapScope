@@ -158,8 +158,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
             return $"{summary.Name} is in use: {user} writes into it. Stop it first.";
         }
 
-        var under = folder + System.IO.Path.DirectorySeparatorChar;
-        return snapshots?.Snapshots.Any(s => System.IO.Path.GetFullPath(s.Handle.Path).StartsWith(under, PathIdentity.Comparison())) == true
+        return snapshots?.Snapshots.Any(s => PathIdentity.IsUnder(System.IO.Path.GetFullPath(s.Handle.Path), folder)) == true
             ? $"{summary.Name} has a snapshot open. Close it on the Snapshots page first."
             : null;
     }

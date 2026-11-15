@@ -69,6 +69,21 @@ public class TextRulesTests
         offenders.ShouldBeEmpty();
     }
 
+    // One path rule (sprint 3.12, B3 and the review's M3): no file but PathIdentity.cs decides by system how paths compare, so
+    // the rule cannot drift apart in copies (DacLocator kept one, ProcessDiscovery ignored case everywhere).
+    [Fact]
+    public void Only_PathIdentity_decides_by_system_how_paths_compare()
+    {
+        var copy = new System.Text.RegularExpressions.Regex(@"Is(Windows|MacOS|Linux)\(\)\s*\?\s*String(Comparer|Comparison)\.");
+        var offenders = Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && Path.GetFileName(f) != "PathIdentity.cs")
+            .Where(f => copy.IsMatch(File.ReadAllText(f)))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ToList();
+
+        offenders.ShouldBeEmpty();
+    }
+
     // Tests make snapshot sessions only through TestSessions, which never reads the machine's free memory (sprint 3.12):
     // a busy machine made opens ask the low memory question first and failed tests that pass alone.
     [Fact]
