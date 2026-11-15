@@ -135,10 +135,14 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    requires `sample/`, `pack-tool.sh` the tool's sample assembly and no sample executable; the release's SBOMs include the
    sample. win-x64: the sample 77.0 MB, the rest 356.5 MB (budgets.md). The release attests whole archives, the sample with
    them; no package of its own, so no license file of its own beyond the runtime's, already collected.
-5. [ ] Starting and stopping (Application, `SampleService`): starts the sample as the user with the chosen scenarios, reads
+5. [x] Starting and stopping (Application, `SampleService`): starts the sample as the user with the chosen scenarios, reads
    its catalog, marks its pid as a sample, refuses while HeapScope runs elevated (the sample would be elevated too) and above
    three running, stops it on request, and it exits with HeapScope (parent watch). Proof: tests with a fake process starter
    for each rule; an integration test that starts, lists and stops the real sample.
+   Done 2026-11-15: `Application/Tutorial/SampleService` (with `SampleLaunch`, as the worker's: the executable, or the assembly
+   through the dotnet host), registered in DI; refusals with what to do (not installed, elevated, an unknown scenario, a
+   conflict, three running, a sample that exits before it is ready, in its own words); `Changed` for the pages.
+   `SampleServiceTests` (each rule, with a fake starter); `SampleTests.The_service_lists_starts_and_stops_the_real_sample`.
 6. [ ] The Processes page starts and stops a sample (scenarios picked from its catalog) and marks its rows "Sample". Proof: view
    model tests; the view test binds cleanly; the screenshot run shows it.
 7. [ ] Lessons (`LessonCatalog`, UI.ViewModels): one entry per lesson: its title, the scenarios it starts, the page it starts

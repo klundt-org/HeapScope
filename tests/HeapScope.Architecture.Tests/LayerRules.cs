@@ -28,7 +28,8 @@ internal static class LayerRules
 {
     private sealed record Rule(string[] Projects, string[] Packages, bool AllowsMicrosoftExtensions = true);
 
-    private static readonly string[] s_buildOrderOnlyAllowed = ["HeapScope.Worker"];
+    // The worker and, since 3.13, the tutorial's sample: processes a front end ships and starts, never code it uses.
+    private static readonly string[] s_buildOrderOnlyAllowed = ["HeapScope.Worker", "HeapScope.Sample"];
 
     private static readonly Dictionary<string, Rule> s_rules = new(StringComparer.Ordinal)
     {

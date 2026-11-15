@@ -138,6 +138,7 @@ internal sealed record ProjectInfo(
     private static string ReferencedName(XElement element)
     {
         var include = (string?)element.Attribute("Include") ?? string.Empty;
-        return Path.GetFileNameWithoutExtension(include.Replace('\\', '/').Replace("$(_HeapScopeWorkerProject)", "HeapScope.Worker.csproj", StringComparison.Ordinal));
+        return Path.GetFileNameWithoutExtension(include.Replace('\\', '/').Replace("$(_HeapScopeWorkerProject)", "HeapScope.Worker.csproj", StringComparison.Ordinal)
+            .Replace("$(_HeapScopeSampleProject)", "HeapScope.Sample.csproj", StringComparison.Ordinal));
     }
 }

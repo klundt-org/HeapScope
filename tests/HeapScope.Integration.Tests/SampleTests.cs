@@ -80,5 +80,26 @@ public sealed class SampleTests : IDisposable
         read.Output.ShouldContain("HeapScope.Sample.", customMessage: "and its types among the top types");
     }
 
+    // Sprint 3.13 task 5: the app's service reads the real sample's catalog, starts it, knows it as a sample and stops it.
+    [Fact]
+    public async Task The_service_lists_starts_and_stops_the_real_sample()
+    {
+        var launch = new HeapScope.Application.Tutorial.SampleLaunch(TestPaths.SampleExe, [], TestPaths.SampleExe);
+        using var service = new HeapScope.Application.Tutorial.SampleService(new HeapScope.Application.Tutorial.SampleProcessStarter(), () => false, () => launch);
+
+        var scenarios = await service.ListScenariosAsync(Ct);
+        scenarios.Select(s => s.Name).ShouldContain("SteadyAllocation");
+        scenarios.Single(s => s.Name == "StaticCache").AnswerType.ShouldBe("Fixtures.Leaks.StaticCacheEntry");
+
+        var sample = await service.StartAsync(["StaticCache", "Timer"], grow: true, Ct);
+        using var process = System.Diagnostics.Process.GetProcessById(sample.ProcessId);
+        service.IsSample(sample.ProcessId).ShouldBeTrue();
+
+        service.Stop(sample.ProcessId).ShouldBeTrue();
+        await process.WaitForExitAsync(Ct).WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        process.HasExited.ShouldBeTrue("the stopped sample exits");
+        service.Running.ShouldBeEmpty();
+    }
+
     public void Dispose() => _root.Dispose();
 }
