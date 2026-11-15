@@ -16,6 +16,7 @@
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>
   <Import Project="$(HeapScopeRoot)build\Worker.Deploy.targets" />
+  <Import Project="$(HeapScopeRoot)build\Sample.Deploy.targets" />
 
   <!--
     The CLI as a dotnet tool (sprint 3.9, ADR-039): one framework-dependent package for every system, built by

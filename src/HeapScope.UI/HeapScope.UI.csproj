@@ -41,4 +41,5 @@
     <InternalsVisibleTo Include="HeapScope.UI.Tests" />
   </ItemGroup>
   <Import Project="$(HeapScopeRoot)build\Worker.Deploy.targets" />
+  <Import Project="$(HeapScopeRoot)build\Sample.Deploy.targets" />
 </Project>

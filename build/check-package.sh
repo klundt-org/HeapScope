@@ -42,6 +42,8 @@ if [ -f "$dir/Avalonia.Fonts.Inter.dll" ]; then
   grep -q "SIL OPEN FONT LICENSE Version 1.1" "$dir"/licenses/Avalonia.Fonts.Inter.*/OFL.txt 2>/dev/null && grep -q "The Inter Project Authors" "$dir"/licenses/Avalonia.Fonts.Inter.*/OFL.txt \
     || { echo "Missing the Inter typeface's license (OFL.txt) under licenses/"; failed=1; }
 fi
+# The tutorial's sample (sprint 3.13, ADR-042) ships beside the worker.
+ls "$dir"/sample/heapscope-sample* > /dev/null 2>&1 || { echo "Missing the tutorial's sample under sample/"; failed=1; }
 unreviewed=$(find "$dir" -iname 'msdia140.dll' -o -iname 'KernelTraceControl.dll')
 [ -z "$unreviewed" ] || { echo "Binaries not reviewed for redistribution are in the build:"; echo "$unreviewed"; failed=1; }
 skia=$(find "$dir" -maxdepth 1 -name 'libSkiaSharp.*')

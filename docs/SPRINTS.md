@@ -128,9 +128,13 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    without end from `SteadyAllocation.PriceOrder`, keeping one in a hundred in a bounded window. Each scenario names the type a
    lesson's answer is (`AnswerType`, held to its known answer). `ScenarioCatalogTests`; `SampleTests` (two dumps a growing
    sample apart differ by whole steps; a CLI allocation trace of the steady scenario names `PriceOrder` and the sample's types).
-4. [ ] Packaging: the sample published into `sample/` beside `worker/` in every package (self-contained per system like the
+4. [x] Packaging: the sample published into `sample/` beside `worker/` in every package (self-contained per system like the
    worker; framework-dependent in the CLI tool), signed and licensed like the rest, its size measured. Proof: `check-package.sh`
    finds it, its license entries and its signature; the size in budgets.md.
+   Done 2026-11-15: `build/Sample.Deploy.targets` (as the worker's), imported by the app and the CLI; `check-package.sh`
+   requires `sample/`, `pack-tool.sh` the tool's sample assembly and no sample executable; the release's SBOMs include the
+   sample. win-x64: the sample 77.0 MB, the rest 356.5 MB (budgets.md). The release attests whole archives, the sample with
+   them; no package of its own, so no license file of its own beyond the runtime's, already collected.
 5. [ ] Starting and stopping (Application, `SampleService`): starts the sample as the user with the chosen scenarios, reads
    its catalog, marks its pid as a sample, refuses while HeapScope runs elevated (the sample would be elevated too) and above
    three running, stops it on request, and it exits with HeapScope (parent watch). Proof: tests with a fake process starter

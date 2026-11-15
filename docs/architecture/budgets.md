@@ -199,6 +199,11 @@ and Processes pages stayed bound to their view models and followed the run's job
 the default gen 0 budget was collected inside the Allocations page's first show. The open phase's 100 ms operation check failed in
 most runs of both arms on this day, and in one of two runs of the build before task 6: the machine, not this change.
 
+The tutorial's sample in the packages (sprint 3.13, task 4, ADR-042): `sample/` holds the sample self-contained, 77.0 MB of
+files in the win-x64 package (2026-11-15), against 356.5 MB for the rest (the worker 107.4 MB): 22% more, under the half again
+that would have gone to the owner (sprint 3.13 decision 2). Most of it is the .NET runtime, a second copy beside the worker's;
+the sample's own code is under 1 MB. The CLI's dotnet tool carries it framework-dependent (its assembly only).
+
 The first load's object pass (sprint 3.12, task 8, with R4). The WPR recording of a Medium load (58.0M objects, 2026-11-12)
 showed the loading thread on a processor for 50.7 of 56.5 s: CPU work, not reading the dump (1.1 s of page-in waits, the
 file in the cache). ClrMD's type factory resolved each object's type (8.6 s), arrays asked the DAC each (2.8 s), sizes were

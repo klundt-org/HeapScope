@@ -145,7 +145,7 @@ jobs:
         run: |
           dotnet tool install --global CycloneDX --version 6.3.1
           export PATH="$PATH:$HOME/.dotnet/tools"
-          for project in UI Cli Worker; do
+          for project in UI Cli Worker Sample; do
             dotnet CycloneDX "src/HeapScope.$project/HeapScope.$project.csproj" --output "$RUNNER_TEMP/sbom" \
               --filename "HeapScope-$TAG-sbom-$project.cdx.json" --output-format Json
           done
