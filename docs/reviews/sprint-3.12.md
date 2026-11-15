@@ -96,7 +96,7 @@ fixture, M2's relaunch, M4's CLI commands, M7's hard faults, M8).
   address check and fail the load), segment GC (.NET 6), Linux core files or collectible types. Suggested: amend ADR-010; a CI
   integration test comparing the walk object for object (address, type, size, kind, flags, free bytes) with ClrMD's on every CI
   system; a seam forcing the fallback mid-segment; free bytes and roots in the hash; the collectible fixture (Backlog) for H3.
-  Decision: fix (owner). Fixed: ADR-010 amended with the decision and the layout it assumes; `LoaderKnownAnswerTests` compare every object (address, type, size, finalizer flag) with ClrMD's walk, prove a walk handed to ClrMD in mid-segment (a test hook) builds the same graph (duplicates skipped: ClrMD's range walk may start before the hand-over), and run on every CI system; the load benchmark's hash adds roots, dropped roots, free bytes per kind, unreadable and incomplete counts; the RuntimeKinds fixture holds objects of a pointer-free collectible type (H3). Status: Fixed. Confirmed by gc-specialist (2026-11-14). solution-architect did not confirm: the comparison ran on Windows only (the integration tests do not run on Linux), while three places said every CI system; fixed with `WalkComparisonTests` (Loaders.ClrMd.Tests, on each CI system's own fixture dump, Linux's core dump included; CI requires it) and the three texts corrected; ADR-010 says which systems CI verifies and which are assumed (gc-specialist's Low). Second confirmation pending.
+  Decision: fix (owner). Fixed: ADR-010 amended with the decision and the layout it assumes; `LoaderKnownAnswerTests` compare every object (address, type, size, finalizer flag) with ClrMD's walk, prove a walk handed to ClrMD in mid-segment (a test hook) builds the same graph (duplicates skipped: ClrMD's range walk may start before the hand-over), and run on every CI system; the load benchmark's hash adds roots, dropped roots, free bytes per kind, unreadable and incomplete counts; the RuntimeKinds fixture holds objects of a pointer-free collectible type (H3). Status: Fixed. Confirmed by gc-specialist (2026-11-14). solution-architect did not confirm: the comparison ran on Windows only (the integration tests do not run on Linux), while three places said every CI system; fixed with `WalkComparisonTests` (Loaders.ClrMd.Tests, on each CI system's own fixture dump, Linux's core dump included; CI requires it) and the three texts corrected; ADR-010 says which systems CI verifies and which are assumed (gc-specialist's Low). Confirmed by solution-architect (2026-11-15).
 - M2. Shipping the gen 0 budget (H2): only the environment variable sets it, so the app would relaunch itself with it, at
   the cost of a second process start on every launch, or drop it (gc-specialist, H2).
   Decision: fix (owner). Fixed: the app starts itself again with `DOTNET_GCgen0size` (`Gen0Budget`), once, not on macOS, headless, under `dotnet` or with `Ui__Gen0Budget=default`; smoke and screenshot runs wait for its exit code; the worker is started without the variable; the first window is timed from the first process. `Gen0BudgetTests`; a published smoke run showed the 64 MB budget in the relaunched app's start line and its exit code passed through. Its A/B (start time and lags against the default) waits for a quiet window. Status: Fixed. Confirmed by gc-specialist (2026-11-14); its Lows on the start line and Explorer are L22 and M21.
@@ -140,7 +140,7 @@ fixture, M2's relaunch, M4's CLI commands, M7's hard faults, M8).
   Decision: fix (owner). Fixed: `PlanPurgeAll` logs its refusal. Status: Fixed. Confirmed by support-engineer (2026-11-14).
 - M14. Purge all logs totals only: not which session folders, not the dumps kept outside them, not files a session does not
   list but the recursive delete removes; Purge logs does not name the files it could not delete (support-engineer).
-  Decision: fix (owner). Fixed: one line per session (files, bytes, dumps kept outside it, at most 50 sessions), the failed and kept files named, an outcome when closing fails. Status: Fixed. support-engineer confirmed it in part (2026-11-14): the folder's removal took files no line counted; the plan and the deletion now list them (the lock file and links, removed, never followed). Second confirmation pending.
+  Decision: fix (owner). Fixed: one line per session (files, bytes, dumps kept outside it, at most 50 sessions), the failed and kept files named, an outcome when closing fails. Status: Fixed. support-engineer confirmed it in part (2026-11-14): the folder's removal took files no line counted; the plan and the deletion now list them (the lock file and links, removed, never followed). Confirmed by support-engineer (2026-11-15).
 - M15. B7's counts say "left out 0" where objects were left out (an unreadable disposed flag, types under the minimum, a
   finalizer queue under its threshold); seven inspections log "basis: not recorded"; the 50-row cap is printed where no rows are
   listed; two lists stop without "and N more" (support-engineer).
@@ -158,13 +158,31 @@ fixture, M2's relaunch, M4's CLI commands, M7's hard faults, M8).
 - M19. No process logs the privacy state it applies, at start or when it changes (support-engineer, the rest of H5's finding).
   Decision: fix (owner). Fixed: every process's start line says which settings file it follows and whether filter text is logged, and each process logs a change it sees (`LogPrivacy.Changed`). Status: Fixed. Confirmed by support-engineer (2026-11-14) for the worker; its two gaps closed: the command line's start line names the settings file, and the app's change handler, which could never fire (the app never reads the setting after start), is gone, with logging.md saying the worker logs changes and the app logs saves.
 
-From the confirmations (decisions pending, the owner):
+From the confirmations (the owner decided both on 2026-11-15):
 
 - M20. `heapscope-cli purge all --yes` checks only its own process: a capture, recording or open snapshot in the running
   app is not seen, so the command line deletes that session from under it; DEVELOPER.md says it is refused (solution-architect).
+  Decision: fix (owner, 2026-11-15). Fixed: Purge all, in the app and on the command line, is refused while another HeapScope
+  app or command line run is running, found by the pid in its log's name and the process's name (a pid reused by another
+  program does not count); the refusal is a draft in info-text.md; `SettingsViewModelTests.Purge_all_is_refused_while_another_heapscope_runs`.
+  Confirmed by solution-architect and support-engineer (2026-11-15). support-engineer's confirmation found that any `dotnet`
+  process counted, so a pid reused by a build server blocked both purges until the log aged out; a process now counts only if
+  it started before its log file was created (a reused pid belongs to a later process), and the refusal logs the file and
+  the process; confirmed by support-engineer (2026-11-15). Status: Fixed.
 - M21. The relaunched app keeps `DOTNET_GCgen0size` and `HEAPSCOPE_LAUNCHED_AT` in its environment, so every process it
   starts inherits the 64 MB budget but the worker: Explorer (`AvaloniaUserInteraction`, and the .NET apps a user starts from
-  its window) and the sample process sprint 3.13 plans (solution-architect Moderate, gc-specialist Low).
+  its window) and the sample process sprint 3.13 plans (solution-architect Moderate, gc-specialist Low). Decision: fix (owner,
+  2026-11-15). Fixed: the relaunched app removes both variables from its own environment once started (`Gen0Budget.Settle`,
+  `Gen0BudgetTests`); the worker's removal stays as a second guard. Status: Fixed. Confirmed by solution-architect and
+  gc-specialist (2026-11-15).
+
+M2's relaunch changed after its confirmation: the second integration run hung for 46 minutes and the skeleton test found no
+window, because the first process exited while its relaunched copy held the test's output open. The first process now always
+waits for the app and returns its exit code, so from outside it is one launch; the skeleton test, which checks the window,
+runs without the relaunch, and `UiResponsivenessTests` check that the relaunched app ran with the budget. Confirmed by
+gc-specialist (2026-11-15), whose confirmation found that the first process's start time was read lazily, after `Settle` had
+removed it, so the first window left out the relaunch; `Settle` now reads it first (`Gen0BudgetTests`). The waiting first
+process's memory is to be measured with M2's A/B (L28).
 
 ## Low
 
@@ -216,6 +234,12 @@ From the confirmations (Lows, listed only):
 - L26. The command line's console no longer shows the worker's warnings (a symbol server download, the older cache
   fallback); the notes the command prints still carry the fallback (support-engineer).
 - L27. `TestHooksHandler` runs outside `GuardAsync` (support-engineer; test hooks only).
+- L28. The first process that waits for the relaunched app stays resident; its memory is not measured yet (gc-specialist).
+- L29. Purge all sees another HeapScope only by a log in the same log folder: not a run with another log folder on the same
+  library, one that has not logged yet, or one that starts between the plan and the delete (solution-architect).
+- L31. A process whose name or start time cannot be read does not count as another HeapScope (support-engineer).
+- L30. Killing the first process alone (not its tree) leaves the relaunched app running; process-model.md says so now
+  (solution-architect).
 
 ## Markdown sweep
 

@@ -321,6 +321,25 @@ From the refactor analysis (owner, 2026-11-12: every bug and every candidate tie
     still trusted only when the user says so (ADR-035 stands); after a "no" the snapshot offers Trust this DAC and reopen,
     which asks the same question. No status line of its own for the older cache: the snapshot's note says it.
 17. (2026-11-13) The Settings page's info text is approved.
+18. (2026-11-14) The prewarm's status bar text and tooltip are approved; the review's Moderates are all fixed, M2's relaunch
+    and M4's command line included (2026-11-14), and M20 and M21 from the confirmations (2026-11-15).
+
+**Review summary** ([reviews/sprint-3.12.md](reviews/sprint-3.12.md)): 5 High, 21 Moderate, 31 Low, from the four reviewers
+and the rounds that confirmed the fixes.
+- Fixed and confirmed, High: the docs that did not describe the new object walk, the GC threads, the test folders or ADR-041's
+  amendments (H1); the UI's gen 0 budget shipped through a setting the runtime ignores (H2); no edge from an object of a
+  collectible type to its LoaderAllocator, which ClrMD does not yield (H3); a worker given another data folder reading another
+  settings file (H4); the logs' privacy setting falling back to "on" when the file could not be read (H5).
+- Fixed and confirmed, Moderate (owner, 2026-11-14 and 2026-11-15, all nineteen and the two the confirmations found): the
+  object walk compared object by object with ClrMD's on every CI system, with ADR-010 amended (M1); the app relaunching itself
+  with its gen 0 budget, which stays its own (M2, M21); one path rule, macOS included (M3); settings and purge on the command
+  line (M4); purges that keep other HeapScope processes' logs and wait for them (M5, M20); the finalizable merge (M6); hard
+  faults (M7); a damaged length (M8); purge safety, errors, tests and logs (M9 to M11, M13, M14); the prewarm's failure paths
+  (M12); the inspections' counts (M15); the command line's console (M16); guarded control methods (M17); set-aside session
+  entries (M18); the privacy state in the log (M19).
+- Low: listed in the review file, not fixed.
+- Measured: the prewarm (budgets.md, task 4); the relaunch's start time and the waiting process's memory wait for a quiet
+  window (L28).
 
 ## Sprint 3.13: Tutorial
 

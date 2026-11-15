@@ -56,12 +56,15 @@ internal static class Gen0Budget
         ? $"0x{value} ({Convert.ToInt64(value, 16) / (1024 * 1024)} MB)"
         : "the runtime's default";
 
-    private static readonly DateTime s_launchedAt = ReadLaunchedAt();
+    // Read by Settle before it removes the variable (the review: a lazily initialized field read it only after).
+    private static DateTime? s_launchedAt;
 
     /// <summary>When the user started HeapScope: the first process's start for a relaunched one, else this process's.</summary>
-    public static DateTime LaunchedAt() => s_launchedAt;
+    public static DateTime LaunchedAt() => s_launchedAt ??= ReadLaunchedAt();
 
-    // Read before Settle removes the variable.
+    /// <summary>Forgets the launch time a test made <see cref="Settle"/> read.</summary>
+    internal static void ForgetLaunchForTests() => s_launchedAt = null;
+
     private static DateTime ReadLaunchedAt()
     {
         if (long.TryParse(Environment.GetEnvironmentVariable(LaunchedAtVariable), NumberStyles.None, CultureInfo.InvariantCulture, out var ticks))
@@ -92,6 +95,7 @@ internal static class Gen0Budget
     public static string Settle()
     {
         var current = Current;
+        s_launchedAt = ReadLaunchedAt();
         Environment.SetEnvironmentVariable(Variable, null);
         Environment.SetEnvironmentVariable(LaunchedAtVariable, null);
         return current;

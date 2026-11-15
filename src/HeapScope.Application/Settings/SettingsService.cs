@@ -316,38 +316,54 @@ public sealed class SettingsService
     }
 
     /// <summary>
-    /// Whether a pid is a running HeapScope process: the app, the command line, or the dotnet host running the command line's
-    /// tool. A pid reused by another program does not count, so its old log does not block a purge for ever. Tests replace it.
+    /// The running HeapScope process that wrote a log file (pid from its name, the file's creation time), or null: the app, the
+    /// command line, or the dotnet host running the command line's tool, started before the file was created. A pid reused
+    /// since belongs to a later process, so an old log never blocks a purge (the review: a long-lived dotnet build server took
+    /// one). Tests replace it.
     /// </summary>
-    internal Func<int, bool> IsRunningHeapScope { get; init; } = IsHeapScopeProcess;
+    internal Func<int, DateTime, string?> RunningHeapScope { get; init; } = HeapScopeProcessName;
 
     private static readonly string[] s_processNames = ["HeapScope", "heapscope-cli", "dotnet"];
 
-    private static bool IsHeapScopeProcess(int pid)
+    private static string? HeapScopeProcessName(int pid, DateTime logCreatedUtc)
     {
         try
         {
             using var process = System.Diagnostics.Process.GetProcessById(pid);
-            return s_processNames.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase);
+            return s_processNames.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase)
+                && process.StartTime.ToUniversalTime() <= logCreatedUtc.AddSeconds(1)
+                ? process.ProcessName
+                : null;
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            return false;
+            return null;
         }
     }
 
     /// <summary>Whether the pid in a log file's name is a running HeapScope process (the name's fourth part, before any "-part").</summary>
     internal bool WrittenByRunningProcess(string file) => RunningWriter(file) is not null;
 
-    /// <summary>The app part and pid of a log file's name when that pid is a running HeapScope process; null otherwise.</summary>
-    private (string App, int Pid)? RunningWriter(string file)
+    /// <summary>The app part, pid and process name of a log file's writer when it still runs; null otherwise.</summary>
+    private (string App, int Pid, string Process)? RunningWriter(string file)
     {
         var parts = Path.GetFileNameWithoutExtension(file).Split('-');
-        return parts.Length >= 4
-            && int.TryParse(parts[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid)
-            && IsRunningHeapScope(pid)
-            ? (parts[2], pid)
-            : null;
+        if (parts.Length < 4 || !int.TryParse(parts[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid))
+        {
+            return null;
+        }
+
+        DateTime created;
+        try
+        {
+            created = File.GetCreationTimeUtc(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        return RunningHeapScope(pid, created) is { } name ? (parts[2], pid, name) : null;
     }
 
     /// <summary>
@@ -365,6 +381,8 @@ public sealed class SettingsService
         {
             if (RunningWriter(file) is { } writer && writer.Pid != Environment.ProcessId)
             {
+                // Which log and which process, so a refusal can be checked (the review).
+                _logger.LogInformation("Another HeapScope runs: {File} is written by process {Pid} ({Process})", file, writer.Pid, writer.Process);
                 var name = writer.App == "cli" ? "a HeapScope command line run" : "another HeapScope window";
                 return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{char.ToUpperInvariant(name[0])}{name[1..]} (pid {writer.Pid}) is running; close it first.");
             }

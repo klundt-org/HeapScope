@@ -64,7 +64,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _service = new SettingsService(_library, _bookmarks, _snapshots, _jobs, logs: _log, folders: Folders, logger: _serviceLog)
         {
             // Running HeapScope processes, as the log names say: this test process and the "other HeapScope" below.
-            IsRunningHeapScope = pid => pid == Environment.ProcessId || pid == OtherHeapScope,
+            RunningHeapScope = (pid, _) => pid == Environment.ProcessId || pid == OtherHeapScope ? "HeapScope" : null,
         };
     }
 
@@ -249,6 +249,7 @@ public sealed class SettingsViewModelTests : IDisposable
         await page.PurgeAllCommand.ExecuteAsync(null);
 
         page.Status.ShouldBe($"Nothing was deleted: Another HeapScope window (pid {OtherHeapScope}) is running; close it first.");
+        _serviceLog.Lines.ShouldContain(l => l.StartsWith("Another HeapScope runs: ", StringComparison.Ordinal) && l.Contains($"process {OtherHeapScope} (HeapScope)", StringComparison.Ordinal));
         _interaction.Questions.ShouldBeEmpty();
         Directory.Exists(current).ShouldBeTrue();
     }

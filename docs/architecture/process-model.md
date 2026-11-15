@@ -9,9 +9,12 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 - **UI process** (Avalonia; AnyCPU, so 64-bit on x64 and arm64): shell, view models, Application services, capture.
   Workstation GC with a 64 MB gen 0 budget, which halved the GC time in the UI's lags under load (sprint 3.12, task 6,
   budgets.md). Only the `DOTNET_GCgen0size` environment variable sets it (the runtime ignores `System.GC.Gen0Size` in the
-  runtime configuration, review H2), so the app, started without it, starts itself again with it and exits (`Gen0Budget`,
-  review M2); a smoke or screenshot run waits for it and returns its exit code. Not on macOS, headless, under `dotnet`, or
-  with `Ui__Gen0Budget=default`; the worker is started without it. The start line says which budget the app runs with.
+  runtime configuration, review H2), so the app, started without it, starts itself again with it and waits for that process,
+  returning its exit code (`Gen0Budget`, review M2): from outside it is still one launch, which lasts as long as the app and
+  returns its exit code and output. Ending the launch's process tree ends the app too; killing the first process alone leaves
+  the app running. The relaunched app removes the variable from its own environment once started, so nothing it starts inherits
+  the budget (M21; the worker is started without it too). Not on macOS, headless, under `dotnet`, or with
+  `Ui__Gen0Budget=default`. The start line says which budget the app runs with.
 - **CLI process** (AnyCPU, 64-bit): same Application services, console output.
 - **Worker process** (64-bit, the machine's architecture; `HeapScope.Worker`, or `dotnet` running
   `HeapScope.Worker.dll` in the CLI's dotnet tool): one per UI or CLI instance. Holds every loaded snapshot

@@ -51,18 +51,23 @@ public sealed class Gen0BudgetTests
     [Fact]
     public void The_relaunched_app_keeps_the_budget_to_itself()
     {
+        var launched = new DateTime(2026, 11, 15, 9, 0, 0, DateTimeKind.Utc);
         System.Environment.SetEnvironmentVariable(Gen0Budget.Variable, Gen0Budget.Value);
-        System.Environment.SetEnvironmentVariable(Gen0Budget.LaunchedAtVariable, "1");
+        System.Environment.SetEnvironmentVariable(Gen0Budget.LaunchedAtVariable, launched.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
         try
         {
             Gen0Budget.Settle().ShouldBe("0x4000000 (64 MB)");
             System.Environment.GetEnvironmentVariable(Gen0Budget.Variable).ShouldBeNull("what the app starts does not inherit it (review M21)");
             System.Environment.GetEnvironmentVariable(Gen0Budget.LaunchedAtVariable).ShouldBeNull();
+
+            // The first window is timed from the first process's start, read before the variable went (the review).
+            Gen0Budget.LaunchedAt().ToUniversalTime().ShouldBe(launched);
         }
         finally
         {
             System.Environment.SetEnvironmentVariable(Gen0Budget.Variable, null);
             System.Environment.SetEnvironmentVariable(Gen0Budget.LaunchedAtVariable, null);
+            Gen0Budget.ForgetLaunchForTests();
         }
 
         Gen0Budget.Value.ShouldBe("4000000", "64 MB in hexadecimal, as the runtime reads GC settings");
