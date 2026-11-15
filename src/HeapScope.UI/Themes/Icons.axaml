@@ -41,6 +41,8 @@
   <StreamGeometry x:Key="Icon.Live.Line">M2 10.5h4l2-6 4 11 2-5h4</StreamGeometry>
   <StreamGeometry x:Key="Icon.Jobs.Tint">M2 3h6v5H2zM2 12h6v5H2z</StreamGeometry>
   <StreamGeometry x:Key="Icon.Jobs.Line">M3 5l1.5 1.5L7 4M3 14l1.5 1.5L7 13M10 5.5h7M10 14.5h7</StreamGeometry>
+  <StreamGeometry x:Key="Icon.Learn.Tint">M3 5c2-1 5-1 7 1v10c-2-2-5-2-7-1z</StreamGeometry>
+  <StreamGeometry x:Key="Icon.Learn.Line">M3 5c2-1 5-1 7 1c2-2 5-2 7-1v10c-2-1-5-1-7 1c-2-2-5-2-7-1zM10 6v10</StreamGeometry>
   <StreamGeometry x:Key="Icon.Settings.Tint">M11 5a2 2 0 1 1-4 0a2 2 0 1 1 4 0zM16 10a2 2 0 1 1-4 0a2 2 0 1 1 4 0zM9 15a2 2 0 1 1-4 0a2 2 0 1 1 4 0z</StreamGeometry>
   <StreamGeometry x:Key="Icon.Settings.Line">M3 5h4M11 5h6M3 10h9M16 10h1M3 15h2M9 15h8M11 5a2 2 0 1 1-4 0a2 2 0 1 1 4 0zM16 10a2 2 0 1 1-4 0a2 2 0 1 1 4 0zM9 15a2 2 0 1 1-4 0a2 2 0 1 1 4 0z</StreamGeometry>
   <StreamGeometry x:Key="Icon.About.Tint">M17 10a7 7 0 1 1-14 0a7 7 0 1 1 14 0z</StreamGeometry>

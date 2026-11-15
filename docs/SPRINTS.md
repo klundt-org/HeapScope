@@ -157,9 +157,14 @@ LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once
    read from the sample's catalog at run time; the choices are it and three types every heap holds, in a fixed order per
    lesson. `LessonCatalogTests` (in HeapScope.Sample.Tests, which sees both catalogs) and `ScenarioCatalogTests` (each answer
    type is its known answer's). The texts go to info-text.md with task 10.
-8. [ ] The Learn page, low on the left navigation above Settings: the lessons with their progress, a lesson started (its sample
+8. [x] The Learn page, low on the left navigation above Settings: the lessons with their progress, a lesson started (its sample
    running), its steps beside the page it opens, the answer checked, progress kept per user in the data folder. Proof: view
    model tests (start, steps, a right and a wrong answer, progress saved and read back); the view test; the screenshot run.
+   Done 2026-11-15: `LearnViewModel` and `LearnPage`; the running lesson's steps sit in a panel on the right of every page
+   (`ShellViewModel.CurrentLesson`); progress is `learn-progress.json` in the data folder (`LessonProgress`, Application; an
+   unreadable file counts as none). `LearnViewModelTests` (start, page shown, no answer, wrong, right and saved, read back,
+   stop; a scenario missing from the sample; no sample; a bad file); `ViewTests` bind the page and the panel cleanly. The
+   screenshot run is checked with task 10's texts.
 9. [ ] `heapscope-cli sample list|start|stop` for a demo without the app. Proof: CLI tests; an integration test that starts the
    sample and captures it with the CLI.
 10. [ ] A "Try it" walkthrough in the User Guide, scenario by scenario, and the README's demo; every text of the Learn page and the

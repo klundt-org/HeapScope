@@ -1,0 +1,90 @@
+<!--
+  HeapScope
+  Copyright (C) 2026 Ray Klundt
+  https://github.com/rklundt/HeapScope
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, version 3 only, with additional terms
+  under Section 7 of that license.
+
+  Additional terms, including attribution requirements, apply.
+  See the ADDITIONAL-TERMS.md file distributed with this program.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program (see the LICENSE file). If not, see
+  <https://www.gnu.org/licenses/>.
+
+  Commercial licenses are available. See COMMERCIAL.md.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:HeapScope.UI.Controls"
+             xmlns:vm="using:HeapScope.UI.ViewModels"
+             x:Class="HeapScope.UI.Views.Pages.LearnPage"
+             x:DataType="vm:LearnViewModel">
+  <!-- Sprint 3.13 (ADR-042): lessons on the tutorial's sample, each checked against what the sample planted. -->
+  <DockPanel Margin="4">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+      <TextBlock Classes="pageTitle" Text="Learn" VerticalAlignment="Center" />
+      <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Learn}" />
+      <TextBlock Classes="subtle" Text="{Binding ProgressText}" VerticalAlignment="Center" Margin="12,0,0,0" />
+    </StackPanel>
+    <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8"
+            IsVisible="{Binding Unavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <SelectableTextBlock TextWrapping="Wrap" Text="{Binding Unavailable}" />
+    </Border>
+    <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,8" />
+    <Grid ColumnDefinitions="320,*">
+      <DockPanel Grid.Column="0" Margin="0,0,12,0">
+        <Button DockPanel.Dock="Bottom" ctl:ButtonIcon.Icon="Start" Classes="primary" Content="Start lesson" Margin="0,8,0,0"
+                Command="{Binding StartLessonCommand}"
+                ToolTip.Tip="Starts the lesson's sample process and shows the page the lesson starts on. A lesson running already is stopped first." />
+        <ListBox ItemsSource="{Binding Lessons}" SelectedItem="{Binding Selected, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:LessonItem">
+              <DockPanel>
+                <ctl:DuotoneIcon DockPanel.Dock="Right" Icon="Completed" Width="14" Height="14" IsVisible="{Binding IsDone}"
+                                 ToolTip.Tip="Done" VerticalAlignment="Center" />
+                <StackPanel>
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Classes="subtle" Text="{Binding Summary}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DockPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+      <StackPanel Grid.Column="1" Spacing="8" IsVisible="{Binding HasCurrent}">
+        <ContentControl Content="{Binding Current}">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:LessonItem">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding Lesson.Steps}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Lesson.Question}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0" />
+              </StackPanel>
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
+        <ListBox ItemsSource="{Binding Choices}" SelectedItem="{Binding ChosenAnswer, Mode=TwoWay}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Classes="primary" Content="Check answer" Command="{Binding CheckAnswerCommand}" />
+          <Button ctl:ButtonIcon.Icon="Stop" Content="Stop lesson" Command="{Binding StopLessonCommand}"
+                  ToolTip.Tip="Stops the lesson and its sample process." />
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+  </DockPanel>
+</UserControl>

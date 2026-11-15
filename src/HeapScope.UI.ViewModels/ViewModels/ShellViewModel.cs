@@ -52,6 +52,43 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _workerStatus = "Worker not started";
 
+    /// <summary>The Learn page (sprint 3.13), whose running lesson the shell shows beside every page; null without it.</summary>
+    public LearnViewModel? Learn { get; }
+
+    /// <summary>The lesson running, shown beside every page; null when none (or no Learn page).</summary>
+    public LessonItem? CurrentLesson => Learn?.Current;
+
+    /// <summary>Shows the Learn page, from the lesson panel beside the other pages.</summary>
+    [RelayCommand]
+    private void ShowLearn()
+    {
+        if (NavigationItems.FirstOrDefault(i => i.Page == Learn) is { } item)
+        {
+            SelectedItem = item;
+        }
+    }
+
+    private void ShowLessonPage(LessonPage page, ProcessesViewModel processes, LiveViewModel? live, AllocationsViewModel? allocations)
+    {
+        ObservableObject? target = page switch
+        {
+            LessonPage.Processes => processes,
+            LessonPage.Snapshots => Snapshots,
+            LessonPage.Live => live,
+            LessonPage.Allocations => allocations,
+            _ => null,
+        };
+        if (NavigationItems.FirstOrDefault(i => i.Page == target) is { } item)
+        {
+            SelectedItem = item;
+        }
+
+        if (page == LessonPage.Processes)
+        {
+            processes.RefreshCommand.Execute(null);
+        }
+    }
+
     /// <summary>True while the app builds its pages in the background after start (sprint 3.12, task 4); the status bar shows it.</summary>
     [ObservableProperty]
     private bool _isPreparingViews;
@@ -62,7 +99,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _crashMessage;
 
-    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null)
+    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null)
     {
         Exports = exports ?? new GridExportService(new AutomaticUserInteraction());
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
@@ -79,11 +116,26 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             new NavigationItem("Processes", processes ?? throw new ArgumentNullException(nameof(processes))),
             .. live is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Live", live)],
             new NavigationItem("Jobs", JobsPage),
+            .. learn is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Learn", learn)],
             .. settings is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Settings", settings)],
             new NavigationItem("About", about ?? throw new ArgumentNullException(nameof(about))),
         ];
         Live = live;
         Allocations = allocations;
+        Learn = learn;
+        if (learn is not null)
+        {
+            // A lesson started shows the page it starts on (sprint 3.13).
+            learn.NavigateRequested += (_, page) => ShowLessonPage(page, processes, live, allocations);
+            learn.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(LearnViewModel.Current))
+                {
+                    OnPropertyChanged(nameof(CurrentLesson));
+                }
+            };
+        }
+
         About = about;
         about.Shortcuts = ShortcutList;
         about.Diagnostics = Home;

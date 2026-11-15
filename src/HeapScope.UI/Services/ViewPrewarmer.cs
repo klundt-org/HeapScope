@@ -95,6 +95,7 @@ public sealed class ViewPrewarmer
         (nameof(LivePage), static () => new LivePage()),
         (nameof(JobsPage), static () => new JobsPage()),
         (nameof(SettingsPage), static () => new SettingsPage()),
+        (nameof(LearnPage), static () => new LearnPage()),
         (nameof(AboutPage), static () => new AboutPage()),
     ];
 
