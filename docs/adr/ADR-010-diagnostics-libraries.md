@@ -13,10 +13,12 @@
   layout, as ClrMD reads it: the method table in the first pointer of an object, its two low bits the GC's marks; an array's
   or string's component count a 32-bit value at one pointer; a string's size counting its terminator; no object smaller than
   three pointers; objects aligned to a pointer, and to 8 bytes on large and pinned segments; a thread's allocation context
-  ending one minimum object before the next object. It holds for .NET 5 and later on 64- and 32-bit Windows, Linux and macOS
-  (segments and regions). An object whose method table maps to no type hands the rest of its segment to ClrMD's walk; a
+  ending one minimum object before the next object. These are CoreCLR's rules for .NET 5 and later on 64- and 32-bit Windows,
+  Linux and macOS, with segments or regions; CI verifies them on 64-bit .NET 10 with regions, on Windows and Linux, and
+  the rest is assumed. An object whose method table maps to no type hands the rest of its segment to ClrMD's walk; a
   length that runs past its segment counts as unreadable and marks the segment incomplete. ClrMD yields no reference from an
   object of a collectible type to its LoaderAllocator, which the GC marks, so the loader adds it. A runtime that changes the
   layout (or .NET Framework, if it is ever read) needs this walk changed or turned off; a ClrMD upgrade is checked by
-  `LoaderKnownAnswerTests`, which compare every object (address, type, size, finalizer flag) and every count with ClrMD's
-  own walk on every CI system, and a walk handed to ClrMD in mid-segment.
+  `LoaderKnownAnswerTests` (every object's address, type, size and finalizer flag and every count against ClrMD's own walk,
+  and a walk handed to ClrMD in mid-segment, on Windows) and `WalkComparisonTests` (every object, on each CI system's own
+  fixture dump, Linux's core dump included).

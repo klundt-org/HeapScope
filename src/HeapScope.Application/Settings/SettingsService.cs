@@ -86,13 +86,6 @@ public sealed class SettingsService
     /// <summary>The settings file this process follows, for its start line (sprint 3.12 review M19).</summary>
     public static string SettingsFileFollowed => LogPrivacy.Current.SettingsFile;
 
-    /// <summary>Raised with the new value when this process sees the setting change (sprint 3.12 review M19).</summary>
-    public static event Action<bool>? FilterTextInLogsChanged
-    {
-        add => LogPrivacy.Current.Changed += value;
-        remove => LogPrivacy.Current.Changed -= value;
-    }
-
     /// <summary>The settings file, for the log and the page.</summary>
     public string SettingsPath => HeapScopeSettings.PathIn(_folders);
 
@@ -146,7 +139,7 @@ public sealed class SettingsService
     {
         var sessions = _library.ListRecent(int.MaxValue);
         var files = new List<string>();
-        string? refused = Busy();
+        string? refused = Busy() ?? OtherHeapScope();
         foreach (var session in sessions)
         {
             if (_library.InUseBy(session.Folder) is { } user)
@@ -322,24 +315,62 @@ public sealed class SettingsService
         return (delete, kept);
     }
 
-    /// <summary>Whether the pid in a log file's name is a running process (the name's fourth part, before any "-part").</summary>
-    internal static bool WrittenByRunningProcess(string file)
-    {
-        var parts = Path.GetFileNameWithoutExtension(file).Split('-');
-        if (parts.Length < 4 || !int.TryParse(parts[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid))
-        {
-            return false;
-        }
+    /// <summary>
+    /// Whether a pid is a running HeapScope process: the app, the command line, or the dotnet host running the command line's
+    /// tool. A pid reused by another program does not count, so its old log does not block a purge for ever. Tests replace it.
+    /// </summary>
+    internal Func<int, bool> IsRunningHeapScope { get; init; } = IsHeapScopeProcess;
 
+    private static readonly string[] s_processNames = ["HeapScope", "heapscope-cli", "dotnet"];
+
+    private static bool IsHeapScopeProcess(int pid)
+    {
         try
         {
             using var process = System.Diagnostics.Process.GetProcessById(pid);
-            return !process.HasExited;
+            return s_processNames.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             return false;
         }
+    }
+
+    /// <summary>Whether the pid in a log file's name is a running HeapScope process (the name's fourth part, before any "-part").</summary>
+    internal bool WrittenByRunningProcess(string file) => RunningWriter(file) is not null;
+
+    /// <summary>The app part and pid of a log file's name when that pid is a running HeapScope process; null otherwise.</summary>
+    private (string App, int Pid)? RunningWriter(string file)
+    {
+        var parts = Path.GetFileNameWithoutExtension(file).Split('-');
+        return parts.Length >= 4
+            && int.TryParse(parts[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid)
+            && IsRunningHeapScope(pid)
+            ? (parts[2], pid)
+            : null;
+    }
+
+    /// <summary>
+    /// Another running HeapScope (an app or a command line run, by the pid in its log's name), whose captures, recordings and
+    /// open snapshots this process cannot see (the review's M20): Purge all waits for it to close.
+    /// </summary>
+    private string? OtherHeapScope()
+    {
+        if (!Directory.Exists(LogFolder))
+        {
+            return null;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(LogFolder, "heapscope-*.log"))
+        {
+            if (RunningWriter(file) is { } writer && writer.Pid != Environment.ProcessId)
+            {
+                var name = writer.App == "cli" ? "a HeapScope command line run" : "another HeapScope window";
+                return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{char.ToUpperInvariant(name[0])}{name[1..]} (pid {writer.Pid}) is running; close it first.");
+            }
+        }
+
+        return null;
     }
 
     private static long Length(string file)

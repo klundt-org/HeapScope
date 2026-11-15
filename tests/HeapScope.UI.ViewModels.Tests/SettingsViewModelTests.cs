@@ -61,8 +61,14 @@ public sealed class SettingsViewModelTests : IDisposable
         _bookmarks = new BookmarkStore(_root);
         _log = new FileLoggerProvider(Folders.Logs, app: "ui");
         _snapshots = TestSessions.Create(_worker, _jobs);
-        _service = new SettingsService(_library, _bookmarks, _snapshots, _jobs, logs: _log, folders: Folders, logger: _serviceLog);
+        _service = new SettingsService(_library, _bookmarks, _snapshots, _jobs, logs: _log, folders: Folders, logger: _serviceLog)
+        {
+            // Running HeapScope processes, as the log names say: this test process and the "other HeapScope" below.
+            IsRunningHeapScope = pid => pid == Environment.ProcessId || pid == OtherHeapScope,
+        };
     }
+
+    private const int OtherHeapScope = 123_456_789;
 
     private HeapScopeFolders Folders => new(_root);
 
@@ -230,6 +236,21 @@ public sealed class SettingsViewModelTests : IDisposable
         Directory.Exists(current).ShouldBeTrue();
         _serviceLog.Lines.ShouldContain(l => l.StartsWith("Purge all stopped before deleting anything", StringComparison.Ordinal));
         page.IsBusy.ShouldBeFalse();
+    }
+
+    // The review's M20: another HeapScope's captures and open snapshots are its own; Purge all waits for it to close.
+    [Fact]
+    public async Task Purge_all_is_refused_while_another_heapscope_runs()
+    {
+        var (current, _, _) = Library();
+        Write($"logs/heapscope-20261115-ui-{OtherHeapScope}.log");
+        var page = new SettingsViewModel(_service, _interaction);
+
+        await page.PurgeAllCommand.ExecuteAsync(null);
+
+        page.Status.ShouldBe($"Nothing was deleted: Another HeapScope window (pid {OtherHeapScope}) is running; close it first.");
+        _interaction.Questions.ShouldBeEmpty();
+        Directory.Exists(current).ShouldBeTrue();
     }
 
     // The review's M5: another HeapScope process (a second window, a command line run) still writes its log.

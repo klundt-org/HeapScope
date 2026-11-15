@@ -67,11 +67,21 @@ public sealed class SettingsCommandTests
         var library = Path.Combine(HeapScopeFolders.Default.Root, "sessions");
         var before = Directory.Exists(library) ? Directory.GetDirectories(library).Length : 0;
 
-        var (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "purge", "all");
+        var (code, output, error) = await InProcessCli.RunAsync(CliHost.Build, "purge", "all");
 
-        code.ShouldBe(0);
-        output.ShouldStartWith("This deletes HeapScope's logs and its whole library: ");
-        output.ShouldContain("Run it again with --yes to delete.");
+        // Other test processes share this data folder and may be running: then Purge all is refused (review M20), never run.
+        if (error.Contains("is running; close it first.", StringComparison.Ordinal))
+        {
+            code.ShouldBe(1);
+            error.ShouldStartWith("Nothing was deleted: ");
+        }
+        else
+        {
+            code.ShouldBe(0, error);
+            output.ShouldStartWith("This deletes HeapScope's logs and its whole library: ");
+            output.ShouldContain("Run it again with --yes to delete.");
+        }
+
         (Directory.Exists(library) ? Directory.GetDirectories(library).Length : 0).ShouldBe(before);
     }
 }

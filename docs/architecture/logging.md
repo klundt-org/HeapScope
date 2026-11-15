@@ -106,8 +106,9 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   the files and bytes it deletes and keeps (the log being written); Purge all, the question and the answer, what it deletes
   (sessions, bookmarks, logs, files, bytes) and keeps, each failure, or why it was refused; the current session let go of.
   The worker follows the `settings.json` of its client's own data folder (`--settings-folder`), and a file that is there but
-  cannot be read keeps the last setting read, or filter text out (review H4, H5). Every process says on its start line which
-  file it follows and whether filter text is logged, and logs each change it sees ("Filter text in logs is now off", M19).
+  cannot be read keeps the last setting read, or filter text out (review H4, H5). The app, the worker and the command line say on
+  their start lines which file they follow and whether filter text is logged; the worker, which writes filter text, logs each
+  change it sees ("Filter text in logs is now off", M19), and the app logs each change the user saves.
   Purge logs names the logs it kept (being written by running HeapScope processes) and the files it could not delete; Purge
   all logs one line per session (its files, bytes and the dumps kept outside it, 50 sessions at most), a refusal where it is
   decided, and an outcome when a snapshot cannot be closed (M5, M10, M13, M14).

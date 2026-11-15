@@ -49,11 +49,22 @@ public sealed class Gen0BudgetTests
     }
 
     [Fact]
-    public void Smoke_and_screenshot_runs_wait_for_the_relaunched_app_and_a_users_launch_does_not()
+    public void The_relaunched_app_keeps_the_budget_to_itself()
     {
-        Gen0Budget.WaitsForExit(["--smoke-open", "a.dmp"]).ShouldBeTrue();
-        Gen0Budget.WaitsForExit(["--screenshots", "out"]).ShouldBeTrue();
-        Gen0Budget.WaitsForExit([]).ShouldBeFalse();
+        System.Environment.SetEnvironmentVariable(Gen0Budget.Variable, Gen0Budget.Value);
+        System.Environment.SetEnvironmentVariable(Gen0Budget.LaunchedAtVariable, "1");
+        try
+        {
+            Gen0Budget.Settle().ShouldBe("0x4000000 (64 MB)");
+            System.Environment.GetEnvironmentVariable(Gen0Budget.Variable).ShouldBeNull("what the app starts does not inherit it (review M21)");
+            System.Environment.GetEnvironmentVariable(Gen0Budget.LaunchedAtVariable).ShouldBeNull();
+        }
+        finally
+        {
+            System.Environment.SetEnvironmentVariable(Gen0Budget.Variable, null);
+            System.Environment.SetEnvironmentVariable(Gen0Budget.LaunchedAtVariable, null);
+        }
+
         Gen0Budget.Value.ShouldBe("4000000", "64 MB in hexadecimal, as the runtime reads GC settings");
         Convert.ToInt64(Gen0Budget.Value, 16).ShouldBe(64L * 1024 * 1024);
     }

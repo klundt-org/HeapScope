@@ -134,7 +134,8 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
   list (`EnumerateFinalizableObjects` minus `ClrType.IsFinalizeSuppressed`) with one cursor. A length that runs past its
   segment counts as unreadable and marks the segment incomplete (the review's M8). The proof that it builds ClrMD's graph:
   `LoaderKnownAnswerTests` compare every object's address, type, size and finalizer flag with ClrMD's walk, and a walk
-  handed to ClrMD in mid-segment (a test hook) builds the same graph, on every CI system; `load-dump`'s graph hash was equal
+  handed to ClrMD in mid-segment (a test hook) builds the same graph (Windows CI); `WalkComparisonTests` compare every object on
+  each CI system's own fixture dump, a Linux core dump included; `load-dump`'s graph hash was equal
   before and after on the fixture and the Medium dump (budgets.md). ADR-010 records the layout it assumes.
 - References: ClrMD's, read with the type known from the object pass, none for a type without pointers; an object of a
   collectible type also references its type's LoaderAllocator, as the GC marks it, which ClrMD does not yield (the review's

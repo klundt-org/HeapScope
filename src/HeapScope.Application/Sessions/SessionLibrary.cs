@@ -560,7 +560,10 @@ public sealed class SessionLibrary
     {
         var session = SessionToDelete(folder, allowCurrent);
         var (files, kept) = SessionFiles(session, cacheFallbackRoot);
-        return new Deletion(files, files.Sum(f => new FileInfo(f).Length), Kept: kept);
+
+        // What the folder's removal takes too (the review's M14): its lock file and links, which are removed, never followed.
+        var all = files.Concat(Leftovers(session.Folder)).ToList();
+        return new Deletion(all, files.Sum(f => new FileInfo(f).Length), Kept: kept);
     }
 
     /// <summary>
@@ -605,10 +608,13 @@ public sealed class SessionLibrary
                 deletion = deletion with { Files = [.. deletion.Files, document], Bytes = deletion.Bytes + size, Kept = kept };
             }
 
+            var leftovers = Leftovers(full);
             try
             {
-                // Empty folders and the lasting lock file, closed above; links are removed, never followed.
+                // Empty folders and the lasting lock file, closed above; links are removed, never followed. Both are counted
+                // with the files (the review's M14).
                 Directory.Delete(full, recursive: true);
+                deletion = deletion with { Files = [.. deletion.Files, .. leftovers] };
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -735,6 +741,42 @@ public sealed class SessionLibrary
         }
 
         return ([.. files.Distinct(PathIdentity.Comparer())], kept);
+    }
+
+    /// <summary>
+    /// What a session folder's removal takes besides its files: the lock file and every link (a file or folder that is a
+    /// reparse point), found without following one.
+    /// </summary>
+    private static List<string> Leftovers(string folder)
+    {
+        var result = new List<string>();
+        var lockFile = Path.Combine(folder, LockName);
+        if (File.Exists(lockFile))
+        {
+            result.Add(lockFile);
+        }
+
+        void Walk(DirectoryInfo directory)
+        {
+            foreach (var entry in directory.EnumerateFileSystemInfos())
+            {
+                if (entry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    result.Add(entry.FullName);
+                }
+                else if (entry is DirectoryInfo child)
+                {
+                    Walk(child);
+                }
+            }
+        }
+
+        if (Directory.Exists(folder))
+        {
+            Walk(new DirectoryInfo(folder));
+        }
+
+        return result;
     }
 
     /// <summary>A snapshot's files: itself, its partial file, and its index caches and sidecars.</summary>

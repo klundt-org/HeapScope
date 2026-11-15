@@ -49,6 +49,10 @@ public sealed class UiResponsivenessTests : IDisposable
 
         // Sprint 2.3.6: the cold start is measured in every smoke run (the UI cold start backlog item).
         log.ShouldContain("First window rendered");
+
+        // Sprint 3.12 review M2: the app ran relaunched with its 64 MB gen 0 budget, and its exit code came back through the
+        // first process.
+        log.ShouldContain("gen 0 budget 0x4000000 (64 MB)");
     }
 
     public void Dispose()

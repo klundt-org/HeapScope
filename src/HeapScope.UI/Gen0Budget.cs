@@ -30,7 +30,10 @@ namespace HeapScope.UI;
 /// The app's 64 MB gen 0 budget (sprint 3.12, task 6; the review's H2 and M2). It halved the GC time inside the UI's lags
 /// under load, but the runtime reads it only from the <c>DOTNET_GCgen0size</c> environment variable, before any code runs:
 /// the runtime configuration's <c>System.GC.Gen0Size</c> is ignored. So the app, started without it, starts itself again with
-/// it and exits; a smoke or screenshot run waits for that process and returns its exit code. Not on macOS, where relaunching
+/// it and waits for that process, returning its exit code: from outside it is still one launch, whose lifetime, exit code and
+/// output are the app's (the review's integration run hung on a first process that exited while its copy held the output
+/// open). The relaunched app removes the variable from its own environment once started, so nothing it starts inherits the
+/// budget (the review's M21). Not on macOS, where relaunching
 /// a bundle's executable shows a second Dock icon; not headless, under <c>dotnet</c>, or with <c>Ui__Gen0Budget=default</c>
 /// (A/B runs). The worker never inherits it (it has its own GC settings).
 /// </summary>
@@ -53,8 +56,13 @@ internal static class Gen0Budget
         ? $"0x{value} ({Convert.ToInt64(value, 16) / (1024 * 1024)} MB)"
         : "the runtime's default";
 
+    private static readonly DateTime s_launchedAt = ReadLaunchedAt();
+
     /// <summary>When the user started HeapScope: the first process's start for a relaunched one, else this process's.</summary>
-    public static DateTime LaunchedAt()
+    public static DateTime LaunchedAt() => s_launchedAt;
+
+    // Read before Settle removes the variable.
+    private static DateTime ReadLaunchedAt()
     {
         if (long.TryParse(Environment.GetEnvironmentVariable(LaunchedAtVariable), NumberStyles.None, CultureInfo.InvariantCulture, out var ticks))
         {
@@ -76,9 +84,18 @@ internal static class Gen0Budget
         && processPath is not null
         && !Path.GetFileNameWithoutExtension(processPath).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Whether a run's exit code matters (smoke and screenshot runs), so the first process waits for it.</summary>
-    internal static bool WaitsForExit(IEnumerable<string> args) =>
-        args.Any(a => a.StartsWith("--smoke-", StringComparison.OrdinalIgnoreCase) || a.StartsWith("--screenshots", StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Removes the budget's variables from this process's environment once the runtime has read them (the review's M21), so
+    /// the processes the app starts (Explorer, a sample app, the worker) run with their own GC settings. Returns the budget
+    /// this process runs with, for its start line.
+    /// </summary>
+    public static string Settle()
+    {
+        var current = Current;
+        Environment.SetEnvironmentVariable(Variable, null);
+        Environment.SetEnvironmentVariable(LaunchedAtVariable, null);
+        return current;
+    }
 
     /// <summary>
     /// Starts this executable again with the budget: null when it should not or could not (this process then runs the app
@@ -107,11 +124,6 @@ internal static class Gen0Budget
             if (app is null)
             {
                 return null;
-            }
-
-            if (!WaitsForExit(args))
-            {
-                return 0;
             }
 
             app.WaitForExit();

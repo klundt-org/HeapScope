@@ -96,67 +96,75 @@ fixture, M2's relaunch, M4's CLI commands, M7's hard faults, M8).
   address check and fail the load), segment GC (.NET 6), Linux core files or collectible types. Suggested: amend ADR-010; a CI
   integration test comparing the walk object for object (address, type, size, kind, flags, free bytes) with ClrMD's on every CI
   system; a seam forcing the fallback mid-segment; free bytes and roots in the hash; the collectible fixture (Backlog) for H3.
-  Decision: fix (owner). Fixed: ADR-010 amended with the decision and the layout it assumes; `LoaderKnownAnswerTests` compare every object (address, type, size, finalizer flag) with ClrMD's walk, prove a walk handed to ClrMD in mid-segment (a test hook) builds the same graph (duplicates skipped: ClrMD's range walk may start before the hand-over), and run on every CI system; the load benchmark's hash adds roots, dropped roots, free bytes per kind, unreadable and incomplete counts; the RuntimeKinds fixture holds objects of a pointer-free collectible type (H3). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: ADR-010 amended with the decision and the layout it assumes; `LoaderKnownAnswerTests` compare every object (address, type, size, finalizer flag) with ClrMD's walk, prove a walk handed to ClrMD in mid-segment (a test hook) builds the same graph (duplicates skipped: ClrMD's range walk may start before the hand-over), and run on every CI system; the load benchmark's hash adds roots, dropped roots, free bytes per kind, unreadable and incomplete counts; the RuntimeKinds fixture holds objects of a pointer-free collectible type (H3). Status: Fixed. Confirmed by gc-specialist (2026-11-14). solution-architect did not confirm: the comparison ran on Windows only (the integration tests do not run on Linux), while three places said every CI system; fixed with `WalkComparisonTests` (Loaders.ClrMd.Tests, on each CI system's own fixture dump, Linux's core dump included; CI requires it) and the three texts corrected; ADR-010 says which systems CI verifies and which are assumed (gc-specialist's Low). Second confirmation pending.
 - M2. Shipping the gen 0 budget (H2): only the environment variable sets it, so the app would relaunch itself with it, at
   the cost of a second process start on every launch, or drop it (gc-specialist, H2).
-  Decision: fix (owner). Fixed: the app starts itself again with `DOTNET_GCgen0size` (`Gen0Budget`), once, not on macOS, headless, under `dotnet` or with `Ui__Gen0Budget=default`; smoke and screenshot runs wait for its exit code; the worker is started without the variable; the first window is timed from the first process. `Gen0BudgetTests`; a published smoke run showed the 64 MB budget in the relaunched app's start line and its exit code passed through. Its A/B (start time and lags against the default) waits for a quiet window. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: the app starts itself again with `DOTNET_GCgen0size` (`Gen0Budget`), once, not on macOS, headless, under `dotnet` or with `Ui__Gen0Budget=default`; smoke and screenshot runs wait for its exit code; the worker is started without the variable; the first window is timed from the first process. `Gen0BudgetTests`; a published smoke run showed the 64 MB budget in the relaunched app's start line and its exit code passed through. Its A/B (start time and lags against the default) waits for a quiet window. Status: Fixed. Confirmed by gc-specialist (2026-11-14); its Lows on the start line and Explorer are L22 and M21.
 - M3. One path identity rule is not at every path comparison (solution-architect; senior-dev Low; solution-architect Low):
   Core-side projects cannot reach `PathIdentity` (Contracts), so `DacLocator` keeps its own copy; `ProcessDiscovery` compares
   ignoring case on every system; `SettingsService` and `PageViewModels` build their own "is under"; macOS, case-insensitive by
   default, is treated as case-sensitive, so `App.dmp` and `app.dmp` open as two snapshots of one file there. Task 21's Done
   note overstates it.
-  Decision: fix (owner). Fixed: macOS ignores case like Windows; `PathIdentity.cs` is compiled into the loader and capture as an internal copy, used by `DacLocator`, `ProcessDiscovery` and `RuntimeEnvironment`; `SettingsService` and `PageViewModels` use `IsUnder`; `TextRulesTests.Only_PathIdentity_decides_by_system_how_paths_compare`; task 21's Done note says so. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: macOS ignores case like Windows; `PathIdentity.cs` is compiled into the loader and capture as an internal copy, used by `DacLocator`, `ProcessDiscovery` and `RuntimeEnvironment`; `SettingsService` and `PageViewModels` use `IsUnder`; `TextRulesTests.Only_PathIdentity_decides_by_system_how_paths_compare`; task 21's Done note says so. Status: Fixed. Confirmed by solution-architect (2026-11-14); its Low is L20.
 - M4. ADR-008 says every feature has a UI and a CLI command; the filter text setting and the two purges are on the Settings
   page only, so a CLI user (CI) changes the setting by editing `settings.json` (solution-architect).
-  Decision: fix (owner). Fixed: `heapscope-cli settings [--filter-text-in-logs on|off]`, `purge logs` and `purge all [--yes]` over the page's service (`SettingsCommandTests`); their texts are drafts in info-text.md. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: `heapscope-cli settings [--filter-text-in-logs on|off]`, `purge logs` and `purge all [--yes]` over the page's service (`SettingsCommandTests`); their texts are drafts in info-text.md. Status: Fixed. Confirmed by solution-architect (2026-11-14); the guards across processes are M20.
 - M5. Purge logs and Purge all delete the log another HeapScope process is writing (a second window, a CLI run), since logs are
   opened with delete sharing; its later lines, a B5 id among them, are lost (senior-dev; solution-architect Low).
-  Decision: fix (owner). Fixed: a log whose name carries a running process's pid is kept, and listed as kept (`SettingsViewModelTests.Purge_logs_keeps_the_log_a_running_process_writes`). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: a log whose name carries a running process's pid is kept, and listed as kept (`SettingsViewModelTests.Purge_logs_keeps_the_log_a_running_process_writes`). Status: Fixed. Confirmed by senior-dev and solution-architect (2026-11-14).
 - M6. The finalizable "merge" is not one: its index restarts at every segment and a binary search runs for most objects
   (gc-specialist; senior-dev Low). Results are right; the hot loop does needless work and the docs describe a merge.
-  Decision: fix (owner). Fixed: one cursor over the whole walk, no binary search; the object by object test checks every finalizer flag. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: one cursor over the whole walk, no binary search; the object by object test checks every finalizer flag. Status: Fixed. Confirmed by gc-specialist (2026-11-14).
 - M7. The load meter's numbers are labeled loosely: "page faults" are all faults on Windows and major faults on Linux; CPU and
   GC pause are the whole process's, so queries during a load count in it; the fault counter can wrap (gc-specialist;
   solution-architect, support-engineer Low).
-  Decision: fix (owner). Fixed: hard faults (Windows' per-process hard fault count from the system's process list, Linux's major faults), read as "pages read from disk"; a wrapped 32-bit count read forward; "process CPU" and "GC pause" in the line; `LoadMeterTests`. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: hard faults (Windows' per-process hard fault count from the system's process list, Linux's major faults), read as "pages read from disk"; a wrapped 32-bit count read forward; "process CPU" and "GC pause" in the line; `LoadMeterTests`. Status: Fixed. Confirmed by gc-specialist and support-engineer (2026-11-14).
 - M8. An array or string whose corrupted length runs past its segment's end is added at that size, and the segment still
   counts as complete (gc-specialist; not new in this sprint).
-  Decision: fix (owner). Fixed: a length past the segment's end is unreadable and the segment incomplete, in both walks (`LoaderKnownAnswerTests.An_object_whose_length_runs_past_its_segment_is_unreadable_and_its_segment_incomplete`, a test hook). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: a length past the segment's end is unreadable and the segment incomplete, in both walks (`LoaderKnownAnswerTests.An_object_whose_length_runs_past_its_segment_is_unreadable_and_its_segment_incomplete`, a test hook). Status: Fixed. Confirmed by gc-specialist (2026-11-14) for the method table walk; ClrMD's branch is untested (L23).
 - M9. Purge all lists and measures the whole library on the UI thread before its first await, without cancellation
   (senior-dev).
-  Decision: fix (owner). Fixed: the plan runs off the UI thread inside `PurgeAllAsync`, and the page passes its command's cancellation token. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: the plan runs off the UI thread inside `PurgeAllAsync`, and the page passes its command's cancellation token. Status: Fixed. Confirmed by senior-dev (2026-11-14).
 - M10. Purge failures other than a refusal (an I/O error listing a folder, a worker failure while closing snapshots) reach the
   last-chance dialog with no next step, and a failed close leaves no outcome line and a half-done purge (senior-dev;
   support-engineer).
-  Decision: fix (owner). Fixed: I/O errors and worker failures are shown with a next step ("Stopped before deleting anything more: ...", a draft) and logged; a close that fails logs its outcome before anything is deleted (`SettingsViewModelTests.A_snapshot_the_worker_cannot_close_stops_purge_all_before_it_deletes_anything`). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: I/O errors and worker failures are shown with a next step ("Stopped before deleting anything more: ...", a draft) and logged; a close that fails logs its outcome before anything is deleted (`SettingsViewModelTests.A_snapshot_the_worker_cannot_close_stops_purge_all_before_it_deletes_anything`). Status: Fixed. Confirmed by senior-dev and support-engineer (2026-11-14).
 - M11. `SettingsViewModelTests` do not prove the purge's safety rule: no session records a dump outside its folder or a cache in
   the fallback root, no snapshot is open when Purge all closes them, and the in-use refusal is untested (senior-dev).
-  Decision: fix (owner). Fixed: `SettingsViewModelTests` record a dump outside its session with a fallback cache (kept), a library dump's fallback cache (deleted), an open library snapshot and an open outside one (only the first closed), and a session in use (refused). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: `SettingsViewModelTests` record a dump outside its session with a fallback cache (kept), a library dump's fallback cache (deleted), an open library snapshot and an open outside one (only the first closed), and a session in use (refused). Status: Fixed. Confirmed by senior-dev (2026-11-14).
 - M12. The prewarm's paths beyond the happy one are untested (a cancel mid-run, a failing step, a page shown before its step),
   and a window closed mid-run does not stop it until the host stops, after the shell is disposed (senior-dev; support-engineer
   Low on its done line).
-  Decision: fix (owner). Fixed: the prewarm stops when the window closes (its token is canceled from `Closing`); an error outside a step is logged and the run still completes; `ViewTests` cancel mid-run, inject a failing step and show the Snapshots page before the run. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: the prewarm stops when the window closes (its token is canceled from `Closing`); an error outside a step is logged and the run still completes; `ViewTests` cancel mid-run, inject a failing step and show the Snapshots page before the run. Status: Fixed. Confirmed by senior-dev (2026-11-14).
 - M13. A Purge all refused at its plan step (a job running, a session in use) is shown but not logged (support-engineer).
-  Decision: fix (owner). Fixed: `PlanPurgeAll` logs its refusal. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: `PlanPurgeAll` logs its refusal. Status: Fixed. Confirmed by support-engineer (2026-11-14).
 - M14. Purge all logs totals only: not which session folders, not the dumps kept outside them, not files a session does not
   list but the recursive delete removes; Purge logs does not name the files it could not delete (support-engineer).
-  Decision: fix (owner). Fixed: one line per session (files, bytes, dumps kept outside it, at most 50 sessions), the failed and kept files named, an outcome when closing fails. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: one line per session (files, bytes, dumps kept outside it, at most 50 sessions), the failed and kept files named, an outcome when closing fails. Status: Fixed. support-engineer confirmed it in part (2026-11-14): the folder's removal took files no line counted; the plan and the deletion now list them (the lock file and links, removed, never followed). Second confirmation pending.
 - M15. B7's counts say "left out 0" where objects were left out (an unreadable disposed flag, types under the minimum, a
   finalizer queue under its threshold); seven inspections log "basis: not recorded"; the 50-row cap is printed where no rows are
   listed; two lists stop without "and N more" (support-engineer).
-  Decision: fix (owner). Fixed: Disposed but referenced counts unreadable flags and disposed objects of types under the minimum as left out; Finalizer backlog under its threshold leaves out every waiting object; Timer leaks counts owners under the threshold; the seven inspections have a basis; the cap is printed only where rows are listed; the two lists say "and N more". `LeakDetectorTests`. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: Disposed but referenced counts unreadable flags and disposed objects of types under the minimum as left out; Finalizer backlog under its threshold leaves out every waiting object; Timer leaks counts owners under the threshold; the seven inspections have a basis; the cap is printed only where rows are listed; the two lists say "and N more". `LeakDetectorTests`. Status: Fixed. Confirmed by support-engineer (2026-11-14); its residual is L25.
 - M16. The CLI writes the worker's error line to stderr, so an unexpected failure shows the exception's text, its stack and the
   request (filter text included) before the fixed message; its message does not name the log folder (support-engineer).
-  Decision: fix (owner). Fixed: the CLI's console filter drops the `Worker` category (`CommandLineLogTests.The_workers_lines_never_reach_the_console`); an unexpected failure names the log folder. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: the CLI's console filter drops the `Worker` category (`CommandLineLogTests.The_workers_lines_never_reach_the_console`); an unexpected failure names the log folder. Status: Fixed. Confirmed by support-engineer (2026-11-14); its new Low is L26.
 - M17. Several UI catch sites show a worker message (now possibly a B5 id) without a UI log line of their own, and four RPC
   methods (`CloseSnapshotAsync`, `ReleaseResultSetAsync`, `GetInfoAsync`, `ShutdownAsync`) skip `GuardAsync`, so their failures
   carry the exception's text and no id (support-engineer).
-  Decision: fix (owner). Fixed: the four control and close methods run through `GuardAsync` (`ProvenanceLogTests.A_control_method_that_fails_is_logged_through_the_guard`); the view models log "{Section} shown as" where they show a worker failure. Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: the four control and close methods run through `GuardAsync` (`ProvenanceLogTests.A_control_method_that_fails_is_logged_through_the_guard`); the view models log "{Section} shown as" where they show a worker failure. Status: Fixed. Confirmed by support-engineer (2026-11-14).
 - M18. Session entries set aside for an enum value this build does not know (B4) are not logged: "my snapshot vanished" has no
   answer (support-engineer).
-  Decision: fix (owner). Fixed: logged once per session and process with the unknown values (`SessionLibraryTests`). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: logged once per session and process with the unknown values (`SessionLibraryTests`). Status: Fixed. Confirmed by support-engineer (2026-11-14).
 - M19. No process logs the privacy state it applies, at start or when it changes (support-engineer, the rest of H5's finding).
-  Decision: fix (owner). Fixed: every process's start line says which settings file it follows and whether filter text is logged, and each process logs a change it sees (`LogPrivacy.Changed`). Status: Fixed; confirmation pending.
+  Decision: fix (owner). Fixed: every process's start line says which settings file it follows and whether filter text is logged, and each process logs a change it sees (`LogPrivacy.Changed`). Status: Fixed. Confirmed by support-engineer (2026-11-14) for the worker; its two gaps closed: the command line's start line names the settings file, and the app's change handler, which could never fire (the app never reads the setting after start), is gone, with logging.md saying the worker logs changes and the app logs saves.
+
+From the confirmations (decisions pending, the owner):
+
+- M20. `heapscope-cli purge all --yes` checks only its own process: a capture, recording or open snapshot in the running
+  app is not seen, so the command line deletes that session from under it; DEVELOPER.md says it is refused (solution-architect).
+- M21. The relaunched app keeps `DOTNET_GCgen0size` and `HEAPSCOPE_LAUNCHED_AT` in its environment, so every process it
+  starts inherits the 64 MB budget but the worker: Explorer (`AvaloniaUserInteraction`, and the .NET apps a user starts from
+  its window) and the sample process sprint 3.13 plans (solution-architect Moderate, gc-specialist Low).
 
 ## Low
 
@@ -188,6 +196,26 @@ Listed only.
   (support-engineer).
 - L16. The prewarm's done line does not count failed or skipped steps, and its skip line does not say which reason applied
   (support-engineer).
+
+From the confirmations (Lows, listed only):
+
+- L17. `App.axaml.cs`: the prewarm's `CancellationTokenSource` is never disposed (senior-dev).
+- L18. `SettingsViewModel.PurgeAllAsync`: nothing can cancel its token from the page; a cancel added later would reach the
+  last-chance dialog unless caught (senior-dev).
+- L19. `SnapshotSession.CloseAsync` drops the handle before the worker confirms, so after a failed close a retried Purge all
+  skips that snapshot while a running worker may still hold its files (senior-dev; not new in this sprint).
+
+- L20. `DacLocator.IsUnderAny` builds its own "is under"; the architecture test catches only the ternary form of a copy
+  (solution-architect).
+- L21. The mid-segment hand-over test does not check that the hook fired (gc-specialist).
+- L22. The start line reports the gen 0 variable, not the budget the GC applied (gc-specialist).
+- L23. ClrMD's walk's overrun branch has no test (gc-specialist).
+- L24. (Fixed with M1's second pass: ADR-010 says what CI verifies and what is assumed.)
+- L25. Disposed but referenced: types with fewer reachable objects than the minimum are not probed or counted, and a type
+  whose first object's flag cannot be read counts as one without a flag (support-engineer).
+- L26. The command line's console no longer shows the worker's warnings (a symbol server download, the older cache
+  fallback); the notes the command prints still carry the fallback (support-engineer).
+- L27. `TestHooksHandler` runs outside `GuardAsync` (support-engineer; test hooks only).
 
 ## Markdown sweep
 

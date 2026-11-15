@@ -111,7 +111,9 @@ public class SkeletonTests
     [Trait("Category", "UI")]
     public async Task Ui_shows_a_titled_shell_window_and_exits_cleanly()
     {
-        using var ui = ChildProcess.Start(TestPaths.UiExe);
+        // The shell's window, on the process started: without the gen 0 relaunch, whose window is in a second process
+        // (sprint 3.12 review M2; UiResponsivenessTests run the relaunch).
+        using var ui = ChildProcess.Start(TestPaths.UiExe, new Dictionary<string, string> { ["Ui__Gen0Budget"] = "default" });
 
         var deadline = DateTime.UtcNow + s_timeout;
         while (DateTime.UtcNow < deadline && !ui.Process.HasExited)

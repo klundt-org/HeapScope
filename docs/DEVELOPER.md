@@ -253,7 +253,9 @@ dotnet test --solution HeapScope.sln
   [--filter-text-in-logs on|off]` shows the settings file, the log folder and Include filter text in logs, or changes it;
   `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write; `heapscope-cli purge all` says what
   it would delete, and with `--yes` deletes the logs, every session of the library and the bookmarks (never a dump of the
-  user's own folders). Both purges are refused while a capture, recording or open runs.
+  user's own folders). Purge all is refused while a capture, recording or open runs in the same process, and while another
+  HeapScope app or command line run is running (by the pid in its log's name); Purge logs keeps the logs running HeapScope
+  processes write.
 - The app's gen 0 budget (sprint 3.12, M2): the app starts itself again with `DOTNET_GCgen0size`; `Ui__Gen0Budget=default`
   runs it with the runtime's default instead, for A/B runs (`artifacts/bench/3.12/ab5.sh` alternates the two).
 - Traces: `heapscope-cli trace --pid <id> [--duration 30] [--profile cpu|gc|allocations] [--out file.nettrace]` records an

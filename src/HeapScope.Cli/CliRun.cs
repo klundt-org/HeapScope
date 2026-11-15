@@ -61,7 +61,12 @@ internal static partial class CliCommands
         var command = parseResult.CommandResult.Command.Name;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var filterText = HeapScope.Application.Settings.SettingsService.FilterTextInLogs;
-        logger.LogInformation("Command {Command} started: {Arguments}; filter text in logs {FilterText}", command, DescribeTokens(parseResult, filterText), filterText ? "on" : "off");
+        logger.LogInformation(
+            "Command {Command} started: {Arguments}; filter text in logs {FilterText} ({SettingsFile})",
+            command,
+            DescribeTokens(parseResult, filterText),
+            filterText ? "on" : "off",
+            HeapScope.Application.Settings.SettingsService.SettingsFileFollowed);
         int exitCode;
         try
         {

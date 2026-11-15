@@ -13,5 +13,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="HeapScope.Application.Tests" />
     <InternalsVisibleTo Include="HeapScope.Integration.Tests" />
+    <InternalsVisibleTo Include="HeapScope.UI.ViewModels.Tests" />
   </ItemGroup>
 </Project>

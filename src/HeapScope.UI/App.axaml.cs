@@ -103,10 +103,8 @@ public sealed partial class App : Avalonia.Application
                 _host.Services.GetRequiredService<Application.Logging.FileLoggerProvider>().MinimumLevel,
                 Application.Settings.SettingsService.FilterTextInLogs ? "on" : "off",
                 Application.Settings.SettingsService.SettingsFileFollowed,
-                Gen0Budget.Current);
+                Program.Gen0BudgetInUse);
 
-            // The privacy this process applies, whenever the user changes it (sprint 3.12 review M19).
-            Application.Settings.SettingsService.FilterTextInLogsChanged += include => startLogger.LogInformation("Filter text in logs is now {State}", include ? "on" : "off");
             RequestedThemeVariant = ThemeChooser.Choose(_host.Services.GetService<IConfiguration>()?["Ui:Theme"]);
             await _host.StartAsync();
 

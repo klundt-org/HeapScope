@@ -118,8 +118,9 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         ((long)Graph.EdgeCount).ShouldBe(references + dependentEdges);
     }
 
-    // Sprint 3.12 review M1: the loader walks objects by their method tables itself (R4); on every CI system it must find the
-    // objects ClrMD's own walk finds, with their types, sizes and finalizer flags, one by one.
+    // Sprint 3.12 review M1: the loader walks objects by their method tables itself (R4); it must find the objects ClrMD's own
+    // walk finds, with their types, sizes and finalizer flags, one by one (here on Windows; WalkComparisonTests on every CI
+    // system's own fixture dump).
     [Fact]
     public void Every_object_is_the_one_clrmds_walk_finds_with_its_type_size_and_finalizer_flag()
     {
