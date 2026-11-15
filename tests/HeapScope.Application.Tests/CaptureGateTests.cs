@@ -54,9 +54,20 @@ public sealed class CaptureGateTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    // Capture runs on Windows only (ADR-025): elsewhere `DumpCapturer` refuses before its writer starts, so the gate these
+    // tests hold the writer for is never reached. The gate itself is the same code on every system.
+    private static void WindowsOnly()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Capture runs on Windows only (ADR-025); the capturer refuses before the gate is reached.");
+        }
+    }
+
     [Fact]
     public async Task A_second_capture_of_a_process_is_refused_while_the_first_writes_and_runs_once_it_has()
     {
+        WindowsOnly();
         var first = _service.StartCapture(1);
         await _writer.Started(1).WaitAsync(s_limit, Ct);
 
@@ -78,6 +89,7 @@ public sealed class CaptureGateTests : IDisposable
     [Fact]
     public async Task Two_processes_are_captured_at_once()
     {
+        WindowsOnly();
         var one = _service.StartCapture(1);
         var two = _service.StartCapture(2);
 
@@ -92,6 +104,7 @@ public sealed class CaptureGateTests : IDisposable
     [Fact]
     public async Task A_failed_capture_releases_the_gate_and_leaves_no_dump()
     {
+        WindowsOnly();
         var failing = _service.StartCapture(1);
         await _writer.Started(1).WaitAsync(s_limit, Ct);
         _writer.Fail(1, new IOException("The device is not ready."));
@@ -108,6 +121,7 @@ public sealed class CaptureGateTests : IDisposable
     [Fact]
     public async Task A_cancel_while_the_dump_is_written_waits_for_the_writer_then_deletes_the_dump_and_releases_the_gate()
     {
+        WindowsOnly();
         var job = _service.StartCapture(1);
         await _writer.Started(1).WaitAsync(s_limit, Ct);
         job.Cancel();

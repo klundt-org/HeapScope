@@ -1146,7 +1146,7 @@ run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 m
     column per row.
 13. [x] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
     cost, with `PlatformHints` (3.10 M36). The owner decides; any refactor is built only on the owner's pick. Proof: the document.
-    Done: [design/refactor-analysis.md](design/refactor-analysis.md), 2026-11-11: eight bugs (B1 to B8), five candidates tied to this
+    Done: [design/refactor-analysis.md](../design/refactor-analysis.md), 2026-11-11: eight bugs (B1 to B8), five candidates tied to this
     sprint's tasks, fourteen ranked for before Phase 4, and those that wait for a Phase 4 pick. Waiting for the owner's picks.
 14. [x] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
    Done 2026-11-14: budgets.md holds tasks 3 to 8; ADR-006 and ADR-036 were amended with task 9 (ADR-041); DEVELOPER.md has
