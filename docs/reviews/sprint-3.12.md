@@ -260,3 +260,10 @@ logging.md (the CLI's `--filter`), process-model.md (the error id, the version 2
 sentence, and the page with it), `.claude/agents/solution-architect.md` (`WorkerProtocol.Version`), CLAUDE.md (the new CLI
 commands, exit 7, the benchmarks, the vendored reference). THIRD-PARTY-NOTICES.md matches the packages (none changed) and the
 vendored code. No em or en dash in any changed file.
+
+## Final run
+
+2026-11-15, after the sweep: Debug build with 0 warnings and 0 errors; `dotnet test --solution HeapScope.sln`, 1,756 tests,
+1,744 passed. The 12 failures were `AllocationTraceTests`, all at once: their fixture timed out waiting 60 s for the recording
+session to start under the full run's load (the Backlog's known case, as in 3.10 and 3.11), and all 12 passed when the class
+ran alone. The Release integration tier passed 315 of 315 earlier the same day.

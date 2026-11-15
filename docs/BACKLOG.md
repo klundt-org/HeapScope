@@ -90,7 +90,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   (task 11) `HeldDumpWriter` holds the capture while it writes. `CounterMonitorTests`: the first sample's
   `gc-heap-size` was negative (-0.77 MB, from the target's runtime, with Gen0 at 1.8 MB); HeapScope passes it on as is, so the
   chart and the size rules can read a negative heap (dropped and logged since 3.12, task 10).
-  The wrap's second full run: all 12 `AllocationTraceTests` again (as on 3.10's gate), their fixture's session start canceled.
+  The wrap's second full run: all 12 `AllocationTraceTests` again (as on 3.10's gate), their fixture's session start canceled;
+  again in sprint 3.12's final run (2026-11-15: the session did not start within 60 s under full load; all 12 passed alone).
   Cause: the fixture started the load a fixed second after the recording and stopped the recording when the load ended, so a
   start slower than the load was canceled. Fixed: the load starts once the trace's partial file has bytes, as
   `LiveWorkflowTests` already waits. Sprint 3.12 (2026-11-12), the first integration run after a build, on a loaded machine: `GcDumpSnapshotTests.Cli_inspect_of_an_unavailable_inspection_on_a_gcdump_fails_with_the_reason` exited 1 for another reason: the CLI's worker (started 1.1 s into the run) did not open its pipe within 30 s and logged nothing. The first start of a freshly built binary is slow on this machine (a smoke run's first window took 10 s right after a build, 1 s after), so a scan of the new files is likely; not confirmed. It passed alone and in two reruns. If it recurs, log the worker's own start time to tell a slow process start from a slow pipe.

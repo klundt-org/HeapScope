@@ -45,7 +45,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.9 | Packaging and distribution | Closed | 2026-11-01 | sprint-3.9 |
 | 3.10 | Visual design and README | Closed | 2026-11-05 | sprint-3.10 |
 | 3.11 | Screens that explain themselves | Closed | 2026-11-10 | sprint-3.11 |
-| 3.12 | First-show performance and refactor analysis | In Progress | | |
+| 3.12 | First-show performance and refactor analysis | Wrapping | | |
 | 3.13 | Tutorial | Planned | | |
 
 ---
