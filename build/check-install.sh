@@ -61,12 +61,15 @@ summary=$("$dir/heapscope-cli$ext" summary "$dump" --filter StaticCacheEntry | t
 grep -qE "^ +2,000 .* Fixtures\.Leaks\.StaticCacheEntry$" <<< "$summary" || { echo "$summary"; fail "The CLI did not count 2,000 StaticCacheEntry objects"; }
 
 # The tutorial's sample runs without .NET too (sprint 3.13 review M6): its catalog, from the sample itself, then through the
-# CLI, which refuses to start it as root (it would run elevated), as the Linux container runs.
+# CLI, which lists it, or refuses with the reason where HeapScope runs elevated (CI's Windows runner, the Linux container as
+# root): the sample would run elevated too.
 catalog=$("$dir/sample/heapscope-sample$ext" --list | tr -d '\r') || fail "The sample did not run"
 grep -q '"Name":"StaticCache"' <<< "$catalog" || { echo "$catalog"; fail "The sample did not list its scenarios"; }
-if [ "$(id -u)" != "0" ]; then
-  scenarios=$("$dir/heapscope-cli$ext" sample list | tr -d '\r') || fail "heapscope-cli sample list failed"
+if scenarios=$("$dir/heapscope-cli$ext" sample list 2>&1 | tr -d '\r'); then
   grep -qE '^StaticCache +yes ' <<< "$scenarios" || { echo "$scenarios"; fail "heapscope-cli sample list did not list StaticCache"; }
+else
+  grep -q "HeapScope runs as administrator, so the sample would too." <<< "$scenarios" || { echo "$scenarios"; fail "heapscope-cli sample list failed"; }
+  echo "heapscope-cli sample list refused the sample, as it must when HeapScope runs elevated."
 fi
 
 log=$(mktemp -d)
