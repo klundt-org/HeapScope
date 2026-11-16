@@ -8,6 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Diagnostics.Runtime" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" VersionOverride="10.0.15" />
   </ItemGroup>
   <ItemGroup>
     <!-- The one path rule (sprint 3.12 review M3), compiled here as an internal copy: this project cannot reference Contracts. -->
