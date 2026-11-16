@@ -306,3 +306,9 @@ file, so the 3.13 rows, once approved, joined the 3.12 ones; it now reads its ow
 failures, each a worker that did not open its pipe within 30 s or a command waiting on one, on the first runs of the freshly
 built binaries (the slow first start the Backlog records); the tier passed whole on a rerun (331 of 331). The known answers
 were skipped locally (no jq); CI runs them.
+
+CI on the PR (2026-11-16) found two faults the local gate cannot: the package jobs failed restoring `fixtures/Leaks` (the
+sample's restore for one runtime wrote that runtime into its lock file, and the fixtures' locked build after it refused the
+change), fixed by stating the four runtimes on Leaks and the sample as the app does; and the Windows job, which runs
+elevated, failed the CLI sample test (the CLI rightly refuses the sample there), which now checks that refusal and skips the
+rest with the reason. Reproduced and checked locally: a CI-mode win-x64 publish, then the locked fixture build.

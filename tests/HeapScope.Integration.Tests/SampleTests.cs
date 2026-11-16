@@ -110,6 +110,16 @@ public sealed class SampleTests : IDisposable
     [Fact]
     public async Task The_cli_starts_the_sample_captures_it_and_stops_it()
     {
+        if (HeapScope.Capture.WindowsElevationProbe.Instance.IsCurrentProcessElevated)
+        {
+            // CI's Windows runner is elevated: the CLI must refuse, since the sample would run elevated too.
+            using var refused = ChildProcess.Start(TestPaths.CliExe, "sample", "start", "--scenarios", "StaticCache");
+            (await refused.WaitForExitAsync(TimeSpan.FromSeconds(60))).ShouldBeTrue(refused.Output);
+            refused.Process.ExitCode.ShouldBe(1, refused.Output);
+            refused.Output.ShouldContain("HeapScope runs as administrator, so the sample would too.");
+            Assert.Skip("The test run is elevated: the CLI refused the sample, as it must. Starting, capturing and stopping it is checked in a run without administrator rights.");
+        }
+
         using var start = ChildProcess.Start(TestPaths.CliExe, "sample", "start", "--scenarios", "StaticCache");
         (await start.WaitForOutputAsync("Stop it:", TimeSpan.FromSeconds(60))).ShouldBeTrue(start.Output);
         var match = System.Text.RegularExpressions.Regex.Match(start.StandardOutput, @"^Sample (\d+) runs: StaticCache\.", System.Text.RegularExpressions.RegexOptions.Multiline);
