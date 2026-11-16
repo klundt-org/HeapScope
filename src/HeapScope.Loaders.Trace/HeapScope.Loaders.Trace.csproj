@@ -4,6 +4,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="11.0.0" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="HeapScope.Integration.Tests" />
