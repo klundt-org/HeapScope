@@ -78,6 +78,16 @@ size, or when it has grown by a set amount. Come back to dumps from before and a
   <img src="docs/images/live-light.png" alt="The Live page: a chart of a running process's heap by generation, growing over 45 seconds">
 </picture>
 
+### Learn: never profiled memory before?
+
+The Learn page teaches HeapScope on a sample process of its own, with leaks and waste planted on purpose. Each lesson starts
+the sample, shows you where to look, and checks your answer against what was planted. Without the app:
+
+```bash
+heapscope-cli sample start --scenarios StaticCache
+heapscope-cli capture --pid <the pid it printed> --open   # in a second terminal
+```
+
 ### Command line: want memory checks in CI?
 
 `heapscope-cli` does the analysis without a window, with table, CSV and JSON output. Fail a build when a dump grows too much:

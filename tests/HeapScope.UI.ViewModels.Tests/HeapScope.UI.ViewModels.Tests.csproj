@@ -10,5 +10,7 @@
   <ItemGroup>
     <!-- The one way tests make a SnapshotSession (sprint 3.12). -->
     <Compile Include="..\SharedSession\*.cs" Link="Shared\%(Filename)%(Extension)" />
+    <!-- The fake sample starter (sprint 3.13 review L4). -->
+    <Compile Include="..\SharedSample\*.cs" Link="Shared\%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

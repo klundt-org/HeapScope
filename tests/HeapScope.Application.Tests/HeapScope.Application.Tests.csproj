@@ -5,5 +5,7 @@
   <ItemGroup>
     <!-- A dump writer held until the test releases it (sprint 3.12). -->
     <Compile Include="..\SharedCapture\*.cs" Link="Shared\%(Filename)%(Extension)" />
+    <!-- The fake sample starter (sprint 3.13 review L4). -->
+    <Compile Include="..\SharedSample\*.cs" Link="Shared\%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

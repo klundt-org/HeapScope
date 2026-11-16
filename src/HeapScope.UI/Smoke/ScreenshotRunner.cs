@@ -205,6 +205,27 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
         await CaptureAsync("14-jobs");
         Show(shell.NavigationItems.Single(i => i.Title == "About").Page);
         await CaptureAsync("15-about");
+
+        // Sprint 3.13: the first lesson started on the real sample. The page it opens, with the lesson's steps in the panel beside
+        // it, then the Learn page with its question (review M15: a lesson that does not start fails the run).
+        if (services.GetService<LearnViewModel>() is { } learn)
+        {
+            Show(learn);
+            learn.Selected = learn.Lessons[0];
+            await learn.StartLessonCommand.ExecuteAsync(null);
+            if (learn.Current is null)
+            {
+                throw new InvalidOperationException($"The lesson did not start: {learn.Status}");
+            }
+
+            await SettleAsync();
+            await CaptureAsync("16-lesson-panel");
+            Show(learn);
+            await SettleAsync();
+            await CaptureAsync("17-learn");
+            learn.StopLessonCommand.Execute(null);
+        }
+
         return 0;
     }
 

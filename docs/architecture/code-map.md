@@ -312,7 +312,27 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `MonitorCommand` [1.7], `ReferrersCommand` (`referrers --address | --type`) [2.1], `PathsCommand` (`paths --address | --type`) [2.2], `--retained` on `summary`, `instances` and `object` with `StderrProgress` [2.3],
   `RetainersCommand` (`retainers`, `retained-by`) [2.4], `SetCommand` (`set`) [3.1], `TrendCommand` (`trend`) [3.3];
   `CliCommands.Output.cs` holds the output every command shares: fetching rows, CSV, JSON (one
-  writer, rows keyed by column name with typed numbers) [1.9].
+  writer, rows keyed by column name with typed numbers) [1.9]. `SampleCommands.cs`: `sample list|start|stop` (start runs in
+  the foreground; stop only a process whose command line runs the sample with scenarios) [3.13].
+- **Tutorial [3.13, ADR-042].** Sample: `ScenarioCatalog` (each scenario's name, title, what it plants, its known answer, the
+  type it plants and its decoys, the scenarios it cannot run with and why, how it starts, grows and what it plants after the
+  last collection; versioned), `SampleArguments` (with the review's bounds), `SteadyAllocation` (the allocation scenario's
+  call site), `LargeObjects` (arrays on the large object heap beside small ones), `Program` (`--list` as versioned JSON,
+  `READY pid=`, growth on a timer up to 512 MB). Application: `Tutorial/SampleService` (reads the catalog from the sample,
+  starts, tracks and stops samples, a record per sample in the data folder for `StopRecorded`, exits reported as
+  `SampleExit` with a `SampleExitReason`; every failure a `SampleRefusedException` with a next step), `SampleCatalog`,
+  `SampleStopOutcome`, `SampleLaunch` (the executable, or the dll through the dotnet host), `ISampleProcess` and
+  `ISampleProcessStarter` (the seam tests fake) with the real `SampleProcessStarter`, `LessonProgress`
+  (`learn-progress.json` in the data folder, written whole and owner-only). Capture: `DiscoveryOmissions` (what a process
+  list left out, logged by `CaptureService`). UI.ViewModels:
+  `LessonCatalog` and `Lesson` (one lesson per scenario, its steps and question, the answer among the sample's own types),
+  `LearnViewModel`, `LessonItem`, the sample section of `ProcessesViewModel` (`SampleScenarioItem`, the Kind column), and
+  `ShellViewModel.CurrentLesson` (the panel beside every page). UI: `Views/Pages/LearnPage`, the lesson panel in
+  `MainWindow`. Capture: `ProcessDiscovery.IsOwnImage` lists the sample. build: `Sample.Deploy.targets` (the sample beside
+  the app and CLI, self-contained per RID; framework-dependent in the dotnet tool). Tests: `HeapScope.Sample.Tests`
+  (catalog, lessons, the wording table), `SampleServiceTests`, `ProcessesSampleTests`, `LearnViewModelTests`,
+  `SampleCommandTests`, `tests/SharedSample/FakeSampleStarter` (the one fake sample), Integration `SampleTests` (growth, an
+  allocation trace, the service and the CLI on the real sample) and `LessonTests` (each lesson's steps on a real sample).
 - **perf/HeapScope.Benchmarks.** The budget benchmarks, the developer tool `trace-report` [1.5; Avalonia's UI thread
   since 3.8] and `phase2-indices`,
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache

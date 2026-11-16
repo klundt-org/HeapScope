@@ -1,0 +1,38 @@
+// HeapScope
+// Copyright (C) 2026 Ray Klundt
+// https://github.com/rklundt/HeapScope
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, version 3 only, with additional terms
+// under Section 7 of that license.
+//
+// Additional terms, including attribution requirements, apply.
+// See the ADDITIONAL-TERMS.md file distributed with this program.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program (see the LICENSE file). If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// Commercial licenses are available. See COMMERCIAL.md.
+
+namespace HeapScope.Application.Tutorial;
+
+/// <summary>One scenario of the sample's catalog, as the sample prints it (<c>--list</c>; sprint 3.13, ADR-042).</summary>
+/// <param name="ConflictReason">Why it cannot run with <paramref name="CannotRunWith"/>; null when it runs with any.</param>
+/// <param name="Decoys">The scenario's other types, which a lesson's steps rule out: wrong answers beside the planted one.</param>
+public sealed record SampleScenario(
+    string Name,
+    string Title,
+    string Plants,
+    string? KnownAnswer,
+    string AnswerType,
+    IReadOnlyList<string> CannotRunWith,
+    string? ConflictReason,
+    IReadOnlyList<string> Decoys,
+    bool Grows);

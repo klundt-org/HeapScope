@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>Fixtures.Leaks</RootNamespace>
+    <!-- Shipped inside the tutorial's sample since sprint 3.13, which is published for each of these: stated so that its lock file
+         lists them all, and a restore for one of them (the package build) leaves it as it is for the fixtures' builds after it. -->
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>

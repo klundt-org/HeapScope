@@ -42,6 +42,7 @@
     <DataTemplate DataType="vm:AllocationsViewModel"><pages:AllocationsPage /></DataTemplate>
     <DataTemplate DataType="vm:JobsPageViewModel"><pages:JobsPage /></DataTemplate>
     <DataTemplate DataType="vm:SettingsViewModel"><pages:SettingsPage /></DataTemplate>
+    <DataTemplate DataType="vm:LearnViewModel"><pages:LearnPage /></DataTemplate>
     <DataTemplate DataType="vm:AboutViewModel"><pages:AboutPage /></DataTemplate>
     <DataTemplate DataType="vm:JobViewModel"><pages:JobRow /></DataTemplate>
   </Window.DataTemplates>
@@ -113,6 +114,32 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
+      </DockPanel>
+    </Border>
+    <!-- The running lesson's steps beside every page (sprint 3.13, ADR-042), so they stay in sight while the user works. -->
+    <Border x:Name="LessonPanel" DockPanel.Dock="Right" Width="260" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="1,0,0,0" Padding="12" IsVisible="{Binding CurrentLesson, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Classes="subtle" Text="Lesson" />
+        <Button DockPanel.Dock="Bottom" Content="Answer on the Learn page" Command="{Binding ShowLearnCommand}" Margin="0,8,0,0" />
+        <ContentControl Content="{Binding CurrentLesson}">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:LessonItem">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,8" />
+                <ScrollViewer>
+                  <ItemsControl ItemsSource="{Binding Lesson.Steps}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
       </DockPanel>
     </Border>
     <!-- Each page is built when first shown and then kept: switching pages is a visibility change, not a rebuild of

@@ -161,7 +161,7 @@ public sealed class WorkerHostOptions
     /// self-contained process: a framework-dependent one loads the runtime from
     /// <c>&lt;dotnet&gt;/shared/Microsoft.NETCore.App/&lt;version&gt;</c>.
     /// </summary>
-    internal static string? RunningDotnetHost()
+    public static string? RunningDotnetHost()
     {
         var version = Path.GetDirectoryName(typeof(object).Assembly.Location);
         var framework = Path.GetDirectoryName(version);

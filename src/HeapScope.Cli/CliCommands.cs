@@ -80,6 +80,7 @@ internal static partial class CliCommands
         root.Subcommands.Add(BuildCaptureCommand(services));
         root.Subcommands.Add(BuildSettingsCommand(services));
         root.Subcommands.Add(BuildPurgeCommand(services));
+        root.Subcommands.Add(BuildSampleCommand(services));
         return root;
     }
 }

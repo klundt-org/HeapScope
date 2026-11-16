@@ -221,7 +221,7 @@ public sealed class InfoIconTests(UiSession ui)
                 .Select(File.ReadAllText));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).ToList();
 
-        texts.Count.ShouldBe(49);
+        texts.Count.ShouldBe(50);
         foreach (var text in texts)
         {
             sources.ShouldContain("InfoTexts." + text.Name, customMessage: text.Name);
@@ -276,7 +276,7 @@ public sealed class InfoIconTests(UiSession ui)
             .Replace("&quot;", "\"", StringComparison.Ordinal).Replace("&lt;", "<", StringComparison.Ordinal).Replace("&gt;", ">", StringComparison.Ordinal)
             .Replace("&amp;", "&", StringComparison.Ordinal).Replace("\\\"", "\"", StringComparison.Ordinal);
 
-        pages.Count.ShouldBe(27);
+        pages.Count.ShouldBe(28);
         foreach (var row in pages)
         {
             texts.ShouldContain(row[1], customMessage: row[0]);
@@ -319,7 +319,7 @@ public sealed class InfoIconTests(UiSession ui)
         var repo = global::HeapScope.Tests.Shared.RepoRoot.Path;
         var table = File.ReadAllText(Path.Combine(repo, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
         var start = table.IndexOf("## Sprint 3.12 additions", StringComparison.Ordinal);
-        var end = table.IndexOf("## Evidence", start, StringComparison.Ordinal);
+        var end = table.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
         var rows = table[start..end].Split('\n')
             .Where(static l => l.StartsWith("| ", StringComparison.Ordinal) && !l.StartsWith("| Page", StringComparison.Ordinal))
             .Select(static l => l.Trim('|').Split(" | ").Select(static c => c.Trim()).ToArray())

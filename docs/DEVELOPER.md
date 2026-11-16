@@ -396,6 +396,29 @@ of debuggable code) and exit when the process given as parent exits.
   `DisabledLeakTests`, `LeakyApiGrowthTests`). Test harness: `FixtureProcess` (start LeakyConsole or LeakyApi,
   drive, capture any number of dumps, always killed), `DumpAnalysis` (ClrMD checks), `TempFolder`.
 
+### 3.1 The tutorial's sample (sprint 3.13, ADR-042)
+
+`src/HeapScope.Sample` builds `heapscope-sample`, which the app and the CLI ship in `sample/` and start for the Learn page,
+the Processes page's Sample process section and `heapscope-cli sample`. By hand: `dotnet run --project src/HeapScope.Sample
+-- --scenarios StaticCache,Timer [--count N] [--payload BYTES] [--grow-every MS] [--parent-pid P]` prints `READY pid=<pid>`
+and waits (2,000 items by default, twice the detectors' threshold; count times payload at most 256 MB; growth stops at 512 MB
+of heap); `--list` prints the catalog as JSON with its version. Unlike the fixtures it ships to users, so it holds only what a
+lesson needs.
+
+Adding a feature a user would learn (the Definition of Done item, section 9):
+1. A scenario in `ScenarioCatalog` (`src/HeapScope.Sample`): its name, title, what it plants, its known answer in
+   `fixtures/KnownAnswers` where there is one, the type it plants (the lesson's answer), its decoys (its other types, which
+   the lesson's steps rule out), the scenarios it cannot run with and why, how it starts and grows and what it plants after
+   the last collection. Raise `ScenarioCatalog.Version`. `ScenarioCatalogTests` checks that the known answer names the answer
+   type and that the decoys are the sample's types.
+2. A lesson in `LessonCatalog` (`src/HeapScope.UI.ViewModels`): its scenarios, the page it starts on, its steps and its
+   question, which names what the steps measure. Raise `LessonCatalog.Version`. Or, when no lesson fits, the scenario and the
+   reason in `LessonCatalog.NoLesson`.
+3. Their texts in `docs/design/info-text.md`, "Sprint 3.13 additions" (the scenarios' and lessons' tables), as drafts for
+   the owner. `LessonCatalogTests` checks the catalogs against each other and against those rows word for word.
+4. The lesson's steps followed on a real sample in `LessonTests` (the command line's equivalent of each step, arriving at the
+   answer); `Every_scenario_with_a_lesson_has_its_steps_checked` fails until it is there.
+
 ## 4. Coding conventions
 - **Naming**: .NET conventions. `PascalCase` types and members, `_camelCase` private fields, `s_camelCase`
   private static fields, `I` prefix for interfaces, `Async` suffix on async methods.
@@ -657,6 +680,8 @@ owner still apply.
 - ARCHITECTURE.md, DEVELOPER.md, SPRINTS.md and CLAUDE.md reflect what was actually built, and the Markdown sweep
   of `/wrap-sprint` found every other tracked Markdown file current.
 - No layering violations (architecture test passes).
+- Since sprint 3.13 (ADR-042): a feature a user would learn adds its scenario to the sample and its lesson to the Learn page,
+  with its known answer and approved texts, or its sprint says why not.
 
 ## 10. Severity rubric
 - **High / Urgent**: incorrect analysis results, crashes, data loss, security or privacy issues, layering

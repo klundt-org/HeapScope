@@ -9,7 +9,7 @@ release has:
 | `HeapScope-vX.Y.Z-linux-x64.tar.gz` | The app (`HeapScope`) and the CLI (`heapscope-cli`) for Linux. No .NET install needed. |
 | `HeapScope-vX.Y.Z-osx-arm64.tar.gz`, `HeapScope-vX.Y.Z-osx-x64.tar.gz` | The app and the CLI for macOS (Apple silicon, Intel). **Untested: built on Linux, not on a Mac.** See [macOS](#macos-untested). |
 | `HeapScope.Cli.X.Y.Z.nupkg` | The CLI alone as a `dotnet tool`, for systems with the .NET 10 SDK. |
-| `HeapScope-vX.Y.Z-sbom-*.cdx.json` | Software bills of materials (CycloneDX) of the app, the CLI and the worker. |
+| `HeapScope-vX.Y.Z-sbom-*.cdx.json` | Software bills of materials (CycloneDX) of the app, the CLI, the worker and the tutorial's sample. |
 | `SHA256SUMS` | The SHA-256 checksum of every file above. |
 
 Capturing a snapshot of a running process works on Windows only. On Linux, HeapScope opens dumps taken with
@@ -30,7 +30,7 @@ HeapScope's files are not signed. Check them against the release's checksums and
 
 1. Download `HeapScope-vX.Y.Z-win-x64.zip`.
 2. Extract it where you keep programs, for example `%LOCALAPPDATA%\Programs`. It holds one folder,
-   `HeapScope-vX.Y.Z-win-x64`. Keep the folder whole: the `worker` folder in it does the analysis.
+   `HeapScope-vX.Y.Z-win-x64`. Keep the folder whole: the `worker` folder in it does the analysis, and the `sample` folder holds the Learn page's sample.
 3. Run `HeapScope.exe`. The first time, Windows SmartScreen may say "Windows protected your PC", because the files are
    not signed: choose **More info**, then **Run anyway**. To skip that for every file at once, unblock the zip before
    extracting it (right-click it, **Properties**, tick **Unblock**), or in PowerShell: `Unblock-File .\HeapScope-vX.Y.Z-win-x64.zip`.
@@ -50,7 +50,7 @@ HeapScope's files are not signed. Check them against the release's checksums and
    mkdir -p ~/.local/opt && tar -xzf HeapScope-vX.Y.Z-linux-x64.tar.gz -C ~/.local/opt
    ```
 
-3. Put the commands on your path (keep the folder whole: the `worker` folder in it does the analysis):
+3. Put the commands on your path (keep the folder whole: the `worker` folder in it does the analysis, and the `sample` folder holds the Learn page's sample):
 
    ```bash
    mkdir -p ~/.local/bin

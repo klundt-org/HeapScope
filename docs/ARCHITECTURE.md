@@ -60,7 +60,8 @@ Capture and sessions (sprint 1.1):
   (`DiagnosticsClient.GetPublishedProcesses`) with name, working set, private bytes, start time, command line
   (`NtQueryInformationProcess`, limited query rights), runtime version and folder (the loaded `coreclr.dll`; single-file
   apps have none) and elevation. HeapScope's own processes (this pid, and executables under its installation folder,
-  the worker included) are never listed or captured, matched by path, not name. A detail that cannot be read stays
+  the worker included) are never listed or captured, matched by path, not name; the tutorial's sample, in the
+  installation's `sample/` folder, is the exception, since it is there to be captured (sprint 3.13, ADR-042). A detail that cannot be read stays
   empty. `WindowsElevationProbe` reads token elevation for targets and for HeapScope itself (one rule): a token that
   cannot be opened for query (elevated, or another user's, such as services running as SYSTEM) or that reports
   elevation means only an elevated HeapScope can dump it. Capture is Windows only (ADR-025): off Windows,
@@ -118,7 +119,7 @@ Capture and sessions (sprint 1.1):
 
 ```
 HeapScope.sln
-build/                         Shared MSBuild targets (worker deployment next to UI and CLI); the gate, test, fixture
+build/                         Shared MSBuild targets (worker and sample deployment next to UI and CLI); the gate, test, fixture
                                dump, publish, license, package and SkiaSharp native scripts shared by CI and the local
                                gate (sprint 3.6, ADR-038); release archives, the CLI's dotnet tool and the checks that
                                run them as a user would (sprint 3.9, ADR-039); the demo data, screenshots and the
@@ -142,6 +143,9 @@ src/
   HeapScope.UI                 The desktop app on Avalonia (Windows, Linux, macOS; sprint 2.3.6, ADR-025): shell,
                                views, controls, smoke runs. Executable HeapScope.
   HeapScope.Cli                Command line front end.
+  HeapScope.Sample             The tutorial's sample (sprint 3.13, ADR-042): executable heapscope-sample, a .NET process
+                               with problems planted on purpose, scenario by scenario, shipped in sample/ beside the app
+                               and the CLI. References fixtures/Leaks.
 tests/
   Shared/                      Helpers compiled into every test project (the repository root finder, sprint 1.9; the
                                per-test data folder, sprint 3.8)
@@ -149,6 +153,8 @@ tests/
                                opens a snapshot session, with a fixed memory budget (sprint 3.12).
   SharedCapture/               Compiled into the tests that capture: `HeldDumpWriter`, which holds a capture while it writes
                                so a cancel or a second capture meets it there (sprint 3.12, task 11).
+  SharedSample/                Compiled into the Application and view model tests: `FakeSampleStarter`, the tutorial's
+                               sample as tests see it (sprint 3.13).
   HeapScope.Core.Tests
   HeapScope.Analysis.Tests     Synthetic graphs with known answers.
   HeapScope.Storage.Tests
@@ -166,6 +172,8 @@ tests/
   HeapScope.Integration.Tests  Real worker processes, fixtures, real dumps, known answers. References Storage,
                                Analysis and the three loaders to test them in process, and runs the built CLI and app.
   HeapScope.Benchmarks.Tests   The benchmarks' rules on recorded numbers (`UiStallAttribution`, sprint 3.12).
+  HeapScope.Sample.Tests       The sample's scenarios and command line, and the Learn page's lessons against them and the
+                               wording table (sprint 3.13).
 perf/
   HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.) and the
                                trace readers (`trace-report`, `ui-stalls`, `cpu-profile`).
@@ -208,6 +216,7 @@ flowchart TD
     VM --> Con
     Cli[Cli] --> App
     Cli --> Con
+    Smp[Sample] --> Lk[fixtures/Leaks]
     App --> Con
     App --> Cap[Capture]
     App --> Core
@@ -243,6 +252,7 @@ flowchart TD
 | Application | Core, Contracts, Capture | StreamJsonRpc |
 | Cli | Application, Contracts | System.CommandLine |
 | UI.ViewModels | Application, Contracts | CommunityToolkit.Mvvm |
+| Sample | fixtures/Leaks only (sprint 3.13, ADR-042) | none, not even Microsoft.Extensions.* |
 | UI | Application, Contracts, UI.ViewModels | Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Controls.DataGrid, Avalonia.Headless, Avalonia.Fonts.Inter, CommunityToolkit.Mvvm (MIT packages, ADR-025; the Inter font in its package is SIL OFL 1.1, allowed for fonts only, ADR-040) |
 
 Rules:
@@ -256,7 +266,7 @@ Rules:
   vocabulary (snapshot kind, capabilities, capability descriptions) is defined in Contracts (ADR-016).
 - A build-order-only reference (`ReferenceOutputAssembly="false"`) to the Worker project is allowed from
   UI, Cli and Integration.Tests; it ensures the worker is built and deployed next to them, without making
-  any worker type visible.
+  any worker type visible. The same holds for the Sample project (sprint 3.13), deployed in `sample/`.
 - `HeapScope.Architecture.Tests` checks every `src/**/*.csproj` against the table using the evaluated restore
   graph (`obj/project.assets.json`, so references added by imported props and targets count) plus build-order-only
   references from the project and the shared targets it imports. It also checks every compiled assembly reference
@@ -264,7 +274,7 @@ Rules:
 
 ## 4. Process model and IPC
 
-Three kinds of process (the app, the CLI, the analysis worker), how the worker is started, watched and restarted, the
+Three kinds of process (the app, the CLI, the analysis worker) and the tutorial's sample, how the worker is started, watched and restarted, the
 JSON-RPC transport and its contracts with the protocol version history, progress and cancellation, and large result sets
 read in pages. Full text: [architecture/process-model.md](architecture/process-model.md).
 

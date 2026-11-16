@@ -91,6 +91,11 @@ public static class ApplicationServiceCollectionExtensions
             null,
             sp.GetService<Microsoft.Extensions.Options.IOptions<WorkerHostOptions>>(),
             sp.GetService<Microsoft.Extensions.Logging.ILogger<Settings.SettingsService>>()));
+        services.TryAddSingleton<Tutorial.ISampleProcessStarter, Tutorial.SampleProcessStarter>();
+        services.AddSingleton(sp => new Tutorial.SampleService(
+            sp.GetRequiredService<Tutorial.ISampleProcessStarter>(),
+            () => sp.GetRequiredService<Capture.IElevationProbe>().IsCurrentProcessElevated,
+            logger: sp.GetService<Microsoft.Extensions.Logging.ILogger<Tutorial.SampleService>>()));
         services.TryAddSingleton<Monitoring.ICounterSource, Monitoring.EventPipeCounterSource>();
         services.AddSingleton(sp => new Monitoring.MonitorService(
             sp.GetRequiredService<Sessions.ICaptureService>(),

@@ -138,6 +138,10 @@ public static class InfoTexts
     public const string Settings =
         "Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
 
+    /// <summary>Learn (sprint 3.13).</summary>
+    public const string Learn =
+        "Lessons that teach HeapScope on a sample process of its own, with problems planted on purpose. Use it to learn the pages hands-on before you look at your own application. Choose a lesson and press Start lesson, then follow its steps and answer its question.";
+
     /// <summary>About.</summary>
     public const string About =
         "Shows the version, the system, the log folder and every keyboard shortcut. Use it when you need a shortcut, or want to ask for support. F1 comes here from any page, and Copy details puts the support details on the clipboard.";

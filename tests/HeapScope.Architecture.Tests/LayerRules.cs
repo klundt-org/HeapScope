@@ -28,7 +28,8 @@ internal static class LayerRules
 {
     private sealed record Rule(string[] Projects, string[] Packages, bool AllowsMicrosoftExtensions = true);
 
-    private static readonly string[] s_buildOrderOnlyAllowed = ["HeapScope.Worker"];
+    // The worker and, since 3.13, the tutorial's sample: processes a front end ships and starts, never code it uses.
+    private static readonly string[] s_buildOrderOnlyAllowed = ["HeapScope.Worker", "HeapScope.Sample"];
 
     private static readonly Dictionary<string, Rule> s_rules = new(StringComparer.Ordinal)
     {
@@ -68,6 +69,9 @@ internal static class LayerRules
         ["HeapScope.UI"] = new(
             ["HeapScope.Application", "HeapScope.Contracts", "HeapScope.UI.ViewModels"],
             ["Avalonia", "Avalonia.Desktop", "Avalonia.Themes.Fluent", "Avalonia.Controls.DataGrid", "Avalonia.Headless", "Avalonia.Fonts.Inter", "CommunityToolkit.Mvvm"]),
+
+        // The tutorial's sample (sprint 3.13, ADR-042): the fixtures' planted problems only, nothing of HeapScope.
+        ["HeapScope.Sample"] = new(["Leaks"], [], AllowsMicrosoftExtensions: false),
     };
 
     /// <summary>Assembly names that differ from project names.</summary>
@@ -75,6 +79,7 @@ internal static class LayerRules
     {
         ["heapscope-cli"] = "HeapScope.Cli",
         ["HeapScope"] = "HeapScope.UI",
+        ["heapscope-sample"] = "HeapScope.Sample",
     };
 
     public static IReadOnlyCollection<string> KnownProjects => s_rules.Keys;

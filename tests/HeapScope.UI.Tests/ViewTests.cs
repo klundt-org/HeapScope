@@ -62,7 +62,7 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             var (shell, _) = Shell();
 
             // Sprint 3.12 (B1, owner 2026-11-12): Settings on the left, above About.
-            shell.NavigationItems.Select(i => i.Title).TakeLast(3).ShouldBe(["Jobs", "Settings", "About"]);
+            shell.NavigationItems.Select(i => i.Title).TakeLast(4).ShouldBe(["Jobs", "Learn", "Settings", "About"], "sprint 3.13: Learn low on the left, above Settings");
             ui.ClearBindingErrors();
             var window = new MainWindow(shell);
             window.Show();

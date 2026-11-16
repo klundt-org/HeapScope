@@ -27,6 +27,12 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   child per byte of the file, check every child and type index and duplicate addresses, and refuse an inconsistency the
   reader throws with a reason; HeapScope's own errors are never reported as a bad file (3.7 review H5). Mutation tests
   run in every CI run and nightly with more iterations (`fuzz.yml`).
+- The tutorial's sample (sprint 3.13, ADR-042) is HeapScope's own process, started as the user and refused while HeapScope
+  runs elevated, so it never runs with more rights than the user; it exits with the process that started it. Its records
+  (`samples/<pid>.json` in the data folder, owner-only) hold its pid, start time and scenarios; `heapscope-cli sample stop`
+  stops a process only when its record's start time matches the running process, so a reused pid is never stopped. The lesson
+  progress (`learn-progress.json`) holds lesson ids only. Process discovery lists the sample, the one exception to hiding
+  HeapScope's own executables.
 - Index caches are signed with a per-user key (sprint 3.7, ADR-036): a cache shipped next to a dump, written by another
   user or machine, or forged with recomputed checksums is never used.
 - Private files (sprint 3.7, peer review P15): on Windows a file HeapScope creates is created with an owner-only access

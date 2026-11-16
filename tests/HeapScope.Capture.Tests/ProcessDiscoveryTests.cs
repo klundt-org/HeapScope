@@ -40,4 +40,16 @@ public sealed class ProcessDiscoveryTests
             .ShouldBeFalse("another installation's worker is listed like any process");
         ProcessDiscovery.RunsOwnWorkerAssembly(null, own).ShouldBeFalse();
     }
+
+    // Sprint 3.13: the tutorial's sample sits in the installation but is there to be captured.
+    [Fact]
+    public void The_installation_s_own_executables_are_hidden_except_its_sample()
+    {
+        var own = Path.Combine(Path.GetTempPath(), "HeapScope");
+
+        ProcessDiscovery.IsOwnImage(Path.Combine(own, "HeapScope.exe"), own).ShouldBeTrue();
+        ProcessDiscovery.IsOwnImage(Path.Combine(own, "worker", "HeapScope.Worker.exe"), own).ShouldBeTrue();
+        ProcessDiscovery.IsOwnImage(Path.Combine(own, "sample", "heapscope-sample.exe"), own).ShouldBeFalse("the sample is listed and captured");
+        ProcessDiscovery.IsOwnImage(Path.Combine(Path.GetTempPath(), "MyApp", "MyApp.exe"), own).ShouldBeFalse();
+    }
 }

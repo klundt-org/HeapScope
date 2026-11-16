@@ -3,6 +3,46 @@
 The [README](../README.md) shows what HeapScope does. This guide covers how each part works, and
 [INSTALL.md](../INSTALL.md) takes you from download to a first snapshot.
 
+## Try it: learn on HeapScope's own sample
+
+HeapScope ships with a small .NET process of its own, the sample, with memory problems planted on purpose. Each problem is
+a scenario: a static cache that only grows, event handlers never removed, timers never stopped, async methods that never
+finish, a finalizer backlog, wasted memory, large objects, and steady allocation from one call site, among others. Because
+HeapScope knows what each one planted, you can practice on it and be told whether you found it.
+
+- **The Learn page** (low on the left, Ctrl+7) lists the lessons, one per scenario. Choose one and press Start lesson: its
+  sample starts and HeapScope shows the page the lesson starts on. The steps stay in a panel on the right of every page while
+  you work. When you have found the problem, answer the lesson's question on the Learn page: the answer is checked against
+  the type the sample planted. Lessons you finish are marked done and remembered. Stop lesson stops its sample.
+- **The Processes page** has a Sample process section to start the sample yourself: tick the scenarios, and Keep growing to
+  add more of each problem every second (for Live, an allocation recording, Compare and Trend). The sample's row is marked
+  Sample in the Kind column, ready to capture or record. Stop sample stops it.
+- **On the command line**, `heapscope-cli sample list` lists the scenarios, `heapscope-cli sample start --scenarios
+  StaticCache,Timer` runs the sample until Ctrl+C (add `--grow` to keep it growing), and `heapscope-cli sample stop --pid
+  <pid>` stops it from another terminal. Capture it with `heapscope-cli capture --pid <pid>`.
+
+The lessons, scenario by scenario, and where each one's answer shows:
+
+| Lesson | Scenario | Where you find it |
+|---|---|---|
+| A cache that never lets go | StaticCache | Snapshots, Retained sizes ticked, filtered to Fixtures.Leaks, sorted by Retained: the top row; Why alive shows the static field |
+| Event handlers never removed | EventHandler | Inspections, Event handler leaks: Subscriber types |
+| A closure that holds its data | Closure | Sorted by Retained: a display class, whose field holds what the lambda captured |
+| Objects that are never disposed | UndisposedList | Filtered to Fixtures.Leaks: the type with thousands of objects; Why alive shows the list |
+| A dictionary that grows with every request | UnboundedDictionary | Two captures compared, filtered to Fixtures.Leaks, sorted by Bytes +/- |
+| Timers never stopped | Timer | Inspections, Timer leaks: Target |
+| Disposed objects still referenced | DisposedReferenced | Inspections, Disposed but referenced |
+| Async methods that never finish | PendingAsync | Inspections, Async methods that never complete: the waiting method's type |
+| A finalizer queue that never drains | FinalizerBacklog | Inspections, Finalizer backlog |
+| Memory wasted by shape | Waste | Inspections, Empty and Oversized collections: what the collections hold |
+| Large arrays on the large object heap | LargeObjects | Inspections, Large arrays |
+| Where allocations come from | SteadyAllocation | Record allocations; the Allocations page's Types and Back traces |
+
+The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once from one
+HeapScope window or command, and stops when HeapScope closes. A growing sample stops growing when its heap reaches 512 MB;
+stop it when you are done. Two scenarios that both block the finalizer thread (FinalizerBacklog and Waste) cannot run
+together. The lessons start with a capture, which runs on Windows for now: on Linux and macOS the Learn page says so.
+
 ## Finding your way
 
 - **Info icons.** The (i) beside a page or tab title says what it is for, when to use it and how to start. One beside a group
@@ -60,7 +100,7 @@ The [README](../README.md) shows what HeapScope does. This guide covers how each
   those on screen. String text, field values and command lines are left out unless you say yes for that export.
 - **Jobs.** Long work shows a progress row above the status line while it runs, with Cancel. Finished jobs move to the
   Jobs page; the status line says how many finished and how many failed, and a click on it opens the page.
-- **Keyboard.** F1 lists every shortcut on the About page: Ctrl+1 to 8 (Cmd on macOS) for the pages, Alt+1 to 4 for the Snapshots
+- **Keyboard.** F1 lists every shortcut on the About page: Ctrl+1 to 9 (Cmd on macOS) for the pages, Alt+1 to 4 for the Snapshots
   tabs, Ctrl+F for the filter, Ctrl+L for the analysis path, F5 to refresh.
 - **Appearance.** HeapScope follows your system's light or dark theme, and changes with it while it runs. To choose one,
   start the app with `--Ui:Theme Light` or `--Ui:Theme Dark`.
