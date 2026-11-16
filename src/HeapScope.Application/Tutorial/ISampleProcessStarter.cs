@@ -23,8 +23,17 @@
 
 namespace HeapScope.Application.Tutorial;
 
-/// <summary>Starts sample processes (a seam: tests replace it).</summary>
+/// <summary>Starts and finds sample processes (a seam: tests replace it).</summary>
 public interface ISampleProcessStarter
 {
+    /// <summary>Starts <paramref name="fileName"/> with its output redirected.</summary>
+    /// <exception cref="System.ComponentModel.Win32Exception">It could not be started (blocked, missing, not executable).</exception>
     ISampleProcess Start(string fileName, IReadOnlyList<string> arguments);
+
+    /// <summary>When the process <paramref name="processId"/> started, in UTC; null when no such process runs.</summary>
+    DateTime? StartTimeUtcOf(int processId);
+
+    /// <summary>Stops the process <paramref name="processId"/> and waits a few seconds for it to exit.</summary>
+    /// <exception cref="System.ComponentModel.Win32Exception">It could not be stopped (another user's, access denied).</exception>
+    void Kill(int processId);
 }

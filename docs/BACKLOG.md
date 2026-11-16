@@ -50,14 +50,11 @@ Sprint 3.11:
 Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
 
 **High**
-- A hands-on tutorial (product owner, 2026-11-14; a phase 3.5 candidate; folded into sprint 3.13's scope on 2026-11-15,
-  built so each Phase 4 feature adds its scenario and lesson): a Learn item low on the left navigation that
-  gives the user captures, snapshots and allocation traces with a varied set of planted problems, and walks them through
-  finding and diagnosing each with the app's own pages. Open questions: generated each time by a bundled scenario app
-  (teaches capture too, matches the machine's runtime and DAC, can vary names and sizes per run) or pre-built files (no
-  wait, but they grow the install and age with each runtime's DAC), or both; one lesson per inspection and per page;
-  how a lesson checks the user found it (the scenario knows what it planted, as the fixtures' known answers do); the
-  lesson texts approved by the owner (info-text.md).
+- The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
+  lesson runs without starting the sample, and where capture is not available: Linux, macOS); a lesson on reading an object's
+  fields (the Inspection scenario has none yet); a per-lesson platform or capability requirement, with the first lesson that
+  needs one (a WPF scenario on Windows only); a capture of a sample tagged with its scenarios and catalog version in the
+  session; answers that name a method or call site, not only a type (sprint 3.13 review L7).
 - A contribution policy before any outside contribution is accepted (from ADR-022; 2026-10-30, the repository is
   public). A contribution stays its author's, licensed to HeapScope under the AGPL only, which would end commercial
   licensing of any file it touches. Until a contributor agreement exists (a CLA that grants the owner the right to
@@ -71,7 +68,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   and explains any failure); under full local load only, passing alone: `LiveWorkflowTests` (an allocation trace for a
   run's whole length; again 2026-11-13, 45 ms past its deadline, and 2026-11-14 in the wrap's full run),
   `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
-  beside four reviewers and a build; both passed alone), `CounterMonitorTests`, `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
+  beside four reviewers and a build; both passed alone), `AllocationTraceTests` (2026-11-15, the 3.13 wrap's full Debug run:
+  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
   3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
   little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
   most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has
@@ -156,6 +154,18 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- Learning from use, without telemetry (product owner, 2026-11-15): a closed loop that shows where users wait, get stuck or
+  miss a feature, so performance work and new features follow real use. HeapScope uploads nothing and has no telemetry
+  (ARCHITECTURE 12), and that stays the default; the idea must not read as data collection for profit. Direction to design:
+  local first (a usage summary kept on the user's machine: which pages and inspections were used, how long operations took,
+  refusals and errors met, lessons finished or abandoned, never dump contents, type names, paths or filter text); shown to
+  the user before anything leaves (a "Usage report" page or file they can read in full, as the logs are today); sent only
+  when they choose, each time or by an opt-in they can turn off, to a destination they can see; with a plain promise in the
+  app and the docs (what is collected, why, how long it is kept, never sold or shared, deleted on request) and the code that
+  writes it public. Open questions: what is worth knowing (the longest operations by page, features never found, lesson
+  steps where users stop), anonymous or tied to a support request, where reports go and who may read them, whether a
+  support bundle (log plus usage summary, attached by the user to an issue) covers most of the need with nothing new to
+  trust. Needs an ADR and the owner's approval of every user-facing word.
 - The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
   86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
 - From 3.8 (decided autonomously): the Live page view model split into live monitoring, past runs and timeline actions

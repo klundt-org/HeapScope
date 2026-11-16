@@ -21,8 +21,6 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-using System.Diagnostics;
-
 namespace HeapScope.Application.Tutorial;
 
 /// <summary>A running sample process, as <see cref="SampleService"/> sees it (a seam: tests start none).</summary>
@@ -30,88 +28,25 @@ public interface ISampleProcess : IDisposable
 {
     int Id { get; }
 
+    /// <summary>When it started, in UTC: with <see cref="Id"/> it names this process even after its pid is reused.</summary>
+    DateTime StartTimeUtc { get; }
+
     bool HasExited { get; }
 
-    /// <summary>The next line the sample writes to its standard output, or null at its end.</summary>
-    Task<string?> ReadLineAsync(CancellationToken cancellationToken);
+    /// <summary>Its exit code once it exited, else null.</summary>
+    int? ExitCode { get; }
 
     /// <summary>What the sample wrote to its standard error so far (its refusal, when it exits at once).</summary>
     string Error { get; }
 
+    /// <summary>Raised once when it exits, on any thread.</summary>
+    event EventHandler? Exited;
+
+    /// <summary>The next line the sample writes to its standard output, or null at its end.</summary>
+    Task<string?> ReadLineAsync(CancellationToken cancellationToken);
+
+    /// <summary>Waits until it exited and its standard error is read to the end.</summary>
+    Task WaitForExitAsync(CancellationToken cancellationToken);
+
     void Kill();
-}
-
-/// <summary>Starts the real sample with its output redirected, as the user, with no window.</summary>
-internal sealed class SampleProcessStarter : ISampleProcessStarter
-{
-    public ISampleProcess Start(string fileName, IReadOnlyList<string> arguments)
-    {
-        var info = new ProcessStartInfo(fileName)
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
-        foreach (var argument in arguments)
-        {
-            info.ArgumentList.Add(argument);
-        }
-
-        var process = Process.Start(info) ?? throw new InvalidOperationException($"{fileName} did not start.");
-        return new SampleProcess(process);
-    }
-
-    private sealed class SampleProcess : ISampleProcess
-    {
-        private readonly Process _process;
-        private readonly System.Text.StringBuilder _error = new();
-
-        public SampleProcess(Process process)
-        {
-            _process = process;
-            _process.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data is { } line)
-                {
-                    lock (_error)
-                    {
-                        _error.AppendLine(line);
-                    }
-                }
-            };
-            _process.BeginErrorReadLine();
-        }
-
-        public int Id => _process.Id;
-
-        public bool HasExited => _process.HasExited;
-
-        public string Error
-        {
-            get
-            {
-                lock (_error)
-                {
-                    return _error.ToString().Trim();
-                }
-            }
-        }
-
-        public Task<string?> ReadLineAsync(CancellationToken cancellationToken) => _process.StandardOutput.ReadLineAsync(cancellationToken).AsTask();
-
-        public void Kill()
-        {
-            try
-            {
-                _process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException)
-            {
-                // Exited already.
-            }
-        }
-
-        public void Dispose() => _process.Dispose();
-    }
 }

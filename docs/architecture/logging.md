@@ -77,6 +77,17 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   because a root pins them (review finding M13), and the addresses whose objects differ only in being in a younger generation,
   unpinned, which count as dead and new: a new object at a reused address or an unpinned object the GC demoted, which the
   match cannot tell apart. The rest of the reused addresses hold another type, size, area or method table (M14).
+- **The tutorial (sprint 3.13 and its review H5)**: the sample's catalog read (its file, the executable or the dotnet host,
+  the catalog version and each scenario with the type it plants), or why it was not (exit code and the sample's own message);
+  each start (pid, scenarios, growing and its interval, time to ready, the command line) and refusal (the scenarios asked,
+  the reason, the pids running at the limit); each stop with who stopped it (the Processes page, a lesson, Ctrl+C, another
+  HeapScope process, HeapScope closing) and each exit on its own (pid, reason, exit code, run time, the sample's last message,
+  2 KB at most); a lesson's start (scenarios, answer type and scenario, catalog and lesson versions, the choices offered), its
+  answer (chosen, expected, the sample and whether it still runs, right or wrong), its end and a sample gone under it; the
+  progress file's writes and a damaged file kept as `.bak`. Every process list logs the pids it listed (200 at most) and the
+  pids it left out as HeapScope's own or could not read, and the Processes page logs a sample it started that the list does
+  not show, so "the sample is not in the list" can be backed up. All of these are names,
+  pids and counts: the sample's messages are its own, never a dump's contents.
 - **What a log may hold (sprint 2.3.7 review M6)**: paths, file and process names, type, module and field names, counts,
   sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump:
   `Provenance` writes any other text by its length only, and error messages that would echo a filter leave it out. The

@@ -42,14 +42,28 @@ public sealed record Lesson(
     string Question,
     string AnswerScenario)
 {
-    /// <summary>Types every .NET heap holds: the wrong answers beside the planted one.</summary>
-    public static IReadOnlyList<string> Decoys { get; } = ["System.String", "System.Byte[]", "System.Object[]"];
+    /// <summary>How many wrong answers stand beside the right one.</summary>
+    public const int DecoyCount = 3;
 
-    /// <summary>The choices for <paramref name="answerType"/>: it and the decoys, in an order that depends on the lesson only.</summary>
-    public IReadOnlyList<string> Choices(string answerType)
+    /// <summary>
+    /// The choices for <paramref name="answerType"/> (review M1): the answer scenario's own decoys first, its other types
+    /// that the steps rule out, then the planted types of other scenarios, up to <see cref="DecoyCount"/>; every choice is one
+    /// of the sample's types, so the answer cannot be told from its name. The order depends on the lesson only.
+    /// </summary>
+    public IReadOnlyList<string> Choices(string answerType, IReadOnlyList<string> ownDecoys, IReadOnlyList<string> otherAnswers)
     {
         ArgumentNullException.ThrowIfNull(answerType);
-        var choices = Decoys.Append(answerType).ToList();
+        ArgumentNullException.ThrowIfNull(ownDecoys);
+        ArgumentNullException.ThrowIfNull(otherAnswers);
+        var others = otherAnswers.Where(t => t != answerType).Distinct(StringComparer.Ordinal).ToList();
+        var start = others.Count == 0 ? 0 : Id.Sum(c => c) % others.Count;
+        var decoys = ownDecoys
+            .Concat(others.Skip(start))
+            .Concat(others.Take(start))
+            .Where(t => t != answerType)
+            .Distinct(StringComparer.Ordinal)
+            .Take(DecoyCount);
+        var choices = decoys.Append(answerType).ToList();
         var shift = Id.Sum(c => c) % choices.Count;
         return [.. choices.Skip(shift), .. choices.Take(shift)];
     }

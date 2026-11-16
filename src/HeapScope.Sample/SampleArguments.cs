@@ -36,6 +36,18 @@ internal sealed record SampleArguments(
     TimeSpan? GrowEvery,
     int? ParentPid)
 {
+    /// <summary>Items each scenario plants unless told (review M13: twice the detectors' threshold of 1,000).</summary>
+    public const int DefaultCount = 2_000;
+
+    /// <summary>The most a scenario's items may hold together (review M5).</summary>
+    public const long MaxPlantedBytes = 256L * 1024 * 1024;
+
+    /// <summary>The heap at which a growing sample stops growing (review M5).</summary>
+    public const long GrowthLimitBytes = 512L * 1024 * 1024;
+
+    /// <summary>The shortest growth interval (review M5).</summary>
+    public const int MinGrowEveryMs = 100;
+
     /// <summary>The usage line.</summary>
     public const string Usage = "Usage: heapscope-sample --list | --scenarios <name>[,<name>...] [--count N] [--payload BYTES] [--grow-every MS] [--parent-pid PID]";
 
@@ -71,17 +83,28 @@ internal sealed record SampleArguments(
         {
             if (scenarios.FirstOrDefault(other => scenario.CannotRunWith.Contains(other.Name, StringComparer.OrdinalIgnoreCase)) is { } other)
             {
-                return (null, $"{scenario.Name} and {other.Name} cannot run together: both block the finalizer thread. Choose one.");
+                return (null, $"{scenario.Name} and {other.Name} cannot run together: {scenario.ConflictReason ?? "they conflict"}. Choose one.");
             }
         }
 
-        var count = Number(args, "--count", 1000, 1, 1_000_000);
-        var payload = Number(args, "--payload", 64, 0, 1_048_576);
+        // Review M13: 2,000 items, twice the 1,000 the detectors report from. Review M5: what a scenario plants is bounded.
+        var count = Number(args, "--count", DefaultCount, 1, 100_000);
+        var payload = Number(args, "--payload", 64, 0, 65_536);
         var grow = Number(args, "--grow-every", 0, 0, 3_600_000);
         var parent = Number(args, "--parent-pid", 0, 0, int.MaxValue);
         if ((count.Error ?? payload.Error ?? grow.Error ?? parent.Error) is { } error)
         {
             return (null, error);
+        }
+
+        if ((long)count.Value * payload.Value > MaxPlantedBytes)
+        {
+            return (null, $"--count times --payload is at most {MaxPlantedBytes / (1024 * 1024)} MB: choose fewer or smaller items.");
+        }
+
+        if (grow.Value is > 0 and < MinGrowEveryMs)
+        {
+            return (null, $"--grow-every is at least {MinGrowEveryMs} ms.");
         }
 
         return (

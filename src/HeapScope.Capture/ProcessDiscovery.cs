@@ -34,6 +34,12 @@ public interface IProcessDiscovery
 
     /// <summary>One process, or null when it is not a running .NET process with a diagnostics port.</summary>
     DotNetProcess? Find(int processId);
+
+    /// <summary>
+    /// What the last <see cref="List"/> left out (sprint 3.13 review H5): HeapScope's own processes and the ones it could not
+    /// describe (they exited meanwhile), by pid, so the log can say why a process is not listed.
+    /// </summary>
+    DiscoveryOmissions LastOmitted => DiscoveryOmissions.None;
 }
 
 /// <summary>
@@ -47,18 +53,32 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
 
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
 
+    public DiscoveryOmissions LastOmitted { get; private set; } = DiscoveryOmissions.None;
+
     public IReadOnlyList<DotNetProcess> List(CancellationToken cancellationToken = default)
     {
         CapturePlatform.EnsureSupported();
         var result = new List<DotNetProcess>();
+        List<int> own = [];
+        List<int> notDescribed = [];
         foreach (var processId in DiagnosticsClient.GetPublishedProcesses())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!IsOwn(processId) && Describe(processId) is { } process)
+            if (IsOwn(processId))
+            {
+                own.Add(processId);
+            }
+            else if (Describe(processId) is { } process)
             {
                 result.Add(process);
             }
+            else
+            {
+                notDescribed.Add(processId);
+            }
         }
+
+        LastOmitted = new DiscoveryOmissions(own, notDescribed);
 
         result.Sort(static (a, b) =>
         {

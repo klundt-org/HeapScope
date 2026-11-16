@@ -55,22 +55,25 @@ public sealed class LessonCatalogTests
     }
 
     [Fact]
-    public void Every_lesson_is_whole_and_its_choices_hold_the_planted_type_once_among_the_decoys()
+    public void Every_lesson_is_whole_and_its_choices_hold_the_planted_type_once_among_the_sample_s_types()
     {
         LessonCatalog.All.Select(l => l.Id).Distinct(StringComparer.Ordinal).Count().ShouldBe(LessonCatalog.All.Count);
+        var answers = ScenarioCatalog.All.Select(s => s.AnswerType).ToList();
         foreach (var lesson in LessonCatalog.All)
         {
             lesson.Title.ShouldNotBeNullOrWhiteSpace(lesson.Id);
             lesson.Summary.ShouldNotBeNullOrWhiteSpace(lesson.Id);
             lesson.Question.ShouldEndWith("?", customMessage: lesson.Id);
             lesson.Steps.ShouldNotBeEmpty(lesson.Id);
-            var answer = ScenarioCatalog.Find(lesson.AnswerScenario)!.AnswerType;
-            var choices = lesson.Choices(answer);
-            choices.Count(c => c == answer).ShouldBe(1, lesson.Id);
-            choices.ShouldBe(lesson.Choices(answer), "the same order every time");
-            Lesson.Decoys.ShouldNotContain(answer, lesson.Id);
-            Lesson.IsRight(answer, answer).ShouldBeTrue();
-            Lesson.IsRight(Lesson.Decoys[0], answer).ShouldBeFalse();
+            var scenario = ScenarioCatalog.Find(lesson.AnswerScenario)!;
+            var choices = lesson.Choices(scenario.AnswerType, scenario.Decoys, answers);
+            choices.Count.ShouldBe(Lesson.DecoyCount + 1, lesson.Id);
+            choices.Count(c => c == scenario.AnswerType).ShouldBe(1, lesson.Id);
+            choices.Distinct(StringComparer.Ordinal).Count().ShouldBe(choices.Count, lesson.Id);
+            choices.ShouldBe(lesson.Choices(scenario.AnswerType, scenario.Decoys, answers), "the same order every time");
+            scenario.Decoys.ShouldAllBe(d => choices.Contains(d), $"{lesson.Id} offers its scenario's own decoys");
+            Lesson.IsRight(scenario.AnswerType, scenario.AnswerType).ShouldBeTrue();
+            Lesson.IsRight(choices.First(c => c != scenario.AnswerType), scenario.AnswerType).ShouldBeFalse();
         }
     }
 

@@ -56,8 +56,8 @@
     <Expander DockPanel.Dock="Top" Margin="0,0,0,8" IsVisible="{Binding HasSample}" Header="Sample process"
               ToolTip.Tip="Starts a small .NET process of HeapScope's own with the problems you choose, so you can capture it, record it and find them. It runs as you and stops when HeapScope closes.">
       <StackPanel Spacing="6">
-        <SelectableTextBlock TextWrapping="Wrap" Text="{Binding SampleUnavailable}"
-                             IsVisible="{Binding SampleUnavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <SelectableTextBlock TextWrapping="Wrap" Text="{Binding SampleStatus}"
+                             IsVisible="{Binding SampleStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <ItemsControl ItemsSource="{Binding SampleScenarios}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -72,8 +72,9 @@
         </ItemsControl>
         <StackPanel Orientation="Horizontal" Spacing="8">
           <CheckBox Content="Keep growing" IsChecked="{Binding KeepGrowing}" VerticalAlignment="Center"
-                    ToolTip.Tip="Adds more of each problem every second, so Live, an allocation recording, Compare and Trend show it growing." />
-          <Button ctl:ButtonIcon.Icon="Start" Content="Start sample" Command="{Binding StartSampleCommand}" />
+                    ToolTip.Tip="Adds more of each problem every second, so Live, an allocation recording, Compare and Trend show it growing. Growth stops when the sample's heap reaches 512 MB; stop the sample when you are done." />
+          <Button ctl:ButtonIcon.Icon="Start" Content="Start sample" Command="{Binding StartSampleCommand}"
+                  ToolTip.Tip="Starts the sample with the scenarios ticked, then selects its row, marked Sample, ready to capture or record. At most three run at once." />
           <Button ctl:ButtonIcon.Icon="Stop" Content="Stop sample" Command="{Binding StopSampleCommand}"
                   ToolTip.Tip="Stops the selected sample. Needs a row marked Sample." />
         </StackPanel>

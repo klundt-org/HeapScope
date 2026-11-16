@@ -7,7 +7,8 @@
 - Decision:
   - Audience: developers and support engineers on Windows and Linux, x64, plus macOS packages marked untested (see the
     amendment below). Channel: GitHub Releases only.
-  - Each release attaches a self-contained build of the app and the CLI (each with its worker) for win-x64 as a `.zip`
+  - Each release attaches a self-contained build of the app and the CLI (each with its worker, and since sprint 3.13 the
+    tutorial's sample in `sample/`, ADR-042) for win-x64 as a `.zip`
     (Explorer opens it) and for linux-x64 as a `.tar.gz` (it keeps the executables' modes). No .NET install is needed.
   - The CLI is also a `dotnet tool`: one framework-dependent package for every system (`HeapScope.Cli`, command
     `heapscope-cli`, the .NET 10 runtime; installing it needs a .NET SDK), attached to the release and installed from the

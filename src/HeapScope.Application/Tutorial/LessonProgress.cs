@@ -23,50 +23,68 @@
 
 using System.Text.Json;
 using HeapScope.Core;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.Application.Tutorial;
 
 /// <summary>
-/// The lessons a user finished (sprint 3.13): their ids in <c>learn-progress.json</c> in the data folder, written owner-only.
-/// A file that cannot be read counts as no progress; nothing in it comes from a dump.
+/// The lessons a user finished (sprint 3.13): their ids in <c>learn-progress.json</c> in the data folder, written owner-only and
+/// whole (to a new file, then moved over the old one). A file that cannot be read counts as no progress, is logged and kept
+/// beside as <c>.bak</c> before it is replaced, so nothing is lost silently (review M7); nothing in it comes from a dump.
 /// </summary>
 public sealed class LessonProgress
 {
-    private readonly HeapScopeFolders _folders;
+    private readonly string _root;
+    private readonly ILogger _logger;
 
-    /// <summary>The progress in HeapScope's data folder.</summary>
-    public LessonProgress()
-        : this(null)
+    /// <param name="root">The data folder; null for HeapScope's (<c>HEAPSCOPE_DATA_FOLDER</c> or the default).</param>
+    public LessonProgress(string? root = null, ILogger<LessonProgress>? logger = null)
     {
+        _root = root ?? HeapScopeFolders.Default.Root;
+        _logger = logger ?? NullLogger<LessonProgress>.Instance;
     }
 
-    /// <summary>The progress in <paramref name="folders"/> (null: HeapScope's data folder).</summary>
-    public LessonProgress(HeapScopeFolders? folders) => _folders = folders ?? HeapScopeFolders.Default;
-
-    private string FilePath => Path.Combine(_folders.Root, "learn-progress.json");
+    private string FilePath => Path.Combine(_root, "learn-progress.json");
 
     /// <summary>The ids of the lessons finished.</summary>
-    public IReadOnlySet<string> Done
-    {
-        get
-        {
-            try
-            {
-                return File.Exists(FilePath) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(FilePath)) ?? [] : [];
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-            {
-                return new HashSet<string>();
-            }
-        }
-    }
+    public IReadOnlySet<string> Done => Read(out _);
 
     /// <summary>Records <paramref name="lessonId"/> as finished.</summary>
     /// <exception cref="IOException">The file could not be written.</exception>
+    /// <exception cref="UnauthorizedAccessException">The file could not be written.</exception>
     public void MarkDone(string lessonId)
     {
-        var done = new HashSet<string>(Done, StringComparer.Ordinal) { lessonId };
-        PrivateFiles.CreateDirectory(_folders.Root);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(done.Order(StringComparer.Ordinal)));
+        var done = new HashSet<string>(Read(out var damaged), StringComparer.Ordinal) { lessonId };
+        PrivateFiles.CreateDirectory(_root);
+        if (damaged)
+        {
+            File.Copy(FilePath, FilePath + ".bak", overwrite: true);
+            _logger.LogWarning("The damaged lesson progress {Path} was kept as {Backup}", FilePath, FilePath + ".bak");
+        }
+
+        var temporary = FilePath + ".tmp";
+        using (var stream = PrivateFiles.Open(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            JsonSerializer.Serialize(stream, done.Order(StringComparer.Ordinal));
+        }
+
+        File.Move(temporary, FilePath, overwrite: true);
+        _logger.LogInformation("Lesson {Lesson} done; {Count} lessons done in {Path}", lessonId, done.Count, FilePath);
+    }
+
+    private HashSet<string> Read(out bool damaged)
+    {
+        damaged = false;
+        try
+        {
+            return File.Exists(FilePath) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(FilePath)) ?? [] : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            damaged = ex is JsonException;
+            _logger.LogWarning("The lesson progress {Path} could not be read, so no lesson counts as done: {Error}", FilePath, ex.Message);
+            return [];
+        }
     }
 }

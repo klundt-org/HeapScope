@@ -46,7 +46,7 @@ fail() { echo "$1" >&2; for f in "${Logging__File__Directory:-$HEAPSCOPE_DATA_FO
 
 # Self-contained, not only .NET hidden: Windows finds an installed .NET through the registry too (3.9 review M6). Each
 # executable carries its runtime (includedFrameworks, no frameworks) and its host resolver beside it.
-for config in "$dir/HeapScope.runtimeconfig.json" "$dir/heapscope-cli.runtimeconfig.json" "$dir/worker/HeapScope.Worker.runtimeconfig.json"; do
+for config in "$dir/HeapScope.runtimeconfig.json" "$dir/heapscope-cli.runtimeconfig.json" "$dir/worker/HeapScope.Worker.runtimeconfig.json"   "$dir/sample/heapscope-sample.runtimeconfig.json"; do
   grep -q '"includedFrameworks"' "$config" && ! grep -q '"frameworks\?"' "$config" \
     || fail "$config does not describe a self-contained build"
   ls "$(dirname "$config")" | grep -qiE '^(lib)?hostfxr\.(dll|so)$' || fail "No hostfxr beside $config"
@@ -60,7 +60,16 @@ grep -qE '^Server GC: +True$' <<< "$info" || fail "The worker does not run Serve
 summary=$("$dir/heapscope-cli$ext" summary "$dump" --filter StaticCacheEntry | tr -d '\r') || fail "heapscope-cli summary failed"
 grep -qE "^ +2,000 .* Fixtures\.Leaks\.StaticCacheEntry$" <<< "$summary" || { echo "$summary"; fail "The CLI did not count 2,000 StaticCacheEntry objects"; }
 
+# The tutorial's sample runs without .NET too (sprint 3.13 review M6): its catalog, from the sample itself, then through the
+# CLI, which refuses to start it as root (it would run elevated), as the Linux container runs.
+catalog=$("$dir/sample/heapscope-sample$ext" --list | tr -d '\r') || fail "The sample did not run"
+grep -q '"Name":"StaticCache"' <<< "$catalog" || { echo "$catalog"; fail "The sample did not list its scenarios"; }
+if [ "$(id -u)" != "0" ]; then
+  scenarios=$("$dir/heapscope-cli$ext" sample list | tr -d '\r') || fail "heapscope-cli sample list failed"
+  grep -qE '^StaticCache +yes ' <<< "$scenarios" || { echo "$scenarios"; fail "heapscope-cli sample list did not list StaticCache"; }
+fi
+
 log=$(mktemp -d)
 "$dir/HeapScope$ext" --headless --smoke-open "$dump" --Logging:File:Directory "$log" || { cat "$log"/*.log; exit 1; }
 grep -q "Smoke open types: .*Fixtures.Leaks.StaticCacheEntry 2000" "$log"/*.log || { cat "$log"/*.log; echo "The app did not show 2000 StaticCacheEntry objects"; exit 1; }
-echo "Installed build $dir runs without .NET: the CLI, its worker and the app opened the fixture dump."
+echo "Installed build $dir runs without .NET: the CLI, its worker and the app opened the fixture dump, and the sample listed its scenarios."

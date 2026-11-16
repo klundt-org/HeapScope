@@ -24,4 +24,15 @@
 namespace HeapScope.Application.Tutorial;
 
 /// <summary>One scenario of the sample's catalog, as the sample prints it (<c>--list</c>; sprint 3.13, ADR-042).</summary>
-public sealed record SampleScenario(string Name, string Title, string Plants, string? KnownAnswer, string AnswerType, IReadOnlyList<string> CannotRunWith, bool Grows);
+/// <param name="ConflictReason">Why it cannot run with <paramref name="CannotRunWith"/>; null when it runs with any.</param>
+/// <param name="Decoys">The scenario's other types, which a lesson's steps rule out: wrong answers beside the planted one.</param>
+public sealed record SampleScenario(
+    string Name,
+    string Title,
+    string Plants,
+    string? KnownAnswer,
+    string AnswerType,
+    IReadOnlyList<string> CannotRunWith,
+    string? ConflictReason,
+    IReadOnlyList<string> Decoys,
+    bool Grows);

@@ -22,31 +22,34 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.IO;
+using HeapScope.Application.Jobs;
 using HeapScope.Application.Tutorial;
 using HeapScope.Core;
+using HeapScope.Tests.Shared;
 using HeapScope.UI.ViewModels;
 
 namespace HeapScope.UI.ViewModels.Tests;
 
 /// <summary>
-/// The Learn page (sprint 3.13, task 8): a lesson starts its sample with its scenarios and shows its start page, a wrong answer
-/// is refused, a right one is saved and read back by a new page, and stopping ends the sample.
+/// The Learn page (sprint 3.13, task 8 and its review): a lesson starts its sample with its scenarios and shows its start page,
+/// its choices are the sample's own types, a wrong answer is refused, a right one is saved and read back by a new page, a
+/// refused second lesson leaves none running rather than grading the first against the second, a sample that exits is
+/// reported, stopping ends the sample, and where capture is not available no lesson starts.
 /// </summary>
 public sealed class LearnViewModelTests : IDisposable
 {
-    private const int SamplePid = 5151;
-    private const string TimerType = "HeapScope.Leaks.TimerOwner";
+    private const string TimerType = "Fixtures.Leaks.TimerTarget";
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "HeapScopeTests", Guid.NewGuid().ToString("N"));
-    private readonly Starter _starter = new();
+    private readonly FakeSampleStarter _starter = new();
     private readonly SampleService _samples;
 
     public LearnViewModelTests()
     {
-        _samples = new SampleService(_starter, () => false, () => new SampleLaunch("heapscope-sample.exe", [], "heapscope-sample.exe"));
+        _samples = new SampleService(_starter, () => false, () => new SampleLaunch("heapscope-sample.exe", [], "heapscope-sample.exe"), folders: new HeapScopeFolders(_root));
     }
 
-    private LessonProgress Progress => new(new HeapScopeFolders(_root));
+    private LessonProgress Progress => new(_root);
 
     [Fact]
     public async Task A_lesson_starts_its_sample_shows_its_page_and_saves_a_right_answer()
@@ -61,16 +64,19 @@ public sealed class LearnViewModelTests : IDisposable
         learn.Selected = learn.Lessons.Single(l => l.Lesson.Id == "timers");
         await learn.StartLessonCommand.ExecuteAsync(null);
 
-        _starter.Arguments.Last().ShouldContain("Timer");
-        learn.SampleProcessId.ShouldBe(SamplePid);
+        _starter.Last.Id.ShouldBe(learn.SampleProcessId.ShouldNotBeNull());
+        _starter.Started.Last().Arguments.ShouldContain("Timer");
         learn.Current.ShouldBe(learn.Selected);
         shown.ShouldBe(LessonPage.Processes);
-        learn.Choices.ShouldBe(learn.Selected.Lesson.Choices(TimerType));
+        learn.Choices.Count.ShouldBe(Lesson.DecoyCount + 1);
+        learn.Choices.ShouldContain(TimerType);
+        learn.Choices.ShouldContain("Fixtures.Leaks.TimerLeak", "the scenario's own decoy");
+        learn.Choices.ShouldAllBe(c => c.StartsWith("Fixtures.Leaks.", StringComparison.Ordinal), "the answer cannot be told by its name");
 
         learn.CheckAnswerCommand.Execute(null);
         learn.Status.ShouldBe("Choose an answer first.");
 
-        learn.ChosenAnswer = Lesson.Decoys[0];
+        learn.ChosenAnswer = "Fixtures.Leaks.TimerLeak";
         learn.CheckAnswerCommand.Execute(null);
         learn.Current!.IsDone.ShouldBeFalse();
         learn.Status.ShouldStartWith("Not this one.");
@@ -78,6 +84,7 @@ public sealed class LearnViewModelTests : IDisposable
         learn.ChosenAnswer = TimerType;
         learn.CheckAnswerCommand.Execute(null);
         learn.Current.IsDone.ShouldBeTrue();
+        learn.Status.ShouldBe($"Right: the sample planted {TimerType}. Lesson done; stop its sample, or start the next lesson.");
         learn.ProgressText.ShouldBe($"1 of {LessonCatalog.All.Count} done");
         Progress.Done.ShouldBe(["timers"]);
 
@@ -85,46 +92,86 @@ public sealed class LearnViewModelTests : IDisposable
         again.Lessons.Single(l => l.Lesson.Id == "timers").IsDone.ShouldBeTrue("read back from the progress file");
 
         learn.StopLessonCommand.Execute(null);
-        _starter.Killed.ShouldBeTrue();
+        _starter.Last.Killed.ShouldBeTrue();
         learn.Current.ShouldBeNull();
         learn.SampleProcessId.ShouldBeNull();
         learn.Choices.ShouldBeEmpty();
         learn.CheckAnswerCommand.CanExecute(null).ShouldBeFalse();
+        learn.Status.ShouldBe("Lesson stopped.");
     }
 
     [Fact]
-    public async Task A_scenario_missing_from_the_sample_is_refused_with_what_to_do()
+    public async Task A_refused_second_lesson_leaves_none_running_instead_of_grading_the_first_against_it()
     {
-        var learn = new LearnViewModel(_samples, Progress)
-        {
-            Selected = new LessonItem(LessonCatalog.Find("waste")!, false),
-        };
+        var learn = new LearnViewModel(_samples, Progress) { Selected = LessonNamed("timers") };
+        await learn.StartLessonCommand.ExecuteAsync(null);
+        var first = _starter.Last;
+
+        learn.Selected = LessonNamed("static-cache");
+        _starter.NextExitsWith = "boom";
+        await learn.StartLessonCommand.ExecuteAsync(null);
+
+        first.Killed.ShouldBeTrue();
+        learn.Current.ShouldBeNull();
+        learn.Choices.ShouldBeEmpty();
+        learn.CheckAnswerCommand.CanExecute(null).ShouldBeFalse("nothing is graded against the other lesson's answer");
+        learn.Status.ShouldBe("The lesson \"Timers never stopped\" was stopped, and \"A cache that never lets go\" could not start: The sample did not start: boom");
+    }
+
+    [Fact]
+    public async Task A_sample_that_exits_is_reported_and_its_lesson_can_still_be_answered()
+    {
+        var learn = new LearnViewModel(_samples, Progress) { Selected = LessonNamed("timers") };
+        await learn.StartLessonCommand.ExecuteAsync(null);
+
+        // The fake reports the exit at once, and without a dispatcher the page hears of it at once.
+        _starter.Last.Exit(code: 1);
+
+        learn.SampleProcessId.ShouldBeNull();
+        learn.Status.ShouldStartWith("The lesson's sample is no longer running.");
+        learn.ChosenAnswer = TimerType;
+        learn.CheckAnswerCommand.Execute(null);
+        learn.Current.ShouldNotBeNull().IsDone.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_scenario_missing_from_the_sample_is_refused_as_not_available_here()
+    {
+        var learn = new LearnViewModel(_samples, Progress) { Selected = LessonNamed("large-objects") };
 
         await learn.StartLessonCommand.ExecuteAsync(null);
 
         learn.Current.ShouldBeNull();
-        learn.Status.ShouldBe("This HeapScope's sample has no scenario Waste. Reinstall HeapScope from its release archive.");
-        _starter.Arguments.Count.ShouldBe(1, "only the catalog was read");
+        learn.Status.ShouldBe("This HeapScope's sample has no scenario LargeObjects, so this lesson is not available here.");
+        _starter.Started.ShouldHaveSingleItem("only the catalog was read");
     }
 
     [Fact]
-    public void Without_the_sample_no_lesson_starts_and_the_page_says_why()
+    public void Without_the_sample_or_without_capture_no_lesson_starts_and_the_page_says_why()
     {
-        var learn = new LearnViewModel(null, Progress) { Selected = new LessonItem(LessonCatalog.All[0], false) };
+        var noSample = new LearnViewModel(null, Progress) { Selected = new LessonItem(LessonCatalog.All[0], false) };
+        noSample.StartLessonCommand.CanExecute(null).ShouldBeFalse();
+        noSample.Unavailable.ShouldNotBeNull().ShouldContain("not in this installation");
 
-        learn.StartLessonCommand.CanExecute(null).ShouldBeFalse();
-        learn.Unavailable.ShouldNotBeNull().ShouldContain("Reinstall");
+        var capture = new FakeCaptureService(_root, new JobTracker(TimeProvider.System)) { UnavailableReason = "Capturing from HeapScope runs on Windows for now." };
+        var noCapture = new LearnViewModel(_samples, Progress, capture: capture) { Selected = new LessonItem(LessonCatalog.All[0], false) };
+        noCapture.StartLessonCommand.CanExecute(null).ShouldBeFalse();
+        noCapture.Unavailable.ShouldBe("Capturing from HeapScope runs on Windows for now. Every lesson starts with a capture, so the lessons cannot be done here.");
     }
 
     [Fact]
-    public void An_unreadable_progress_file_counts_as_no_progress()
+    public void A_damaged_progress_file_counts_as_none_and_is_kept_beside_when_replaced()
     {
         Directory.CreateDirectory(_root);
-        File.WriteAllText(Path.Combine(_root, "learn-progress.json"), "not json");
+        var file = Path.Combine(_root, "learn-progress.json");
+        File.WriteAllText(file, "not json");
 
         Progress.Done.ShouldBeEmpty();
         Progress.MarkDone("closure");
+
         Progress.Done.ShouldBe(["closure"]);
+        File.ReadAllText(file + ".bak").ShouldBe("not json");
+        File.Exists(file + ".tmp").ShouldBeFalse();
     }
 
     public void Dispose()
@@ -136,37 +183,5 @@ public sealed class LearnViewModelTests : IDisposable
         }
     }
 
-    private sealed class Starter : ISampleProcessStarter
-    {
-        public List<IReadOnlyList<string>> Arguments { get; } = [];
-
-        public bool Killed { get; private set; }
-
-        public ISampleProcess Start(string fileName, IReadOnlyList<string> arguments)
-        {
-            Arguments.Add(arguments);
-            return arguments.Contains("--list")
-                ? new Process(this, 1, [$$"""[{"Name":"Timer","Title":"Timers","Plants":"p","KnownAnswer":"Timer","AnswerType":"{{TimerType}}","CannotRunWith":[],"Grows":true}]"""])
-                : new Process(this, SamplePid, [$"READY pid={SamplePid}"]);
-        }
-
-        private sealed class Process(Starter owner, int id, IReadOnlyList<string> lines) : ISampleProcess
-        {
-            private int _next;
-
-            public int Id { get; } = id;
-
-            public bool HasExited => owner.Killed;
-
-            public string Error => string.Empty;
-
-            public Task<string?> ReadLineAsync(CancellationToken cancellationToken) => Task.FromResult(_next < lines.Count ? lines[_next++] : null);
-
-            public void Kill() => owner.Killed = true;
-
-            public void Dispose()
-            {
-            }
-        }
-    }
+    private static LessonItem LessonNamed(string id) => new(LessonCatalog.Find(id)!, false);
 }

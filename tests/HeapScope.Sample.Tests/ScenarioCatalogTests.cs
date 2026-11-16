@@ -43,18 +43,28 @@ public sealed class ScenarioCatalogTests
             scenario.Plants.ShouldNotBeNullOrWhiteSpace(scenario.Name);
             if (scenario.KnownAnswer is { } answer)
             {
-                // The type a lesson's answer names is one the known answer counts.
+                // The type a lesson's answer names is one the known answer names (a type it counts, or a collection's or
+                // a method's type).
                 var file = Path.Combine(RepoRoot.Path, "fixtures", "KnownAnswers", answer + ".json");
                 File.Exists(file).ShouldBeTrue($"{scenario.Name}'s known answer {answer}");
-                File.ReadAllText(file).ShouldContain($"\"type\": \"{scenario.AnswerType}\"", customMessage: scenario.Name);
+                File.ReadAllText(file).ShouldContain(scenario.AnswerType, customMessage: scenario.Name);
             }
             else
             {
-                // A scenario that plants allocations names a type of the sample's own.
+                // The sample's own scenarios name a type of the sample.
                 typeof(ScenarioCatalog).Assembly.GetType(scenario.AnswerType).ShouldNotBeNull(scenario.Name);
             }
+
+            // Review M1: the decoys are the sample's types too, so the answer cannot be told by its name.
+            scenario.Decoys.ShouldNotBeEmpty(scenario.Name);
+            scenario.Decoys.ShouldNotContain(scenario.AnswerType, scenario.Name);
+            scenario.Decoys.ShouldAllBe(d => SampleType(d) != null, $"{scenario.Name}'s decoys are the sample's types");
+            (scenario.CannotRunWith.Count == 0 || scenario.ConflictReason != null).ShouldBeTrue($"{scenario.Name} says why it conflicts");
         }
     }
+
+    private static Type? SampleType(string name) =>
+        typeof(ScenarioCatalog).Assembly.GetType(name) ?? typeof(Fixtures.Leaks.ILeak).Assembly.GetType(name);
 
     // Sprint 3.13 task 3: a scenario that keeps growing adds a step of its leak at every tick, and the steady allocation
     // scenario allocates from its one call site.
@@ -67,7 +77,8 @@ public sealed class ScenarioCatalogTests
         cache.ItemCount.ShouldBe(before + 7);
 
         var order = SteadyAllocation.PriceOrder(new Random(1));
-        order.Lines.Length.ShouldBe(8);
+        order.Lines.ShouldBe(8);
+        order.TotalCents.ShouldBeGreaterThan(0);
         order.GetType().FullName.ShouldBe(SteadyAllocation.AnswerType);
         (typeof(SteadyAllocation).FullName + "." + nameof(SteadyAllocation.PriceOrder)).ShouldBe(SteadyAllocation.CallSite);
     }
@@ -98,7 +109,18 @@ public sealed class ScenarioCatalogTests
             .ShouldBe("Waste and FinalizerBacklog cannot run together: both block the finalizer thread. Choose one.");
         SampleArguments.Parse(["--scenarios", "Nope"]).Error.ShouldNotBeNull().ShouldStartWith("There is no scenario Nope. The scenarios are: StaticCache, ");
         SampleArguments.Parse([]).Error.ShouldNotBeNull().ShouldStartWith("Choose one or more scenarios with --scenarios");
-        SampleArguments.Parse(["--scenarios", "Timer", "--count", "-1"]).Error.ShouldBe("--count takes a whole number from 1 to 1000000, not -1.");
+        SampleArguments.Parse(["--scenarios", "Timer", "--count", "-1"]).Error.ShouldBe("--count takes a whole number from 1 to 100000, not -1.");
         SampleArguments.Parse(["--list"]).Arguments.ShouldNotBeNull().List.ShouldBeTrue();
+    }
+
+    // Review M5 and M13: what a scenario plants is bounded, growth is not too fast, and the default is twice the detectors' 1,000.
+    [Fact]
+    public void What_a_scenario_plants_is_bounded()
+    {
+        SampleArguments.Parse(["--scenarios", "Timer"]).Arguments.ShouldNotBeNull().Options.Count.ShouldBe(2_000);
+        SampleArguments.Parse(["--scenarios", "Timer", "--count", "100000", "--payload", "65536"]).Error
+            .ShouldBe("--count times --payload is at most 256 MB: choose fewer or smaller items.");
+        SampleArguments.Parse(["--scenarios", "Timer", "--grow-every", "10"]).Error.ShouldBe("--grow-every is at least 100 ms.");
+        SampleArguments.Parse(["--scenarios", "Timer", "--count", "4000", "--payload", "65536"]).Error.ShouldBeNull();
     }
 }

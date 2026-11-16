@@ -202,7 +202,9 @@ most runs of both arms on this day, and in one of two runs of the build before t
 The tutorial's sample in the packages (sprint 3.13, task 4, ADR-042): `sample/` holds the sample self-contained, 77.0 MB of
 files in the win-x64 package (2026-11-15), against 356.5 MB for the rest (the worker 107.4 MB): 22% more, under the half again
 that would have gone to the owner (sprint 3.13 decision 2). Most of it is the .NET runtime, a second copy beside the worker's;
-the sample's own code is under 1 MB. The CLI's dotnet tool carries it framework-dependent (its assembly only).
+the sample's own code is under 1 MB. The CLI's dotnet tool carries it framework-dependent (its assembly only). Its memory is
+bounded (review M5): what a scenario plants is at most 256 MB (count times payload), and a growing sample stops growing when its
+heap reaches 512 MB (with every growing scenario on, about 0.7 GB an hour before the limit).
 
 The first load's object pass (sprint 3.12, task 8, with R4). The WPR recording of a Medium load (58.0M objects, 2026-11-12)
 showed the loading thread on a processor for 50.7 of 56.5 s: CPU work, not reading the dump (1.1 s of page-in waits, the

@@ -22,9 +22,11 @@ references such as "ARCHITECTURE.md 4" still name the right section.
 - **Sample process** (sprint 3.13, ADR-042; `heapscope-sample` in `sample/`, or `dotnet` running `heapscope-sample.dll`
   in the CLI's dotnet tool): the tutorial's sample, started by `SampleService` from the Processes page, the Learn page or
   `heapscope-cli sample start`, with `--scenarios A,B [--grow-every ms] --parent-pid <pid>`. It runs as the user (refused
-  while HeapScope runs elevated), at most three at once, prints `READY pid=<pid>` when its scenarios are planted and exits
-  with the process that started it. `--list` prints the scenario catalog as JSON, which the app reads rather than
-  duplicating. Process discovery lists it, although it is under the installation's folder, since it is there to be
+  while HeapScope runs elevated), at most three at once per HeapScope process, prints `READY pid=<pid>` when its scenarios
+  are planted and exits with the process that started it; a growing sample stops growing at 512 MB of heap. `--list` prints
+  the scenario catalog as JSON with its version, which the app reads rather than duplicating. Each running sample has a
+  record in the data folder (`samples/<pid>.json`: pid, start time, scenarios), which lets another HeapScope process stop it
+  (`heapscope-cli sample stop`) and tells a stop from an exit on its own. Process discovery lists it, although it is under the installation's folder, since it is there to be
   captured. No IPC: HeapScope sees it as any other .NET process.
 
 ### 4.2 Lifecycle

@@ -2,7 +2,7 @@
 # builds the release's tag with build/publish.sh (license files checked) for the runtimes HeapScope ships (sprint 3.9,
 # ADR-039: win-x64 as a .zip, linux-x64 and both macOS runtimes as a .tar.gz, the macOS ones built on Linux, never run and
 # called untested on the release), packs the CLI's dotnet tool, and attaches
-# them, an SBOM (CycloneDX) of the app, the CLI and the worker, and SHA256SUMS of them all, each with a build provenance
+# them, an SBOM (CycloneDX) of the app, the CLI, the worker and the sample, and SHA256SUMS of them all, each with a build provenance
 # attestation in GitHub's attestation store. Builds are deterministic (ContinuousIntegrationBuild in CI). Nothing is
 # signed (ADR-039: no certificate); the checksums and attestations are how a download is verified.
 #
@@ -128,7 +128,7 @@ jobs:
         run: bash build/check-tool.sh "$RUNNER_TEMP/tool"
 
   sbom:
-    name: SBOM of the app, the CLI and the worker
+    name: SBOM of the app, the CLI, the worker and the sample
     if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20

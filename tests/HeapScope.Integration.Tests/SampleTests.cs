@@ -77,7 +77,11 @@ public sealed class SampleTests : IDisposable
         (await read.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(read.Output);
         read.Process.ExitCode.ShouldBe(0, read.Output);
         read.Output.ShouldContain("PriceOrder(", customMessage: "the planted call site is among the top stacks");
-        read.Output.ShouldContain("HeapScope.Sample.", customMessage: "and its types among the top types");
+
+        // Review H1: the lesson's answer is the sample's type nearest the top of the types, as the Allocations page orders them.
+        using var types = ChildProcess.Start(TestPaths.CliExe, "allocations", trace, "--view", "types", "--types", "20");
+        (await types.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(types.Output);
+        types.StandardOutput.Split('\n').First(l => l.Contains("HeapScope.Sample.", StringComparison.Ordinal)).ShouldContain("HeapScope.Sample.PricedOrder");
     }
 
     // Sprint 3.13 task 5: the app's service reads the real sample's catalog, starts it, knows it as a sample and stops it.
@@ -95,7 +99,7 @@ public sealed class SampleTests : IDisposable
         using var process = System.Diagnostics.Process.GetProcessById(sample.ProcessId);
         service.IsSample(sample.ProcessId).ShouldBeTrue();
 
-        service.Stop(sample.ProcessId).ShouldBeTrue();
+        service.Stop(sample.ProcessId, "a test").ShouldBeTrue();
         await process.WaitForExitAsync(Ct).WaitAsync(TimeSpan.FromSeconds(10), Ct);
         process.HasExited.ShouldBeTrue("the stopped sample exits");
         service.Running.ShouldBeEmpty();

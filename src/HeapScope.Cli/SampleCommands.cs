@@ -23,20 +23,18 @@
 
 using System.CommandLine;
 using System.Globalization;
-using HeapScope.Application.Sessions;
 using HeapScope.Application.Tutorial;
-using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Cli;
 
 /// <summary>
 /// The <c>sample</c> commands (sprint 3.13, ADR-042): the tutorial's sample without the app, for a demo or a script.
 /// <c>start</c> runs in the foreground until Ctrl+C or <c>sample stop</c>; the sample exits with it, so none is left behind.
+/// <c>stop</c> stops only a running sample a HeapScope process started (its record in the data folder, with its start time),
+/// on any system (review H4).
 /// </summary>
 internal static partial class CliCommands
 {
-    private static readonly TimeSpan s_sampleWatch = TimeSpan.FromMilliseconds(500);
-
     private static Command BuildSampleCommand(Func<IServiceProvider> services)
     {
         var list = new Command("list", "List the sample's scenarios: what each one plants, and the type it plants.");
@@ -68,14 +66,14 @@ internal static partial class CliCommands
             Description = "The scenarios to run, separated by commas (see 'sample list').",
             Required = true,
         };
-        var grow = new Option<bool>("--grow") { Description = "Keep growing the scenarios that can, a step every second, for Live, Compare and Trend." };
+        var grow = new Option<bool>("--grow") { Description = "Keep growing the scenarios that can, a step every second, for Live, Compare and Trend; growth stops when the sample's heap reaches 512 MB." };
         var start = new Command("start", "Start the sample with the scenarios chosen and keep it running until Ctrl+C or 'sample stop'. Capture it from another terminal.");
         start.Options.Add(scenariosOption);
         start.Options.Add(grow);
         start.SetAction((parseResult, ct) => RunAsync(parseResult, services, async context =>
         {
             var samples = context.Get<SampleService>();
-            var names = parseResult.GetValue(scenariosOption)!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var names = parseResult.GetValue(scenariosOption)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
             RunningSample sample;
             try
             {
@@ -92,54 +90,64 @@ internal static partial class CliCommands
             await context.Output.WriteLineAsync($"Capture it: heapscope-cli capture --pid {pid}").ConfigureAwait(false);
             await context.Output.WriteLineAsync($"Stop it: Ctrl+C here, or heapscope-cli sample stop --pid {pid}").ConfigureAwait(false);
             await context.Output.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+            if (samples.ExitAsync(sample.ProcessId) is not { } exited)
+            {
+                // It exited between the start and now.
+                await context.Error.WriteLineAsync($"Sample {pid} exited on its own as soon as it started. HeapScope's log has its last message.").ConfigureAwait(false);
+                return Failure;
+            }
+
+            SampleExit exit;
             try
             {
-                while (samples.IsSample(sample.ProcessId))
-                {
-                    await Task.Delay(s_sampleWatch, ct).ConfigureAwait(false);
-                }
-
-                await context.Output.WriteLineAsync($"Sample {pid} stopped.").ConfigureAwait(false);
+                exit = await exited.WaitAsync(ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 // Ctrl+C is how this command ends: the sample is stopped and the command succeeds.
-                samples.Stop(sample.ProcessId);
+                samples.Stop(sample.ProcessId, "Ctrl+C on the command line");
                 await context.Output.WriteLineAsync($"Sample {pid} stopped.").ConfigureAwait(false);
+                return Success;
             }
 
+            // Review M9: a stop from 'sample stop' succeeds; a crash, or Task Manager, is a failure with the sample's own words.
+            if (exit.Reason == SampleExitReason.OnItsOwn)
+            {
+                await context.Error.WriteLineAsync(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"Sample {pid} exited on its own (exit code {exit.ExitCode?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}){(exit.Error.Length > 0 ? ": " + exit.Error : ".")}")).ConfigureAwait(false);
+                return Failure;
+            }
+
+            await context.Output.WriteLineAsync($"Sample {pid} stopped.").ConfigureAwait(false);
             return Success;
         }));
 
         var pidOption = new Option<int>("--pid") { Description = "The sample's process id, as 'sample start' printed it.", Required = true };
-        var stop = new Command("stop", "Stop a sample that 'sample start' runs. Only HeapScope's sample is stopped; any other process is refused.");
+        var stop = new Command("stop", "Stop a sample that 'sample start' or the app runs. Only HeapScope's sample is stopped; any other process is refused.");
         stop.Options.Add(pidOption);
         stop.SetAction((parseResult, ct) => RunAsync(parseResult, services, async context =>
         {
             var processId = parseResult.GetValue(pidOption);
-            var processes = await context.Get<ICaptureService>().ListProcessesAsync(ct).ConfigureAwait(false);
-            var entry = processes.FirstOrDefault(p => p.ProcessId == processId);
-            if (!IsSampleCommandLine(entry?.CommandLine))
+            SampleStopOutcome outcome;
+            try
             {
-                context.Logger.LogInformation("Sample stop refused for {Pid}: {Reason}", processId, entry is null ? "no such .NET process" : "not the sample");
-                await context.Error.WriteLineAsync(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"Error: {processId} is not HeapScope's sample, so it was not stopped. 'heapscope-cli list' shows the running .NET processes.")).ConfigureAwait(false);
+                outcome = context.Get<SampleService>().StopRecorded(processId);
+            }
+            catch (SampleRefusedException ex)
+            {
+                await context.Error.WriteLineAsync("Error: " + ex.Message).ConfigureAwait(false);
                 return Failure;
             }
 
-            try
+            if (outcome == SampleStopOutcome.NotASample)
             {
-                using var process = System.Diagnostics.Process.GetProcessById(processId);
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-            {
-                // It exited meanwhile.
+                await context.Error.WriteLineAsync(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"Error: {processId} is not a running sample that HeapScope started, so it was not stopped. 'sample start' printed its sample's process id.")).ConfigureAwait(false);
+                return Failure;
             }
 
-            context.Logger.LogInformation("Sample {Pid} stopped from the command line", processId);
             await context.Output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Sample {processId} stopped.")).ConfigureAwait(false);
             return Success;
         }));
@@ -150,10 +158,4 @@ internal static partial class CliCommands
         command.Subcommands.Add(stop);
         return command;
     }
-
-    /// <summary>Whether a process's command line runs HeapScope's sample with scenarios (as <c>sample start</c> does).</summary>
-    internal static bool IsSampleCommandLine(string? commandLine) =>
-        commandLine is not null
-        && commandLine.Contains("heapscope-sample", StringComparison.Ordinal)
-        && commandLine.Contains("--scenarios", StringComparison.Ordinal);
 }

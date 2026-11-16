@@ -66,11 +66,15 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<SnapshotsViewModel>(),
             sp.GetRequiredService<IUserInteraction>(),
             sp.GetRequiredService<AllocationsViewModel>(),
-            sp.GetService<HeapScope.Application.Tutorial.SampleService>()));
+            sp.GetService<HeapScope.Application.Tutorial.SampleService>(),
+            sp.GetRequiredService<IUiDispatcher>(),
+            sp.GetService<ILogger<ProcessesViewModel>>()));
         services.AddSingleton(sp => new LearnViewModel(
             sp.GetService<HeapScope.Application.Tutorial.SampleService>(),
-            new HeapScope.Application.Tutorial.LessonProgress(),
-            sp.GetService<ILogger<LearnViewModel>>()));
+            new HeapScope.Application.Tutorial.LessonProgress(logger: sp.GetService<ILogger<HeapScope.Application.Tutorial.LessonProgress>>()),
+            sp.GetService<ILogger<LearnViewModel>>(),
+            sp.GetRequiredService<ICaptureService>(),
+            sp.GetRequiredService<IUiDispatcher>()));
         services.AddSingleton(sp => new AboutViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<IUserInteraction>(),

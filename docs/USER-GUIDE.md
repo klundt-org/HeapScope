@@ -21,8 +21,27 @@ HeapScope knows what each one planted, you can practice on it and be told whethe
   StaticCache,Timer` runs the sample until Ctrl+C (add `--grow` to keep it growing), and `heapscope-cli sample stop --pid
   <pid>` stops it from another terminal. Capture it with `heapscope-cli capture --pid <pid>`.
 
-The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once, and stops
-when HeapScope closes. Two scenarios that both block the finalizer thread (FinalizerBacklog and Waste) cannot run together.
+The lessons, scenario by scenario, and where each one's answer shows:
+
+| Lesson | Scenario | Where you find it |
+|---|---|---|
+| A cache that never lets go | StaticCache | Snapshots, Retained sizes ticked, filtered to Fixtures.Leaks, sorted by Retained: the top row; Why alive shows the static field |
+| Event handlers never removed | EventHandler | Inspections, Event handler leaks: Subscriber types |
+| A closure that holds its data | Closure | Sorted by Retained: a display class, whose field holds what the lambda captured |
+| Objects that are never disposed | UndisposedList | Filtered to Fixtures.Leaks: the type with thousands of objects; Why alive shows the list |
+| A dictionary that grows with every request | UnboundedDictionary | Two captures compared, filtered to Fixtures.Leaks, sorted by Bytes +/- |
+| Timers never stopped | Timer | Inspections, Timer leaks: Target |
+| Disposed objects still referenced | DisposedReferenced | Inspections, Disposed but referenced |
+| Async methods that never finish | PendingAsync | Inspections, Async methods that never complete: the waiting method's type |
+| A finalizer queue that never drains | FinalizerBacklog | Inspections, Finalizer backlog |
+| Memory wasted by shape | Waste | Inspections, Empty and Oversized collections: what the collections hold |
+| Large arrays on the large object heap | LargeObjects | Inspections, Large arrays |
+| Where allocations come from | SteadyAllocation | Record allocations; the Allocations page's Types and Back traces |
+
+The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once from one
+HeapScope window or command, and stops when HeapScope closes. A growing sample stops growing when its heap reaches 512 MB;
+stop it when you are done. Two scenarios that both block the finalizer thread (FinalizerBacklog and Waste) cannot run
+together. The lessons start with a capture, which runs on Windows for now: on Linux and macOS the Learn page says so.
 
 ## Finding your way
 

@@ -26,11 +26,17 @@ namespace HeapScope.UI.ViewModels;
 /// <summary>
 /// Every lesson of the Learn page (sprint 3.13, ADR-042), one per scenario of the sample. A feature a user would learn adds its
 /// lesson here (or a reason in <see cref="NoLesson"/>), with its texts approved in docs/design/info-text.md; tests keep the
-/// lessons and the sample's scenarios consistent.
+/// lessons and the sample's scenarios consistent, and an integration test follows each lesson's steps on a real sample
+/// (review H1: the steps must lead to the answer they check).
 /// </summary>
 public static class LessonCatalog
 {
-    private const string Capture = "On the Processes page, select the row marked Sample and choose Capture dump, then open the dump.";
+    /// <summary>The catalog's version (review M4): raised when a lesson is added or its steps or question change.</summary>
+    public const int Version = 1;
+
+    private const string Capture = "On the Processes page, select the row marked Sample and choose Capture dump (leave As gcdump unticked), then open the dump.";
+    private const string ByRetained = "On the Snapshots page, tick Retained sizes, type Fixtures.Leaks in the filter and sort by Retained.";
+    private const string Inspections = "On the Snapshots page, open the Inspections tab and select ";
 
     public static IReadOnlyList<Lesson> All { get; } =
     [
@@ -43,10 +49,10 @@ public static class LessonCatalog
             LessonPage.Processes,
             [
                 Capture,
-                "On the Snapshots page, sort the types by Retained and find the largest of the sample's own types (namespace Fixtures.Leaks).",
-                "Double-click it to open its objects, then choose Why alive: the path ends at a static field, which keeps every entry alive.",
+                ByRetained,
+                "Among the rows whose names start with Fixtures.Leaks, the top one is what the cache keeps: double-click it and choose Why alive to see the static field that holds it.",
             ],
-            "Which type does the static cache keep alive?",
+            "Which of the sample's own types (names starting with Fixtures.Leaks) retains the most?",
             "StaticCache"),
         new(
             "event-handlers",
@@ -55,8 +61,8 @@ public static class LessonCatalog
             ["EventHandler"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Event handler leaks.", "Double-click its row to open the subscribers as a set; its Paths view shows the publishers' events holding them."],
-            "Which type do the events keep alive?",
+            [Capture, Inspections + "Event handler leaks.", "Its row names the event, and under Subscriber types what the event keeps alive."],
+            "Which type does the inspection list as the subscribers the event keeps alive?",
             "EventHandler"),
         new(
             "closure",
@@ -65,8 +71,12 @@ public static class LessonCatalog
             ["Closure"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Snapshots page, sort the types by Retained and find the largest of the sample's own types (namespace Fixtures.Leaks).", "Double-click it and choose Why alive: the path goes through a display class, which holds a lambda's captured variables."],
-            "Which type do the stored lambdas capture?",
+            [
+                Capture,
+                ByRetained,
+                "The top row is a display class (its name holds <>c__DisplayClass): the compiler made it to hold what a lambda captured. Double-click it, then double-click one of its objects: its field holds the captured object.",
+            ],
+            "Which of the sample's types do the lambdas capture?",
             "Closure"),
         new(
             "undisposed-list",
@@ -75,8 +85,12 @@ public static class LessonCatalog
             ["UndisposedList"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Snapshots page, type Fixtures.Leaks in the filter to see the sample's own types.", "Double-click the largest one and choose Why alive: a static list holds its objects."],
-            "Which type does the list keep without disposing it?",
+            [
+                Capture,
+                "On the Snapshots page, type Fixtures.Leaks in the filter: the type with thousands of objects is what the list keeps.",
+                "Double-click it and choose Why alive: a static list holds every one.",
+            ],
+            "Which of the sample's types does the static list keep without disposing it?",
             "UndisposedList"),
         new(
             "unbounded-dictionary",
@@ -88,9 +102,9 @@ public static class LessonCatalog
             [
                 Capture,
                 "Wait a few seconds while the sample keeps growing, then capture and open a second dump.",
-                "On the Compare tab, compare the second with the first and sort by Bytes +/-.",
+                "On the Compare tab, compare the second with the first, type Fixtures.Leaks in the filter and sort by Bytes +/-: among the rows whose names start with Fixtures.Leaks, the top one grows.",
             ],
-            "Which type grows between the two captures?",
+            "Which of the sample's own types (names starting with Fixtures.Leaks) grows between the two captures?",
             "UnboundedDictionary"),
         new(
             "timers",
@@ -99,8 +113,8 @@ public static class LessonCatalog
             ["Timer"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Timer leaks.", "Double-click its row to open the timers as a set: each timer's callback keeps its owner alive."],
-            "Which type do the timers' callbacks keep alive?",
+            [Capture, Inspections + "Timer leaks.", "Its row's Target is what the timers' callbacks keep alive."],
+            "Which type do the timers keep alive?",
             "Timer"),
         new(
             "disposed-referenced",
@@ -109,7 +123,7 @@ public static class LessonCatalog
             ["DisposedReferenced"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Disposed but referenced.", "Double-click its row to open them as a set; its Paths view shows who still holds them."],
+            [Capture, Inspections + "Disposed but referenced.", "Its row names the type whose objects were disposed and are still held."],
             "Which type is disposed but still referenced?",
             "DisposedReferenced"),
         new(
@@ -119,8 +133,8 @@ public static class LessonCatalog
             ["PendingAsync"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Async methods that never complete.", "Double-click its row to open the waiting state machines as a set: they keep their data alive."],
-            "Which type do the waiting methods keep alive?",
+            [Capture, Inspections + "Async methods that never complete.", "Its row names the waiting method as type and method, and how many calls wait."],
+            "Which of the sample's types declares the async method that never completes?",
             "PendingAsync"),
         new(
             "finalizer-backlog",
@@ -129,29 +143,37 @@ public static class LessonCatalog
             ["FinalizerBacklog"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Finalizer backlog.", "Its rows are the objects waiting on the finalizer queue; double-click one to open them as a set."],
+            [Capture, Inspections + "Finalizer backlog.", "Its row names the type whose objects wait on the finalizer queue."],
             "Which type waits on the finalizer queue?",
             "FinalizerBacklog"),
         new(
             "waste",
             "Memory wasted by shape",
-            "Find duplicate strings and collections that hold nothing.",
+            "Find collections that hold nothing, or far less than they have room for.",
             ["Waste"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Duplicate strings, Empty collections and Oversized collections.", "Double-click a row to open its objects as a set; its Paths view shows who holds the waste."],
-            "Which of the sample's types holds the wasted collections?",
+            [
+                Capture,
+                Inspections + "Empty collections, then Oversized collections.",
+                "Their rows name each collection's type, with what it was made to hold in angle brackets.",
+            ],
+            "Which of the sample's types were the empty and oversized collections made to hold?",
             "Waste"),
         new(
             "large-objects",
-            "Large objects and pinned memory",
-            "Find what lives on the large object heap and what is pinned.",
-            ["Inspection"],
+            "Large arrays on the large object heap",
+            "Find which arrays are big enough for the large object heap.",
+            ["LargeObjects"],
             false,
             LessonPage.Processes,
-            [Capture, "On the Inspections tab, run Large object heap and Large arrays.", "Double-click a row to open its objects as a set; its Paths view shows who holds them."],
-            "Which of the sample's types holds the large arrays?",
-            "Inspection"),
+            [
+                Capture,
+                Inspections + "Large arrays.",
+                "Its rows are the arrays of 85,000 bytes or more, which live on the large object heap; the sample's small arrays are not listed.",
+            ],
+            "Which arrays are on the large object heap?",
+            "LargeObjects"),
         new(
             "steady-allocation",
             "Where allocations come from",
@@ -161,14 +183,17 @@ public static class LessonCatalog
             LessonPage.Processes,
             [
                 "On the Processes page, select the row marked Sample and choose Record allocations; stop after a few seconds.",
-                "On the Allocations page, sort the types by Bytes and open the top Back traces.",
+                "On the Allocations page, the Types list is ordered by bytes: find the sample's type nearest the top, select it and look at Back traces for the method that allocates it.",
             ],
             "Which of the sample's types is allocated most?",
             "SteadyAllocation"),
     ];
 
     /// <summary>The scenarios without a lesson, with the reason (ADR-042: each feature adds its lesson or says why not).</summary>
-    public static IReadOnlyDictionary<string, string> NoLesson { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
+    public static IReadOnlyDictionary<string, string> NoLesson { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Inspection"] = "It plants one object for reading field values in the object view, which no question checks yet; a lesson on reading an object's fields is in the Backlog.",
+    };
 
     /// <summary>The lesson <paramref name="id"/>, or null.</summary>
     public static Lesson? Find(string id) => All.FirstOrDefault(l => l.Id == id);

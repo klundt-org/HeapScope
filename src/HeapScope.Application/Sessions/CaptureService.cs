@@ -107,6 +107,15 @@ public sealed class CaptureService : ICaptureService
         try
         {
             var processes = await Task.Run(() => _discovery.List(cancellationToken), cancellationToken).ConfigureAwait(false);
+
+            // Sprint 3.13 review H5: why a process the user expects is not listed (HeapScope's own, or gone while listing).
+            var omitted = _discovery.LastOmitted;
+            _logger.LogInformation(
+                "Listed {Count} .NET processes ({Pids}); left out as HeapScope's own: {Own}; not readable or exited: {NotDescribed}",
+                processes.Count,
+                string.Join(", ", processes.Take(200).Select(p => p.ProcessId)) + (processes.Count > 200 ? $" and {processes.Count - 200} more" : string.Empty),
+                omitted.Own.Count == 0 ? "none" : string.Join(", ", omitted.Own),
+                omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed));
             return [.. processes.Select(ToEntry)];
         }
         catch (PlatformNotSupportedException ex)

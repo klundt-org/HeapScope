@@ -27,7 +27,7 @@ namespace HeapScope.Cli.Tests;
 
 /// <summary>
 /// The <c>sample</c> commands (sprint 3.13, task 9): usage errors before any host, and <c>stop</c> refuses a process that is not
-/// HeapScope's sample. Starting, capturing and stopping the real sample is an integration test (SampleTests).
+/// HeapScope's sample, on every system (review H4). Starting, capturing and stopping the real sample is an integration test (SampleTests).
 /// </summary>
 public sealed class SampleCommandTests
 {
@@ -51,17 +51,6 @@ public sealed class SampleCommandTests
 
         code.ShouldBe(1);
         output.ShouldBeEmpty();
-        error.ShouldContain($"Error: {pid} is not HeapScope's sample, so it was not stopped.");
-    }
-
-    [Theory]
-    [InlineData(@"""C:\HeapScope\sample\heapscope-sample.exe"" --scenarios StaticCache --parent-pid 1", true)]
-    [InlineData("dotnet /opt/heapscope/sample/heapscope-sample.dll --scenarios Timer", true)]
-    [InlineData("dotnet /opt/heapscope/sample/heapscope-sample.dll --list", false)]
-    [InlineData("MyApp.exe --scenarios x", false)]
-    [InlineData(null, false)]
-    public void Only_the_sample_running_scenarios_can_be_stopped(string? commandLine, bool sample)
-    {
-        CliCommands.IsSampleCommandLine(commandLine).ShouldBe(sample);
+        error.ShouldContain($"Error: {pid} is not a running sample that HeapScope started, so it was not stopped.");
     }
 }

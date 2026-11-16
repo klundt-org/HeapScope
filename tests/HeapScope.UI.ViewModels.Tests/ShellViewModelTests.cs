@@ -54,7 +54,7 @@ public sealed class ShellViewModelTests : IDisposable
         var snapshots = new SnapshotsViewModel(
             new Application.Snapshots.SnapshotSession(_worker, _operations.Jobs), _operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
         var processes = new ProcessesViewModel(new FakeCaptureService(_sessions, _operations.Jobs), snapshots, new FakeUserInteraction());
-        var learn = new LearnViewModel(null, new Application.Tutorial.LessonProgress(new HeapScope.Core.HeapScopeFolders(_sessions)));
+        var learn = new LearnViewModel(null, new Application.Tutorial.LessonProgress(_sessions));
         var shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, snapshots), snapshots, processes, new AboutViewModel(_operations), learn: learn);
         var changed = new List<string?>();
         shell.PropertyChanged += (_, e) => changed.Add(e.PropertyName);

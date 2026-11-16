@@ -36,39 +36,40 @@ if (arguments is null)
 
 if (arguments.List)
 {
-    // The catalog the app reads, so it never offers a scenario this sample lacks.
-    var entries = ScenarioCatalog.All.Select(s => new
+    // The catalog the app reads, so it never offers a scenario this sample lacks; versioned (review M4).
+    var catalog = new
     {
-        s.Name,
-        s.Title,
-        s.Plants,
-        s.KnownAnswer,
-        s.AnswerType,
-        s.CannotRunWith,
-        Grows = s.Grow is not null,
-    });
-    await Console.Out.WriteLineAsync(JsonSerializer.Serialize(entries)).ConfigureAwait(false);
+        ScenarioCatalog.Version,
+        Scenarios = ScenarioCatalog.All.Select(s => new
+        {
+            s.Name,
+            s.Title,
+            s.Plants,
+            s.KnownAnswer,
+            s.AnswerType,
+            s.CannotRunWith,
+            s.ConflictReason,
+            s.Decoys,
+            Grows = s.Grow is not null,
+        }),
+    };
+    await Console.Out.WriteLineAsync(JsonSerializer.Serialize(catalog)).ConfigureAwait(false);
     return 0;
 }
 
 ParentWatch.ExitWhenParentExits(arguments.ParentPid);
-foreach (var scenario in arguments.Scenarios.Where(s => !s.AfterLastCollection))
+foreach (var scenario in arguments.Scenarios)
 {
     scenario.Start(arguments.Options);
 }
 
-// As the fixtures do: the planted objects settle before the scenarios that block the finalizer thread for good.
+// As the fixtures do: the planted objects settle before what blocks the finalizer thread for good.
 GC.Collect();
 GC.WaitForPendingFinalizers();
 GC.Collect();
-if (arguments.Scenarios.Any(s => s.Name == "Waste"))
+foreach (var scenario in arguments.Scenarios)
 {
-    WasteFixtures.CreateFinalizerBacklog();
-}
-
-foreach (var scenario in arguments.Scenarios.Where(s => s.AfterLastCollection))
-{
-    scenario.Start(arguments.Options);
+    scenario.AfterLastCollection?.Invoke(arguments.Options);
 }
 
 await Console.Out.WriteLineAsync($"READY pid={Environment.ProcessId}").ConfigureAwait(false);
@@ -78,6 +79,13 @@ if (arguments.GrowEvery is { } every)
     using var timer = new PeriodicTimer(every);
     while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
     {
+        // Review M5: growth stops at a ceiling, so a sample left running cannot use up the machine.
+        if (GC.GetTotalMemory(forceFullCollection: false) > SampleArguments.GrowthLimitBytes)
+        {
+            await Console.Error.WriteLineAsync($"Growth stopped: the sample's heap reached {SampleArguments.GrowthLimitBytes / (1024 * 1024)} MB. It keeps running as it is; stop it when you are done.").ConfigureAwait(false);
+            break;
+        }
+
         foreach (var scenario in arguments.Scenarios)
         {
             scenario.Grow?.Invoke(step, arguments.Options);
