@@ -15,6 +15,20 @@ each sprint is in `docs/reviews/sprint-X.Y.md`.
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 3.13.0: Tutorial (sprint 3.13)
+
+- **Learn HeapScope hands-on**: a new Learn page (Ctrl+7) holds twelve lessons, one per memory problem: a cache that never
+  lets go, event handlers never removed, timers never stopped, async methods that never finish, wasted collections, large
+  arrays, where allocations come from, and more. Each lesson starts a small sample process of HeapScope's own with that
+  problem planted, shows the steps beside every page while you work, and checks your answer against what was planted.
+  Finished lessons are remembered.
+- **A sample process to practice on**: the Processes page's Sample process section starts the sample with the problems you
+  tick, optionally growing every second for Live, Compare and Trend; its row is marked Sample, ready to capture or record.
+  It runs as you, at most three at once, stops growing at 512 MB and stops when HeapScope closes.
+- **On the command line**: `heapscope-cli sample list`, `sample start --scenarios ...` (until Ctrl+C) and `sample stop --pid`.
+- **Limits**: the lessons start with a capture, which runs on Windows for now, so on Linux and macOS the Learn page says so
+  and starts none. The sample adds about 77 MB to each package. Pre-built tutorial files are not shipped.
+
 ## 3.12.0: First-show performance and refactor analysis (sprint 3.12)
 
 - **Faster first loads**: HeapScope now reads a dump's objects itself instead of asking for each one's type, so a 4.4 GB dump

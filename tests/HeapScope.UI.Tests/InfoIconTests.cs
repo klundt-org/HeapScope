@@ -319,7 +319,7 @@ public sealed class InfoIconTests(UiSession ui)
         var repo = global::HeapScope.Tests.Shared.RepoRoot.Path;
         var table = File.ReadAllText(Path.Combine(repo, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
         var start = table.IndexOf("## Sprint 3.12 additions", StringComparison.Ordinal);
-        var end = table.IndexOf("## Evidence", start, StringComparison.Ordinal);
+        var end = table.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
         var rows = table[start..end].Split('\n')
             .Where(static l => l.StartsWith("| ", StringComparison.Ordinal) && !l.StartsWith("| Page", StringComparison.Ordinal))
             .Select(static l => l.Trim('|').Split(" | ").Select(static c => c.Trim()).ToArray())

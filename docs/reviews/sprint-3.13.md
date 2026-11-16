@@ -299,3 +299,10 @@ files were left as written. No em or en dashes in the changed files.
 LeakyApi failed under the full run's load) and `CounterMonitorTests.Cli_monitor_prints_samples_captures_on_a_rule_and_reports_errors_and_usage`
 (already in the Backlog's list of tests that fail only under full local load). Both classes passed alone (16 of 16); the
 Backlog's list now names `AllocationTraceTests`. The tutorial's integration tests (`SampleTests`, `LessonTests`, 16) passed.
+
+The close's gate (`build/gate.sh`, 2026-11-15): 0 warnings in Debug and Release, 1,756 tests. The fast tier found one real
+failure: `InfoIconTests.The_sprint_3_12_texts_the_owner_approved_are_on_a_screen` read the wording table to the end of the
+file, so the 3.13 rows, once approved, joined the 3.12 ones; it now reads its own section. The integration tier had 15
+failures, each a worker that did not open its pipe within 30 s or a command waiting on one, on the first runs of the freshly
+built binaries (the slow first start the Backlog records); the tier passed whole on a rerun (331 of 331). The known answers
+were skipped locally (no jq); CI runs them.
