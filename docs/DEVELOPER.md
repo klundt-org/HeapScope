@@ -59,7 +59,8 @@ dotnet test --solution HeapScope.sln
   takes no DAC from an installed runtime (`SnapshotTests`, the older cache fallback).
 - Packages (sprint 3.7): nuget.org only (`nuget.config`); every project has a `packages.lock.json` and CI restores in
   locked mode, so after changing `Directory.Packages.props` or a project's references run `dotnet restore HeapScope.sln
-  --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions.
+  --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions;
+  it skips major versions of `Microsoft.Extensions.*` and `System.*`, which follow the .NET 10 runtime until a deliberate move.
 - A LeakyConsole dump for checks by hand: `bash build/fixture-dump.sh <dump> cli=<heapscope-cli>` (or `dotnet-dump`), then
   `bash build/check-known-answers.sh <heapscope-cli> <dump>`.
 - A test run that never finishes: run the test executable directly with hung test detection, for example
