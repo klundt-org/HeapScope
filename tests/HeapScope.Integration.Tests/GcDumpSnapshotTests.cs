@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -97,7 +97,7 @@ public sealed class GcDumpSnapshotTests(StaticCacheGcDumps shared) : IClassFixtu
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private SnapshotSession Session => _session ??= new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+    private SnapshotSession Session => _session ??= TestSessions.Create(_host, new JobTracker(TimeProvider.System));
 
     [Fact]
     public async Task A_gcdump_opens_through_the_worker_with_its_features_and_notes_then_from_its_cache()

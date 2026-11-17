@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Page faults per load phase (LoadMeter, sprint 3.12 R5) through a Windows call. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\HeapScope.Core\HeapScope.Core.csproj" />
   </ItemGroup>
@@ -6,6 +10,14 @@
     <PackageReference Include="Microsoft.Diagnostics.Runtime" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The one path rule (sprint 3.12 review M3), compiled here as an internal copy: this project cannot reference Contracts. -->
+    <Compile Include="..\HeapScope.Contracts\PathIdentity.cs" Link="Shared\PathIdentity.cs" />
+  </ItemGroup>
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);PATH_IDENTITY_INTERNAL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="HeapScope.Loaders.ClrMd.Tests" />
+    <InternalsVisibleTo Include="HeapScope.Integration.Tests" />
   </ItemGroup>
 </Project>

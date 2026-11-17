@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -32,4 +32,5 @@ namespace HeapScope.Core.Loading;
 /// <param name="StaticFieldRoots">Static field roots found by enumerating statics.</param>
 /// <param name="IncompleteSegments">Heap segments whose walk covered less than their object range (missing memory).</param>
 /// <param name="Dac">The data access component that read the dump and why (full dumps only, sprint 2.3.7).</param>
-public sealed record LoadDiagnostics(IReadOnlyList<string> DebuggableModules, long UnreadableObjects, int StaticFieldRoots, int IncompleteSegments = 0, DacChoice? Dac = null);
+/// <param name="ProcessNameSource">Which rule chose the process name, for the log (full dumps only, sprint 3.10).</param>
+public sealed record LoadDiagnostics(IReadOnlyList<string> DebuggableModules, long UnreadableObjects, int StaticFieldRoots, int IncompleteSegments = 0, DacChoice? Dac = null, string? ProcessNameSource = null);

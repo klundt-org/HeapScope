@@ -11,6 +11,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # The .NET libraries follow the runtime HeapScope targets (.NET 10, long-term support): a new major version of them (11.0.0
+    # of Microsoft.Extensions.*, for .NET 11) comes with a deliberate move to a new runtime, not a weekly bump (2026-11-16).
+    ignore:
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.*"
+        update-types: ["version-update:semver-major"]
     groups:
       patches:
         update-types: [patch]

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -75,7 +75,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
     public SnapshotTests(StaticCacheDump shared)
     {
         _host = new WorkerHost(Options.Create(new WorkerHostOptions { WorkerPath = TestPaths.WorkerExe }), new ListLoggerProvider());
-        _session = new SnapshotSession(_host, _jobs);
+        _session = TestSessions.Create(_host, _jobs);
         _operations = new WorkerOperations(_host, _jobs);
         _dump = _folder.File("app.dmp");
         File.Copy(shared.Path, _dump);
@@ -88,6 +88,151 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
     /// <summary>The default type summary (by type, largest first), as the CLI's open lists it.</summary>
     private static async Task<ResultSetInfo> SummaryAsync(SnapshotSession session, SnapshotHandle handle) =>
         (await session.QueryTypeSummaryAsync(handle, TypeGrouping.Type, null, null, true, null, Ct)).Rows.Info;
+
+    /// <summary>A fix in what the loader records reaches snapshots cached before it (sprint 3.10 review M15), in both memory modes.</summary>
+    [Theory]
+    [InlineData(SnapshotMemoryMode.InMemory)]
+    [InlineData(SnapshotMemoryMode.Mapped)]
+    public async Task A_cache_from_an_older_loader_is_rebuilt_with_a_note(SnapshotMemoryMode mode)
+    {
+        (await _session.StartOpen(_dump, mode: mode).Result).Descriptor.FromCache.ShouldBeFalse();
+        await _host.RestartAsync(Ct);
+
+        var signer = HeapScope.Storage.IndexCacheSigner.ForThisUser(HeapScope.Core.HeapScopeFolders.Default.Root).Signer;
+        var fingerprint = HeapScope.Storage.SnapshotFingerprint.Compute(_dump);
+        var older = _dump + ".older";
+        var current = HeapScope.Storage.IndexCacheReader.Open(CachePath, signer, fingerprint, HeapScope.Storage.MemoryMode.InMemory, Ct);
+        current.Success.ShouldBeTrue(current.Detail);
+        using (var graph = current.Graph!)
+        {
+            current.Metadata!.LoaderVersion.ShouldBe(HeapScope.Loaders.ClrMd.ClrMdDumpLoader.CurrentVersion);
+            current.Metadata.ProcessNameSource.ShouldNotBeNull().ShouldStartWith("the executable's path the dump records", customMessage: "kept, so a reopen's log still says it");
+            HeapScope.Storage.IndexCacheWriter.Write(older, signer, graph, current.Metadata with { LoaderVersion = HeapScope.Loaders.ClrMd.ClrMdDumpLoader.CurrentVersion - 1 }, fingerprint, cancellationToken: Ct);
+        }
+
+        File.Move(older, CachePath, overwrite: true);
+
+        var rebuilt = (await _session.StartOpen(_dump, mode: mode).Result).Descriptor;
+
+        rebuilt.FromCache.ShouldBeFalse();
+        rebuilt.ProcessName.ShouldBe("LeakyConsole");
+        rebuilt.Notes.ShouldContain(n => n.StartsWith("The index cache was rebuilt: it was written by an older version", StringComparison.Ordinal));
+        await _host.RestartAsync(Ct);
+        var again = (await _session.StartOpen(_dump, mode: mode).Result).Descriptor;
+        again.FromCache.ShouldBeTrue("the rebuilt cache is current");
+        again.Notes.ShouldNotContain(n => n.StartsWith("The index cache was rebuilt", StringComparison.Ordinal));
+    }
+
+    /// <summary>Rewrites the dump's index cache as an older loader would have written it, with the process name it recorded.</summary>
+    private void WriteOlderCache(int loaderVersion, string? processName)
+    {
+        var signer = HeapScope.Storage.IndexCacheSigner.ForThisUser(HeapScope.Core.HeapScopeFolders.Default.Root).Signer;
+        var fingerprint = HeapScope.Storage.SnapshotFingerprint.Compute(_dump);
+        var older = _dump + ".older";
+        var current = HeapScope.Storage.IndexCacheReader.Open(CachePath, signer, fingerprint, HeapScope.Storage.MemoryMode.InMemory, Ct);
+        current.Success.ShouldBeTrue(current.Detail);
+        using (var graph = current.Graph!)
+        {
+            var metadata = current.Metadata! with
+            {
+                LoaderVersion = loaderVersion,
+                Info = current.Metadata.Info with { ProcessName = processName },
+                ProcessNameSource = null,
+            };
+            HeapScope.Storage.IndexCacheWriter.Write(older, signer, graph, metadata, fingerprint, cancellationToken: Ct);
+        }
+
+        File.Move(older, CachePath, overwrite: true);
+    }
+
+    /// <summary>A worker that finds no DAC in any installed runtime: a machine without the dump's runtime (test hook).</summary>
+    private static WorkerHost WorkerWithoutInstalledDacs() =>
+        new(Options.Create(new WorkerHostOptions { WorkerPath = TestPaths.WorkerExe, EnableTestHooks = true, HideInstalledDacsForTests = true }), new ListLoggerProvider());
+
+    /// <summary>
+    /// The older cache fallback end to end (sprint 3.12, task 9 and its review H): a real dump whose index cache the v3.9.0
+    /// loader (version 3) wrote, opened where its DAC cannot be found, in both memory modes. The graph answers, value reads are
+    /// refused with the reason, and the process name, the one answer loader version 4 changed, is read again from the dump.
+    /// </summary>
+    [Theory]
+    [InlineData(SnapshotMemoryMode.InMemory)]
+    [InlineData(SnapshotMemoryMode.Mapped)]
+    public async Task An_older_cache_opens_in_place_of_a_rebuild_that_finds_no_DAC_and_answers_everything_but_values(SnapshotMemoryMode mode)
+    {
+        var first = await _session.StartOpen(_dump, mode: mode).Result;
+        var firstObjects = first.Descriptor.ObjectCount;
+        var strings = await _session.QueryInstancesAsync(first, "System.String", "System.Private.CoreLib.dll", null, null, true, null, Ct);
+        var address = ulong.Parse((await strings.Rows.GetRowsAsync(0, 1, Ct)).Rows[0][0]!.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        await _host.RestartAsync(Ct);
+        WriteOlderCache(3, "coreclr");
+        var cacheBefore = await File.ReadAllBytesAsync(CachePath, Ct);
+
+        await using var host = WorkerWithoutInstalledDacs();
+        var session = TestSessions.Create(host, _jobs);
+        var handle = await session.StartOpen(_dump, mode: mode).Result;
+
+        var d = handle.Descriptor;
+        d.FromCache.ShouldBeTrue();
+        d.Mode.ShouldBe(mode);
+        d.ObjectCount.ShouldBe(firstObjects);
+        d.ProcessName.ShouldBe("LeakyConsole", "read again from the dump, not the older cache's");
+        d.UntrustedDac.ShouldBeNull();
+        var why = d.WhyUnavailable(SnapshotFeatureIds.FieldValues).ShouldNotBeNull();
+        why.ShouldStartWith($"Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET {d.RuntimeVersion} runtime was not found.");
+        d.WhyUnavailable(SnapshotFeatureIds.StringValues).ShouldBe(why);
+        d.Notes.ShouldContain($"Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: the DAC (Data Access Component) of this dump's .NET {d.RuntimeVersion} runtime was not found. The one thing this version reads differently, the process name, was read again from the dump. Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache.");
+
+        // The graph answers: types, an object's references, referrers and paths.
+        (await SummaryAsync(session, handle)).TotalCount.ShouldBeGreaterThan(0);
+        (await session.QueryReferrersAsync(handle, address, null, Ct)).Result.FieldsNote.ShouldBe(why);
+        (await session.QueryObjectPathsAsync(handle, address, 3, null, Ct)).Nodes.ShouldNotBeEmpty();
+
+        // Value reads are refused with the reason, never attempted.
+        var details = await session.GetObjectAsync(handle, address, null, Ct);
+        details.TypeName.ShouldBe("System.String");
+        details.Fields.ShouldBeNull();
+        details.Text.ShouldBeNull();
+        details.FieldsUnavailable.ShouldBe(why);
+        (await File.ReadAllBytesAsync(CachePath, Ct)).ShouldBe(cacheBefore, "the older cache is read, never written");
+    }
+
+    /// <summary>
+    /// An untrusted DAC next to the dump (sprint 3.12): the app's open asks first, as for a current cache; after a "no" (an
+    /// open that does not ask) the older cache opens and names the DAC, and trusting it then rebuilds the cache with it, as
+    /// Trust this DAC and reopen does in the app.
+    /// </summary>
+    [Fact]
+    public async Task An_older_cache_opened_for_an_untrusted_DAC_names_it_and_trusting_it_rebuilds_the_cache()
+    {
+        var first = (await _session.StartOpen(_dump).Result).Descriptor;
+        await _host.RestartAsync(Ct);
+        WriteOlderCache(3, "coreclr");
+        var installedDac = Path.Combine(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory(), "mscordaccore.dll");
+        var besideDac = _folder.File("mscordaccore.dll");
+        File.Copy(installedDac, besideDac);
+        var trusted = new TrustedDacs(_folder.Path);
+
+        await using var host = WorkerWithoutInstalledDacs();
+        var session = TestSessions.Create(host, _jobs, trustedDacs: trusted);
+        var asked = await Should.ThrowAsync<WorkerOperationException>(() => session.StartOpen(_dump).Result);
+        asked.ErrorCode.ShouldBe(HeapScopeErrorCode.DacNotTrusted);
+        var handle = await session.StartOpen(_dump, checkDac: false).Result;
+
+        handle.Descriptor.FromCache.ShouldBeTrue();
+        var dac = handle.Descriptor.UntrustedDac.ShouldNotBeNull($"the dump's runtime {first.RuntimeVersion} is the one this test runs on");
+        dac.Path.ShouldBe(besideDac);
+        handle.Descriptor.WhyUnavailable(SnapshotFeatureIds.FieldValues).ShouldBe(
+            $"Field values and strings are not read: the DAC (Data Access Component) next to the dump is not trusted. Trust it to read them (on the command line, add --trust-dac {dac.Sha256}).");
+
+        trusted.Trust(dac.Sha256, dac.Path, "trusted by the test");
+        await session.CloseAsync(handle, Ct);
+        var reopened = (await session.StartOpen(_dump).Result).Descriptor;
+
+        reopened.FromCache.ShouldBeFalse("the trusted DAC rebuilds the cache");
+        reopened.UntrustedDac.ShouldBeNull();
+        reopened.IsAvailable(SnapshotFeatureIds.FieldValues).ShouldBeTrue();
+        reopened.Notes.ShouldContain(n => n.StartsWith("The index cache was rebuilt: it was written by an older version", StringComparison.Ordinal));
+    }
 
     [Fact]
     public async Task First_open_loads_the_dump_and_writes_the_cache_and_the_next_open_reuses_it()
@@ -124,7 +269,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         await _session.StartOpen(_dump).Result;
         using var otherData = new TempFolder();
         await using var other = new WorkerHost(Options.Create(new WorkerHostOptions { WorkerPath = TestPaths.WorkerExe, DataFolder = otherData.Path }), new ListLoggerProvider());
-        var otherSession = new SnapshotSession(other, new JobTracker(TimeProvider.System));
+        var otherSession = TestSessions.Create(other, new JobTracker(TimeProvider.System));
 
         var rebuilt = await otherSession.StartOpen(_dump).Result;
 
@@ -132,7 +277,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         rebuilt.Descriptor.Notes.ShouldContain(n => n.Contains("signed with another key", StringComparison.Ordinal));
 
         await other.RestartAsync(Ct);
-        var reopened = await new SnapshotSession(other, new JobTracker(TimeProvider.System)).StartOpen(_dump).Result;
+        var reopened = await TestSessions.Create(other, new JobTracker(TimeProvider.System)).StartOpen(_dump).Result;
         reopened.Descriptor.FromCache.ShouldBeTrue("the rebuilt cache carries the other key's signature");
     }
 
@@ -146,7 +291,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         var movedDump = System.IO.Path.Combine(moved, "app.dmp");
         File.Move(_dump, movedDump);
         File.Move(CachePath, movedDump + ".hsidx");
-        var session = new SnapshotSession(_host, _jobs);
+        var session = TestSessions.Create(_host, _jobs);
 
         var handle = await session.StartOpen(movedDump).Result;
         var again = await session.StartOpen(movedDump).Result;
@@ -314,7 +459,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
     [Fact]
     public async Task Probe_reports_the_cache_state_and_the_session_warns_only_for_a_first_load()
     {
-        var tiny = new SnapshotSession(_host, _jobs, () => new PhysicalMemory(16L << 30, 1));
+        var tiny = TestSessions.Create(_host, _jobs, () => new PhysicalMemory(16L << 30, 1));
 
         var before = await _host.InvokeAsync((service, ct) => service.ProbeSnapshotAsync(_dump, ct), Ct);
         (await tiny.GetOpenWarningAsync(_dump, rebuild: false, Ct)).ShouldNotBeNull("no cache yet: a first load");

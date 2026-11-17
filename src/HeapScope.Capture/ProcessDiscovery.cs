@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -34,6 +34,12 @@ public interface IProcessDiscovery
 
     /// <summary>One process, or null when it is not a running .NET process with a diagnostics port.</summary>
     DotNetProcess? Find(int processId);
+
+    /// <summary>
+    /// What the last <see cref="List"/> left out (sprint 3.13 review H5): HeapScope's own processes and the ones it could not
+    /// describe (they exited meanwhile), by pid, so the log can say why a process is not listed.
+    /// </summary>
+    DiscoveryOmissions LastOmitted => DiscoveryOmissions.None;
 }
 
 /// <summary>
@@ -47,18 +53,32 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
 
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
 
+    public DiscoveryOmissions LastOmitted { get; private set; } = DiscoveryOmissions.None;
+
     public IReadOnlyList<DotNetProcess> List(CancellationToken cancellationToken = default)
     {
         CapturePlatform.EnsureSupported();
         var result = new List<DotNetProcess>();
+        List<int> own = [];
+        List<int> notDescribed = [];
         foreach (var processId in DiagnosticsClient.GetPublishedProcesses())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!IsOwn(processId) && Describe(processId) is { } process)
+            if (IsOwn(processId))
+            {
+                own.Add(processId);
+            }
+            else if (Describe(processId) is { } process)
             {
                 result.Add(process);
             }
+            else
+            {
+                notDescribed.Add(processId);
+            }
         }
+
+        LastOmitted = new DiscoveryOmissions(own, notDescribed);
 
         result.Sort(static (a, b) =>
         {
@@ -81,17 +101,26 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
     /// HeapScope itself (this process, and the UI, CLI and worker started from this installation) is never listed or
     /// captured: a dump of the worker would contain the snapshots it holds. Matched by pid and executable path, not by
     /// name, so a user's own app called HeapScope is still listed. In the CLI's dotnet tool the worker runs as the dotnet
-    /// host, so its command line names the worker's assembly in this installation (sprint 3.9, ADR-039).
+    /// host, so its command line names the worker's assembly in this installation (sprint 3.9, ADR-039). The tutorial's
+    /// sample (sprint 3.13, ADR-042) is HeapScope's too, but it is there to be captured, so it is listed.
     /// </summary>
     private static bool IsOwn(int processId) =>
         processId == Environment.ProcessId
-        || (ReadImagePath(processId) is { } image && image.StartsWith(s_ownFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        || (ReadImagePath(processId) is { } image && IsOwnImage(image, s_ownFolder))
         || RunsOwnWorkerAssembly(ReadCommandLine(processId), s_ownFolder);
+
+    /// <summary>
+    /// Whether <paramref name="image"/> is one of the installation's own executables in <paramref name="ownFolder"/>: any
+    /// under it except the tutorial's sample in its <c>sample</c> subfolder.
+    /// </summary>
+    internal static bool IsOwnImage(string image, string ownFolder) =>
+        HeapScope.Shared.PathIdentity.IsUnder(image, ownFolder)
+        && !HeapScope.Shared.PathIdentity.IsUnder(image, Path.Combine(ownFolder, "sample"));
 
     /// <summary>Whether <paramref name="commandLine"/> runs the worker assembly of the installation in <paramref name="ownFolder"/>.</summary>
     internal static bool RunsOwnWorkerAssembly(string? commandLine, string ownFolder) =>
         commandLine is not null
-        && commandLine.Contains(Path.Combine(ownFolder, "worker", "HeapScope.Worker.dll"), StringComparison.OrdinalIgnoreCase);
+        && commandLine.Contains(Path.Combine(ownFolder, "worker", "HeapScope.Worker.dll"), HeapScope.Shared.PathIdentity.Comparison());
 
     private DotNetProcess? Describe(int processId)
     {

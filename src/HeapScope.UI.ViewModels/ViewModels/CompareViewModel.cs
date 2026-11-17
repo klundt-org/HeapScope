@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -463,6 +463,23 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
         var side = row.CurrentObjects == 0 && Baseline is { } baseline ? baseline : current;
         navigator?.Navigate(NavigationTarget.Instances(side.Handle, row.TypeName, row.Module));
+    }
+
+    /// <summary>
+    /// <paramref name="item"/> was opened again as a new worker snapshot, maybe of a rebuilt cache (3.11 review): a pair that holds
+    /// it runs again, logged with its new id, and so does a trend that ticks it. Their rows came from the earlier snapshot, and a
+    /// page fetched later would run the old query against the new one, mixing two graphs in one grid. A silent reopen after a
+    /// worker restart does not come here: its graph is the same.
+    /// </summary>
+    public void Reopened(SnapshotItemViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item == Baseline || item == Current)
+        {
+            OnPairChanged("run again, a snapshot of it was opened again");
+        }
+
+        Trend.Reopened(item);
     }
 
     // How the pair was chosen, for the log line that backs up a disputed comparison (sprint 2.3.7 review H3).

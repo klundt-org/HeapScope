@@ -20,7 +20,7 @@ anything they depend on.
   exposing a Core graph type).
 - **Process boundaries**: snapshot contents only processed in the worker; capture only in Application; the UI
   never blocks on the worker.
-- **IPC contracts**: DTOs are serializable and stable, versioned via `ProtocolVersion`, no large payloads
+- **IPC contracts**: DTOs are serializable and stable, versioned via `WorkerProtocol.Version` (Contracts), no large payloads
   (paging used), progress and cancellation on every long operation, clear error codes.
 - **Capability model**: features declare required capabilities; nothing is faked for snapshot kinds that
   cannot support it.

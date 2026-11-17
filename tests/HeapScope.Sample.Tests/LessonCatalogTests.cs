@@ -1,0 +1,104 @@
+// HeapScope
+// Copyright (C) 2026 Ray Klundt
+// https://github.com/klundt-org/HeapScope
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, version 3 only, with additional terms
+// under Section 7 of that license.
+//
+// Additional terms, including attribution requirements, apply.
+// See the ADDITIONAL-TERMS.md file distributed with this program.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program (see the LICENSE file). If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// Commercial licenses are available. See COMMERCIAL.md.
+
+using HeapScope.UI.ViewModels;
+
+namespace HeapScope.Sample.Tests;
+
+/// <summary>
+/// The Learn page's lessons against the sample's scenarios (sprint 3.13, ADR-042): every lesson's scenarios exist, every
+/// scenario has a lesson or a reason, every lesson's answer is a scenario it starts, and its choices hold the answer once.
+/// </summary>
+public sealed class LessonCatalogTests
+{
+    [Fact]
+    public void Every_lesson_starts_scenarios_the_sample_has_and_every_scenario_has_a_lesson_or_a_reason()
+    {
+        foreach (var lesson in LessonCatalog.All)
+        {
+            lesson.Scenarios.ShouldNotBeEmpty(lesson.Id);
+            lesson.Scenarios.ShouldAllBe(s => ScenarioCatalog.Find(s) != null, lesson.Id);
+            lesson.Scenarios.ShouldContain(lesson.AnswerScenario, lesson.Id);
+            if (lesson.Grows)
+            {
+                lesson.Scenarios.ShouldAllBe(s => ScenarioCatalog.Find(s)!.Grow != null, $"{lesson.Id} grows only what can grow");
+            }
+        }
+
+        var taught = LessonCatalog.All.SelectMany(l => l.Scenarios).ToHashSet(StringComparer.Ordinal);
+        foreach (var scenario in ScenarioCatalog.All)
+        {
+            (taught.Contains(scenario.Name) || LessonCatalog.NoLesson.ContainsKey(scenario.Name)).ShouldBeTrue($"{scenario.Name} has no lesson and no reason");
+        }
+
+        LessonCatalog.NoLesson.Keys.ShouldAllBe(name => ScenarioCatalog.Find(name) != null);
+    }
+
+    [Fact]
+    public void Every_lesson_is_whole_and_its_choices_hold_the_planted_type_once_among_the_sample_s_types()
+    {
+        LessonCatalog.All.Select(l => l.Id).Distinct(StringComparer.Ordinal).Count().ShouldBe(LessonCatalog.All.Count);
+        var answers = ScenarioCatalog.All.Select(s => s.AnswerType).ToList();
+        foreach (var lesson in LessonCatalog.All)
+        {
+            lesson.Title.ShouldNotBeNullOrWhiteSpace(lesson.Id);
+            lesson.Summary.ShouldNotBeNullOrWhiteSpace(lesson.Id);
+            lesson.Question.ShouldEndWith("?", customMessage: lesson.Id);
+            lesson.Steps.ShouldNotBeEmpty(lesson.Id);
+            var scenario = ScenarioCatalog.Find(lesson.AnswerScenario)!;
+            var choices = lesson.Choices(scenario.AnswerType, scenario.Decoys, answers);
+            choices.Count.ShouldBe(Lesson.DecoyCount + 1, lesson.Id);
+            choices.Count(c => c == scenario.AnswerType).ShouldBe(1, lesson.Id);
+            choices.Distinct(StringComparer.Ordinal).Count().ShouldBe(choices.Count, lesson.Id);
+            choices.ShouldBe(lesson.Choices(scenario.AnswerType, scenario.Decoys, answers), "the same order every time");
+            scenario.Decoys.ShouldAllBe(d => choices.Contains(d), $"{lesson.Id} offers its scenario's own decoys");
+            Lesson.IsRight(scenario.AnswerType, scenario.AnswerType).ShouldBeTrue();
+            Lesson.IsRight(choices.First(c => c != scenario.AnswerType), scenario.AnswerType).ShouldBeFalse();
+        }
+    }
+
+    /// <summary>
+    /// The owner approves the wording table (docs/design/info-text.md, "Sprint 3.13 additions"), not the code: each lesson and
+    /// each scenario says its row there word for word, so a change goes to the table first.
+    /// </summary>
+    [Fact]
+    public void Every_lesson_and_scenario_says_its_row_in_the_wording_table()
+    {
+        var table = File.ReadAllText(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "docs", "design", "info-text.md")).ReplaceLineEndings("\n");
+        var rows = table.Split('\n').Where(l => l.StartsWith("| ", StringComparison.Ordinal)).ToList();
+
+        string RowOf(string key) => rows.SingleOrDefault(r => r.StartsWith($"| {key} | ", StringComparison.Ordinal))
+            ?? throw new Xunit.Sdk.XunitException($"info-text.md has no row for {key}");
+
+        foreach (var lesson in LessonCatalog.All)
+        {
+            var steps = string.Join("<br>", lesson.Steps.Select((step, i) => $"{i + 1}. {step}"));
+            RowOf(lesson.Id).ShouldStartWith($"| {lesson.Id} | {lesson.Title} | {lesson.Summary} | {steps} | {lesson.Question} | ", customMessage: lesson.Id);
+        }
+
+        foreach (var scenario in ScenarioCatalog.All)
+        {
+            RowOf(scenario.Name).ShouldStartWith($"| {scenario.Name} | {scenario.Title} | {scenario.Plants} | ", customMessage: scenario.Name);
+        }
+    }
+}

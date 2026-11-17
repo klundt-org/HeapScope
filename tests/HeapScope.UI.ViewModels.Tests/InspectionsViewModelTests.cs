@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -42,7 +42,7 @@ public sealed class InspectionsViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
     }
 
     private InspectionsViewModel Inspections => _snapshots.Inspections;
@@ -80,6 +80,25 @@ public sealed class InspectionsViewModelTests : IDisposable
         Inspections.HasFragments.ShouldBeTrue();
         Inspections.Fragments.Select(f => (f.Heap, f.Live, f.Free, f.PinnedObjects)).ShouldBe([("Gen0", 1000L, (long?)100, 0L), ("Gen2", 8000L, (long?)3000, 1L)]);
         Inspections.Fragments[1].FreeFraction.ShouldBe(3000.0 / 11000, 1e-9);
+    }
+
+    // Sprint 3.12 (B6): a fragmentation result without a column used to throw past the tile and end the whole run.
+    [Fact]
+    public async Task A_result_missing_a_column_fails_its_own_tile_only()
+    {
+        _worker.Service.ColumnsOfInspection = name => name == InspectionNames.Fragmentation
+            ? [.. FakeWorkerService.InspectionColumnsFor(name).Where(c => c.Name != InspectionColumns.PinnedBytes)]
+            : null;
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await Inspections.RunTask;
+
+        Inspections.Status.ShouldBeNull();
+        var fragmentation = Inspections.Tiles.Single(t => t.Info.Name == InspectionNames.Fragmentation);
+        fragmentation.Status.ShouldNotBeNull().ShouldStartWith("This result could not be shown: ");
+        fragmentation.Status.ShouldContain(InspectionColumns.PinnedBytes);
+        Inspections.Tiles.Where(t => t.IsAvailable && t != fragmentation).ShouldAllBe(t => t.Status == null && t.Run != null);
     }
 
     [Fact]
@@ -186,6 +205,28 @@ public sealed class InspectionsViewModelTests : IDisposable
         await Inspections.Rows.WhenLoadedAsync();
         Inspections.OpenRowCommand.Execute(Inspections.Rows.GetRow(0));
         _snapshots.Navigator.Current.ShouldBeOfType<InstancesViewModel>().Title.ShouldBe("App.Buffer [App.dll] on the large object heap");
+    }
+
+    [Fact]
+    public async Task A_detector_row_with_no_type_or_address_still_opens_its_objects()
+    {
+        // A timer's "(static method)" row: nothing to name, but the worker holds its members (the 3.10 review M26).
+        _worker.Service.Inspections.Insert(0, new InspectionInfo("timer-leaks", "Timer leaks", "Timers.", "Dispose them.", null, InspectionKinds.Leak));
+        _worker.Service.InspectionRows["timer-leaks"] = [["(static method)", "5", "100", string.Empty, null, null]];
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await Inspections.RunTask;
+        Inspections.Selected = Inspections.Tiles[0];
+        Inspections.Rows.GetRow(0);
+        await Inspections.Rows.WhenLoadedAsync();
+
+        // What opens as a set can also be asked what it retains (M32).
+        Inspections.RetainedBySetCommand.CanExecute(Inspections.Rows.GetRow(0)).ShouldBeTrue();
+
+        Inspections.OpenRowCommand.Execute(Inspections.Rows.GetRow(0));
+
+        var set = _snapshots.Navigator.Current.ShouldBeOfType<SetViewModel>();
+        (set.Set.Spec.Kind, set.Set.Spec.Name, set.Set.Spec.Row).ShouldBe((ObjectSetKind.InspectionRow, "timer-leaks", 0));
     }
 
     [Fact]
@@ -313,10 +354,22 @@ public sealed class InspectionsViewModelTests : IDisposable
     [InlineData("FreePercent", "Free %")]
     [InlineData("PinnedObjects", "Pinned objects")]
     [InlineData("Value", "Value")]
+    [InlineData("LOHBytes", "LOH bytes")]
+    [InlineData("POHObjects", "POH objects")]
+    [InlineData("LOH", "LOH")]
+    [InlineData("BytesOnLOH", "Bytes on LOH")]
     public void Column_headers_split_names_into_words(string name, string header)
     {
         ColumnHeaders.Header(name).ShouldBe(header);
     }
+
+    [Theory]
+    [InlineData("Share", HeapScope.Contracts.ResultColumnKind.Percent, 92)]
+    [InlineData("Size", HeapScope.Contracts.ResultColumnKind.Bytes, 130)]
+    [InlineData("Objects", HeapScope.Contracts.ResultColumnKind.Integer, 130)]
+    [InlineData("Pinned objects and their bytes", HeapScope.Contracts.ResultColumnKind.Bytes, 234)]
+    public void A_generated_number_column_holds_its_header_and_its_numbers(string header, HeapScope.Contracts.ResultColumnKind kind, double width) =>
+        ColumnHeaders.NumberWidth(header, kind).ShouldBe(width);
 
     public void Dispose()
     {

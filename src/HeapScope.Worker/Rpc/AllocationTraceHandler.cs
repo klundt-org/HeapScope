@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -24,6 +24,7 @@
 using System.Globalization;
 using HeapScope.Analysis.Allocations;
 using HeapScope.Contracts;
+using HeapScope.Core;
 using HeapScope.Worker.Traces;
 using Microsoft.Extensions.Logging;
 
@@ -56,13 +57,13 @@ internal sealed class AllocationTraceHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (request.BucketSeconds is < AllocationTreeLimits.MinBucketSeconds or > AllocationTreeLimits.MaxBucketSeconds || double.IsNaN(request.BucketSeconds))
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"A timeline stretch must be between {AllocationTreeLimits.MinBucketSeconds} and {AllocationTreeLimits.MaxBucketSeconds:N0} seconds."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"A timeline stretch must be between {AllocationTreeLimits.MinBucketSeconds} and {AllocationTreeLimits.MaxBucketSeconds:N0} seconds."));
             }
 
             var open = Trace(request.TraceId);
             if (AllocationProfile.BucketCount(open.Trace, request.BucketSeconds * 1000) > AllocationTreeLimits.MaxBuckets)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"A timeline has at most {AllocationTreeLimits.MaxBuckets:N0} stretches; ask for longer ones (this trace is {open.Trace.Info.DurationMs / 1000:N1} s)."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"A timeline has at most {AllocationTreeLimits.MaxBuckets:N0} stretches; ask for longer ones (this trace is {open.Trace.Info.DurationMs / 1000:N1} s)."));
             }
 
             var buckets = await Task.Run(() => AllocationProfile.Timeline(open.Trace, request.BucketSeconds * 1000, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -106,7 +107,7 @@ internal sealed class AllocationTraceHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (request.Count is < 1 or > AllocationTreeLimits.MaxStacks)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"Ask for between 1 and {AllocationTreeLimits.MaxStacks:N0} stacks."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"Ask for between 1 and {AllocationTreeLimits.MaxStacks:N0} stacks."));
             }
 
             var open = Trace(request.TraceId);
@@ -139,12 +140,12 @@ internal sealed class AllocationTraceHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (request.MaxChildren is < AllocationTreeLimits.MinChildren or > AllocationTreeLimits.MaxChildren)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"Children per row must be between {AllocationTreeLimits.MinChildren} and {AllocationTreeLimits.MaxChildren:N0}."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"Children per row must be between {AllocationTreeLimits.MinChildren} and {AllocationTreeLimits.MaxChildren:N0}."));
             }
 
             if (request.Expanded is null || request.Expanded.Count > AllocationTreeLimits.MaxExpanded)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"At most {AllocationTreeLimits.MaxExpanded:N0} rows can be open at once. Collapse some rows."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"At most {AllocationTreeLimits.MaxExpanded:N0} rows can be open at once. Collapse some rows."));
             }
 
             var open = Trace(request.TraceId);
@@ -194,14 +195,14 @@ internal sealed class AllocationTraceHandler(
     {
         if (double.IsNaN(fromSeconds) || fromSeconds < 0 || toSeconds is { } to && (double.IsNaN(to) || to <= fromSeconds))
         {
-            throw new ArgumentException("An interval starts at 0 seconds or later and ends after it starts.");
+            throw new RequestRefusedException("An interval starts at 0 seconds or later and ends after it starts.");
         }
 
         var type = -1;
         if (typeName is not null && !open.TypeIds.TryGetValue(typeName, out type))
         {
             // The text may be what someone typed: not repeated (ARCHITECTURE.md 11).
-            throw new ArgumentException("No sample in this trace has that type. The types view ('allocations <trace> --view types' on the command line) lists the type names.");
+            throw new RequestRefusedException("No sample in this trace has that type. The types view ('allocations <trace> --view types' on the command line) lists the type names.");
         }
 
         return new AllocationFilter(fromSeconds * 1000, toSeconds is { } end ? end * 1000 : double.PositiveInfinity, type);

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -138,6 +138,7 @@ internal sealed record ProjectInfo(
     private static string ReferencedName(XElement element)
     {
         var include = (string?)element.Attribute("Include") ?? string.Empty;
-        return Path.GetFileNameWithoutExtension(include.Replace('\\', '/').Replace("$(_HeapScopeWorkerProject)", "HeapScope.Worker.csproj", StringComparison.Ordinal));
+        return Path.GetFileNameWithoutExtension(include.Replace('\\', '/').Replace("$(_HeapScopeWorkerProject)", "HeapScope.Worker.csproj", StringComparison.Ordinal)
+            .Replace("$(_HeapScopeSampleProject)", "HeapScope.Sample.csproj", StringComparison.Ordinal));
     }
 }

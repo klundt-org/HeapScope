@@ -16,6 +16,8 @@
     <!-- The CLI's own code is tested in process in HeapScope.Cli.Tests; these tests run the built exe. -->
     <ProjectReference Include="..\..\src\HeapScope.Cli\HeapScope.Cli.csproj" />
     <ProjectReference Include="..\..\src\HeapScope.UI\HeapScope.UI.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <!-- The tutorial's sample (sprint 3.13), run as a process. -->
+    <ProjectReference Include="..\..\src\HeapScope.Sample\HeapScope.Sample.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="..\..\fixtures\LeakyConsole\LeakyConsole.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="..\..\fixtures\LeakyApi\LeakyApi.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="..\..\fixtures\DenseHeap\DenseHeap.csproj" ReferenceOutputAssembly="false" Private="false" />
@@ -29,4 +31,12 @@
     <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" />
   </ItemGroup>
   <Import Project="$(HeapScopeRoot)build\Worker.Deploy.targets" />
+  <ItemGroup>
+    <!-- The one way tests make a SnapshotSession (sprint 3.12). -->
+    <Compile Include="..\SharedSession\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- A dump writer held until the test releases it (sprint 3.12). -->
+    <Compile Include="..\SharedCapture\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

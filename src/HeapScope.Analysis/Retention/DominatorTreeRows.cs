@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -31,7 +31,8 @@ namespace HeapScope.Analysis.Retention;
 /// Flattens the dominator tree for a paged grid (sprint 2.4, ADR-027): from the virtual root (its children, the top-level
 /// dominators, are the biggest retainers) or from a focus object, each expanded row's children in retained order, as
 /// objects or grouped by type or namespace. Siblings in the dominator tree retain disjoint sets, so a group's or a "more"
-/// row's retained bytes are the exact sum of its members'. A list shows <c>maxChildren</c> rows and a "more" row; each
+/// row's retained bytes are the sum of its members': a lower bound of what they keep alive together, which is counted in
+/// the row above (3.11 review M6). A list shows <c>maxChildren</c> rows and a "more" row; each
 /// expanded "more" row shows another batch. Keys survive a re-run: an object's is its address, a group's and a "more"
 /// row's extend their list's key. The key formats and the limits are the wire's (Contracts mirrors them, a test checks).
 /// </summary>

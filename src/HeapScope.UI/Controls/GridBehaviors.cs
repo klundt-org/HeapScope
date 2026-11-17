@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -281,8 +281,9 @@ public static class GridBehaviors
                 // The cells are a read-only list whose runtime type may have no public indexer: pick the cell in a converter.
                 Binding = new Binding(nameof(CellRowItem.Display)) { Converter = CellAt.Instance, ConverterParameter = index, Mode = BindingMode.OneWay },
                 Width = column.Kind == ResultColumnKind.Address ? new DataGridLength(150)
-                    : numeric ? new DataGridLength(110)
+                    : numeric ? new DataGridLength(ColumnHeaders.NumberWidth(ColumnHeaders.Header(column.Name), column.Kind))
                     : new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = numeric || column.Kind == ResultColumnKind.Address ? 0 : 180,
                 CanUserSort = false,
             };
             if (numeric)
@@ -297,6 +298,8 @@ public static class GridBehaviors
 
             grid.Columns.Add(text);
         }
+
+        NumberHeaders.ApplyAfterLayout(grid);
     }
 
     /// <summary>The cell at the column's index of a row's display cells.</summary>

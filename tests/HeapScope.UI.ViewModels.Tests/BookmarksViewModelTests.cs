@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -164,7 +164,7 @@ public sealed class BookmarksViewModelTests : IDisposable
     {
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
         var loggers = new SingleLoggerFactory(_logger);
-        return new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction(), loggers, new BookmarkStore(Path.Combine(_folder, "data")));
+        return new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction(), loggers, new BookmarkStore(Path.Combine(_folder, "data")));
     }
 
     private async Task OpenAsync(SnapshotsViewModel snapshots, string name)

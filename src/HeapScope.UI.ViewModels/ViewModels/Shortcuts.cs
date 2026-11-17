@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -94,7 +94,7 @@ public static class Shortcuts
             new(Show(Gesture(ShortcutKeys.Bookmark)), "Bookmark the shown object, or the selected row's object"),
             new(Show(Gesture(ShortcutKeys.OpenAsSet)), "Open the selected rows (types, compared types, an inspection row) as one set of objects"),
             new(Show(Gesture(ShortcutKeys.OpenDump)), "Open a dump"),
-            new(Show(Gesture(ShortcutKeys.Refresh)), "Refresh the page (processes, sessions)"),
+            new(Show(Gesture(ShortcutKeys.Refresh)), "Refresh the page (processes, sessions, Live's process list)"),
             new("Enter", "Open the selected row (also a double-click)"),
             new("Right, Left", "Expand or collapse the selected tree row"),
             new("Tab, Shift+Tab", "Move between the controls of a view"),

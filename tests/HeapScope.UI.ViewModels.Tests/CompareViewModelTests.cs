@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -44,7 +44,7 @@ public sealed class CompareViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
 
         // The later file name is captured earlier, so the default baseline comes from the capture time, not open order.
         _worker.Service.CapturedAt = path => Path.GetFileName(path) == "later-name.dmp" ? s_morning : s_morning.AddHours(1);

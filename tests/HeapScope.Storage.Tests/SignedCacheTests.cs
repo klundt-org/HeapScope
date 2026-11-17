@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -114,6 +114,27 @@ public sealed class SignedCacheTests : IDisposable
         var keys = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() => IndexCacheKey.LoadOrCreate(path).Key, TestContext.Current.CancellationToken)));
         keys.Select(Convert.ToHexString).Distinct().ShouldHaveSingleItem();
         (await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)).ShouldBe(keys[0]);
+    }
+
+    /// <summary>The cause of a test that failed now and then: the first read holds no lock, so it can meet another process's move.</summary>
+    [Fact]
+    public async Task A_read_while_another_process_moves_the_key_waits_for_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var path = Path.Combine(_directory, "moving", IndexCacheKey.FileName);
+        var key = IndexCacheKey.LoadOrCreate(path).Key;
+        var read = Task.CompletedTask;
+        byte[]? seen = null;
+        using (var mover = new FileStream(path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        using (var moving = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            read = Task.Run(() => seen = IndexCacheKey.LoadOrCreate(path).Key, ct);
+            await Task.Delay(200, ct);
+            read.IsCompleted.ShouldBeFalse("it waits for the lock");
+        }
+
+        await read.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        seen.ShouldBe(key);
     }
 
     [Fact]

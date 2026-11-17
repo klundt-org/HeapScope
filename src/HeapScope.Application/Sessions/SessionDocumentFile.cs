@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -22,7 +22,9 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using HeapScope.Core;
 
@@ -90,7 +92,7 @@ internal static class SessionDocumentFile
                     stream.ReadExactly(bytes);
                 }
 
-                var document = JsonSerializer.Deserialize<SessionDocument>(bytes, s_json);
+                var document = Parse(bytes);
                 if (document is not { Name: not null, Snapshots: not null })
                 {
                     return Unreadable("its session.json is not a HeapScope session document", $"{Elsewhere} {Untouched}");
@@ -183,7 +185,14 @@ internal static class SessionDocumentFile
         try
         {
             using var stream = PrivateFiles.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            JsonSerializer.Serialize(stream, document, s_json);
+            var root = JsonSerializer.SerializeToNode(document, s_json)!.AsObject();
+            Append(root, nameof(SessionDocument.Snapshots), document.UnknownSnapshots);
+            Append(root, nameof(SessionDocument.Runs), document.UnknownRuns);
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            {
+                root.WriteTo(writer, s_json);
+            }
+
             stream.Flush(flushToDisk: true);
             return temp;
         }
@@ -195,6 +204,98 @@ internal static class SessionDocumentFile
     }
 
     private static SessionRead Unreadable(string reason, string nextStep) => new(SessionReadStatus.Unreadable, null, reason, nextStep);
+
+    /// <summary>
+    /// The document, with the snapshot and run entries that hold a value this build does not know set aside as they were
+    /// written (sprint 3.12, B4). Only an unknown enum value is set aside: an entry damaged any other way still makes the
+    /// document unreadable, as before.
+    /// </summary>
+    private static SessionDocument? Parse(byte[] bytes)
+    {
+        if (JsonNode.Parse(bytes) is not JsonObject root)
+        {
+            return null;
+        }
+
+        var snapshots = SetAside<SessionSnapshot>(root, nameof(SessionDocument.Snapshots));
+        var runs = SetAside<SessionRun>(root, nameof(SessionDocument.Runs));
+        var document = root.Deserialize<SessionDocument>(s_json);
+        return document is null ? null : document with { UnknownSnapshots = snapshots, UnknownRuns = runs };
+    }
+
+    private static List<JsonElement> SetAside<T>(JsonObject root, string name)
+    {
+        var kept = new List<JsonElement>();
+        if (root[name] is not JsonArray entries)
+        {
+            return kept;
+        }
+
+        var enums = EnumMembers(typeof(T));
+        for (var i = entries.Count - 1; i >= 0; i--)
+        {
+            if (entries[i] is JsonObject entry && HasUnknownValue(entry, enums))
+            {
+                kept.Insert(0, JsonSerializer.SerializeToElement(entry, s_json));
+                entries.RemoveAt(i);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>
+    /// The values this build does not know in a document's set-aside entries, as "Snapshots: Kind=Future" (sprint 3.12 review
+    /// M18: the log says why an entry is not shown).
+    /// </summary>
+    internal static IEnumerable<string> UnknownValues(SessionDocument document)
+    {
+        foreach (var (name, entries, type) in new[]
+        {
+            (nameof(SessionDocument.Snapshots), document.UnknownSnapshots, typeof(SessionSnapshot)),
+            (nameof(SessionDocument.Runs), document.UnknownRuns, typeof(SessionRun)),
+        })
+        {
+            var enums = EnumMembers(type);
+            foreach (var entry in entries)
+            {
+                var values = enums
+                    .Where(e => entry.TryGetProperty(e.Key, out var value) && value.ValueKind == JsonValueKind.String
+                        && !Enum.TryParse(e.Value, value.GetString(), ignoreCase: true, out _))
+                    .Select(e => $"{e.Key}={entry.GetProperty(e.Key).GetString()}");
+                yield return $"{name}: {string.Join(", ", values)}";
+            }
+        }
+    }
+
+    // The members of a record whose type is an enum (or a nullable one), by name.
+    private static Dictionary<string, Type> EnumMembers(Type type) =>
+        type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(p => (p.Name, Type: Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType))
+            .Where(p => p.Type.IsEnum)
+            .ToDictionary(p => p.Name, p => p.Type, StringComparer.Ordinal);
+
+    private static bool HasUnknownValue(JsonObject entry, Dictionary<string, Type> enums) =>
+        enums.Any(e => entry[e.Key] is JsonValue value && value.TryGetValue<string>(out var text) && !Enum.TryParse(e.Value, text, ignoreCase: true, out _));
+
+    private static void Append(JsonObject root, string name, IReadOnlyList<JsonElement> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        if (root[name] is not JsonArray array)
+        {
+            array = [];
+            root[name] = array;
+        }
+
+        foreach (var entry in entries)
+        {
+            array.Add(JsonNode.Parse(entry.GetRawText()));
+        }
+    }
 
     private static void TryDelete(string path)
     {

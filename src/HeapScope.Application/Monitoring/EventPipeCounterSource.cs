@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -33,7 +33,7 @@ using HeapScope.Application.Events;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>The runtime's EventCounters over EventPipe (ADR-021).</summary>
-public sealed class EventPipeCounterSource : ICounterSource
+public sealed class EventPipeCounterSource(ILogger<EventPipeCounterSource>? logger = null) : ICounterSource
 {
     public Task RunAsync(int processId, TimeSpan interval, Action<HeapSample> onSample, CancellationToken cancellationToken)
     {
@@ -44,6 +44,7 @@ public sealed class EventPipeCounterSource : ICounterSource
             c => onSample(new HeapSample(
                 c.At, c.GcHeapBytes, c.Gen0Bytes, c.Gen1Bytes, c.Gen2Bytes, c.LargeObjectHeapBytes, c.PinnedObjectHeapBytes,
                 c.Gen0Collections, c.Gen1Collections, c.Gen2Collections, c.AllocatedBytes, c.TimeInGcPercent, c.WorkingSetBytes)),
-            cancellationToken);
+            cancellationToken,
+            logger);
     }
 }

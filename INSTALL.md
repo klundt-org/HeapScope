@@ -1,35 +1,36 @@
 # Installing HeapScope
 
-HeapScope ships on [GitHub Releases](https://github.com/rklundt/HeapScope/releases) for Windows and Linux (x64). Each
+HeapScope ships on [GitHub Releases](https://github.com/klundt-org/HeapScope/releases) for Windows and Linux (x64), plus untested macOS packages. Each
 release has:
 
 | File | What it is |
 |---|---|
 | `HeapScope-vX.Y.Z-win-x64.zip` | The app (`HeapScope.exe`) and the CLI (`heapscope-cli.exe`) for Windows. No .NET install needed. |
 | `HeapScope-vX.Y.Z-linux-x64.tar.gz` | The app (`HeapScope`) and the CLI (`heapscope-cli`) for Linux. No .NET install needed. |
+| `HeapScope-vX.Y.Z-osx-arm64.tar.gz`, `HeapScope-vX.Y.Z-osx-x64.tar.gz` | The app and the CLI for macOS (Apple silicon, Intel). **Untested: built on Linux, not on a Mac.** See [macOS](#macos-untested). |
 | `HeapScope.Cli.X.Y.Z.nupkg` | The CLI alone as a `dotnet tool`, for systems with the .NET 10 SDK. |
-| `HeapScope-vX.Y.Z-sbom-*.cdx.json` | Software bills of materials (CycloneDX) of the app, the CLI and the worker. |
+| `HeapScope-vX.Y.Z-sbom-*.cdx.json` | Software bills of materials (CycloneDX) of the app, the CLI, the worker and the tutorial's sample. |
 | `SHA256SUMS` | The SHA-256 checksum of every file above. |
 
 Capturing a snapshot of a running process works on Windows only. On Linux, HeapScope opens dumps taken with
-`dotnet-dump` (see [Your first snapshot](#your-first-snapshot)). macOS is not shipped yet; it can be built from source
-(see the README).
+`dotnet-dump` (see [Your first snapshot](#your-first-snapshot)).
 
 ## Check the download
 
 HeapScope's files are not signed. Check them against the release's checksums and its build provenance instead.
 
 - Linux: in the download folder, `sha256sum --check --ignore-missing SHA256SUMS`.
+- macOS: `shasum -a 256 HeapScope-vX.Y.Z-osx-arm64.tar.gz`, and compare the hash with its line in `SHA256SUMS`.
 - Windows (PowerShell): `Get-FileHash .\HeapScope-vX.Y.Z-win-x64.zip`, and compare the hash with its line in
   `SHA256SUMS` (PowerShell prints it in capitals).
-- Provenance, with the [GitHub CLI](https://cli.github.com/): `gh attestation verify <file> --repo rklundt/HeapScope`
+- Provenance, with the [GitHub CLI](https://cli.github.com/): `gh attestation verify <file> --repo klundt-org/HeapScope`
   confirms that GitHub Actions built the file from this repository.
 
 ## Windows
 
 1. Download `HeapScope-vX.Y.Z-win-x64.zip`.
 2. Extract it where you keep programs, for example `%LOCALAPPDATA%\Programs`. It holds one folder,
-   `HeapScope-vX.Y.Z-win-x64`. Keep the folder whole: the `worker` folder in it does the analysis.
+   `HeapScope-vX.Y.Z-win-x64`. Keep the folder whole: the `worker` folder in it does the analysis, and the `sample` folder holds the Learn page's sample.
 3. Run `HeapScope.exe`. The first time, Windows SmartScreen may say "Windows protected your PC", because the files are
    not signed: choose **More info**, then **Run anyway**. To skip that for every file at once, unblock the zip before
    extracting it (right-click it, **Properties**, tick **Unblock**), or in PowerShell: `Unblock-File .\HeapScope-vX.Y.Z-win-x64.zip`.
@@ -49,7 +50,7 @@ HeapScope's files are not signed. Check them against the release's checksums and
    mkdir -p ~/.local/opt && tar -xzf HeapScope-vX.Y.Z-linux-x64.tar.gz -C ~/.local/opt
    ```
 
-3. Put the commands on your path (keep the folder whole: the `worker` folder in it does the analysis):
+3. Put the commands on your path (keep the folder whole: the `worker` folder in it does the analysis, and the `sample` folder holds the Learn page's sample):
 
    ```bash
    mkdir -p ~/.local/bin
@@ -58,6 +59,34 @@ HeapScope's files are not signed. Check them against the release's checksums and
    ```
 
 4. Run `heapscope` for the app, `heapscope-cli --help` for the CLI.
+
+## macOS (untested)
+
+**These packages are built on Linux, not on a Mac, and have not been run.** They are not signed or notarized, so macOS may
+refuse to open them. The steps below are what should work; nobody has confirmed them yet.
+
+1. Download `HeapScope-vX.Y.Z-osx-arm64.tar.gz` (Apple silicon) or `HeapScope-vX.Y.Z-osx-x64.tar.gz` (Intel).
+2. Extract it in Terminal: `tar -xzf HeapScope-vX.Y.Z-osx-arm64.tar.gz`. Keep the folder whole: the `worker` folder in it
+   does the analysis.
+3. Run `./HeapScope` from that folder, or `./heapscope-cli` for the CLI.
+
+Capturing needs Windows, so take a dump with `dotnet-dump` and open the file in the app or the CLI (see
+[Your first snapshot](#your-first-snapshot)).
+
+### If macOS refuses it
+
+Also unconfirmed. Both steps turn off a macOS check for this folder, so [check the download](#check-the-download) first.
+
+- It says the app "cannot be opened" or "cannot be verified": remove the download mark with
+  `xattr -dr com.apple.quarantine <folder>`, or allow it under System Settings, Privacy & Security, Open Anyway.
+- Terminal says `killed` on Apple silicon: give the files a local signature, the `worker` folder included:
+  `find <folder> -type f \( -perm +111 -o -name '*.dylib' \) -exec codesign --force --sign - {} \;`
+
+If you try a macOS package, please say how it went in an [issue](https://github.com/klundt-org/HeapScope/issues): nobody has
+reported yet.
+
+To build on your Mac instead, with the .NET 10 SDK, run `bash build/publish.sh osx-arm64 <folder>` (or `osx-x64`) in a clone
+of the repository. That build is untested too.
 
 ## The CLI as a dotnet tool
 
@@ -107,6 +136,7 @@ HeapScope.Cli`. The tool works like the CLI in the archives (capture on Windows 
   `heapscope-cli summary <dump>`. Without .NET, use dotnet-dump's standalone download
   (https://aka.ms/dotnet-dump/linux-x64; make it executable with `chmod +x`); with the .NET SDK, `dotnet tool install
   --global dotnet-dump` installs it.
+- macOS (untested): the same `dotnet-dump collect` command, with `dotnet-dump` from `dotnet tool install --global dotnet-dump`.
 
 To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version
 the dumped process ran on. HeapScope finds it in the .NET runtimes installed on the machine and in its own runtime when
@@ -118,15 +148,19 @@ found, the message says what to do, including downloading it from Microsoft's sy
 
 ## Where HeapScope keeps its data
 
-Sessions and logs go to `%LOCALAPPDATA%\HeapScope` on Windows and `~/.local/share/HeapScope` on Linux (under
-`$XDG_DATA_HOME` when it is set), or to the folder the `HEAPSCOPE_DATA_FOLDER` environment variable names. Sessions hold
+Sessions and logs go to `%LOCALAPPDATA%\HeapScope` on Windows, `~/.local/share/HeapScope` on Linux (under `$XDG_DATA_HOME` when it is set) and
+`~/Library/Application Support/HeapScope` on macOS, or to the folder the `HEAPSCOPE_DATA_FOLDER` environment variable names. Sessions hold
 full dumps, which can contain anything the dumped process held (passwords and keys included). A snapshot's index cache
-goes next to its dump, or into that folder when the dump's folder cannot be written. Logs are described in the README,
+goes next to its dump, or into that folder when the dump's folder cannot be written. The folder also holds `settings.json`,
+which the Settings page and `heapscope-cli settings` write. Logs are described in the [user guide](docs/USER-GUIDE.md#logs-and-getting-help),
 under "Logs and getting help".
 
 ## Settings
 
-HeapScope reads its settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
+The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: whether the text
+typed in filters is written into the logs. It is saved in `settings.json` in the data folder.
+
+HeapScope reads its other settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
 environment variables that name the setting with `__` between its parts. For example, a DAC folder:
 
 ```json
@@ -143,6 +177,7 @@ release, so copy it across; for the dotnet tool, use environment variables, sinc
   `--Logging:File:MinimumLevel Debug`).
 - Windows SmartScreen: see the Windows steps above. Windows 11's Smart App Control blocks programs that are not signed
   and has no "Run anyway"; HeapScope's builds are not signed, so they cannot run where it is on.
+- macOS: see [If macOS refuses it](#if-macos-refuses-it).
 - Linux, a message about ICU ("Couldn't find a valid ICU package"): install ICU (see the Linux steps above).
 - Linux, the app stops while starting its display (SkiaSharp cannot load `libSkiaSharp`): install fontconfig.
 - The dotnet tool, "You must install or update .NET": install the .NET 10 runtime, or use the archive.
@@ -151,6 +186,7 @@ release, so copy it across; for the dotnet tool, use environment variables, sinc
 
 There is no installer and nothing in the registry. To update, extract the new release next to the old one (and point
 the Linux links at it, and copy any `appsettings.json`); to remove HeapScope, delete its folder and the links. Your
-data folder, with its dumps, stays until you delete it; on Windows, trace conversions may also leave files in
-`%TEMP%\HeapScope`. The [releases page](https://github.com/rklundt/HeapScope/releases) lists every version; watch the repository's
+data folder, with its dumps, stays until you delete it (Purge all on the Settings page, or `heapscope-cli purge all --yes`,
+deletes its logs, sessions and bookmarks first); on Windows, trace conversions may also leave files in
+`%TEMP%\HeapScope`. The [releases page](https://github.com/klundt-org/HeapScope/releases) lists every version; watch the repository's
 releases on GitHub to hear of new ones.

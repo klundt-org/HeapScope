@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -118,7 +118,7 @@ internal sealed class InstancesSource : IResultSource
         var columns = request.IncludeRetained ? s_columnsWithRetained : s_columns;
         if (!columns.Any(c => c.Name == sortColumn))
         {
-            throw new ArgumentException($"Unknown sort column {sortColumn}. Sort by one of: {string.Join(", ", columns.Select(c => c.Name))}.");
+            throw new RequestRefusedException($"Unknown sort column {sortColumn}. Sort by one of: {string.Join(", ", columns.Select(c => c.Name))}.");
         }
 
         InstanceFilter.Parse(request.Filter);
@@ -126,7 +126,7 @@ internal sealed class InstancesSource : IResultSource
         {
             if (request.Scope != InstanceScope.All)
             {
-                throw new ArgumentException("A set's members are listed without a scope.");
+                throw new RequestRefusedException("A set's members are listed without a scope.");
             }
 
             return true;
@@ -184,13 +184,13 @@ internal sealed class InstancesSource : IResultSource
         var columns = dominators is null ? s_columns : s_columnsWithRetained;
         if (!columns.Any(c => c.Name == sortColumn))
         {
-            throw new ArgumentException($"Unknown sort column {sortColumn}. Sort by one of: {string.Join(", ", columns.Select(c => c.Name))}.");
+            throw new RequestRefusedException($"Unknown sort column {sortColumn}. Sort by one of: {string.Join(", ", columns.Select(c => c.Name))}.");
         }
 
         var filter = InstanceFilter.Parse(request.Filter);
         if (set is null && request.Set is not null)
         {
-            throw new ArgumentException("The set has not been resolved.", nameof(set));
+            throw new RequestRefusedException("The set has not been resolved.", nameof(set));
         }
 
         // A set's members (all, or those of one type) take the place of a type's objects (sprint 3.1).
@@ -326,7 +326,7 @@ internal sealed class InstancesSource : IResultSource
                 var ready = HeapScope.Analysis.Inspections.Finalization.ReadyObjects(graph);
                 return [.. objects.Where(o => graph.Flags[o].HasFlag(ObjectFlags.HasFinalizer) || ready.Contains(o))];
             case InstanceScope.Reachable:
-                var rooted = reachable ?? throw new ArgumentException("The reachable objects have not been computed.", nameof(reachable));
+                var rooted = reachable ?? throw new RequestRefusedException("The reachable objects have not been computed.", nameof(reachable));
                 return [.. objects.Where(rooted.IsReachable)];
             case InstanceScope.SameValue:
                 if (reader is null)
@@ -337,7 +337,7 @@ internal sealed class InstancesSource : IResultSource
                 var modelHash = HeapScope.Analysis.Inspections.StringHashes.Compute(reader, [request.SameValueAs], out var modelValid, cancellationToken);
                 if (!graph.TryGetIndex(request.SameValueAs, out var model) || !modelValid[0])
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no string at 0x{request.SameValueAs:x} in this snapshot."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no string at 0x{request.SameValueAs:x} in this snapshot."));
                 }
 
                 // Equal text means equal size: only strings of the model's size are read, and compared by the same
@@ -347,7 +347,7 @@ internal sealed class InstancesSource : IResultSource
                 var hashes = HeapScope.Analysis.Inspections.StringHashes.Compute(reader, [.. candidates.Select(o => graph.Addresses[o])], out var valid, cancellationToken);
                 return [.. candidates.Where((_, k) => valid[k] && hashes[k] == modelHash[0])];
             default:
-                throw new ArgumentException($"Unknown instance scope {request.Scope}.");
+                throw new RequestRefusedException($"Unknown instance scope {request.Scope}.");
         }
     }
 
@@ -370,7 +370,7 @@ internal sealed class InstancesSource : IResultSource
         var count = objects.Length;
         if (count > MaxValueSort)
         {
-            throw new ArgumentException(string.Create(CultureInfo.InvariantCulture,
+            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture,
                 $"Sorting {count:N0} strings by value would hold all their text; filter them to at most {MaxValueSort:N0} first, or sort by another column."));
         }
 
@@ -531,7 +531,7 @@ internal sealed class InstancesSource : IResultSource
                 {
                     // The filter's text stays out of the message: the worker logs refusals, and a filter may be a value
                     // copied from the dump (sprint 2.3.7 review M6).
-                    throw new ArgumentException("The filter starts with 0x but is not a hexadecimal address.");
+                    throw new RequestRefusedException("The filter starts with 0x but is not a hexadecimal address.");
                 }
 
                 return new InstanceFilter(hex.ToLowerInvariant(), null, null);
@@ -545,7 +545,7 @@ internal sealed class InstancesSource : IResultSource
                 }
                 catch (RegexParseException ex)
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"The filter is not a valid regular expression: {ex.Error} at position {ex.Offset}."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The filter is not a valid regular expression: {ex.Error} at position {ex.Offset}."), ex);
                 }
             }
 

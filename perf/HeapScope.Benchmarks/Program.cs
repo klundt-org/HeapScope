@@ -1,6 +1,6 @@
 ﻿// HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -32,6 +32,8 @@ var benchmarks = new Dictionary<string, Func<BenchmarkArgs, int>>(StringComparer
     ["index-cache"] = IndexCacheBenchmark.Run,
     ["load-dump"] = LoadDumpBenchmark.Run,
     ["trace-report"] = TraceReport.Run,
+    ["ui-stalls"] = UiStallReport.Run,
+    ["cpu-profile"] = CpuProfileReport.Run,
     ["phase2-indices"] = Phase2IndexBenchmark.Run,
     ["reverse-index"] = ReverseIndexBenchmark.Run,
     ["retention"] = RetentionBenchmark.Run,

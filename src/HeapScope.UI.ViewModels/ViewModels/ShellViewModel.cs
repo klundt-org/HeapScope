@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -46,10 +46,56 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     private readonly Dictionary<Guid, JobViewModel> _jobsById = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsJobsPanelVisible))]
+    [NotifyPropertyChangedFor(nameof(CurrentLesson))]
     private NavigationItem _selectedItem;
 
     [ObservableProperty]
     private string _workerStatus = "Worker not started";
+
+    /// <summary>The Learn page (sprint 3.13), whose running lesson the shell shows beside every page; null without it.</summary>
+    public LearnViewModel? Learn { get; }
+
+    /// <summary>
+    /// The lesson running, shown beside every page but the Learn page (which shows its steps itself); null when none, on the
+    /// Learn page, or without one.
+    /// </summary>
+    public LessonItem? CurrentLesson => SelectedItem?.Page is LearnViewModel ? null : Learn?.Current;
+
+    /// <summary>Shows the Learn page, from the lesson panel beside the other pages.</summary>
+    [RelayCommand]
+    private void ShowLearn()
+    {
+        if (NavigationItems.FirstOrDefault(i => i.Page == Learn) is { } item)
+        {
+            SelectedItem = item;
+        }
+    }
+
+    private void ShowLessonPage(LessonPage page, ProcessesViewModel processes, LiveViewModel? live, AllocationsViewModel? allocations)
+    {
+        ObservableObject? target = page switch
+        {
+            LessonPage.Processes => processes,
+            LessonPage.Snapshots => Snapshots,
+            LessonPage.Live => live,
+            LessonPage.Allocations => allocations,
+            _ => null,
+        };
+        if (NavigationItems.FirstOrDefault(i => i.Page == target) is { } item)
+        {
+            SelectedItem = item;
+        }
+
+        if (page == LessonPage.Processes)
+        {
+            processes.RefreshCommand.Execute(null);
+        }
+    }
+
+    /// <summary>True while the app builds its pages in the background after start (sprint 3.12, task 4); the status bar shows it.</summary>
+    [ObservableProperty]
+    private bool _isPreparingViews;
 
     [ObservableProperty]
     private bool _isCrashBannerVisible;
@@ -57,7 +103,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _crashMessage;
 
-    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null)
+    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null)
     {
         Exports = exports ?? new GridExportService(new AutomaticUserInteraction());
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
@@ -65,6 +111,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Home = home ?? throw new ArgumentNullException(nameof(home));
         Snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
         JobsPage = new JobsPageViewModel(Jobs, operations.Jobs);
+        Jobs.CollectionChanged += (_, _) => RaiseJobsChanged();
         NavigationItems =
         [
             new NavigationItem("Home", Home),
@@ -73,12 +120,29 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             new NavigationItem("Processes", processes ?? throw new ArgumentNullException(nameof(processes))),
             .. live is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Live", live)],
             new NavigationItem("Jobs", JobsPage),
+            .. learn is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Learn", learn)],
+            .. settings is null ? Array.Empty<NavigationItem>() : [new NavigationItem("Settings", settings)],
             new NavigationItem("About", about ?? throw new ArgumentNullException(nameof(about))),
         ];
         Live = live;
         Allocations = allocations;
+        Learn = learn;
+        if (learn is not null)
+        {
+            // A lesson started shows the page it starts on (sprint 3.13).
+            learn.NavigateRequested += (_, page) => ShowLessonPage(page, processes, live, allocations);
+            learn.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(LearnViewModel.Current))
+                {
+                    OnPropertyChanged(nameof(CurrentLesson));
+                }
+            };
+        }
+
         About = about;
         about.Shortcuts = ShortcutList;
+        about.Diagnostics = Home;
         if (allocations is not null)
         {
             // A trace opened or recorded shows the Allocations page.
@@ -151,6 +215,24 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     /// <summary>The keyboard shortcuts, for the shortcuts list (sprint 2.7).</summary>
     public IReadOnlyList<Shortcut> ShortcutList => Shortcuts.List([.. NavigationItems.Select(i => i.Title)]);
 
+    /// <summary>
+    /// The jobs panel shows only while a job runs, and not on the Jobs page, which lists them anyway. Finished jobs stay on
+    /// the Jobs page; <see cref="FinishedJobsText"/> says so in the status line.
+    /// </summary>
+    public bool IsJobsPanelVisible => SelectedItem?.Page != JobsPage && Jobs.Any(j => j.IsRunning);
+
+    /// <summary>The status line's note on finished jobs and how many failed; empty when there are none.</summary>
+    public string FinishedJobsText
+    {
+        get
+        {
+            var finished = Jobs.Count(j => !j.IsRunning);
+            var failed = Jobs.Count(j => j.Status == JobStatus.Failed);
+            var text = finished switch { 0 => string.Empty, 1 => "1 job finished", _ => $"{finished} jobs finished" };
+            return failed > 0 ? $"{text}, {failed} failed" : text;
+        }
+    }
+
     /// <summary>All jobs, newest first; the jobs panel and the Jobs page bind to it.</summary>
     public ObservableCollection<JobViewModel> Jobs { get; } = [];
 
@@ -185,6 +267,23 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void DismissCrashBanner() => IsCrashBannerVisible = false;
+
+    [RelayCommand]
+    private void ShowJobs() => SelectedItem = NavigationItems.First(i => i.Page == JobsPage);
+
+    [RelayCommand]
+    private void ShowProcesses() => SelectedItem = NavigationItems.First(i => i.Page is ProcessesViewModel);
+
+    private bool HasLive() => Live is not null;
+
+    [RelayCommand(CanExecute = nameof(HasLive))]
+    private void ShowLive() => SelectedItem = NavigationItems.First(i => i.Page == Live);
+
+    private void RaiseJobsChanged()
+    {
+        OnPropertyChanged(nameof(IsJobsPanelVisible));
+        OnPropertyChanged(nameof(FinishedJobsText));
+    }
 
     /// <summary>Pages that show live data refresh when they are shown.</summary>
     partial void OnSelectedItemChanged(NavigationItem value) => Refresh(value?.Page);
@@ -223,6 +322,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         if (_jobsById.TryGetValue(job.Id, out var viewModel))
         {
             viewModel.Refresh();
+            RaiseJobsChanged();
         }
     });
 

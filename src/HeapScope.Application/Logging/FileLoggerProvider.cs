@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -97,6 +97,18 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
 
     /// <summary>The folder this provider writes to (messages that point users to the log name it, review M16).</summary>
     public string Directory => _directory;
+
+    /// <summary>The file this process writes now, or null before its first line (sprint 3.12: Purge logs keeps it).</summary>
+    public string? CurrentPath
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _writer is null ? null : GetPath(_writerDate, _part);
+            }
+        }
+    }
 
     /// <summary>The lowest level written.</summary>
     public LogLevel MinimumLevel => _minimumLevel;

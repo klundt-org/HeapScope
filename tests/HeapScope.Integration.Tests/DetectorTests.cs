@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -99,7 +99,7 @@ public sealed class DetectorTests : IClassFixture<DetectorRuns>, IAsyncDisposabl
     public DetectorTests(DetectorRuns runs)
     {
         _runs = runs;
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

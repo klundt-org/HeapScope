@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -65,7 +65,16 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<ICaptureService>(),
             sp.GetRequiredService<SnapshotsViewModel>(),
             sp.GetRequiredService<IUserInteraction>(),
-            sp.GetRequiredService<AllocationsViewModel>()));
+            sp.GetRequiredService<AllocationsViewModel>(),
+            sp.GetService<HeapScope.Application.Tutorial.SampleService>(),
+            sp.GetRequiredService<IUiDispatcher>(),
+            sp.GetService<ILogger<ProcessesViewModel>>()));
+        services.AddSingleton(sp => new LearnViewModel(
+            sp.GetService<HeapScope.Application.Tutorial.SampleService>(),
+            new HeapScope.Application.Tutorial.LessonProgress(logger: sp.GetService<ILogger<HeapScope.Application.Tutorial.LessonProgress>>()),
+            sp.GetService<ILogger<LearnViewModel>>(),
+            sp.GetRequiredService<ICaptureService>(),
+            sp.GetRequiredService<IUiDispatcher>()));
         services.AddSingleton(sp => new AboutViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<IUserInteraction>(),
@@ -80,6 +89,10 @@ public static class ViewModelServiceCollectionExtensions
         services.AddSingleton(sp => new GridExportService(
             sp.GetRequiredService<IUserInteraction>(),
             sp.GetService<ILogger<GridExportService>>()));
+        services.AddSingleton(sp => new SettingsViewModel(
+            sp.GetRequiredService<HeapScope.Application.Settings.SettingsService>(),
+            sp.GetRequiredService<IUserInteraction>(),
+            sp.GetService<ILogger<SettingsViewModel>>()));
         services.AddSingleton(sp => new ShellViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<IUiDispatcher>(),
@@ -89,7 +102,9 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<AboutViewModel>(),
             sp.GetRequiredService<LiveViewModel>(),
             sp.GetRequiredService<AllocationsViewModel>(),
-            sp.GetRequiredService<GridExportService>()));
+            sp.GetRequiredService<GridExportService>(),
+            sp.GetRequiredService<SettingsViewModel>(),
+            sp.GetRequiredService<LearnViewModel>()));
         return services;
     }
 }

@@ -1,7 +1,7 @@
 <!--
   HeapScope
   Copyright (C) 2026 Ray Klundt
-  https://github.com/rklundt/HeapScope
+  https://github.com/klundt-org/HeapScope
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -35,7 +35,8 @@
     <DockPanel DockPanel.Dock="Top" Margin="0,0,8,6">
       <Button DockPanel.Dock="Right" Content="{x:Static dto:ValueBoundTexts.SetAction}" Command="{Binding RetainedCommand}"
               ToolTip.Tip="What the set's objects keep alive together, exactly, on the Retainers tab." />
-      <TextBlock Text="Set" Classes="subtle" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <TextBlock DockPanel.Dock="Left" Text="Set" Classes="subtle" VerticalAlignment="Center" Margin="0,0,4,0" />
+      <ctl:InfoIcon DockPanel.Dock="Left" Text="{x:Static vm:InfoTexts.Set}" Margin="0,0,6,0" />
       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
     </DockPanel>
 
@@ -61,12 +62,13 @@
       <!-- Generations: the set's objects and bytes per heap kind, from its Types query. -->
       <Panel IsVisible="{Binding IsGenerationsShown}">
         <StackPanel DataContext="{Binding Types}" x:DataType="vm:TypeSummaryViewModel">
+          <ctl:InfoIcon Text="{x:Static vm:InfoTexts.SetGenerations}" HorizontalAlignment="Left" Margin="0,0,0,4" />
           <ctl:NoteText Text="{Binding GenerationsExplanation}" TextWrapping="Wrap" Classes="subtle" Margin="0,0,0,6" />
           <ItemsControl ItemsSource="{Binding HeapKinds}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:HeapKindShare">
                 <Grid ColumnDefinitions="16,170,130,150,*" Margin="0,2">
-                  <Border Width="10" Height="10" VerticalAlignment="Center" Background="{Binding BrushKey, Converter={x:Static ctl:ResourceKeyToBrushConverter.Instance}}" />
+                  <Border Width="10" Height="10" VerticalAlignment="Center" ctl:ThemeBrush.Background="{Binding BrushKey}" />
                   <TextBlock Grid.Column="1" Text="{Binding Label}" />
                   <TextBlock Grid.Column="2" Text="{Binding Objects, StringFormat='{}{0:N0} objects'}" HorizontalAlignment="Right" />
                   <TextBlock Grid.Column="3" Text="{Binding Bytes, StringFormat='{}{0:N0} bytes'}" HorizontalAlignment="Right" />
@@ -81,13 +83,14 @@
       <!-- Dominators: the members no other member holds, with what each retains. -->
       <Panel IsVisible="{Binding IsDominatorsShown}">
         <DockPanel DataContext="{Binding Dominators}" x:DataType="vm:SetDominatorsViewModel">
+          <ctl:InfoIcon DockPanel.Dock="Top" Text="{x:Static vm:InfoTexts.SetDominators}" HorizontalAlignment="Left" Margin="0,0,0,4" />
           <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,8,4" />
           <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,4" />
           <DataGrid x:Name="SetDominatorsGrid" ctl:GridExports.ExportName="SetDominators" CanUserSortColumns="False"
                     ctl:GridBehaviors.ResultColumns="{Binding Columns}"
                     ctl:GridBehaviors.Rows="{Binding Rows}"
                     ctl:GridBehaviors.OpenCommand="{Binding OpenRowCommand}"
-                    ToolTip.Tip="Double-click or Enter opens the object; right-click shows it in the dominator tree.">
+                    ToolTip.Tip="Retained is what the object keeps alive, other set members included, and Members counts the other members below it. Double-click or Enter opens the object; right-click shows it in the dominator tree.">
             <DataGrid.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="Show in dominator tree" Command="{Binding ShowInRetainersCommand}" CommandParameter="{Binding #SetDominatorsGrid.SelectedItem}" />
@@ -106,15 +109,17 @@
       <Panel IsVisible="{Binding IsSimilarRetentionShown}">
         <DockPanel DataContext="{Binding SimilarRetention}" x:DataType="vm:SimilarRetentionViewModel">
           <DockPanel DockPanel.Dock="Top" Margin="0,0,8,6">
-            <CheckBox DockPanel.Dock="Right" Content="Show framework steps" IsChecked="{Binding ShowFramework, Mode=TwoWay}" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Totals}" TextWrapping="Wrap" Classes="subtle" />
+            <CheckBox DockPanel.Dock="Right" Content="Show framework steps" IsChecked="{Binding ShowFramework, Mode=TwoWay}" VerticalAlignment="Center"
+                      ToolTip.Tip="Shows every step of each path. When off, runs of framework types (System, Microsoft and similar) between your own steps fold away." />
+            <ctl:InfoIcon DockPanel.Dock="Left" Text="{x:Static vm:InfoTexts.SetSimilarRetention}" Margin="0,0,6,0" />
+            <TextBlock Text="{Binding Totals}" TextWrapping="Wrap" Classes="subtle" VerticalAlignment="Center" />
           </DockPanel>
           <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,4" />
           <Grid RowDefinitions="*,Auto,*">
             <DataGrid x:Name="SimilarRetentionGrid" ctl:GridExports.ExportName="SimilarRetention" ItemsSource="{Binding Groups}"
                       SelectedItem="{Binding Selected, Mode=TwoWay}" CanUserSortColumns="False"
                       ctl:GridBehaviors.OpenCommand="{Binding OpenGroupCommand}"
-                      ToolTip.Tip="Double-click or Enter opens the group as a set; right-click opens its first object.">
+                      ToolTip.Tip="Paths counts the distinct paths a group has, and at most the two most different are listed. Double-click or Enter opens the group as a set; right-click offers an example object.">
               <DataGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="Open as set" Command="{Binding OpenGroupCommand}" CommandParameter="{Binding #SimilarRetentionGrid.SelectedItem}" />
@@ -122,12 +127,12 @@
                 </ContextMenu>
               </DataGrid.ContextMenu>
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Group" x:DataType="vm:RetentionGroupItem" Binding="{Binding Number}" Width="70" CellStyleClasses="number" />
-                <DataGridTextColumn Header="Objects" x:DataType="vm:RetentionGroupItem" Binding="{Binding Objects, StringFormat='{}{0:N0}'}" Width="100" CellStyleClasses="number" />
-                <DataGridTextColumn Header="Bytes" x:DataType="vm:RetentionGroupItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}'}" Width="120" CellStyleClasses="number" />
-                <DataGridTextColumn Header="Paths" x:DataType="vm:RetentionGroupItem" Binding="{Binding PathCount, StringFormat='{}{0:N0}'}" Width="70" CellStyleClasses="number" />
-                <DataGridTextColumn Header="Type" x:DataType="vm:RetentionGroupItem" Binding="{Binding TypeText}" Width="*" />
-                <DataGridTextColumn Header="The most different paths" x:DataType="vm:RetentionGroupItem" Binding="{Binding PathsText}" Width="3*" />
+                <DataGridTextColumn Header="Group" x:DataType="vm:RetentionGroupItem" Binding="{Binding Number, Mode=OneWay}" Width="70" CellStyleClasses="number" />
+                <DataGridTextColumn Header="Objects" x:DataType="vm:RetentionGroupItem" Binding="{Binding Objects, StringFormat='{}{0:N0}', Mode=OneWay}" Width="100" CellStyleClasses="number" />
+                <DataGridTextColumn Header="Bytes" x:DataType="vm:RetentionGroupItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="120" CellStyleClasses="number" />
+                <DataGridTextColumn Header="Paths" x:DataType="vm:RetentionGroupItem" Binding="{Binding PathCount, StringFormat='{}{0:N0}', Mode=OneWay}" Width="70" CellStyleClasses="number" />
+                <DataGridTextColumn Header="Type" x:DataType="vm:RetentionGroupItem" Binding="{Binding TypeText, Mode=OneWay}" Width="*" MinWidth="240" />
+                <DataGridTextColumn Header="The most different paths" x:DataType="vm:RetentionGroupItem" Binding="{Binding PathsText, Mode=OneWay}" Width="3*" MinWidth="240" />
               </DataGrid.Columns>
             </DataGrid>
             <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" />

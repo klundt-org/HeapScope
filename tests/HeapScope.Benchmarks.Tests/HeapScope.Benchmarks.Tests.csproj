@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- The developer tools' rules that decide a measurement (sprint 3.12: UI stall attribution). -->
+    <ProjectReference Include="..\..\perf\HeapScope.Benchmarks\HeapScope.Benchmarks.csproj" />
+  </ItemGroup>
+</Project>

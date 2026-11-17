@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -54,7 +54,8 @@ public sealed partial class ExportTests(UiSession ui)
             var rows = new ObservableCollection<Row> { new("App.Order", 24, "hidden"), new("=cmd", 1_500, "hidden") };
             var grid = new DataGrid { ItemsSource = rows };
             grid.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding(nameof(Row.Name)) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Bytes", Binding = new Binding(nameof(Row.Bytes)) });
+            // A header with a tooltip is a TextBlock (the Processes page's, 3.11): its text is the column's name.
+            grid.Columns.Add(new DataGridTextColumn { Header = new TextBlock { Text = "Bytes" }, Binding = new Binding(nameof(Row.Bytes)) });
             grid.Columns.Add(new DataGridTextColumn { Header = "Note", Binding = new Binding(nameof(Row.Note)), IsVisible = false });
             var secret = new DataGridTextColumn { Header = "Secret", Binding = new Binding(nameof(Row.Note)) };
             GridExports.SetHasValues(secret, true);

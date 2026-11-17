@@ -3,7 +3,7 @@
 Phases: **0.x** architecture, framework and skeleton; **1.x** quick wins; **2.x** heavy hitters; **3.x** depth to
 match dotMemory (planned 2026-10-28); **Phase 4 candidates** what Phase 3 leaves out; the Backlog ([BACKLOG.md](BACKLOG.md)) everything else. Closed sprints are
 in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-1.md),
-[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints and 3.9](sprints/phase-3.md).
+[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 to 3.12](sprints/phase-3.md).
 
 ## Status
 
@@ -43,6 +43,10 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.7 | Hardening | Closed | 2026-10-30 | sprint-3.7 |
 | 3.8 | Modularity | Closed | 2026-10-30 | sprint-3.8 |
 | 3.9 | Packaging and distribution | Closed | 2026-11-01 | sprint-3.9 |
+| 3.10 | Visual design and README | Closed | 2026-11-05 | sprint-3.10 |
+| 3.11 | Screens that explain themselves | Closed | 2026-11-10 | sprint-3.11 |
+| 3.12 | First-show performance and refactor analysis | Closed | 2026-11-15 | sprint-3.12 |
+| 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
 
 ---
 
@@ -53,6 +57,18 @@ Closed 2026-11-01; its section is in [sprints/phase-3.md](sprints/phase-3.md) an
 
 ---
 
+## Sprint 3.10: Visual design and README
+
+Closed 2026-11-05; its section is in [sprints/phase-3.md](sprints/phase-3.md) and its review in
+[reviews/sprint-3.10.md](reviews/sprint-3.10.md). ADR-040 records the visual design.
+
+---
+
+## Sprint 3.11: Screens that explain themselves
+
+Closed 2026-11-10; its section is in [sprints/phase-3.md](sprints/phase-3.md) and its review in
+[reviews/sprint-3.11.md](reviews/sprint-3.11.md). ADR-040 records the info icons, and ADR-032 the match of pinned objects.
+
 ## Peer review sprints
 
 3.6, 3.7 and 3.8 worked through `docs/reviews/peer-review-3.5.md`; all closed ([sprints/phase-3.md](sprints/phase-3.md)).
@@ -61,7 +77,9 @@ Closed 2026-11-01; its section is in [sprints/phase-3.md](sprints/phase-3.md) an
 
 ## Phase 4 candidates
 
-Not planned; picked from when Phase 3 closes (product owner, 2026-10-28: what Phase 3 does not address).
+Not planned; picked from when Phase 3 closes (product owner, 2026-10-28: what Phase 3 does not address). Each one, when
+built, adds its scenario to the sample and its lesson to the tutorial (sprint 3.13's extension contract; product owner,
+2026-11-15), for example a WPF leak scenario with the WPF detectors, a sunburst lesson, or a live session lesson.
 - A profiler-style live session: allocation data streamed beside the timeline, and snapshots faster than a full dump.
 - What was allocated between two snapshots in Compare, from a trace recorded between them (from 2.5; needs traces in
   `session.json` on the snapshots' clock, and each tick's type id and module to join a diff's rows, ADR-028).

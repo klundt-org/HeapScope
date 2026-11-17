@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -28,7 +28,8 @@ internal static class LayerRules
 {
     private sealed record Rule(string[] Projects, string[] Packages, bool AllowsMicrosoftExtensions = true);
 
-    private static readonly string[] s_buildOrderOnlyAllowed = ["HeapScope.Worker"];
+    // The worker and, since 3.13, the tutorial's sample: processes a front end ships and starts, never code it uses.
+    private static readonly string[] s_buildOrderOnlyAllowed = ["HeapScope.Worker", "HeapScope.Sample"];
 
     private static readonly Dictionary<string, Rule> s_rules = new(StringComparer.Ordinal)
     {
@@ -64,10 +65,13 @@ internal static class LayerRules
         ["HeapScope.UI.ViewModels"] = new(["HeapScope.Application", "HeapScope.Contracts"], ["CommunityToolkit.Mvvm"]),
 
         // The Avalonia desktop app (sprint 2.3.6, ADR-025): MIT Avalonia packages only (the update rule in CLAUDE.md).
-        // Avalonia.Fonts.Inter is referenced only to exclude its assets (an OFL font that comes with Avalonia.Headless).
+        // Avalonia.Fonts.Inter ships since 3.10: an MIT package holding an OFL font, allowed for fonts only (ADR-040).
         ["HeapScope.UI"] = new(
             ["HeapScope.Application", "HeapScope.Contracts", "HeapScope.UI.ViewModels"],
             ["Avalonia", "Avalonia.Desktop", "Avalonia.Themes.Fluent", "Avalonia.Controls.DataGrid", "Avalonia.Headless", "Avalonia.Fonts.Inter", "CommunityToolkit.Mvvm"]),
+
+        // The tutorial's sample (sprint 3.13, ADR-042): the fixtures' planted problems only, nothing of HeapScope.
+        ["HeapScope.Sample"] = new(["Leaks"], [], AllowsMicrosoftExtensions: false),
     };
 
     /// <summary>Assembly names that differ from project names.</summary>
@@ -75,6 +79,7 @@ internal static class LayerRules
     {
         ["heapscope-cli"] = "HeapScope.Cli",
         ["HeapScope"] = "HeapScope.UI",
+        ["heapscope-sample"] = "HeapScope.Sample",
     };
 
     public static IReadOnlyCollection<string> KnownProjects => s_rules.Keys;

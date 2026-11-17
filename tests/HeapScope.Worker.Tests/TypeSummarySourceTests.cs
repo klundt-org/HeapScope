@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -99,7 +99,7 @@ public sealed class TypeSummarySourceTests : IDisposable
     [Fact]
     public void Unknown_grouping_or_sort_values_are_refused()
     {
-        Should.Throw<ArgumentOutOfRangeException>(() => Create(new TypeSummaryRequest(Guid.Empty, (TypeGrouping)7)));
+        Should.Throw<HeapScope.Core.RequestRefusedException>(() => Create(new TypeSummaryRequest(Guid.Empty, (TypeGrouping)7)));
         Should.Throw<ArgumentException>(() => Create(new TypeSummaryRequest(Guid.Empty, SortColumn: "Size"))).Message.ShouldContain("Objects");
         Should.Throw<ArgumentException>(() => Create(new TypeSummaryRequest(Guid.Empty, SortColumn: "Gen0"))).Message.ShouldContain("Percent");
     }

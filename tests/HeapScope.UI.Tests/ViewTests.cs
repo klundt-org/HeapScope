@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -39,7 +39,9 @@ using HeapScope.UI.ViewModels;
 using HeapScope.UI.ViewModels.Tests;
 using HeapScope.UI.Views;
 using HeapScope.UI.Views.Pages;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.Tests;
 
@@ -58,6 +60,9 @@ public sealed class ViewTests(UiSession ui) : IDisposable
         await ui.RunAsync(async () =>
         {
             var (shell, _) = Shell();
+
+            // Sprint 3.12 (B1, owner 2026-11-12): Settings on the left, above About.
+            shell.NavigationItems.Select(i => i.Title).TakeLast(4).ShouldBe(["Jobs", "Learn", "Settings", "About"], "sprint 3.13: Learn low on the left, above Settings");
             ui.ClearBindingErrors();
             var window = new MainWindow(shell);
             window.Show();
@@ -129,6 +134,104 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             {
                 snapshots.SelectedTab = tab;
                 Dispatcher.UIThread.RunJobs();
+            }
+
+            ui.BindingErrors.ShouldBeEmpty();
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    /// Sprint 3.11 (review H1): walking every page, each Snapshots tab and the Snapshot tab's views down to one object, each
+    /// shows its info icons, with the approved text, where a user sees them. The set views are not walked here.
+    /// </summary>
+    [Fact]
+    public async Task Every_page_tab_and_view_shows_its_info_icons()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, worker) = Shell();
+            worker.Service.Rows.Add(["App.Order", "2", "80"]);
+            worker.Service.InstanceRows.Add(["0x1000", "App.Order", "40", "Gen2", ""]);
+            worker.Service.ReferenceRows.Add(["Customer", "0x3000", "App.Customer", "60"]);
+            worker.Service.TreeNodes.Add(new FakeTreeNode("o:100", string.Empty, "App.Cache", 0x100, 800));
+            var snapshots = shell.Snapshots;
+            ui.ClearBindingErrors();
+            var window = new MainWindow(shell) { Width = 1400, Height = 900 };
+            window.Show();
+            var seen = new HashSet<string>();
+            void Look()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.CaptureRenderedFrame()?.Dispose();
+                seen.UnionWith(window.GetVisualDescendants().OfType<Controls.InfoIcon>().Where(static i => i.IsEffectivelyVisible).Select(static i => i.Text ?? string.Empty));
+            }
+
+            foreach (var item in shell.NavigationItems)
+            {
+                shell.SelectedItem = item;
+                Look();
+            }
+
+            shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == snapshots);
+            foreach (var name in new[] { "a.dmp", "b.dmp" })
+            {
+                var dump = Path.Combine(_folder, name);
+                await File.WriteAllBytesAsync(dump, [1]);
+                await snapshots.OpenPathAsync(dump);
+            }
+
+            await snapshots.Types.QueryTask;
+            await Settle(snapshots.Types.Rows);
+            Look();
+
+            var navigator = snapshots.Navigator;
+            snapshots.Types.OpenRowCommand!.Execute(snapshots.Types.Rows.GetRow(0));
+            var instances = navigator.Current.ShouldBeOfType<InstancesViewModel>();
+            await instances.QueryTask;
+            await Settle(instances.Rows);
+            Look();
+            instances.OpenRowCommand!.Execute(instances.Rows.GetRow(0));
+            var obj = navigator.Current.ShouldBeOfType<ObjectViewModel>();
+            await obj.LoadTask;
+            Look();
+            foreach (var tab in new[] { 1, 2 })
+            {
+                obj.ReferencesTab = tab;
+                Look();
+            }
+            navigator.BackCommand.Execute(null);
+            instances.ReferencedByCommand!.Execute(null);
+            Look();
+            navigator.BackCommand.Execute(null);
+            instances.WhyAliveCommand!.Execute(null);
+            Look();
+
+            snapshots.Tab = SnapshotTabs.Compare;
+            Look();
+            snapshots.Compare.IsTrendShown = true;
+            Look();
+            snapshots.Tab = SnapshotTabs.Inspections;
+            await snapshots.Inspections.RunTask;
+            Look();
+            snapshots.Tab = SnapshotTabs.Retainers;
+            await snapshots.Retainers.QueryTask;
+            await snapshots.Retainers.IcicleTask;
+            Look();
+
+            string[] expected =
+            [
+                InfoTexts.Home, InfoTexts.Sessions, InfoTexts.Processes, InfoTexts.CaptureOptions, InfoTexts.Snapshots, InfoTexts.AnalysisPath,
+                InfoTexts.Bookmarks, InfoTexts.SnapshotTab, InfoTexts.SnapshotTotals, InfoTexts.HeapAreas, InfoTexts.Types, InfoTexts.TypesOptions,
+                InfoTexts.Instances, InfoTexts.Object, InfoTexts.ObjectOutgoing, InfoTexts.ObjectIncoming, InfoTexts.ObjectRetention,
+                InfoTexts.ObjectRetentionDetails, InfoTexts.Referrers, InfoTexts.WhyAlive, InfoTexts.PathOptions, InfoTexts.CompareTwo,
+                InfoTexts.CompareTrend, InfoTexts.CompareSnapshots, InfoTexts.CompareOptions, InfoTexts.TrendOptions, InfoTexts.Inspections,
+                InfoTexts.Detectors, InfoTexts.Retainers, InfoTexts.RetainersChart, InfoTexts.RetainersTree, InfoTexts.Allocations,
+                InfoTexts.Live, InfoTexts.LiveRules, InfoTexts.LivePastRuns, InfoTexts.LiveChart, InfoTexts.Jobs, InfoTexts.About,
+            ];
+            foreach (var text in expected)
+            {
+                seen.ShouldContain(text, customMessage: typeof(InfoTexts).GetFields().Single(f => (string?)f.GetRawConstantValue() == text).Name);
             }
 
             ui.BindingErrors.ShouldBeEmpty();
@@ -391,6 +494,31 @@ public sealed class ViewTests(UiSession ui) : IDisposable
         });
     }
 
+    /// <summary>A refused run lasts milliseconds: the page must keep saying why, with no prompt to choose a process under it.</summary>
+    [Fact]
+    public async Task The_live_page_shows_a_warning_in_place_of_the_empty_prompt()
+    {
+        await ui.RunAsync(() =>
+        {
+            var capture = new FakeCaptureService(_folder, new JobTracker(TimeProvider.System));
+            var live = new LiveViewModel(new MonitorService(capture, new SyntheticCounterSource(0, perSecond: 1)), capture, ImmediateUiDispatcher.Instance);
+            var page = new LivePage { DataContext = live };
+            var window = new Window { Content = page, Width = 1000, Height = 700 };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var warning = page.FindControl<SelectableTextBlock>("RunWarningText").ShouldNotBeNull();
+            var empty = window.GetVisualDescendants().OfType<Controls.EmptyState>().ShouldHaveSingleItem();
+            (warning.IsEffectivelyVisible, empty.IsVisible, empty.Text).ShouldBe((false, true, PlatformHints.LiveEmpty));
+
+            live.RunWarning = "Refused.";
+            Dispatcher.UIThread.RunJobs();
+
+            (warning.IsEffectivelyVisible, warning.Text, empty.IsVisible).ShouldBe((true, "Refused.", false));
+            window.Close();
+            return Task.CompletedTask;
+        });
+    }
+
     [Fact]
     public async Task Where_capture_is_not_available_the_processes_page_says_why()
     {
@@ -598,6 +726,156 @@ public sealed class ViewTests(UiSession ui) : IDisposable
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
+    // Sprint 3.12, task 4: the pages are built once after start, the status bar says so meanwhile, and nothing stays behind.
+    [Fact]
+    public async Task The_prewarm_builds_every_heavy_view_cleanly_and_shows_that_it_runs()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            ui.ClearBindingErrors();
+            var window = new MainWindow(shell);
+            window.Show();
+            var prewarm = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance);
+            var shown = new List<bool>();
+            shell.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ShellViewModel.IsPreparingViews))
+                {
+                    shown.Add(shell.IsPreparingViews);
+                    window.FindControl<Control>("PreparingViews")!.IsVisible.ShouldBe(shell.IsPreparingViews, "the status bar follows it");
+                }
+            };
+
+            var run = prewarm.RunAsync(window, TestContext.Current.CancellationToken);
+            while (!run.IsCompleted)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Yield();
+            }
+
+            await run;
+            prewarm.Completion.IsCompletedSuccessfully.ShouldBeTrue();
+            shown.ShouldBe([true, false]);
+            window.PrewarmHost.Children.ShouldBeEmpty("each view built alone is dropped after its step");
+            ui.BindingErrors.ShouldBeEmpty();
+
+            // A page built in place is the one its first show uses: no second view.
+            var built = window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem();
+            shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == shell.Snapshots);
+            Dispatcher.UIThread.RunJobs();
+            window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem().ShouldBeSameAs(built);
+            built.IsEffectivelyVisible.ShouldBeTrue();
+            ui.BindingErrors.ShouldBeEmpty();
+
+            // Every page and subject view is built, or named here: shown at start, a row, or inside the Snapshots page.
+            string[] inside = [nameof(HomePage), nameof(JobRow), nameof(SnapshotTab), nameof(HeapScope.UI.Views.Subjects.ObjectView)];
+            var views = typeof(MainWindow).Assembly.GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(UserControl)) && t.Namespace is "HeapScope.UI.Views.Pages" or "HeapScope.UI.Views.Subjects")
+                .Select(t => t.Name);
+            views.Except(inside).Order().ShouldBe(prewarm.Built.Order());
+            window.Close();
+        });
+    }
+
+    // The review's M12: a cancel mid-run, a step that fails, and a page shown before its step.
+    [Fact]
+    public async Task The_prewarm_stops_on_a_cancel_and_says_so()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            var window = new MainWindow(shell);
+            window.Show();
+            using var stop = new CancellationTokenSource();
+            var prewarm = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance)
+            {
+                // The second view's step cancels, as a window closing while it is built would.
+                StandaloneViews =
+                [
+                    (nameof(AboutPage), static () => new AboutPage()),
+                    (nameof(SettingsPage), () =>
+                    {
+                        stop.Cancel();
+                        return new SettingsPage();
+                    }),
+                    (nameof(JobsPage), static () => new JobsPage()),
+                ],
+            };
+
+            var run = prewarm.RunAsync(window, stop.Token);
+            while (!run.IsCompleted)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Yield();
+            }
+
+            await run;
+            prewarm.Built.ShouldBe([nameof(SnapshotsPage), nameof(AboutPage), nameof(SettingsPage)], "it stops before the next step");
+            prewarm.Completion.IsCompletedSuccessfully.ShouldBeTrue();
+            shell.IsPreparingViews.ShouldBeFalse();
+            window.PrewarmHost.Children.ShouldBeEmpty();
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public async Task A_prewarm_step_that_fails_is_skipped_and_the_rest_are_built()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            var window = new MainWindow(shell);
+            window.Show();
+            shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == shell.Snapshots);
+            Dispatcher.UIThread.RunJobs();
+            var shown = window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem();
+            var prewarm = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance)
+            {
+                StandaloneViews = [("Broken", static () => throw new InvalidOperationException("broken view")), (nameof(AboutPage), static () => new AboutPage())],
+            };
+
+            var run = prewarm.RunAsync(window, TestContext.Current.CancellationToken);
+            while (!run.IsCompleted)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Yield();
+            }
+
+            await run;
+            prewarm.Built.ShouldBe([nameof(AboutPage)], "the Snapshots page was shown already, so it is not built again; the broken one is skipped");
+            window.GetVisualDescendants().OfType<SnapshotsPage>().ShouldHaveSingleItem().ShouldBeSameAs(shown);
+            prewarm.Completion.IsCompletedSuccessfully.ShouldBeTrue();
+            window.PrewarmHost.Children.ShouldBeEmpty("a failed step leaves nothing behind");
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public async Task The_prewarm_is_off_by_setting_and_in_screenshot_runs()
+    {
+        await ui.RunAsync(async () =>
+        {
+            var (shell, _) = Shell();
+            var off = new ViewPrewarmer(shell, Configuration("false"), new UiOptions(null), NullLogger<ViewPrewarmer>.Instance);
+            var screenshots = new ViewPrewarmer(shell, Configuration(null), new UiOptions(null, ScreenshotFolder: _folder), NullLogger<ViewPrewarmer>.Instance);
+            var window = new MainWindow(shell);
+
+            await off.RunAsync(window, TestContext.Current.CancellationToken);
+            await screenshots.RunAsync(window, TestContext.Current.CancellationToken);
+
+            (off.IsEnabled, screenshots.IsEnabled).ShouldBe((false, false));
+            (off.Completion.IsCompletedSuccessfully, screenshots.Completion.IsCompletedSuccessfully).ShouldBe((true, true));
+            shell.IsPreparingViews.ShouldBeFalse();
+            (off.Built.Count, screenshots.Built.Count).ShouldBe((0, 0));
+        });
+    }
+
+    private static Microsoft.Extensions.Configuration.IConfiguration Configuration(string? prewarm) =>
+        new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(prewarm is null ? [] : [new(ViewPrewarmer.SettingName, prewarm)])
+            .Build();
+
     internal static DataGrid Grid(Window window, string name)
     {
         // A set's Types view (sprint 3.1) has a second types grid: the shown one is meant when both exist.
@@ -624,11 +902,17 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             .AddSingleton(jobs)
             .AddSingleton<IWorkerClient>(worker)
             .AddSingleton(new WorkerOperations(worker, jobs))
-            .AddSingleton(new SnapshotSession(worker, jobs))
+            .AddSingleton(TestSessions.Create(worker, jobs))
             .AddSingleton<Application.Sessions.ICaptureService>(capture)
             .AddSingleton(new MonitorService(capture, new SyntheticCounterSource(0, perSecond: 1)))
             .AddSingleton(new Application.Sessions.SessionLibrary(Path.Combine(_folder, "sessions")))
             .AddSingleton(sp => new Application.Allocations.AllocationSession(worker, jobs, new Application.Sessions.TraceService(), sp.GetRequiredService<Application.Sessions.SessionLibrary>()))
+            .AddSingleton(sp => new Application.Settings.SettingsService(
+                sp.GetRequiredService<Application.Sessions.SessionLibrary>(),
+                new Application.Bookmarks.BookmarkStore(_folder),
+                sp.GetRequiredService<Application.Snapshots.SnapshotSession>(),
+                jobs,
+                folders: new Core.HeapScopeFolders(_folder)))
             .AddSingleton<IUiDispatcher>(ImmediateUiDispatcher.Instance)
             .AddSingleton<IUserInteraction>(interaction ?? new FakeUserInteraction())
             .AddHeapScopeViewModels()

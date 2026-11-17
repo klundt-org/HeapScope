@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -210,7 +210,7 @@ public static class TraceRecorder
         }
 
         return ex is UnauthorizedAccessException
-            ? ElevationRequiredException.For(processId, name, ex)
+            ? ElevationRequiredException.ForTrace(processId, name, ex)
             : new TargetUnavailableException($"{name} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
     }
 }

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -49,6 +49,10 @@ internal static class CliHost
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
         builder.Logging.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(level => level >= LogLevel.Warning);
+
+        // The worker's own lines go to the file log only (sprint 3.12 review M16): its error line holds the exception's text,
+        // its stack and the request, filter text included, which the user is not shown (B5) and CI logs would keep.
+        builder.Logging.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>("Worker", LogLevel.None);
         var fileLog = builder.Services.AddHeapScopeFileLog(builder.Configuration, "cli");
         builder.Logging.Configure(o => o.ActivityTrackingOptions = ActivityTrackingOptions.TraceId);
         if (fileLog.MinimumLevel < LogLevel.Information)

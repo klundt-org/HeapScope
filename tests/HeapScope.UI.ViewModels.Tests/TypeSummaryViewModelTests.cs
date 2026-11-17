@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -40,7 +40,7 @@ public sealed class TypeSummaryViewModelTests : IDisposable
     public TypeSummaryViewModelTests()
     {
         Directory.CreateDirectory(_folder);
-        _session = new SnapshotSession(_worker, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_worker, new JobTracker(TimeProvider.System));
         _types = new TypeSummaryViewModel(_session, ImmediateUiDispatcher.Instance);
         for (var i = 0; i < 450; i++)
         {

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -142,7 +142,7 @@ internal sealed class TypeDiffSource : IResultSource
         ];
         if (!Enum.IsDefined(request.GroupBy))
         {
-            throw new ArgumentOutOfRangeException(nameof(request), $"Unknown grouping {(int)request.GroupBy}.");
+            throw new RequestRefusedException($"Unknown grouping {(int)request.GroupBy}.");
         }
 
         var sortColumn = request.SortColumn ?? TypeDiffColumns.BytesDelta;

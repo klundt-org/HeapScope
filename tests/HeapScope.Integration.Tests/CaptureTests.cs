@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -27,6 +27,7 @@ using HeapScope.Application.Sessions;
 using HeapScope.Capture;
 using HeapScope.Integration.Tests.Infrastructure;
 using HeapScope.Loaders.ClrMd;
+using HeapScope.Tests.Shared;
 
 namespace HeapScope.Integration.Tests;
 
@@ -110,12 +111,18 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     public async Task Canceling_a_real_capture_leaves_no_dump_behind()
     {
         await shared.Api.PostWorkAsync(100, Ct);
-        var service = Service();
-        var job = service.StartCapture(shared.Api.ProcessId);
-        await WaitUntilAsync(() => job.Progress?.Phase == "Writing dump" || job.Result.IsCompleted);
-        job.Cancel();
 
-        await Should.ThrowAsync<OperationCanceledException>(() => job.Result);
+        // The runtime's writer is held until the cancel is in (sprint 3.12): on a fast machine the capture used to finish
+        // before the cancel arrived (the 3.11 wrap), so the test saw no cancel at all.
+        var writer = new HeldDumpWriter(DiagnosticsDumpWriter.Instance);
+        var service = Service(writer);
+        var job = service.StartCapture(shared.Api.ProcessId);
+        await writer.Started(shared.Api.ProcessId).WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        job.Cancel();
+        writer.Release(shared.Api.ProcessId);
+
+        await Should.ThrowAsync<OperationCanceledException>(() => job.Result.WaitAsync(TimeSpan.FromSeconds(120), Ct));
+        writer.Completed(shared.Api.ProcessId).ShouldBe(1, "the runtime wrote the whole dump before the cancel deleted it");
 
         // The runtime finished writing before the job ended; the file is gone (or goes within the retry window).
         await WaitUntilAsync(() => !Directory.EnumerateFiles(_root.Path, "*.dmp*", SearchOption.AllDirectories).Any(), TimeSpan.FromSeconds(30));
@@ -271,8 +278,8 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         }
     }
 
-    private CaptureService Service() =>
-        new(new ProcessDiscovery(), new DumpCapturer(), new SessionLibrary(_root.Path), new JobTracker(TimeProvider.System));
+    private CaptureService Service(IDumpWriter? writer = null) =>
+        new(new ProcessDiscovery(), new DumpCapturer(writer: writer), new SessionLibrary(_root.Path), new JobTracker(TimeProvider.System));
 
     /// <summary>Reports every other process as elevated and HeapScope as not elevated.</summary>
     private sealed class AlwaysElevatedTarget : IElevationProbe

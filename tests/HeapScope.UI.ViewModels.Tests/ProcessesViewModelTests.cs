@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -45,7 +45,9 @@ public sealed class ProcessesViewModelTests : IDisposable
     public ProcessesViewModelTests()
     {
         var operations = new WorkerOperations(_worker, _jobs);
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, _jobs), operations, new ImmediateUiDispatcher(), _interaction);
+        // A fixed amount of free memory: with the machine's own, a full test run that leaves little free makes opening a
+        // capture ask the low memory question first (failed so on 2026-11-10 with 0.6 GB free).
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _jobs), operations, new ImmediateUiDispatcher(), _interaction);
         _capture = new FakeCaptureService(_root, _jobs);
         _processes = new ProcessesViewModel(_capture, _snapshots, _interaction);
         _capture.Processes.Add(new ProcessEntry(10, "Api", "Api.exe --urls x", "10.0.13", ProcessElevation.NotElevated, false, 1000, 2000));

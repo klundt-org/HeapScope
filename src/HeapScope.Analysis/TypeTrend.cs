@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -22,6 +22,8 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using HeapScope.Core.Graph;
+
+using HeapScope.Core;
 
 namespace HeapScope.Analysis;
 
@@ -65,7 +67,7 @@ public static class TypeTrend
         ArgumentNullException.ThrowIfNull(snapshots);
         if (snapshots.Count < 2)
         {
-            throw new ArgumentException("A trend needs at least two snapshots.", nameof(snapshots));
+            throw new RequestRefusedException("A trend needs at least two snapshots.", nameof(snapshots));
         }
 
         var n = snapshots.Count;
@@ -75,7 +77,7 @@ public static class TypeTrend
             var (graph, aggregation, interfaces) = snapshots[s];
             if (groupBy == GroupKey.Interface && interfaces is null)
             {
-                throw new ArgumentException("Interface grouping needs every snapshot's interfaces.", nameof(snapshots));
+                throw new RequestRefusedException("Interface grouping needs every snapshot's interfaces.", nameof(snapshots));
             }
 
             for (var t = 0; t < aggregation.TypeCount; t++)

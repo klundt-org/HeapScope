@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -80,7 +80,7 @@ public sealed partial class AllocationsViewModel : ObservableObject
     public async Task OpenPathAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        if (Traces.FirstOrDefault(t => string.Equals(t.Trace.Path, Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)) is { } open)
+        if (Traces.FirstOrDefault(t => HeapScope.Contracts.PathIdentity.Same(t.Trace.Path, Path.GetFullPath(path))) is { } open)
         {
             Selected = open;
             TraceShown?.Invoke(this, EventArgs.Empty);

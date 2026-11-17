@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -228,9 +228,10 @@ public sealed partial class InspectionsViewModel : ObservableObject
             return;
         }
 
-        // A leak detector's row of a type opens exactly the objects it counted, as a set (sprint 3.1, 2.6 review M24); a
-        // row that names one object (a growing collection) still opens that object (the 3.1 review).
-        if (Selected is { IsDetector: true } && TargetOf(row) is { TypeName: not null } && SetOf(row) is { } set)
+        // A leak detector's row of a type opens the objects behind it, as a set (sprint 3.1, 2.6 review M24), and so does one
+        // with no type or address (a timer's static method, the finalizer backlog's other types: 3.10 review M26). A row that
+        // names one object (a growing collection) still opens that object (the 3.1 review).
+        if (Selected is { IsDetector: true } && TargetOf(row) is null or { TypeName: not null } && SetOf(row) is { } set)
         {
             _navigator?.Navigate(NavigationTarget.ObjectSet(snapshot, set.Query, set.Title));
             return;
@@ -309,7 +310,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
     }
 
-    private static bool HasObjects(CellRowItem? row) => row is { IsLoaded: true } && TargetOf(row) is not null;
+    // A detector's row with no type or address still has members, as opening it does (3.10 review M26, M32).
+    private bool HasObjects(CellRowItem? row) => row is { IsLoaded: true } && (TargetOf(row) is not null || Selected is { IsDetector: true });
 
     /// <summary>What a row opens: its hidden type, module and scope, or its address alone (ADR-020).</summary>
     public static InspectionTarget? TargetOf(CellRowItem row)
@@ -393,6 +395,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)
@@ -436,7 +440,12 @@ public sealed partial class InspectionsViewModel : ObservableObject
                 return;
             }
 
-            var key = run.Rows.Info.Columns.Select((c, i) => (c, i)).First(c => !c.c.IsHidden).i;
+            var key = run.Rows.Info.Columns.Select((c, i) => (c, i)).FirstOrDefault(c => !c.c.IsHidden, (null!, -1)).i;
+            if (key < 0)
+            {
+                throw new InvalidOperationException("The worker's result has no visible column. The worker and the app are from different builds.");
+            }
+
             tile.FirstRows = [.. first.Rows.Take(TileRows).Select(r => r[key] ?? string.Empty)];
             if (isFragmentation)
             {
@@ -461,6 +470,13 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A result this build cannot show (a column missing) fails its own tile only (sprint 3.12, B6): it used to end
+            // the whole run, and every inspection after it reported as failed.
+            _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
+            tile.Status = "This result could not be shown: " + ex.Message;
         }
     }
 
@@ -604,6 +620,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            _logger.LogInformation("{Section} shown as: {Message}", "Inspections against a baseline", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)
@@ -616,7 +633,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
 
     private void ShowFragments(IReadOnlyList<ResultColumn> columns, IReadOnlyList<IReadOnlyList<string?>> rows)
     {
-        int At(string name) => columns.Select((c, i) => (c, i)).Single(c => c.c.Name == name).i;
+        int At(string name) => ResultColumns.Require(columns, name);
         var (heap, live, free, pinned, pinnedBytes) = (At(InspectionColumns.Heap), At(InspectionColumns.Live), At(InspectionColumns.Free), At(InspectionColumns.PinnedObjects), At(InspectionColumns.PinnedBytes));
         Fragments.Clear();
         foreach (var row in rows)

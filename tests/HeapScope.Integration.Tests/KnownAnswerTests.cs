@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -406,6 +406,34 @@ public sealed class KnownAnswerTests(AllLeaksDump shared) : IClassFixture<AllLea
         var stackTypes = string.Join(" | ", Dump.Runtime.Threads.Select(t => $"thread {t.ManagedThreadId}: " +string.Join(", ", t.EnumerateStackTrace().Select(f => f.Method?.Name ?? f.Kind.ToString())) + " roots: " + string.Join(", ", t.EnumerateStackRoots().Select(r => r.Object.Type?.Name))));
         stackRoots.ShouldContain(r => r.Object.Type!.Name == "Fixtures.Leaks.StackRootedObject", stackTypes);
         stackRoots.ShouldContain(r => r.Object.Type!.Name == "Fixtures.Leaks.InteriorElement[]", stackTypes);
+    }
+
+    [Fact]
+    public void The_check_loads_the_dac_beside_the_dumped_runtime_and_nothing_it_needs_is_missing_locally()
+    {
+        // 2026-11-03: the independent check opens fixture dumps locally only, so a symbol server never decides a known
+        // answer. A heap walk and the roots come first, since ClrMD asks for some images only while walking.
+        _ = Dump.Heap.EnumerateObjects().Count();
+        _ = Dump.Heap.EnumerateRoots().Count();
+        var recorded = Dump.Runtime.ClrInfo.ModuleInfo.FileName;
+
+        Dump.DacPath.ShouldBe(Path.Combine(Path.GetDirectoryName(recorded)!, "mscordaccore.dll"), StringCompareShould.IgnoreCase);
+        Dump.Locator.Unanswered.ShouldBeEmpty(string.Join(Environment.NewLine, Dump.Locator.Requests));
+    }
+
+    [Fact]
+    public void A_dump_whose_dac_is_missing_fails_with_what_was_looked_for()
+    {
+        using var empty = new TempFolder();
+
+        var error = Should.Throw<InvalidOperationException>(() => DumpAnalysis.Open(shared.DumpPath, empty.Path));
+
+        error.Message.ShouldContain("No DAC beside the dumped runtime");
+        error.Message.ShouldContain(Path.Combine(empty.Path, "mscordaccore.dll"));
+        error.Message.ShouldContain("Runtime: ");
+        error.Message.ShouldContain("Debugging library: ");
+        error.Message.ShouldContain("Times: LoadDump ");
+        error.Message.ShouldContain("Environment: DOTNET_ROOT ");
     }
 }
 

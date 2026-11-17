@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -82,7 +82,7 @@ public sealed class ComparisonTests(ComparisonRuns runs) : IClassFixture<Compari
     private readonly WorkerHost _host = new(Options.Create(new WorkerHostOptions { WorkerPath = TestPaths.WorkerExe }), new ListLoggerProvider());
     private SnapshotSession? _session;
 
-    private SnapshotSession Session => _session ??= new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+    private SnapshotSession Session => _session ??= TestSessions.Create(_host, new JobTracker(TimeProvider.System));
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

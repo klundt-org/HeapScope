@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -60,7 +60,7 @@ public sealed record SnapshotKey(string Path, long Length, DateTime WriteTimeUtc
 
     public bool Matches(SnapshotKey other) =>
         other is not null && Length == other.Length && WriteTimeUtc == other.WriteTimeUtc
-        && string.Equals(Path, other.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        && HeapScope.Contracts.PathIdentity.Same(Path, other.Path);
 }
 
 /// <summary>One marked object: where, which, and how it is shown. No field values or string text (ADR-026).</summary>

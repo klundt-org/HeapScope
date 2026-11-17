@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -36,8 +36,8 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Home page: open a dump (sprint 1.2), recent sessions with their snapshots (sprint 1.1, dotMemory's workspace list)
-/// and the synthetic diagnostic job (sprint 0.3).
+/// Home page: open a dump (sprint 1.2) and recent sessions with their snapshots (sprint 1.1, dotMemory's workspace list). The
+/// synthetic diagnostic job (sprint 0.3) lives here too, and the About page shows it.
 /// </summary>
 public sealed partial class HomeViewModel(WorkerOperations operations, SnapshotsViewModel? snapshots = null, SessionLibrary? library = null, IUserInteraction? interaction = null, Microsoft.Extensions.Logging.ILogger<HomeViewModel>? logger = null) : ObservableObject
 {
@@ -148,7 +148,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
     private string? WhyKept(SessionSummary summary)
     {
         var folder = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(summary.Folder));
-        if (string.Equals(library?.CurrentFolder, folder, StringComparison.OrdinalIgnoreCase))
+        if (PathIdentity.Same(library?.CurrentFolder, folder))
         {
             return $"{summary.Name} is the current session (new captures go into it), so it is kept. Open another session first.";
         }
@@ -158,8 +158,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
             return $"{summary.Name} is in use: {user} writes into it. Stop it first.";
         }
 
-        var under = folder + System.IO.Path.DirectorySeparatorChar;
-        return snapshots?.Snapshots.Any(s => System.IO.Path.GetFullPath(s.Handle.Path).StartsWith(under, StringComparison.OrdinalIgnoreCase)) == true
+        return snapshots?.Snapshots.Any(s => PathIdentity.IsUnder(System.IO.Path.GetFullPath(s.Handle.Path), folder)) == true
             ? $"{summary.Name} has a snapshot open. Close it on the Snapshots page first."
             : null;
     }
@@ -216,7 +215,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
                 RecentSessions.Add(session);
             }
 
-            SessionStatus = sessions.Count == 0 ? "No sessions yet. Capture a process or open a dump to start one." : null;
+            SessionStatus = sessions.Count == 0 ? "No sessions yet. Capture a process or watch one live to start one." : null;
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
@@ -302,6 +301,8 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is WorkerException)
         {
+            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            logger?.LogInformation("{Section} shown as: {Message}", "Synthetic job", ex.Message);
             LastResult = ex.Message;
         }
     }
@@ -342,6 +343,9 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
 
     /// <summary>Where this run writes its log; null when it is not known.</summary>
     public string? LogFolder { get; } = logFolder;
+
+    /// <summary>The synthetic job, shown under Diagnostics; set by the shell, as it runs on the Home page's view model.</summary>
+    public HomeViewModel? Diagnostics { get; set; }
 
     /// <summary>The keyboard shortcuts (sprint 2.7), set by the shell, which knows the pages.</summary>
     public IReadOnlyList<Shortcut> Shortcuts { get; set; } = [];

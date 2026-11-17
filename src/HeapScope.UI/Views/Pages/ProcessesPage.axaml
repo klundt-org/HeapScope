@@ -1,7 +1,7 @@
 <!--
   HeapScope
   Copyright (C) 2026 Ray Klundt
-  https://github.com/rklundt/HeapScope
+  https://github.com/klundt-org/HeapScope
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -30,15 +30,18 @@
              x:DataType="vm:ProcessesViewModel">
   <DockPanel Margin="4">
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-      <TextBlock FontSize="20" Text="Processes" VerticalAlignment="Center" />
-      <Button Content="Refresh" Margin="16,0,0,0" Command="{Binding RefreshCommand}" />
-      <Button Content="Capture dump" Margin="8,0,0,0" Command="{Binding CaptureCommand}" />
-      <CheckBox Content="As gcdump" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CaptureGcDump}"
-                ToolTip.Tip="The object graph only: much smaller and quicker to open, but no field values, string text or generations. The process runs one full garbage collection." />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Classes="pageTitle" Text="Processes" VerticalAlignment="Center" />
+        <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Processes}" />
+      </StackPanel>
+      <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="16,0,0,0" Command="{Binding RefreshCommand}" />
+      <Button ctl:ButtonIcon.Icon="Capture" Classes="primary" Content="Capture dump" Margin="8,0,0,0" Command="{Binding CaptureCommand}" />
+      <CheckBox Content="As gcdump" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CaptureGcDump}" />
+      <ctl:InfoIcon Text="{x:Static vm:InfoTexts.CaptureOptions}" Margin="4,0,0,0" VerticalAlignment="Center" />
       <!-- Sprint 2.5: sampled allocations with call stacks, shown on the Allocations page when done. -->
       <Button Content="Record allocations" Margin="16,0,0,0" Command="{Binding RecordAllocationsCommand}" IsVisible="{Binding CanRecordAllocations}"
-              ToolTip.Tip="Record which types and call stacks allocate, for up to 30 seconds, while you use the application. The process keeps running; Stop keeps what was recorded." />
-      <Button Content="Stop" Margin="8,0,0,0" Command="{Binding StopRecordingCommand}" IsVisible="{Binding IsRecording}" />
+              ToolTip.Tip="Records which types and call stacks allocate, for up to 30 seconds, while you use the application. The process keeps running; Stop keeps what was recorded. Needs a selected process, on Windows, with no recording running." />
+      <Button ctl:ButtonIcon.Icon="Stop" Content="Stop" Margin="8,0,0,0" Command="{Binding StopRecordingCommand}" IsVisible="{Binding IsRecording}" />
     </StackPanel>
     <!-- Sprint 2.3.6: where capture is not available (Linux, macOS for now), the page says why and what to do instead. -->
     <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8"
@@ -49,16 +52,53 @@
       <TextBlock TextWrapping="Wrap"
                  Text="Processes marked 'Needs administrator' run elevated or as another user. To capture them, run HeapScope as administrator." />
     </Border>
+    <!-- Sprint 3.13 (ADR-042): the tutorial's sample, a process of HeapScope's own with planted problems to look at. -->
+    <Expander DockPanel.Dock="Top" Margin="0,0,0,8" IsVisible="{Binding HasSample}" Header="Sample process"
+              ToolTip.Tip="Starts a small .NET process of HeapScope's own with the problems you choose, so you can capture it, record it and find them. It runs as you and stops when HeapScope closes.">
+      <StackPanel Spacing="6">
+        <SelectableTextBlock TextWrapping="Wrap" Text="{Binding SampleStatus}"
+                             IsVisible="{Binding SampleStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <ItemsControl ItemsSource="{Binding SampleScenarios}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:SampleScenarioItem">
+              <CheckBox Content="{Binding Title}" IsChecked="{Binding IsChosen}" ToolTip.Tip="{Binding Plants}" Margin="0,0,16,0" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <CheckBox Content="Keep growing" IsChecked="{Binding KeepGrowing}" VerticalAlignment="Center"
+                    ToolTip.Tip="Adds more of each problem every second, so Live, an allocation recording, Compare and Trend show it growing. Growth stops when the sample's heap reaches 512 MB; stop the sample when you are done." />
+          <Button ctl:ButtonIcon.Icon="Start" Content="Start sample" Command="{Binding StartSampleCommand}"
+                  ToolTip.Tip="Starts the sample with the scenarios ticked, then selects its row, marked Sample, ready to capture or record. At most three run at once." />
+          <Button ctl:ButtonIcon.Icon="Stop" Content="Stop sample" Command="{Binding StopSampleCommand}"
+                  ToolTip.Tip="Stops the selected sample. Needs a row marked Sample." />
+        </StackPanel>
+      </StackPanel>
+    </Expander>
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,8" />
     <DataGrid ItemsSource="{Binding Processes}" ctl:GridExports.ExportName="Processes" SelectedItem="{Binding Selected, Mode=TwoWay}" CanUserSortColumns="True">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="PID" x:DataType="vm:ProcessRow" Binding="{Binding ProcessId}" Width="70" CellStyleClasses="number" />
-        <DataGridTextColumn Header="Name" x:DataType="vm:ProcessRow" Binding="{Binding Name}" Width="200" />
-        <DataGridTextColumn Header="Runtime" x:DataType="vm:ProcessRow" Binding="{Binding Runtime}" Width="130" />
-        <DataGridTextColumn Header="Elevation" x:DataType="vm:ProcessRow" Binding="{Binding Elevation}" Width="140" />
-        <DataGridTextColumn Header="Working set" x:DataType="vm:ProcessRow" Binding="{Binding WorkingSetBytes, StringFormat='{}{0:N0}'}" Width="130" CellStyleClasses="number" />
+        <DataGridTextColumn Header="PID" x:DataType="vm:ProcessRow" Binding="{Binding ProcessId, Mode=OneWay}" Width="70" CellStyleClasses="number" />
+        <DataGridTextColumn Header="Name" x:DataType="vm:ProcessRow" Binding="{Binding Name, Mode=OneWay}" Width="200" />
+        <DataGridTextColumn Header="Kind" x:DataType="vm:ProcessRow" Binding="{Binding Kind, Mode=OneWay}" Width="80" />
+        <DataGridTextColumn Header="Runtime" x:DataType="vm:ProcessRow" Binding="{Binding Runtime, Mode=OneWay}" Width="130" />
+        <DataGridTextColumn x:DataType="vm:ProcessRow" Binding="{Binding Elevation, Mode=OneWay}" Width="140">
+          <DataGridTextColumn.Header>
+            <TextBlock Text="Elevation" ToolTip.Tip="&quot;Needs administrator&quot; means you must run HeapScope as administrator to capture this process. &quot;Elevated&quot; means it runs elevated and HeapScope does too." />
+          </DataGridTextColumn.Header>
+        </DataGridTextColumn>
+        <DataGridTextColumn x:DataType="vm:ProcessRow" Binding="{Binding WorkingSetBytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="130" CellStyleClasses="number">
+          <DataGridTextColumn.Header>
+            <TextBlock Text="Working set" ToolTip.Tip="Physical memory the operating system has given the whole process right now, not only its .NET heap." />
+          </DataGridTextColumn.Header>
+        </DataGridTextColumn>
         <!-- A command line can carry secrets: an export leaves it out unless the person opts in (ADR-026, 2.7 review H1). -->
-        <DataGridTextColumn Header="Command line" x:DataType="vm:ProcessRow" Binding="{Binding CommandLine}" Width="*" ctl:GridExports.HasValues="True" />
+        <DataGridTextColumn Header="Command line" x:DataType="vm:ProcessRow" Binding="{Binding CommandLine, Mode=OneWay}" Width="*" MinWidth="240" ctl:GridExports.HasValues="True" />
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>

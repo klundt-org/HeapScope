@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -81,6 +81,21 @@ public static class ApplicationServiceCollectionExtensions
             sp.GetRequiredService<Sessions.SessionLibrary>(),
             sp.GetRequiredService<TimeProvider>(),
             sp.GetService<Microsoft.Extensions.Logging.ILogger<Allocations.AllocationSession>>()));
+        services.AddSingleton(sp => new Settings.SettingsService(
+            sp.GetRequiredService<Sessions.SessionLibrary>(),
+            sp.GetRequiredService<Bookmarks.BookmarkStore>(),
+            sp.GetRequiredService<Snapshots.SnapshotSession>(),
+            sp.GetRequiredService<JobTracker>(),
+            sp.GetRequiredService<Allocations.AllocationSession>(),
+            sp.GetService<Logging.FileLoggerProvider>(),
+            null,
+            sp.GetService<Microsoft.Extensions.Options.IOptions<WorkerHostOptions>>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<Settings.SettingsService>>()));
+        services.TryAddSingleton<Tutorial.ISampleProcessStarter, Tutorial.SampleProcessStarter>();
+        services.AddSingleton(sp => new Tutorial.SampleService(
+            sp.GetRequiredService<Tutorial.ISampleProcessStarter>(),
+            () => sp.GetRequiredService<Capture.IElevationProbe>().IsCurrentProcessElevated,
+            logger: sp.GetService<Microsoft.Extensions.Logging.ILogger<Tutorial.SampleService>>()));
         services.TryAddSingleton<Monitoring.ICounterSource, Monitoring.EventPipeCounterSource>();
         services.AddSingleton(sp => new Monitoring.MonitorService(
             sp.GetRequiredService<Sessions.ICaptureService>(),

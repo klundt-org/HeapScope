@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HeapScope
 # Copyright (C) 2026 Ray Klundt
-# https://github.com/rklundt/HeapScope
+# https://github.com/klundt-org/HeapScope
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -48,15 +48,15 @@ package="$out/HeapScope.Cli.$version.nupkg"
 listing=$(dotnet run build/zip.cs -- list "$package")
 failed=0
 tools="tools/net10.0/any"
-for file in heapscope-cli.dll DotnetToolSettings.xml worker/HeapScope.Worker.dll worker/HeapScope.Worker.runtimeconfig.json \
+for file in heapscope-cli.dll DotnetToolSettings.xml worker/HeapScope.Worker.dll worker/HeapScope.Worker.runtimeconfig.json   sample/heapscope-sample.dll sample/heapscope-sample.runtimeconfig.json \
   LICENSE ADDITIONAL-TERMS.md COMMERCIAL.md THIRD-PARTY-NOTICES.md licenses/README.md; do
   grep -qx "$tools/$file" <<< "$listing" || { echo "Missing $tools/$file"; failed=1; }
 done
 grep -qx "LICENSE" <<< "$listing" || { echo "Missing the package's LICENSE"; failed=1; }
 # No worker executable and no runtime at any depth (3.9 review M5), no unreviewed binaries, at least one third-party
 # license folder.
-unwanted=$(grep -iE "/HeapScope\.Worker(\.exe)?$|(^|/)(lib)?(hostfxr|coreclr)\.(dll|so|dylib)$|msdia140\.dll|KernelTraceControl\.dll" <<< "$listing" || true)
+unwanted=$(grep -iE "/HeapScope\.Worker(\.exe)?$|/heapscope-sample(\.exe)?$|(^|/)(lib)?(hostfxr|coreclr)\.(dll|so|dylib)$|msdia140\.dll|KernelTraceControl\.dll" <<< "$listing" || true)
 grep -qE "^$tools/licenses/[^/]+/.+" <<< "$listing" || { echo "No third-party license files under $tools/licenses/"; failed=1; }
 [ -z "$unwanted" ] || { echo "Files a tool must not carry:"; echo "$unwanted"; failed=1; }
-[ "$failed" -eq 0 ] && echo "Packed $package: the worker's assembly, the license files, no executable worker or unreviewed binaries."
+[ "$failed" -eq 0 ] && echo "Packed $package: the worker's and the sample's assemblies, the license files, no executable worker or sample, no unreviewed binaries."
 exit "$failed"

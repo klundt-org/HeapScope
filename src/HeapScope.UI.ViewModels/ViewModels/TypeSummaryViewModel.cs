@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -263,6 +263,12 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
 
     /// <summary>Whether this grid summarizes a set: the whole-type links and retained sizes are off.</summary>
     public bool IsSet => Set is not null;
+
+    /// <summary>What the info icon says: this view shows a whole snapshot or a set.</summary>
+    public string InfoText => IsSet ? InfoTexts.SetTypes : InfoTexts.Types;
+
+    /// <summary>What the options row's info icon says: a set hides Retained sizes and Unreachable objects, so its text leaves them out.</summary>
+    public string OptionsInfoText => IsSet ? InfoTexts.TypesOptionsInSet : InfoTexts.TypesOptions;
 
     /// <summary>
     /// Opens the selected rows as one object set (sprint 3.1): several type rows, or one namespace or assembly row. The

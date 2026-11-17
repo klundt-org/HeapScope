@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -36,6 +36,15 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// <summary>Flag (no value) that enables the crash and hang test hooks.</summary>
     public const string EnableTestHooksSwitch = "--enable-test-hooks";
 
+    /// <summary>
+    /// Tests only, and only with <see cref="EnableTestHooksSwitch"/>: no DAC is taken from an installed runtime, so a real dump
+    /// can be opened as on a machine without its runtime (sprint 3.12: the older cache fallback, end to end).
+    /// </summary>
+    public const string HideInstalledDacsSwitch = "--test-hide-installed-dacs";
+
+    /// <summary>Whether <see cref="HideInstalledDacsSwitch"/> is on (tests only).</summary>
+    public bool HideInstalledDacs { get; init; }
+
     /// <summary>Configuration section of the DAC lookup options (ADR-017).</summary>
     public const string SymbolsSectionName = "Symbols";
 
@@ -44,6 +53,16 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
 
     /// <summary>The data folders this worker uses: its cache key, the index cache fallback, DAC copies, trace conversion.</summary>
     public HeapScopeFolders Folders => DataFolder is null ? HeapScopeFolders.Default : new HeapScopeFolders(DataFolder, "--data-folder");
+
+    /// <summary>
+    /// The folder of the user's <c>settings.json</c> (<c>--settings-folder</c>; sprint 3.12 review H4): the client's own data
+    /// folder, which is where its Settings page saves, even when <see cref="DataFolder"/> moves the worker's data elsewhere.
+    /// Null: the data folder's.
+    /// </summary>
+    public string? SettingsFolder { get; init; }
+
+    /// <summary>The folders whose <c>settings.json</c> this worker follows.</summary>
+    public HeapScopeFolders SettingsFolders => SettingsFolder is null ? Folders : new HeapScopeFolders(SettingsFolder, "--settings-folder");
 
     /// <summary>A user folder searched for the data access component (<c>--dac-folder</c>).</summary>
     public string? DacFolder { get; init; }
@@ -66,6 +85,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
         ["--allow-symbol-server"] = $"{SymbolsSectionName}:AllowMicrosoftSymbolServer",
         ["--log-level"] = $"{SectionName}:LogLevel",
         ["--data-folder"] = $"{SectionName}:DataFolder",
+        ["--settings-folder"] = $"{SectionName}:SettingsFolder",
     };
 
     /// <summary>
@@ -120,6 +140,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             LogLevel = level,
             DacFolder = string.IsNullOrWhiteSpace(symbols["DacFolder"]) ? null : symbols["DacFolder"],
             DataFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["DataFolder"]) ? null : configuration.GetSection(SectionName)["DataFolder"],
+            SettingsFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["SettingsFolder"]) ? null : configuration.GetSection(SectionName)["SettingsFolder"],
             AllowMicrosoftSymbolServer = allow,
         };
         error = null;

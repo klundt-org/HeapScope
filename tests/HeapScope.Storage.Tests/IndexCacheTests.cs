@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -147,6 +147,32 @@ public sealed class IndexCacheTests : IDisposable
 
         result.Reason.ShouldBe(IndexCacheInvalidReason.VersionMismatch);
         result.Detail!.ShouldContain("version");
+    }
+
+    // Sprint 3.12: the worker reads an older cache's loader version from its metadata alone before deciding to rebuild.
+    [Fact]
+    public void Metadata_is_read_alone_and_a_damaged_metadata_section_or_another_dump_is_refused()
+    {
+        var cache = WriteRich();
+        var pristine = File.ReadAllBytes(cache);
+
+        IndexCacheReader.ReadMetadata(cache, IndexCacheSigner.None, Fingerprint(), out var none).ShouldBe(_metadata);
+        none.ShouldBeNull();
+
+        var other = new SnapshotFingerprint(1, 2, 3);
+        IndexCacheReader.ReadMetadata(cache, IndexCacheSigner.None, other, out var foreign).ShouldBeNull();
+        foreign.ShouldNotBeNull().Reason.ShouldBe(IndexCacheInvalidReason.FingerprintMismatch);
+
+        var (_, offset, length) = SectionsOf(cache).Single(s => s.Section == IndexSection.Metadata);
+        Patch(cache, offset + (length / 2), [(byte)(pristine[offset + (length / 2)] ^ 0xFF)]);
+        IndexCacheReader.ReadMetadata(cache, IndexCacheSigner.None, Fingerprint(), out var damaged).ShouldBeNull();
+        damaged.ShouldNotBeNull().Reason.ShouldBe(IndexCacheInvalidReason.ChecksumMismatch);
+
+        // A damaged graph section is not read, so the metadata still comes back; the full open catches it.
+        File.WriteAllBytes(cache, pristine);
+        var (_, edges, edgesLength) = SectionsOf(cache).Single(s => s.Section == IndexSection.Edges);
+        Patch(cache, edges + (edgesLength / 2), [(byte)(pristine[edges + (edgesLength / 2)] ^ 0xFF)]);
+        IndexCacheReader.ReadMetadata(cache, IndexCacheSigner.None, Fingerprint(), out _).ShouldBe(_metadata);
     }
 
     [Fact]

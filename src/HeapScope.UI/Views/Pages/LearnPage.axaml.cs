@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -21,21 +21,15 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using Avalonia.Controls;
 
-using System.Globalization;
-using Avalonia.Data.Converters;
+namespace HeapScope.UI.Views.Pages;
 
-namespace HeapScope.UI.Controls;
-
-/// <summary>Looks up a brush resource by key in the active theme (the fixed heap kind colors).</summary>
-public sealed class ResourceKeyToBrushConverter : IValueConverter
+/// <summary>The Learn page (sprint 3.13): lessons on the tutorial's sample.</summary>
+public sealed partial class LearnPage : UserControl
 {
-    public static ResourceKeyToBrushConverter Instance { get; } = new();
-
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is string key && Avalonia.Application.Current is { } app && app.TryGetResource(key, app.ActualThemeVariant, out var brush)
-            ? brush
-            : null;
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+    public LearnPage()
+    {
+        InitializeComponent();
+    }
 }

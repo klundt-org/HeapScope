@@ -1,4 +1,4 @@
-# HeapScope sprints: Phase 3 (depth to match dotMemory), the peer review sprints and packaging (3.9)
+# HeapScope sprints: Phase 3 (depth to match dotMemory), the peer review sprints, packaging (3.9) and 3.10 to 3.12
 
 Closed sprints moved here from [SPRINTS.md](../SPRINTS.md) in sprint 3.8; each keeps its goal, scope,
 acceptance criteria, decisions, tasks and review summary as they stood when it closed. Reviews are in
@@ -854,3 +854,601 @@ CI failures explained with logs, INSTALL.md completed, the build form in every l
 `--log-level` deferred to the Backlog. Measured: the release dry run built a 142 MB Windows zip, a 110 MB Linux
 tar.gz and a 9.4 MB tool package; the package jobs take 2 to 4 minutes with the clean-machine checks; the Linux build
 runs in a plain `ubuntu:24.04` with only `libicu74` and `libfontconfig1`.
+
+---
+
+## Sprint 3.10: Visual design and README
+
+**Goal**: HeapScope looks modern and consistent in both themes, with its visible defects fixed, and a README written for
+people shows it off with real screenshots.
+
+**Background**: the product owner found the look "well organized, but utilitarian" and the Markdown docs written for an AI
+audience (2026-11-03). A design review of real captures (30 screenshots, every page in both themes) found stock Fluent at
+default settings, an inverted hierarchy and real defects; a mockup of its top changes on the real app set the direction.
+
+**Acceptance criteria**:
+- Every page follows one design in both themes: the token values, type scale, control sizes and selection of ADR-040.
+- The review's defects are gone: Compare and Allocations show type names at 1440 wide, selected text meets 4.5:1, no
+  blank or clipped columns, charts follow a theme change, and the rest of the task list's defects.
+- The app has its own icon (logo A) in the window, the executable and the sidebar, and its own Duotone icons; logos B to E
+  stay in the repository as options.
+- The attribution notice's wording, link, position and size are unchanged; its test still passes with the new colors.
+- No checked dispatcher operation over the 100 ms budget, measured by the smoke runs with Inter loaded.
+- The README leads with real screenshots that match the reader's GitHub theme and a feature list in the form "Problem?
+  Solution", every claim true; nothing is lost: the old detail is in `docs/USER-GUIDE.md`.
+
+**Decisions** (product owner, 2026-11-03 and 2026-11-04):
+1. Sprint 3.10 "Visual design and README", version 3.10.0, before Phase 4.
+2. Direction: the review's "quiet instrument panel": slate neutrals, one indigo accent, color only for selection, primary
+   actions and data. Dense, not airy.
+3. Font: Inter (SIL OFL 1.1), with tabular figures on number columns. OFL is allowed for fonts only; it can be changed later.
+4. Logo A (a lens over stacked blocks). Logos B to E are kept as options in `docs/design/logo-options/`.
+5. Icons: our own, Duotone (outline plus an indigo tint), not a third-party set. If any look weak in real captures, the
+   owner sees them before more are drawn.
+6. Attribution: the wording stays "Powered by HeapScope by Ray Klundt" (the owner may revisit ADR-022 later); its colors
+   follow the theme (contrast 16.6:1 light, 14.0:1 dark, up from 15.8:1 and 13.0:1).
+7. "Run synthetic job" moves from Home to About, under Diagnostics.
+8. README images are real captures of fixture dumps: the Processes page's made-up rows stay out. They follow the reader's
+   GitHub theme (`<picture>`, about 10 files) and are captured at 2x. Real fixture type names are kept. The demo dumps are
+   named `demo-before.dmp` and `demo-after.dmp`.
+9. `--screenshots` stays in the app beside the other headless smoke modes, driven by hand through `build/screenshots.sh`;
+   not in per-PR CI, and no pixel comparison tests.
+10. Backlog, not this sprint: inline data bars in grids, dimmed namespaces in type names, a collapsible snapshot rail, and
+    the icicle chart colored by application versus framework code.
+11. README features read "Feature: Problem? Solution!", a marketing tone with claims that hold. Numbers only where measured;
+    no competitor named; limits stated plainly (capture on Windows only, macOS not shipped, builds unsigned).
+12. The README's Live picture watches the fixture for real (`--screenshot-live-pid`), not `--smoke-live`'s made-up samples, under
+    decision 8's rule that its pictures are real captures. Decided while building it, 2026-11-04.
+13. A dump's process name was the first module ClrMD listed, which the demo dump showed as an ASP.NET library. Found by the
+    captures and fixed here (loader version 4, so caches are rebuilt). Decided while building it, 2026-11-04.
+14. Releases attach the macOS packages after all, with a strong note on the release page that they are built on Linux, not
+    on a Mac, and untested (amends decision 11's "macOS not shipped" and ADR-039). README and INSTALL.md say so too, and
+    mention building on a Mac with `build/publish.sh`. Product owner, 2026-11-05.
+15. README's license summary, the AI point: reworded by the product owner, 2026-11-05. ADDITIONAL-TERMS.md is unchanged.
+
+**Task breakdown**:
+1. [x] The screenshot mode: `--screenshots` (one theme per run, 2x), `build/screenshots.sh` and the demo data script. Proof:
+   it captures every page in both themes; UI tests stay green.
+2. [x] ADR-040 and tokens: the visual design, the OFL exception in DEVELOPER.md 4, the new theme tokens and chart palette.
+   Proof: the theme key test; a new test that text on the surfaces and on selection meets 4.5:1 in both themes.
+3. [x] Inter: shipped with its license (THIRD-PARTY-NOTICES, `licenses/`), tabular figures on number cells. Proof:
+   `build/check-package.sh` finds its license; a smoke run measures the budget and the cold start.
+4. [x] Type and controls: 13 px grids and tabs, 18 px SemiBold titles, 28 px controls, neutral buttons with one primary,
+   tinted selection, one row rhythm (grids, trees, lists). Proof: captures; UI tests fail on any binding error.
+5. [x] The shell: wordmark, sidebar and rail colors, the Jobs panel only while a job runs (finished jobs on the Jobs page and
+   as a status line), the compact stat strip, the snapshot rail's wasted space. Proof: view model tests for the jobs state;
+   the attribution test; captures.
+6. [x] Logo and icons: logo A as the window and executable icon, the options kept, about 25 Duotone icons in
+   `Themes/Icons.axaml`, the literal "x" buttons replaced. Proof: a test that every navigation item has its icon; captures at
+   100 percent reviewed by the owner.
+7. [x] Grid defects: name columns keep a minimum width (Compare, Allocations, Inspections), right-aligned numeric headers,
+   no clipped headers or values, one percent format, the zero delta not red, LOH and POH column headers. Proof: unit tests of
+   the column building and formats; captures at 1440 wide.
+8. [x] Charts follow the theme: the icicle chart, key path diagram and both timelines redraw on a theme change, the brush
+   converters replaced. Proof: UI tests that switch the theme and check the resolved colors (Backlog L14).
+9. [x] Home and empty states: three start actions, no diagnostics on Home, a labeled cleanup, grids that say what to do when
+   empty. Proof: view tests; captures.
+10. [x] The retention diagram: thin edges, labels that stay readable, the target visible, Fit to width. Proof: geometry unit
+    tests of the edge widths and labels; captures.
+11. [x] The Live page: chart gridlines and a time axis, grouped actions, no empty column. Proof: geometry unit tests; captures.
+12. [x] Page polish: Allocations layout, Inspections list (its heading outside the selection, zero-found rows compact),
+    the small sweep (stray punctuation, the breadcrumb, gutters, title positions). Proof: captures and view tests.
+13. [x] README and guide: the new README, `docs/USER-GUIDE.md` holding the old detail, images in `docs/images/`. Proof: every
+    relative link resolves; each claim checked against the app; no em or en dashes.
+14. [x] Docs: ARCHITECTURE.md and its pages, DEVELOPER.md (screenshots, the design tokens), Backlog items from decision 10.
+    Proof: the Markdown sweep.
+
+**Review summary** ([docs/reviews/sprint-3.10.md](../reviews/sprint-3.10.md)): 6 High, 44 Moderate, 41 Low after dedupe, counting what the
+confirmation rounds and the review of the Moderate fixes found. Highs fixed and confirmed: the screenshot script deleting the folder it was given; a dump's process name,
+now from the path the dump records and logged with its rule; three README and guide claims that did not hold (tested to 8 GB, what a row
+opens, any number of snapshots); H6, a false "rebuilt" note on a reopen, went with the older cache fallback. Moderates (product owner):
+most fixed, among them Live's empty state, Fit to width, clipped numbers, a cut tree's hidden warning, the time axis, failed jobs'
+reasons, next steps off Windows, and tests that enforce the theme's contract. Moved to sprint 3.11: M16, and M14, the older cache
+fallback, with the findings on it. Lows listed; six fixed in passing. Measured:
+start about 535 ms, worst dispatcher lag 184 of 200 ms, cold first shows over 100 ms 5 to 13 per run (from 3 to 7); first load of a Medium
+dump 35 to 48 s, against 15.8 s in sprint 1.2, inside budget and in the Backlog. Not run: the Linux and macOS text on those systems; macOS
+packages on a Mac.
+
+---
+
+## Sprint 3.11: Screens that explain themselves
+
+**Goal**: every screen says what it does and how to use it, so a developer new to memory profilers can find their way, and the two
+defects the owner saw in 3.10's testing are gone.
+
+**Background**: the product owner tested 3.10 before its merge (2026-11-05) and could not tell what several screens do or how to use
+them. The app has about 104 tooltips, found only by hovering over each control, and most describe a control, not what its page is for.
+
+**Acceptance criteria**:
+- Every page and tab has an info icon saying what it is for, when to use it and how to start.
+- Settings and features whose purpose is not obvious have an info icon too, including beside a control that is disabled.
+- Each opens by hover, click or keyboard, and reads well in both themes.
+- Every text was approved by the owner and checked against the code: no claim the code does not back.
+- After a refused reopen, opening the dump again refreshes the Snapshots page: the row and its notes are current (3.10 review M40).
+- The Retainers chart's narrowest bars are grouped into one bar that says how many it holds and their size (M44).
+- A read of the key file while another process moves it into place no longer fails.
+
+**Decisions** (product owner, 2026-11-05):
+1. Split from the old 3.11: this sprint goes first; first-show performance, the refactor analysis and the older cache fallback move to 3.12.
+2. Every page is covered, starting with Retainers, Live, Inspections and Compare.
+3. An info icon beside each page title, and beside each setting or feature that is not obvious. Hover, click or keyboard opens it, so it
+   works beside a disabled button.
+4. The owner approves the wording first, from a table of every text with the code that backs it (`docs/design/info-text.md`).
+5. Names stay for now (Retainers, Why alive, Focus): the icons explain them, and the owner decides on a list of those that still do not work.
+6. Out: a guided tour or first-run walkthrough, the slower first load, and the flaky tests other than the key file's.
+7. Existing tooltips that the drafting found wrong or incomplete are fixed in this sprint.
+8. The names stay. The Retainers tab gets the subtitle "What is holding or retaining memory".
+9. Settings get one icon per group, not one per field (option B, 2026-11-06): its popup has a line per control, and a single control keeps
+   a tooltip, shown even when it is disabled. The owner approved Tables 2 and 3 on 2026-11-08 with the recommended answers: a group's
+   fields lose their tooltips except two format hints and the filters, and the Retainers chart caption shrinks to one line.
+
+**Task breakdown**:
+1. [x] The wording table: every page, tab, setting and feature, its draft text and the code that backs it. Proof: the owner's mark-up.
+   Table 1 (pages) approved 2026-11-05; Tables 2 (20 group icons) and 3 (43 tooltips) approved 2026-11-08; the review's rewording
+   (14 rows, Table 3 now 44) approved 2026-11-09.
+2. [x] The info icon: one control (`InfoIcon`), one source for its texts, ADR-040 amended. Proof: UI tests that hover, click and keyboard open
+   it and Escape closes it, its accessible name, its contrast in both themes (`ThemeTests`), and that it opens beside a disabled button.
+3. [x] Page info on every page and tab. Proof: a test that walks the pages and finds each one's icon and text; no binding errors; captures.
+4. [x] Setting and feature info, as the approved table lists them; tooltips that now repeat it go. Proof: a test that every approved row
+   is on its view; captures.
+5. [x] The Snapshots page refresh (M40). Proof: view model tests where a reopen is refused and the dump opened again: the same handle
+   shows again, the row and its notes are current, and a query runs.
+6. [x] Sliver grouping (M44): in the chart's geometry, so the worker's answer and protocol stay as they are. Proof: geometry tests (widths
+   still sum, a group's count and size); a UI test of its hover text; what a click on a group does is settled by a test.
+7. [x] The key file's read (Backlog). Proof: a test that holds the file against a read, then lets it go.
+8. [x] Docs: `docs/USER-GUIDE.md`, the code map, README pictures if the pages change, and the owner's list of names. Proof: the Markdown sweep.
+
+**Review summary** ([reviews/sprint-3.11.md](../reviews/sprint-3.11.md)): 4 High, 14 Moderate, 37 Low, from the four reviewers and
+the rounds that confirmed the fixes.
+- Fixed and confirmed, High: proofs for tasks 2 to 4 that did not exist (H1), the Processes CSV export's column names (H2), a "+N
+  smaller" hover text pointing at a double-click that does nothing (H3), and Compare and Trend left on the earlier snapshot when a
+  dump was opened again (H4, caused by M1's fix).
+- Fixed and confirmed, Moderate (owner, 2026-11-09 and 2026-11-10): opening a dump again refreshes its row in place and keeps the
+  Compare pair and Trend ticks (M1, M12); 14 texts reworded with the owner's approval, on roots, New and dead objects, the POH,
+  generations and group rows' retained bytes (M2 to M6), and the Record allocations tooltip (M9); one style shows tooltips on
+  disabled controls (M9); a written procedure and a test for info icons on every view (M8); logging.md's 3.11 entry (M10); icicle
+  grouping edge cases tested (M11); a pinned object the GC demoted counts as survived (M13, ADR-032 amended), and the matching log
+  counts objects that differ only in a younger generation apart from reused addresses (M14).
+- Deferred to the Backlog: a wording test that checks placement, not only presence (M7), and marking group rows' retained bytes as a
+  lower bound on screen (M6).
+- Measured: the icicle geometry lays out 20,000 segments in about 9 ms. Tests at wrap (Release, 2026-11-10): 1,646, 1,641 passed, 5 skipped, 0 failed, with 0 warnings; two
+earlier full runs failed tests that pass alone, and their causes and fixes are in the Backlog's flaky tests entry.
+
+## Sprint 3.12: First-show performance and refactor analysis
+
+**Goal**: know why pages hitch the first time they open, and what in the code is worth refactoring, before Phase 4 adds to both.
+
+**Background**: the product owner asked for this on 2026-11-05, from the 3.10 review. M16: cold first shows over 100 ms went from 3 to 7 per
+run to 5 to 13, exempt from the gate, with the worst dispatcher lag 184 of 200 ms and the cause only inferred.
+
+**Scope, to settle at /start-sprint**:
+- Trace a cold first show (`--smoke-trace`, with JIT events), attribute the blips, and fix what the trace supports. Consider a ceiling
+  on logged first shows, and a run on a Medium dump, not only the demo dumps.
+- A refactor analysis of the codebase: what to change, why and at what cost, as a ranked list the owner decides on. It proposes; any
+  refactor it leads to is the owner's call. It includes `PlatformHints` (3.10 review M36).
+- To consider pulling in: the Backlog's slower first load (the object pass), and the tests that fail only under full load.
+- The older cache fallback, moved from 3.10 by the product owner (2026-11-05; 3.10 review M14, M29 to M31, M37). After a loader update,
+  a dump whose DAC is gone or not trusted cannot rebuild its cache, so it does not open. Open the older cache instead, with a note. It must
+  cover every way a rebuild can lack the DAC (a symbol server failure, an untrusted DAC after a "no"), set the oldest loader version it accepts,
+  free the first read's memory before the second, and say which views are refused without a DAC. Its first version caused most of the
+  findings on 3.10's Moderate fixes, so review it as a feature.
+
+**Tasks**:
+
+1. [x] A Medium dump made fresh from DenseHeap with the installed runtime, by a script in `fixtures/scripts` (git-ignored
+   output). Proof: the script runs twice to the same object count; the dump opens.
+   Done: `New-SampleDump.ps1 -Tier Medium` and `New-DenseDump.ps1` already did this; the 2026-11-05 dumps were taken on .NET
+   10.0.14, whose DAC is gone since the 10.0.15 update, so they are now the fallback's case (task 9). Fresh Medium (4.5 GB) and
+   Small dumps on 10.0.15, 2026-11-11. Under Windows PowerShell 5.1 the scripts run with `powershell -File`.
+2. [x] Test machine independence: every test that opens a dump gets a fixed `PhysicalMemory` from one shared helper, so the
+   machine's free memory cannot change an answer. Proof: a mutation that reads the real memory fails a test; a search finds
+   no test opening a dump without the helper.
+   Done: `tests/SharedSession/TestSessions.cs` (32 GB, 16 GB free) in the integration, view model and UI tests; 33 sessions moved
+   to it; `TextRulesTests.Tests_make_snapshot_sessions_only_through_TestSessions`. Mutation: with 1 byte free, the three
+   `ProcessesViewModelTests` that failed in 3.11 fail again. The worker's own budget still reads the machine (mapped or in memory,
+   refusals); that is the product's behavior and is left as is.
+3. [x] A WPR recording of the smoke run (CPU sampling, context switches, ready thread; Windows' own `wpr.exe`, an admin prompt
+   the owner approves) beside the `--smoke-trace` EventPipe trace with JIT events, read by a small TraceEvent tool in
+   `build/` that attributes each first show over 100 ms and each dispatcher lag over 100 ms to JIT, styles and templates,
+   layout, GC, or the UI thread waiting for the CPU. Proof: the tool's unit tests on a recorded trace's numbers; its report
+   in `budgets.md`.
+   Done 2026-11-13: five WPR recordings (2026-11-12, the quiet window: two quiet smoke runs, one with four busy cores, a
+   Medium first load, and one more smoke run); the WPR profile's own .NET events gave the JIT events, so no separate
+   EventPipe trace was needed. The tool is `ui-stalls` in `perf/HeapScope.Benchmarks`, beside the existing `trace-report`,
+   not in `build/`: it shares that project's TraceEvent reference. Its rules (`UiStallAttribution`) are tested in the new
+   `tests/HeapScope.Benchmarks.Tests` on one recorded stall's numbers (a mutation of the split fails two tests). Report in
+   `budgets.md`: no stall waited for a CPU, even under load; first shows are mostly styles and templates, then GC; under load
+   GC grows to a quarter of the lag; cold start is JIT, the runtime's own code, and waits (one inside Defender's scan).
+4. [x] Fix what the trace supports for cold first shows (for example preloading templates or JIT warm up off the UI thread),
+   each fix measured against the build before it. Proof: smoke runs on the demo dumps and on the Medium dump, before and after.
+   Done 2026-11-14: the styles and templates task 3 found are paid at idle after the first window (`ViewPrewarmer`): the
+   Snapshots page built in its place, the other pages and the Snapshot tab's subjects and other tabs built alone and dropped,
+   then a gen 1 collection; one view per step, "Getting pages ready" in the status bar meanwhile (the owner's requirement and
+   wording, 2026-11-14), `Ui:Prewarm=false` to turn it off. A/B smoke runs in the owner's quiet window (budgets.md): slow
+   operations 1 to 2 per run against 2 to 9, the Snapshots page's first show 17 ms against 58 to 83 ms, on the Medium dump 16
+   to 21 ms against 70 to 95 ms; the Retainers tab's first show about 14 ms slower, cause not found (Backlog). Two designs
+   measured and dropped (every page in place; no collection after). `ViewTests` prove every page and subject view is built
+   or named, the page built in place is the one shown, the status bar follows, no binding fails, and the switch.
+5. [x] A ceiling on slow first shows: the smoke run fails above the measured count of first shows over 100 ms. Proof: a test
+   of the rule; a mutation that lowers the ceiling fails the run.
+   Done 2026-11-13: the open run counts UI operations over 100 ms in every phase (R3's `SmokePhases`), logs them by phase
+   ("Smoke slow operations"), and a passing run with more than 12 fails with exit 7 (`SmokeVerdict.Ceiling`; not headless).
+   Measured before it: 0 to 4 per run on the development machine, 5 to 10 with four more cores busy. `SmokeGateTests` test the
+   rule; a mutation that moves the threshold fails them. A smoke run with the new loader passed with 1.
+6. [x] The dispatcher lag under load (Backlog High, from 0.3) and the worker's Server GC threads: settled from task 3's
+   trace, with a fix if it shows one (job object CPU rate, EcoQoS or GC heap affinity). Proof: the trace; smoke runs under load.
+   Done 2026-11-13: no stall waited for a processor, even with four cores busy, so none of the three would help; the UI
+   process's own gen 0 and gen 1 collections were a quarter of the lag under load. A 64 MB gen 0 budget halved the GC time
+   inside the lags under load in A/B smoke runs set by environment variable (budgets.md); the rest of the lag is styles and
+   templates (task 4). The worker's Server GC threads are not in the UI's lags. Corrected by the review (H2, M2): the
+   `System.GC.Gen0Size` runtime setting shipped with it did nothing; the app was then made to relaunch itself with the
+   environment variable, and measured in the owner's quiet window of 2026-11-15: each pause grew so long that a snapshot
+   open's longest operation doubled (budgets.md). The relaunch was removed and the app keeps the runtime's default budget
+   (the owner, 2026-11-15).
+7. [x] UI cold start measured again on Avalonia: the first window and the first Compare tab, published ReadyToRun. Proof:
+   numbers in `budgets.md`.
+   Done 2026-11-13: first window 0.77 to 0.87 s warm, 6.9 s on the first run after publishing, about 1.0 to 1.1 s with four
+   cores busy; the Compare tab's first show at most 60 ms of lag and 121 ms of operation (budgets.md).
+8. [x] The slower first load traced on the Medium dump on a quiet machine (the object pass), with the cause recorded and a
+   fix proposed with its cost; built only with the owner's OK. Proof: the trace and the numbers in `budgets.md`.
+   Done 2026-11-13: CPU work, not disk (the WPR recording: 50.7 of 56.5 s on a processor); ClrMD's type factory per object
+   was the largest part, and the machine's load changed one build's time from 24 to 52 s. The owner approved the fix
+   (2026-11-13, "do all recos"): the loader maps method tables to types once per type (with R4); Medium's first load went from
+   about 21 s to 13 s with the same graph (budgets.md).
+9. [x] The older cache fallback (3.10 M14, M29 to M31, M37), built and reviewed as a feature: a rebuild that cannot reach a
+   trusted DAC (gone, symbol server failure, untrusted after a "no") opens the older cache with a note; caches older than the
+   v3.9.0 loader are refused; the first read's memory freed before the second; graph views work and value reads are refused
+   with the reason. Proof: worker tests with a stand-in loader for each failure; an integration test in both memory modes;
+   a test per refused view; the log line naming the fallback and why.
+   Done: `IndexCacheReader.ReadMetadata` reads the loader version without the graph; a cache from loader version 3 (v3.9.0) or
+   later opens in place of a rebuild that fails with `UntrustedDacException` or `RuntimeComponentMissingException` (now also a
+   failed symbol server download), after the failed load's memory is collected; never on a damaged dump, an explicit Rebuild or
+   a reopen after a worker restart. Its values are refused through task 16's state, so references, referrers and paths open
+   without field names (M37). `CacheRebuildTests` (both reasons in both memory modes, the floor, a damaged dump), each change
+   proved by mutation; the warning names both loader versions and the failure.
+   Reopened 2026-11-12 by its feature review (all four reviewers; senior-dev H), done again 2026-11-13 (ADR-041): every full
+   dump opened from a cache checks its DAC first, so a missing DAC refuses value reads from the start too (the review's
+   other H); the refusals, the note and the statuses use the owner's wording, with a next step that works while the snapshot
+   is open, and the full detail in the log; the process name is read again from the dump; a download is resolved before the
+   runtime is created, so a downloaded DAC that fails to load is a damaged dump, not a missing DAC; the DAC check runs before
+   the cache is read (no graph to leak); a cancel is a cancel; a reopen after a restart has its own message; the app offers
+   Trust this DAC and reopen (`SnapshotDescriptor.UntrustedDac`, protocol 22). Proofs: `SnapshotTests` on a real dump with
+   a version 3 cache, in both memory modes, on a worker that sees no installed DAC (`--test-hide-installed-dacs`, test hooks
+   only), and with an untrusted DAC trusted after the open; `RefusedValueReadsTests` (object details, references, referrers,
+   paths, string instances and a value filter, interface grouping); `CacheRebuildTests` (missing and untrusted on a current
+   cache, the older cache failing too, cancel, the restart message, the log lines); `MissingDacTests` on the fixture dump
+   (the open's check, a failed download, a downloaded DAC that cannot load); `SnapshotsViewModelTests` (the button, the
+   status). Mutations of the missing-DAC refusal and of the download rule fail them. Not covered: the command line end to
+   end (its worker cannot hide the installed DAC); the worker path under it is.
+   Re-reviewed 2026-11-13 by all four; their one High (the download looked a build-id DAC up under the host's platform,
+   not the dump's) and their Moderates fixed: the status after a "no" is the approved one; Trust this DAC and reopen asks
+   the memory question first (the probe now reports an older loader's cache as one to rebuild), keeps the memory mode and
+   reopens in place under the same handle; a tripwire test makes a loader version bump reword the note; the cancel test
+   fails when the cancel check is removed (mutation); `MissingDacTests` run in CI on Windows and Linux; the test switch
+   cannot be set from configuration and is logged; the graph cannot leak after the fallback; a failed fallback collects
+   once; an unreadable metadata section is rebuilt without being read; a cache replaced meanwhile is not opened as the
+   older one. Their Lows are in the Backlog. The owner approved the button's label and tooltip and the refusal for a DAC of
+   another system on 2026-11-13, with the B1 status lines.
+10. [x] A negative `gc-heap-size` sample dropped and logged. Proof: a counter test with a negative sample.
+    Done: `CounterSampleBuilder` drops it with a warning naming the value, the time and gen 0's size;
+    `CounterSampleBuilderTests.A_sample_with_a_negative_heap_is_dropped_and_logged`, proved by mutation.
+11. [x] A seam in front of `DumpCapturer`, so the capture gate and a cancel while writing are tested deterministically (one
+    pid refused, two pids together, released on failure and cancel, a cancel while the dump is written). Proof: those tests;
+    `CaptureTests`' cancel test no longer depends on timing.
+    Done: the seam existed (`IDumpWriter`); `tests/SharedCapture/HeldDumpWriter.cs` holds a write until the test releases it.
+    `CaptureGateTests` (four tests, every wait bounded) and the real cancel test hold the runtime's own writer; mutations of
+    the gate and of the delete on cancel each fail a test.
+12. [x] M6 from the 3.11 review: a Type or Namespace group row's retained bytes marked as a lower bound in the Retainers tree
+    and its CSV export. Wording approved by the owner in `docs/design/info-text.md` first. Proof: view model and export tests.
+    Done 2026-11-13: the worker's tree rows carry "Retained is" (`DominatorTreeColumns.RetainedIs`: exact for an object, at
+    least for a group or a "more" row), which the CSV export writes and the grid shows as "≥ " before a lower bound; grouped by
+    Type or Namespace, the tree's note is the owner's text. `RetainersViewModelTests`: the cell, the note, and the export's
+    column per row.
+13. [x] The refactor analysis: all four reviewers report candidates; `docs/design/refactor-analysis.md` ranks them by value and
+    cost, with `PlatformHints` (3.10 M36). The owner decides; any refactor is built only on the owner's pick. Proof: the document.
+    Done: [design/refactor-analysis.md](../design/refactor-analysis.md), 2026-11-11: eight bugs (B1 to B8), five candidates tied to this
+    sprint's tasks, fourteen ranked for before Phase 4, and those that wait for a Phase 4 pick. Waiting for the owner's picks.
+14. [x] Docs: `budgets.md`, ADR-006 and ADR-036 amended for the fallback, `DEVELOPER.md` for the new tools, the Backlog.
+   Done 2026-11-14: budgets.md holds tasks 3 to 8; ADR-006 and ADR-036 were amended with task 9 (ADR-041); DEVELOPER.md has
+   `ui-stalls`, `cpu-profile`, the load benchmark's graph hashes and the prewarm switch for A/B smoke runs; process-model,
+   logging and code-map describe B5's refusals, the UI's GC and the prewarm; the Backlog's items this sprint
+   settled are under "Built since listed".
+
+From the refactor analysis (owner, 2026-11-12: every bug and every candidate tied to this sprint's tasks):
+
+15. [x] R1, before task 9: the snapshot open pipeline moved out of `SnapshotStore` into a `SnapshotOpener`, behavior unchanged.
+    Proof: the existing open, cache and rebuild tests unchanged; new opener tests per cache refusal reason.
+    Done: `SnapshotOpener.cs` (444 lines; the store is 243, from 623); it logs under the store's category, so every line
+    reads as before. Worker (180), architecture (43) and integration open tests (37) pass unchanged. The opener tests per
+    refusal reason come with task 9, which changes what the older loader reason does.
+16. [x] R2 and B2, with task 9: one value-reads state per snapshot (available, or refused with a reason: no reader, declined or
+    missing DAC, older cache), read by the feature rules, inspection availability, object reads and value filters. Proof: a
+    worker test opening with the DAC declined lists value reads and every field-reading inspection as unavailable, with the reason.
+    Done: `ValueReadsRefused` (Core) on a `DumpSnapshot` without a reader; `FeatureRules` words every value refusal from it and
+    `InspectionAvailability` goes through `FeatureRules`. An open without the DAC question (the user's "no", the CLI) checks the
+    DAC once and refuses from the start; the reason keeps the CLI's `--trust-dac` and the app's question.
+    `InspectionAvailabilityTests` and `CacheRebuildTests`, proved by mutation.
+17. [x] R3, before task 5: one smoke phase runner for the watchdog bookkeeping and the first-show log lines; "Smoke open types"
+    unchanged (CI parses it). Proof: smoke runs, a test that a failing phase names its check.
+    Done: `SmokePhases` and `SmokePhase` keep each phase's lag, longest operation and slow operations (the watchdog now
+    counts operations over the budget since its reset); the checked maxima are the warm phases', every log line takes its
+    words from one place and reads as before (a smoke run on the demo dumps, 2026-11-13). `SmokeGateTests`: the phases keep
+    each measure and check only the warm ones; a failing phase names each check that failed.
+18. [x] R4, with task 8: the loader's hot loop (segments in address order, pointer-free types skipped in the reference pass,
+    the finalizable check by binary search, `Size` read once). Proof: the graph's columns hash the same before and after on the
+    fixtures and the Medium dump; known answers; load phase times.
+    Done 2026-11-13: `ClrMdDumpLoader.AddObjects` walks segments in address order reading method tables itself (ClrMD's own
+    walk takes over a segment at an object it cannot read, so damaged dumps count unreadable objects as before), computes each
+    size once as ClrMD does (a string's terminator, the minimum object size), merges the sorted finalizable list, and
+    `AddReferences` reads each object's references with its type (`HeapGraphBuilder.FrozenTypeIndices`), skipping types
+    without pointers. `load-dump` prints a canonical hash of the graph: the same before and after on the fixture dump and the
+    Medium dump; the loader tests and the integration tier (known answers) pass.
+19. [x] R5, with task 8: freeze and collection as load phases of their own, GC pauses, CPU time and hard faults per phase in
+    the load's log line, and the load benchmark refusing a GC set up differently from the worker's. Proof: the log line; budgets.md.
+    Done 2026-11-13: `LoadMeter` (the ClrMD loader) ends each phase with its wall time, the process's CPU time, GC pause time
+    and page faults (every fault on Windows, major faults on Linux); `LoadTimings.Freeze` and `Costs`; the worker's "Loaded
+    ... from the dump" line names freeze and collect and every phase's costs; `load-dump` prints them and refuses another GC
+    setup than the worker's (Server GC, not concurrent, half the processors as heaps) unless `--any-gc 1`. A Medium load:
+    objects 4.6 s (CPU 4.9 s, 1.17M page faults), freeze and collect 0.4 s, references 4.8 s (CPU 5.5 s).
+20. [x] B1, a Settings page above About, with a Logging section: "Include filter text in logs" (on by default; it governs
+    the app, the worker and the CLI, which read the same setting), "Purge logs" (the log being written is kept until HeapScope
+    closes) and "Purge all" (logs, every session in the library, HeapScope's own index caches and bookmarks, after a
+    confirmation; never a dump opened from the user's own folders or its caches; refused while a capture or recording runs).
+    The CLI describes its command line by option, so filter text follows the setting there too. Wording approved
+    (`docs/design/info-text.md`). Proof: view model tests of each action, a CLI test with the setting on and off, a purge test
+    that leaves an outside dump alone, info icon and tooltip tests.
+    Done: `HeapScopeSettings` (`settings.json` in the data folder; a member a newer build wrote is kept) and `LogPrivacy` (each
+    process follows a change within a second; a worker given `--data-folder` reads that folder's); the worker's provenance
+    writes a filter quoted on one line plus its shape, or its shape only; the CLI describes its command line by option, so
+    `--filter 4111111111111111` follows the setting instead of passing as a number; the growth gate's line too.
+    `SettingsService` (Application) saves the setting and purges: logs but the one being written; and, refused while a job
+    runs or a session is in use, every session of the library (the current one let go of first) with HeapScope's caches of
+    their dumps, the bookmarks and the logs, after closing the library's snapshots and traces. The page (`SettingsPage`,
+    above About, with its own icon), the confirmation with the owner's words and buttons ("Delete everything", Cancel the
+    default). Tests: `HeapScopeSettingsTests`, `ProvenanceLogTests` (on and off), `CommandLineLogTests` (on and off),
+    `SettingsViewModelTests` (the setting, Purge logs, Purge all's question, its "no", what it deletes and keeps, refused
+    while a job runs), `InfoIconTests` (the approved texts on screen), the shell's page order; a mutation that deletes the
+    log being written fails two of them. The page's status lines are drafts for the owner (`info-text.md`).
+21. [x] B3: one path identity rule (case-insensitive on Windows, ordinal elsewhere) at every path comparison. Proof: unit tests
+    for both systems; a Linux CI test that two files differing only in case open as two snapshots.
+    Done 2026-11-13: `PathIdentity` (Contracts: `Same`, `IsUnder`, `Comparer`) at every path comparison of the worker's open,
+    the session library (its folders, deletions, in-use marks), bookmarks, settings, the app's open and trace lists and the CLI's
+    trend. Completed by the review (M3): macOS ignores case too; the loader's DAC search and capture's own-process check use
+    the same source file (an internal copy, since they cannot reference Contracts), and an architecture test fails on any
+    other file that decides by system how paths compare. `PathIdentityTests` (Worker, so CI's Linux job runs it): both systems' rules, whole folder names, and two dumps
+    whose names differ only in case opening as two snapshots where the system tells them apart.
+22. [x] B4: `session.json` entries with an enum value this build does not know are kept as they were and saved unchanged,
+    instead of failing the session. Proof: a session with an unknown kind opens, and saving keeps the entry.
+    Done: `SessionDocumentFile` sets aside a snapshot or run entry whose enum value this build does not know
+    (`SessionDocument.UnknownSnapshots`, `UnknownRuns`) and writes it back on save; any other damage still makes the
+    session unreadable. `SessionLibraryTests.Entries_with_a_value_a_newer_build_added_are_kept_and_saved_back_unchanged`,
+    proved by mutation.
+23. [x] B5: worker refusals thrown as a refusal type of their own; any other exception is logged as an error with its stack,
+    and the user sees a fixed message with the trace id (wording to the owner first). Proof: provenance log tests both ways.
+    Done 2026-11-14 (wording approved that day): `RequestRefusedException` (Core) for every request check of the worker and the
+    analysis checks a request reaches; any other exception at the worker's boundary, an `ArgumentException` of a bug included, is
+    logged as an error with its stack and an id (the trace id, or a new one), and the user sees the fixed message with that id
+    (code Unknown). `ProvenanceLogTests` both ways; the integration tier finds a missed request check as unexpected.
+24. [x] B6: the fragmentation bars read their columns as every other row does; a missing column fails that inspection only.
+    Proof: an inspections test with a column missing.
+    Done: `ShowFragments` uses `ResultColumns.Require`; a result this build cannot show fails its own tile with "This result
+    could not be shown" and an error log line. `InspectionsViewModelTests.A_result_missing_a_column_fails_its_own_tile_only`,
+    proved by mutation.
+25. [x] B7: every inspection records a basis (scanned, left out, reported with one cap); the collection inspections count what
+    they could not read. Proof: a catalog test that every inspection's basis has scanned and left-out counts.
+    Done 2026-11-13: `InspectionCounts` (scanned, left out; rows listed at most 50) on every inspection's result, logged
+    before its own basis; the collection inspections count the collections whose count they could not read; the detectors'
+    row lists in the log stop at 50 (`DetectorGraph.Listed`). `LeakDetectorTests`: every one of the 17 inspections records its
+    counts, an unreadable list is scanned and left out, the cap.
+26. [x] B8: `logging.md` matches what runs under an activity. Proof: the Markdown sweep.
+    Done: the Correlation item and the Retainers paragraph say which loads have no activity yet and how to match their lines.
+
+**Decisions** (product owner, 2026-11-11):
+
+1. Tracing uses `--smoke-trace` and Windows' own WPR, read with TraceEvent; nothing downloaded.
+2. A ceiling on slow first shows, set from the measured count after the fixes.
+3. A fresh Medium dump from DenseHeap, made locally and kept out of git; the old 20261022 and 20261023 dumps may go.
+4. The refactor analysis is a ranked list from all four reviewers; no refactor without the owner's pick.
+5. The fallback accepts caches from the v3.9.0 loader or later.
+6. From an older cache without a DAC, everything the graph holds works; reads of values from the dump are refused with the reason.
+7. Pulled in: the slower first load (traced; a fix only with the owner's OK), the dispatcher lag under load, the UI cold
+   start, test machine independence, the capturer seam, and M6.
+8. A negative `gc-heap-size` sample is dropped and logged, not clamped.
+9. M7 from the 3.11 review stays in the Backlog.
+10. (2026-11-12) Every bug of the refactor analysis (B1 to B8) and the candidates tied to this sprint's tasks (R1 to R5) are in
+    this sprint; the ranked candidates wait for the owner's scheduling.
+11. (2026-11-12) The rule "never log filter text" becomes: filter text is logged unless the user turns it off in Settings
+    (on by default, since logs stay on the user's machine; the text tells them to turn it off before sharing a log).
+12. (2026-11-12) Purge all deletes logs, the library's sessions, HeapScope's own index caches and bookmarks; it keeps the
+    trusted DACs and the cache key, and never touches a dump outside the library.
+13. (2026-11-12) The Settings page sits above About; its three texts and the Purge all confirmation are approved.
+14. (2026-11-12) M6 as proposed: the group note, "≥" in a group row's Retained cell, and a "Retained is" column in the CSV.
+15. (2026-11-12) R1 is done before task 9.
+16. (2026-11-13) Task 9's texts as worded in `docs/design/info-text.md` (Sprint 3.12 additions). A DAC next to a dump is
+    still trusted only when the user says so (ADR-035 stands); after a "no" the snapshot offers Trust this DAC and reopen,
+    which asks the same question. No status line of its own for the older cache: the snapshot's note says it.
+17. (2026-11-13) The Settings page's info text is approved.
+18. (2026-11-14) The prewarm's status bar text and tooltip are approved; the review's Moderates are all fixed, M2's relaunch
+    and M4's command line included (2026-11-14), and M20 and M21 from the confirmations (2026-11-15).
+19. (2026-11-15) The review's drafts in `info-text.md` are approved. The larger gen 0 budget and its relaunch are dropped
+    after the quiet window's measurement; the budget is not a user setting (users cannot judge it, and it would need the
+    relaunch); `DOTNET_GCgen0size` stays the runtime's own for anyone who sets it.
+
+**Review summary** ([reviews/sprint-3.12.md](../reviews/sprint-3.12.md)): 5 High, 21 Moderate, 31 Low, from the four reviewers
+and the rounds that confirmed the fixes.
+- Fixed and confirmed, High: the docs that did not describe the new object walk, the GC threads, the test folders or ADR-041's
+  amendments (H1); the UI's gen 0 budget shipped through a setting the runtime ignores (H2); no edge from an object of a
+  collectible type to its LoaderAllocator, which ClrMD does not yield (H3); a worker given another data folder reading another
+  settings file (H4); the logs' privacy setting falling back to "on" when the file could not be read (H5).
+- Fixed and confirmed, Moderate (owner, 2026-11-14 and 2026-11-15, all nineteen and the two the confirmations found): the
+  object walk compared object by object with ClrMD's on every CI system, with ADR-010 amended (M1); the larger gen 0 budget
+  and the relaunch that shipped it measured and dropped (M2, M21); one path rule, macOS included (M3); settings and purge on the command
+  line (M4); purges that keep other HeapScope processes' logs and wait for them (M5, M20); the finalizable merge (M6); hard
+  faults (M7); a damaged length (M8); purge safety, errors, tests and logs (M9 to M11, M13, M14); the prewarm's failure paths
+  (M12); the inspections' counts (M15); the command line's console (M16); guarded control methods (M17); set-aside session
+  entries (M18); the privacy state in the log (M19).
+- Low: listed in the review file, not fixed.
+- Measured: the prewarm (budgets.md, task 4); the gen 0 budget in the quiet window of 2026-11-15, which reversed task 6.
+
+## Sprint 3.13: Tutorial
+
+**Goal**: a user can start a sample process of HeapScope's own from the app, choose what it does, look at it with every view
+(capture, Live, allocations, Compare, Trend, inspections) and stop it, without a process of their own or elevation.
+
+**Background**: the product owner asked for this on 2026-11-10, after trouble finding a process whose allocations could be
+recorded. The test fixtures already do most of it (LeakyConsole's leaks, detector and waste patterns, its parent watch;
+LeakyApi and LoadGen's steady load), but none ships, and LeakyConsole leaks once and then idles, so a trace of it is empty.
+
+**Scope, to settle at /start-sprint**:
+- Ship one sample app in every package, started as the user, never elevated, signed and licensed like the rest. Framework
+  dependent (small, needs the .NET runtime) or self-contained (larger packages): decide with a measured size.
+- The user picks one or more scenarios: the five classic leaks (static cache, event handler, closure, undisposed list,
+  unbounded dictionary), the detector leaks (timer, disposed but referenced, pending async, finalizer backlog), waste and
+  inspection patterns, and steady allocation from known call sites. Scenarios that cannot run together (finalizer backlog
+  and waste) are refused with the reason.
+- A mode that keeps allocating and keeps growing, so Live, an allocation trace, Compare and Trend all show something.
+- Start and stop from the UI (likely the Processes page), the sample's row marked as such; it stops when HeapScope exits or
+  crashes (the parent watch), and never more than a few run at once.
+- Perhaps `heapscope-cli sample start|stop`, so the README can walk through a demo.
+- A "try it" walkthrough in the User Guide, scenario by scenario, saying what each view should show; the known answers of
+  each scenario hold the walkthrough to the truth.
+- How the sample is built and tested apart from the fixtures (shared code, or the fixtures built from it), and an ADR.
+- The hands-on tutorial (product owner, 2026-11-14; the Backlog's "phase 3.5 candidate", the same feature from the other side):
+  a Learn item low on the left navigation whose lessons walk the user through finding and diagnosing each planted problem with
+  the app's own pages, generated by the sample by default; each lesson checks the answer against what the sample planted, as
+  the fixtures' known answers do. Its texts go through info-text.md.
+- Built to grow (product owner, 2026-11-15): Phase 4 adds features, and each must be able to add its scenario and its lesson
+  as it is built, without reworking the tutorial. So scenarios and lessons are catalogs, as inspections are
+  (`InspectionCatalog`): a scenario is one entry in the sample (what it plants, its known answer, what it cannot run with), a
+  lesson one entry in the app (the page it starts on, its steps, the check of the answer), each with a test that the catalog
+  covers it, and a version so a session can say which ones it ran. The sample and the lessons ship together, so a lesson never
+  points at a scenario its build lacks. The ADR records the extension contract; DEVELOPER.md's Definition of Done gains an
+  item from this sprint on: a feature a user would learn adds its scenario and lesson, or says in its sprint why not.
+
+**Tasks**:
+
+1. [x] ADR-042, the tutorial: a shipped sample process whose scenarios and the app's lessons are catalogs, the extension contract
+   for later features, the packaging, and what the sample may and may not do (never elevated, stops with HeapScope, at most
+   three). DEVELOPER.md's Definition of Done gains the item "a feature a user would learn adds its scenario and lesson, or its
+   sprint says why not". Proof: the ADR and its index line; the Markdown sweep.
+   Done 2026-11-15: ADR-042 and its index line; DEVELOPER.md section 9's new item.
+2. [x] The sample, `src/HeapScope.Sample` (executable `heapscope-sample`): the fixtures' leak library (`fixtures/Leaks`, shared
+   so the known answers hold for both) behind a scenario catalog (`ScenarioCatalog`: name, title, what it plants, what it
+   cannot run with, its known answer's name), `--scenarios a,b`, `--list` (the catalog as JSON, which the app reads, so the app
+   never names a scenario its sample lacks), `--parent-pid`, and refusals with the reason for scenarios that cannot run
+   together. Proof: unit tests of the catalog (names unique, conflicts both ways, every scenario's known answer exists) and of
+   the argument rules; an architecture rule that the sample references only the leak library.
+   Done 2026-11-15: eleven scenarios (the five classic leaks, the four detector leaks, Waste, Inspection), `--list` as JSON,
+   the finalizer-blocking scenarios started after the last full collection as the fixtures do. `ScenarioCatalogTests`
+   (unique names, known answers, conflicts both ways, the argument rules); `LayerRules` holds the sample to the leak library.
+3. [x] Keeps growing: `--grow-every <ms>` adds a share of each chosen leak at an interval, and the steady allocation scenario
+   allocates from known call sites, so Live, an allocation trace, Compare and Trend all show something. Proof: tests that the
+   item counts grow by the step; an integration test that two dumps of a growing sample differ by the known step and a trace
+   names the known call site.
+   Done 2026-11-15: every classic and detector leak grows by a tenth of its count per tick; `SteadyAllocation` prices orders
+   without end from `SteadyAllocation.PriceOrder`, keeping one in a hundred in a bounded window. Each scenario names the type a
+   lesson's answer is (`AnswerType`, held to its known answer). `ScenarioCatalogTests`; `SampleTests` (two dumps a growing
+   sample apart differ by whole steps; a CLI allocation trace of the steady scenario names `PriceOrder` and the sample's types).
+4. [x] Packaging: the sample published into `sample/` beside `worker/` in every package (self-contained per system like the
+   worker; framework-dependent in the CLI tool), signed and licensed like the rest, its size measured. Proof: `check-package.sh`
+   finds it, its license entries and its signature; the size in budgets.md.
+   Done 2026-11-15: `build/Sample.Deploy.targets` (as the worker's), imported by the app and the CLI; `check-package.sh`
+   requires `sample/`, `pack-tool.sh` the tool's sample assembly and no sample executable; the release's SBOMs include the
+   sample. win-x64: the sample 77.0 MB, the rest 356.5 MB (budgets.md). The release attests whole archives, the sample with
+   them; no package of its own, so no license file of its own beyond the runtime's, already collected.
+5. [x] Starting and stopping (Application, `SampleService`): starts the sample as the user with the chosen scenarios, reads
+   its catalog, marks its pid as a sample, refuses while HeapScope runs elevated (the sample would be elevated too) and above
+   three running, stops it on request, and it exits with HeapScope (parent watch). Proof: tests with a fake process starter
+   for each rule; an integration test that starts, lists and stops the real sample.
+   Done 2026-11-15: `Application/Tutorial/SampleService` (with `SampleLaunch`, as the worker's: the executable, or the assembly
+   through the dotnet host), registered in DI; refusals with what to do (not installed, elevated, an unknown scenario, a
+   conflict, three running, a sample that exits before it is ready, in its own words); `Changed` for the pages.
+   `SampleServiceTests` (each rule, with a fake starter); `SampleTests.The_service_lists_starts_and_stops_the_real_sample`.
+6. [x] The Processes page starts and stops a sample (scenarios picked from its catalog) and marks its rows "Sample". Proof: view
+   model tests; the view test binds cleanly; the screenshot run shows it.
+   Done 2026-11-15: a "Sample process" panel (the catalog's scenarios as check boxes with what each plants, Keep growing, Start
+   sample, Stop sample) and a Kind column; the started sample is listed, selected and marked. `ProcessesSampleTests` (start
+   with the chosen scenarios, marked and selected, stopped; a refusal shown); `ViewTests` bind the page cleanly. The screenshot
+   run is checked with task 10's texts.
+7. [x] Lessons (`LessonCatalog`, UI.ViewModels): one entry per lesson: its title, the scenarios it starts, the page it starts
+   on, its steps, its question and the answer checked against the scenario's known answer (the planted type among decoys).
+   Every scenario has a lesson or a reason, every lesson's scenarios exist in the sample's catalog. Proof: catalog tests both
+   ways; a test per lesson that its answer is the known answer's type.
+   Done 2026-11-15: twelve lessons, one per scenario (`NoLesson` empty); each lesson's answer is its scenario's `AnswerType`,
+   read from the sample's catalog at run time; the choices are it and three types every heap holds, in a fixed order per
+   lesson. `LessonCatalogTests` (in HeapScope.Sample.Tests, which sees both catalogs) and `ScenarioCatalogTests` (each answer
+   type is its known answer's). The texts go to info-text.md with task 10.
+   Changed by the review (H1, M1): the choices are the sample's own types, and `LessonTests` follows each lesson's steps.
+8. [x] The Learn page, low on the left navigation above Settings: the lessons with their progress, a lesson started (its sample
+   running), its steps beside the page it opens, the answer checked, progress kept per user in the data folder. Proof: view
+   model tests (start, steps, a right and a wrong answer, progress saved and read back); the view test; the screenshot run.
+   Done 2026-11-15: `LearnViewModel` and `LearnPage`; the running lesson's steps sit in a panel on the right of every page
+   (`ShellViewModel.CurrentLesson`); progress is `learn-progress.json` in the data folder (`LessonProgress`, Application; an
+   unreadable file counts as none). `LearnViewModelTests` (start, page shown, no answer, wrong, right and saved, read back,
+   stop; a scenario missing from the sample; no sample; a bad file); `ViewTests` bind the page and the panel cleanly. The
+   screenshot run is checked with task 10's texts.
+9. [x] `heapscope-cli sample list|start|stop` for a demo without the app. Proof: CLI tests; an integration test that starts the
+   sample and captures it with the CLI.
+   Done 2026-11-15: `sample start` runs in the foreground until Ctrl+C or `sample stop` (the sample exits with it, so none is
+   left behind); `sample stop --pid` stops only a process whose command line runs the sample with scenarios. Found on the way:
+   process discovery hid every executable under the installation, so the shipped sample (in `sample/`) could be neither listed
+   nor captured, in the app or the CLI; `ProcessDiscovery.IsOwnImage` now lists it. `SampleCommandTests` (usage, a refused
+   stop, the command line rule), `ProcessDiscoveryTests` (the sample is not own), and `SampleTests` (the real CLI starts,
+   lists, captures and stops the sample, and the start command then ends with 0). Changed by the review (H4): `sample stop`
+   stops a sample by its record in the data folder (pid and start time), on every system, not by its command line.
+10. [x] A "Try it" walkthrough in the User Guide, scenario by scenario, and the README's demo; every text of the Learn page and the
+   lessons as drafts in info-text.md for the owner. Proof: the doc link test; InfoIconTests for the page's icon.
+   Done 2026-11-15: USER-GUIDE "Try it: learn on HeapScope's own sample" (the Learn page, the Processes page's section, the
+   CLI) and README "Learn: never profiled memory before?". info-text.md "Sprint 3.13 additions": 29 rows of page, status,
+   refusal and command line texts, the 13 scenarios and the 12 lessons, all drafts; `LessonCatalogTests` checks the
+   scenarios and lessons against those rows word for word. The lesson steps were checked against the controls they name
+   (Capture dump, Record allocations, the inspections' titles, Why alive, a set's Paths view, Bytes +/-, Back traces) and
+   reworded where they named views that do not exist. The screenshot run gains `16-lesson-panel` and `17-learn` (a lesson
+   running on the real sample, its panel beside the page it opens; review M15). The keyboard line says Ctrl+1 to 9 (Learn is
+   Ctrl+7).
+11. [x] Docs: ARCHITECTURE.md and its pages (code map, process model), DEVELOPER.md (building and testing the sample, adding a
+   scenario and a lesson), THIRD-PARTY-NOTICES if anything is added. Proof: the Markdown sweep.
+   Done 2026-11-15: ARCHITECTURE 3 (HeapScope.Sample, HeapScope.Sample.Tests, build/) and 4; process-model 4.1 (the sample
+   process); code-map "Tutorial"; DEVELOPER 3.1 (running the sample, adding a scenario and a lesson). Nothing was added to
+   THIRD-PARTY-NOTICES: the sample uses only HeapScope's own fixtures. The Markdown sweep runs with /wrap-sprint.
+
+**Decisions** (2026-11-15; the owner: "just keep going, no reason to wait on me", so each was decided autonomously with its
+recommended default):
+
+1. One sample, `heapscope-sample`, built on the fixtures' leak library (shared code, so one known answer serves the fixture
+   tests and the lessons), not a copy. Decided autonomously.
+2. Self-contained in each per-system package, as the worker is, so it runs without an installed .NET; framework-dependent in
+   the CLI tool, which needs .NET anyway. The measured size is recorded; if it adds more than half again to a package, the
+   owner is asked. Decided autonomously.
+3. The scenario catalog lives in the sample and the app reads it (`--list`), so the app never offers a scenario its sample
+   lacks; lessons name scenarios, and a test checks they exist. Decided autonomously.
+4. A lesson's answer is checked by a question the user answers after finding the problem with the app's pages (the planted
+   type among decoys from the same dump), not by watching what the user clicks: robust to how the user gets there, and each
+   new feature's lesson is one catalog entry. Decided autonomously. After the review (M1): the decoys are the sample's own
+   types (the scenario's other types, then other scenarios' answers), and an integration test follows each lesson's steps.
+5. Generated by default (the sample runs live); no pre-built files in this sprint (Backlog). Decided autonomously.
+6. While HeapScope runs elevated the sample is refused with the reason (starting a non-elevated child from an elevated one is
+   not portable); at most three samples at once. Decided autonomously.
+7. The Learn page sits low on the left navigation, above Settings; starting and stopping is on the Processes page too.
+   Decided autonomously.
+8. `heapscope-cli sample` is in, for the README's demo. Decided autonomously.
+9. Every user-facing text is drafted in info-text.md and built; the owner approves before the sprint closes. Decided
+   autonomously.
+
+**Review summary** ([reviews/sprint-3.13.md](../reviews/sprint-3.13.md)): 5 High, 17 Moderate, 33 Low, from the four reviewers
+and the rounds that confirmed the fixes.
+- Fixed and confirmed, High: lessons whose steps led to another answer than the one they checked, with no test that followed
+  them; the answers were read off real dumps, the steps and questions rewritten, steady allocation and the large objects
+  scenario reworked, and `LessonTests` follows every lesson on a real sample (H1); a sample that cannot run took down the
+  Processes page (H2); a refused second lesson was graded against the first one's answer, and samples' exits went unseen (H3);
+  `sample stop` worked only on Windows and matched a substring before a kill, now records with a start time (H4); logs that
+  could not back up a contested answer or a missing sample (H5).
+- Fixed and confirmed, Moderate (decided autonomously, all seventeen): decoys from the sample's own types (M1); the catalog as
+  the one place a scenario lives (M2); lessons where capture is not available (M3); catalog versions (M4); growth and plants
+  bounded (M5); steps in the screens' own words (M6); lesson progress (M7); refusals with next steps (M8); a crash is not a
+  stop (M9); the three-at-once limit (M10); timeouts (M11); tests (M12); 2,000 items, twice the detectors' threshold (M13);
+  docs (M14); the screenshot run's lesson panel (M15); the release check runs the sample (M16); the logs' last gaps (M17).
+  Deferred to the Backlog: a per-lesson platform requirement, tagging a capture with its catalog version, pre-built tutorial
+  files, a lesson on reading fields.
+- Low: listed in the review file; four that were faults in the fixes themselves were fixed with them (L27, L28, L32 and the
+  dictionary step's wording).

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -41,7 +41,7 @@ public sealed record FakeTreeNode(string Key, string ParentKey, string Name, ulo
         new(DominatorTreeColumns.Address, ResultColumnKind.Address), new(DominatorTreeColumns.Objects, ResultColumnKind.Integer),
         new(DominatorTreeColumns.Retained, ResultColumnKind.Bytes), new(DominatorTreeColumns.Bytes, ResultColumnKind.Bytes),
         new(DominatorTreeColumns.Percent, ResultColumnKind.Percent), new(DominatorTreeColumns.Children, ResultColumnKind.Integer),
-        new(DominatorTreeColumns.Expanded, ResultColumnKind.Integer),
+        new(DominatorTreeColumns.Expanded, ResultColumnKind.Integer), new(DominatorTreeColumns.RetainedIs, ResultColumnKind.Text),
     ];
 
     /// <summary>The row's cells, by column name, with its real child count and share of <paramref name="total"/>.</summary>
@@ -62,6 +62,7 @@ public sealed record FakeTreeNode(string Key, string ParentKey, string Name, ulo
             [DominatorTreeColumns.Percent] = (total == 0 ? 0 : 100.0 * Retained / total).ToString("0.##", CultureInfo.InvariantCulture),
             [DominatorTreeColumns.Children] = children.ToString(CultureInfo.InvariantCulture),
             [DominatorTreeColumns.Expanded] = expanded ? "1" : "0",
+            [DominatorTreeColumns.RetainedIs] = Kind == DominatorRowKinds.Object ? DominatorTreeColumns.RetainedExact : DominatorTreeColumns.RetainedAtLeast,
         };
         return [.. Columns.Select(c => values[c.Name])];
     }

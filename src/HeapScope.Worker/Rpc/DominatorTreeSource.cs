@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -48,6 +48,7 @@ internal sealed class DominatorTreeSource(DominatorTreeView view, ulong[] rowAdd
         new(DominatorTreeColumns.Percent, ResultColumnKind.Percent),
         new(DominatorTreeColumns.Children, ResultColumnKind.Integer, IsHidden: true),
         new(DominatorTreeColumns.Expanded, ResultColumnKind.Integer, IsHidden: true),
+        new(DominatorTreeColumns.RetainedIs, ResultColumnKind.Text),
     ];
 
     public IReadOnlyList<ResultColumn> Columns => TreeColumns;
@@ -78,5 +79,6 @@ internal sealed class DominatorTreeSource(DominatorTreeView view, ulong[] rowAdd
         cells[10] = view.TotalRetained == 0 ? "0" : (100.0 * row.Retained / view.TotalRetained).ToString("0.##", CultureInfo.InvariantCulture);
         cells[11] = row.Children.ToString(CultureInfo.InvariantCulture);
         cells[12] = row.Expanded ? "1" : "0";
+        cells[13] = row.Kind == DominatorRowKind.Object ? DominatorTreeColumns.RetainedExact : DominatorTreeColumns.RetainedAtLeast;
     }
 }

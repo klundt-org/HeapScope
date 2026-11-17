@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -101,7 +101,7 @@ public sealed class TypeDiffSourceTests : IDisposable
     {
         Should.Throw<ArgumentException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, SortColumn: "Size")))
             .Message.ShouldContain("BytesDelta");
-        Should.Throw<ArgumentOutOfRangeException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, (TypeGrouping)9)));
+        Should.Throw<HeapScope.Core.RequestRefusedException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, (TypeGrouping)9)));
     }
 
     public void Dispose()

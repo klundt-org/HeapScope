@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -443,6 +443,10 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         info.ArgumentList.Add("--data-folder");
         info.ArgumentList.Add(Path.GetFullPath(string.IsNullOrWhiteSpace(_options.DataFolder) ? HeapScope.Core.HeapScopeFolders.Default.Root : _options.DataFolder));
 
+        // The user's settings, where this process's Settings page saves them, whatever the worker's data folder (review H4).
+        info.ArgumentList.Add("--settings-folder");
+        info.ArgumentList.Add(HeapScope.Core.HeapScopeFolders.Default.Root);
+
         if (!string.IsNullOrWhiteSpace(_options.DacFolder))
         {
             info.ArgumentList.Add("--dac-folder");
@@ -466,6 +470,11 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         if (_options.EnableTestHooks)
         {
             info.ArgumentList.Add("--enable-test-hooks");
+            if (_options.HideInstalledDacsForTests)
+            {
+                _logger.LogWarning("The worker starts with the installed runtimes' DACs hidden (test hook): full dumps open as on a machine without their runtime.");
+                info.ArgumentList.Add("--test-hide-installed-dacs");
+            }
         }
 
         var process = new Process { StartInfo = info, EnableRaisingEvents = true };

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -24,7 +24,12 @@
 namespace HeapScope.Core.Loading;
 
 /// <summary>How long each part of a load took.</summary>
-public sealed record LoadTimings(TimeSpan Open, TimeSpan Objects, TimeSpan References, TimeSpan Roots, TimeSpan Build)
+/// <param name="Freeze">Freezing the objects and the collection after it (sprint 3.12, R5: before, inside References).</param>
+/// <param name="Costs">What each phase cost besides its time (sprint 3.12, R5), in phase order; empty when not measured.</param>
+public sealed record LoadTimings(TimeSpan Open, TimeSpan Objects, TimeSpan References, TimeSpan Roots, TimeSpan Build, TimeSpan Freeze = default, IReadOnlyList<LoadPhaseCost>? Costs = null)
 {
-    public TimeSpan Total => Open + Objects + References + Roots + Build;
+    public TimeSpan Total => Open + Objects + Freeze + References + Roots + Build;
+
+    /// <summary>The costs, or none.</summary>
+    public IReadOnlyList<LoadPhaseCost> PhaseCosts => Costs ?? [];
 }

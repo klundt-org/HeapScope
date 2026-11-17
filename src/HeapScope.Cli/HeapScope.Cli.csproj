@@ -16,6 +16,7 @@
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>
   <Import Project="$(HeapScopeRoot)build\Worker.Deploy.targets" />
+  <Import Project="$(HeapScopeRoot)build\Sample.Deploy.targets" />
 
   <!--
     The CLI as a dotnet tool (sprint 3.9, ADR-039): one framework-dependent package for every system, built by
@@ -30,8 +31,8 @@
     <Authors>Ray Klundt</Authors>
     <Description>HeapScope's command line: capture (Windows) and analyze .NET memory dumps and gcdumps, from heap summaries to retention paths and leak detectors.</Description>
     <PackageTags>dotnet;memory;heap;dump;gcdump;leak;diagnostics</PackageTags>
-    <PackageProjectUrl>https://github.com/rklundt/HeapScope</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/rklundt/HeapScope</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/klundt-org/HeapScope</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/klundt-org/HeapScope</RepositoryUrl>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
   <ItemGroup Condition="'$(HeapScopeTool)' == 'true'">

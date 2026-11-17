@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -132,7 +132,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
                 cells[5] = InspectionRows.Number(row.Collection.Bytes);
                 cells[6] = InspectionRows.Hex(row.Collection.Address);
             }),
-            basis);
+            basis, Counts: new(current.Count, skipped.Total, ListsRows: true));
     }
 
     /// <summary>Why a growth comparison may mislead (review M8): a baseline captured later, or from another process.</summary>
@@ -153,7 +153,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
 
     private static string Describe(IEnumerable<Row> rows)
     {
-        var text = string.Join("; ", rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Field} {r.Collection.Type} {r.Collection.Count}{(r.Before is { } before ? $" (was {before})" : string.Empty)}")));
+        var text = DetectorGraph.Listed(rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Field} {r.Collection.Type} {r.Collection.Count}{(r.Before is { } before ? $" (was {before})" : string.Empty)}")));
         return text.Length == 0 ? "none" : text;
     }
 

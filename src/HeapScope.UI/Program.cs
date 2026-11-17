@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -24,6 +24,7 @@
 
 using Avalonia;
 using Avalonia.Headless;
+using HeapScope.UI.Services;
 
 namespace HeapScope.UI;
 
@@ -42,6 +43,7 @@ internal static class Program
     public static int Main(string[] args)
     {
         var headless = IsHeadless = args.Contains(HeadlessSwitch, StringComparer.OrdinalIgnoreCase);
+
         var appArgs = args.Where(a => !string.Equals(a, HeadlessSwitch, StringComparison.OrdinalIgnoreCase)).ToArray();
         try
         {
@@ -61,7 +63,7 @@ internal static class Program
     public static AppBuilder BuildApp(string[] args, bool headless)
     {
         // Avalonia's own warnings (binding errors, platform problems) go to the HeapScope log once it exists (review M18).
-        var builder = AppBuilder.Configure(() => new App(args)).AfterSetup(_ => Avalonia.Logging.Logger.Sink = new Services.AvaloniaLogSink());
+        var builder = AppBuilder.Configure(() => new App(args)).UseAppFont().AfterSetup(_ => Avalonia.Logging.Logger.Sink = new Services.AvaloniaLogSink());
         return headless
             ? builder.UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
             : builder.UsePlatformDetect();

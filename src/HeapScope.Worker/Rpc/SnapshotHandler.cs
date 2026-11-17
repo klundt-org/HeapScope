@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -44,9 +44,14 @@ internal sealed class SnapshotHandler(
         });
 
     /// <summary>Closes the snapshot; the store drops its derived data and its object sets with it.</summary>
-    public Task CloseSnapshotAsync(Guid snapshotId, CancellationToken cancellationToken)
-    {
-        snapshots.Close(snapshotId);
-        return Task.CompletedTask;
-    }
+    /// <remarks>Through the guard like every method (sprint 3.12 review M17): a failure is logged with its id, as B5 shows it.</remarks>
+    public Task CloseSnapshotAsync(Guid snapshotId, CancellationToken cancellationToken) =>
+        GuardAsync(
+            snapshotId,
+            () =>
+            {
+                snapshots.Close(snapshotId);
+                return Task.FromResult(true);
+            },
+            LogLevel.Debug);
 }

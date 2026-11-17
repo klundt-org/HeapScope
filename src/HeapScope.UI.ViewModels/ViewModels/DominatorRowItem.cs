@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -61,6 +61,12 @@ public sealed class DominatorRowItem(int index, bool typeGroups) : ObservableObj
 
     public long Retained { get; private set; }
 
+    /// <summary>Whether <see cref="Retained"/> is a lower bound (a group or a "more" row; sprint 3.12, M6).</summary>
+    public bool RetainedIsLowerBound { get; private set; }
+
+    /// <summary>The Retained cell: "≥ " before a lower bound (the owner's wording, 2026-11-12).</summary>
+    public string RetainedText => (RetainedIsLowerBound ? "≥ " : string.Empty) + Retained.ToString("N0", CultureInfo.CurrentCulture);
+
     public long Bytes { get; private set; }
 
     public double Percent { get; private set; }
@@ -114,6 +120,7 @@ public sealed class DominatorRowItem(int index, bool typeGroups) : ObservableObj
             && ulong.TryParse(address.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var a) ? a : 0;
         Objects = Number(DominatorTreeColumns.Objects);
         Retained = Number(DominatorTreeColumns.Retained);
+        RetainedIsLowerBound = Cell(DominatorTreeColumns.RetainedIs) == DominatorTreeColumns.RetainedAtLeast;
         Bytes = Number(DominatorTreeColumns.Bytes);
         Percent = double.TryParse(Cell(DominatorTreeColumns.Percent), NumberStyles.Float, CultureInfo.InvariantCulture, out var p) ? p : 0;
         Children = (int)Number(DominatorTreeColumns.Children);

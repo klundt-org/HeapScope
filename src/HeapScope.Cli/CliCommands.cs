@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -78,6 +78,9 @@ internal static partial class CliCommands
         root.Subcommands.Add(BuildMonitorCommand(services));
         root.Subcommands.Add(BuildListCommand(services));
         root.Subcommands.Add(BuildCaptureCommand(services));
+        root.Subcommands.Add(BuildSettingsCommand(services));
+        root.Subcommands.Add(BuildPurgeCommand(services));
+        root.Subcommands.Add(BuildSampleCommand(services));
         return root;
     }
 }

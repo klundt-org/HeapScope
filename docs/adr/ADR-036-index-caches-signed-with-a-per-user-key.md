@@ -1,9 +1,9 @@
-# ADR-036 Index caches signed with a per-user key (added in sprint 3.7)
+# ADR-036 Index caches signed with a per-user key (added in sprint 3.7; amended by ADR-041)
 
 - Context: the peer review of 3.5.0 (P14) found that an index cache next to its dump is preferred and trusted on unkeyed
   checksums and a fingerprint of size, time and the first and last MiB. A dump's time survives unzipping, so a shipped
   `app.dmp.hsidx` decided every count, size and root HeapScope showed.
-- Decision: the worker loads this user's key at startup (`IndexCacheKey.UseForThisUser`: `index-cache.key`, 32 random
+- Decision: the worker loads this user's key at startup (`IndexCacheKey.UseForThisUser`, since 3.8 `IndexCacheSigner.ForThisUser`: `index-cache.key`, 32 random
   bytes, owner-only, in HeapScope's data folder, created on first use under a lock file so processes starting together
   share one key). The writer signs the header region (header and
   section directory, which carries every section's checksum) with HMAC-SHA256 into the region's last 32 bytes, past the
@@ -27,3 +27,4 @@
   written out, which a rule test keeps out of the worker. The key file lives in HeapScope's data folder
   (`HeapScopeFolders`), which `--data-folder` or `HEAPSCOPE_DATA_FOLDER` moves; a worker with another data folder has
   another key, so it rebuilds caches the first one wrote (`SnapshotTests.A_cache_signed_by_another_users_key_is_rebuilt_and_noted`).
+- Amended in sprint 3.12 (ADR-041): an older cache opened in place of a rebuild is read with the same signature check as any cache; an unsigned or foreign one never opens.

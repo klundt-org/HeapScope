@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -30,7 +30,8 @@ namespace HeapScope.Core;
 /// A full-dump snapshot (sprint 1.5): the graph plus an <see cref="IObjectReader"/> over the dump it came from, so it
 /// answers <see cref="SnapshotCapabilities.FieldValues"/> and <see cref="SnapshotCapabilities.StringContents"/>.
 /// <see cref="SnapshotCapabilities.ThreadStacks"/> is still removed: no service answers it yet. The reader is disposed
-/// with the graph, after the last lease.
+/// with the graph, after the last lease. A full dump whose values cannot be read (its DAC is declined or gone, sprint 3.12)
+/// has no reader, and <see cref="ValueReadsRefused"/> says why: the graph answers everything else.
 /// </summary>
 public sealed class DumpSnapshot : ISnapshot
 {
@@ -38,7 +39,8 @@ public sealed class DumpSnapshot : ISnapshot
     public const SnapshotCapabilities ReaderCapabilities = SnapshotCapabilities.FieldValues | SnapshotCapabilities.StringContents;
 
     private readonly LeaseTracker _leases = new();
-    private readonly IObjectReader _reader;
+    private readonly IObjectReader? _reader;
+    private readonly ValueReadsRefused? _refused;
 
     public DumpSnapshot(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, IObjectReader reader)
     {
@@ -46,6 +48,15 @@ public sealed class DumpSnapshot : ISnapshot
         Graph = graph ?? throw new ArgumentNullException(nameof(graph));
         _reader = reader ?? throw new ArgumentNullException(nameof(reader));
         Capabilities = (capabilities & ~GraphSnapshot.ServiceBackedCapabilities) | ReaderCapabilities;
+    }
+
+    /// <summary>A full dump whose field values and strings cannot be read, for <paramref name="refused"/>'s reason.</summary>
+    public DumpSnapshot(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, ValueReadsRefused refused)
+    {
+        Info = info ?? throw new ArgumentNullException(nameof(info));
+        Graph = graph ?? throw new ArgumentNullException(nameof(graph));
+        _refused = refused ?? throw new ArgumentNullException(nameof(refused));
+        Capabilities = capabilities & ~GraphSnapshot.ServiceBackedCapabilities & ~ReaderCapabilities;
     }
 
     public SnapshotInfo Info { get; }
@@ -57,7 +68,7 @@ public sealed class DumpSnapshot : ISnapshot
     public bool TryGetService<TService>([NotNullWhen(true)] out TService? service)
         where TService : class
     {
-        service = _reader as TService;
+        service = _reader as TService ?? _refused as TService;
         return service is not null;
     }
 

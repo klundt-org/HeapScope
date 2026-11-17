@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -26,6 +26,8 @@ using System.Security.Cryptography;
 using System.Text;
 using HeapScope.Analysis.Sets;
 using HeapScope.Core.Graph;
+
+using HeapScope.Core;
 
 namespace HeapScope.Analysis.Retention;
 
@@ -263,7 +265,7 @@ public static class SimilarRetention
             {
                 if (assignment.Patterns.Count == MaxPatterns)
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"The set's objects are retained in more than {MaxPatterns:N0} different ways. Open a smaller set (one type, or a group of a larger set) and group it again."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The set's objects are retained in more than {MaxPatterns:N0} different ways. Open a smaller set (one type, or a group of a larger set) and group it again."));
                 }
 
                 var key = span.ToArray();

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -20,6 +20,8 @@
 // <https://www.gnu.org/licenses/>.
 //
 // Commercial licenses are available. See COMMERCIAL.md.
+
+using HeapScope.Core;
 
 namespace HeapScope.Worker.Rpc;
 
@@ -50,7 +52,7 @@ internal sealed class ColumnSort<TRow>(Func<TRow, string> name)
     {
         if (!_byColumn.ContainsKey(column))
         {
-            throw new ArgumentException($"Unknown sort column {column}. Sort by one of: {string.Join(", ", _byColumn.Keys)}.");
+            throw new RequestRefusedException($"Unknown sort column {column}. Sort by one of: {string.Join(", ", _byColumn.Keys)}.");
         }
     }
 

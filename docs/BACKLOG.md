@@ -10,6 +10,16 @@ Outside a sprint:
 - SkiaSharp's native library without Adobe's DNG SDK and Google's piex (High, from the 3.8 owner actions): built
   2026-10-30 (ADR-038; `skia-native.yml`, `build/skia-native.sh`, `build/check-no-dng.sh`).
 
+Swept in sprint 3.12:
+- The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and
+  6). No stall waited for a processor; the UI's own gen 0 and gen 1 collections were a quarter of the lag under load (a 64 MB
+  gen 0 budget cut their total but doubled the longest pause, so it was dropped, review H2 and M2) and styles and templates most of the rest (prewarmed, task 4). The smoke gate's lag check stays at
+  twice the 100 ms budget, as OS scheduling noise remains in it.
+- The slower first load (from 3.10): traced and fixed (tasks 8 and R4; Medium from about 21 s to 13 s).
+- UI cold start on Avalonia (from 0.3): measured (task 7); template preloading built (task 4).
+- A seam in front of `DumpCapturer` (3.4 M13): task 11.
+- A negative `gc-heap-size` sample: dropped and logged (task 10).
+
 Swept in sprint 3.8:
 - Trend analysis across more than two snapshots: built in 3.3 (`trend`, the Trend view).
 - One capture per target at a time: built in 3.4.
@@ -28,11 +38,23 @@ Swept 2026-10-31:
 - Pinned objects per heap: built in 1.6 (the `fragmentation` inspection).
 - A generic `VirtualRowList` and sorting by column name (`TypeSummarySort` retired): built in 1.4.
 
+Sprint 3.10:
+- Charts and data-named colors redrawn on a theme change (the 3.2 review's L14): built (ADR-040, `ThemeChangeTests`).
+
+Sprint 3.11:
+- The key file read that failed while another process moved the key into place (from the tests that failed now and then):
+  built (`IndexCacheKey.LoadOrCreate`, `SignedCacheTests`).
+
 ## Open
 
 Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
 
 **High**
+- The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
+  lesson runs without starting the sample, and where capture is not available: Linux, macOS); a lesson on reading an object's
+  fields (the Inspection scenario has none yet); a per-lesson platform or capability requirement, with the first lesson that
+  needs one (a WPF scenario on Windows only); a capture of a sample tagged with its scenarios and catalog version in the
+  session; answers that name a method or call site, not only a type (sprint 3.13 review L7).
 - A contribution policy before any outside contribution is accepted (from ADR-022; 2026-10-30, the repository is
   public). A contribution stays its author's, licensed to HeapScope under the AGPL only, which would end commercial
   licensing of any file it touches. Until a contributor agreement exists (a CLA that grants the owner the right to
@@ -40,11 +62,38 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   contributions are not accepted, and no outside pull request is merged: code, tests or docs. The agreement's terms
   (product owner, 2026-10-30): contributors are 18 or older; each contribution's ownership (copyright) passes to the
   owner; contributors are credited.
-- Intermittent 105 to 130 ms dispatcher lag at job completion under heavy machine load (from 0.3): find the
-  cause (likely CPU contention with the worker) and bring the smoke gate back to 100 ms. Capture a WPR or PerfView
-  trace (CPU sampling, context switches, ready thread) of the smoke run and log the UI thread's CPU time per lag.
-- Worker Server GC threads run at normal priority despite the below-normal process (from 0.3): evaluate a job
-  object CPU rate, EcoQoS or GC heap affinity once a trace shows them preempting the UI.
+- Tests that failed now and then (2026-11-03; the gate's `artifacts/gate/history.csv` records every failed test, CI
+  keeps TRX results 14 days): `DenseHeapTests` once in CI (2026-11-02, release PR #45; ClrMD's default DAC lookup in
+  the test helper failed where HeapScope's loader had just opened the dump; the helper is local-only since 2026-11-03
+  and explains any failure); under full local load only, passing alone: `LiveWorkflowTests` (an allocation trace for a
+  run's whole length; again 2026-11-13, 45 ms past its deadline, and 2026-11-14 in the wrap's full run),
+  `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
+  beside four reviewers and a build; both passed alone), `AllocationTraceTests` (2026-11-15, the 3.13 wrap's full Debug run:
+  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
+  3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
+  little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
+  most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has
+  now recurred. `SignedCacheTests.Processes_creating_the_key_at_once_end_with_one_key` twice on the same sprint (2026-11-05). The second time gave the cause, a
+  real if tiny bug: `IndexCacheKey.LoadOrCreate` first reads the key outside its lock, so a read while another process moves the key into place
+  throws a sharing violation. Fixed in 3.11: an `IOException` there goes on to the lock and reads again. On 3.10 (2026-11-05): `DiffTests` and `LeakyApiGrowthTests` measured growth of types the framework also uses, whose own objects in the first dump
+  can die before the second. A GC before each dump did not cure it: CI still came up 1 to 4 short of thousands. This cause fits the numbers but
+  was not traced to the objects. They now check each dump's count, which a leak that frees nothing must reach, so the framework's objects cannot
+  fail them. `LiveWorkflowTests`' allocation trace was stopped while its session was still starting, reported as a failure (a product fix; the
+  test waits for bytes). Its `A_monitoring_run_takes_a_snapshot...` failed once on 3.10 with no message captured, cause unknown. Act on any that recurs: find the cause before adding a retry. Fixed: `TraceTests` cancel (2026-11-03, Avalonia PR #48's CI): a 1 s cancel
+  landed before EventPipe had started the session; the test now checks both outcomes (canceled before the start keeps
+  nothing; after it, the trace stops early and is kept). Sprint 3.11's wrap (2026-11-10), one full Release run, each passing
+  alone: three `ProcessesViewModelTests` read the machine's free memory (0.6 GB of 31.7 GB during the run), so opening a capture
+  asked the low memory question first; fixed, the test gives `SnapshotSession` a fixed `PhysicalMemory`, and since sprint 3.12
+  (task 2) every test opens dumps through `TestSessions`, which never reads the machine's. `CaptureTests.Canceling_a_real_capture_leaves_no_dump_behind`: the capture
+  finished before the wait saw "Writing dump" (the wait also ends on completion), so the cancel came too late; since sprint 3.12
+  (task 11) `HeldDumpWriter` holds the capture while it writes. `CounterMonitorTests`: the first sample's
+  `gc-heap-size` was negative (-0.77 MB, from the target's runtime, with Gen0 at 1.8 MB); HeapScope passes it on as is, so the
+  chart and the size rules can read a negative heap (dropped and logged since 3.12, task 10).
+  The wrap's second full run: all 12 `AllocationTraceTests` again (as on 3.10's gate), their fixture's session start canceled;
+  again in sprint 3.12's final run (2026-11-15: the session did not start within 60 s under full load; all 12 passed alone).
+  Cause: the fixture started the load a fixed second after the recording and stopped the recording when the load ended, so a
+  start slower than the load was canceled. Fixed: the load starts once the trace's partial file has bytes, as
+  `LiveWorkflowTests` already waits. Sprint 3.12 (2026-11-12), the first integration run after a build, on a loaded machine: `GcDumpSnapshotTests.Cli_inspect_of_an_unavailable_inspection_on_a_gcdump_fails_with_the_reason` exited 1 for another reason: the CLI's worker (started 1.1 s into the run) did not open its pipe within 30 s and logged nothing. The first start of a freshly built binary is slow on this machine (a smoke run's first window took 10 s right after a build, 1 s after), so a scan of the new files is likely; not confirmed. It passed alone and in two reruns. If it recurs, log the worker's own start time to tell a slow process start from a slow pipe.
 - From the 3.9 review (product owner, 2026-11-01): a worker start failure shows its stack trace on the CLI's console
   (`LogWarning(ex, ...)` reaches the console logger; keep stacks in the file log, M11); capturing or finding one of
   HeapScope's own processes says "No running .NET process with id N was found" and logs nothing (say "pid N is
@@ -54,7 +103,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   two fixture dumps.
 - Testing on macOS (2026-10-31): CI has no macOS runners (owner: their minutes cost about ten times Linux's), so the
   macOS packages are built on Linux and never run, and the macOS core dump checks (known answers, DAC trust) no longer
-  run. Before macOS ships, the product owner picks a way: a Mac of their own, or macOS runners for a release only.
+  run. Since 3.10 releases attach them marked untested (ADR-039). Before that mark comes off, the product owner picks a way
+  to test them: a Mac of their own, or macOS runners for a release only.
   Standard hosted runners are free in public repositories, and HeapScope is public; the owner checks the billing
   report before macOS runners come back (2026-10-31).
 - Objects finalized between two snapshots: the baseline's finalizable objects whose finalizer has not run, matched by
@@ -76,6 +126,22 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   on every full-dump cache open measured on Medium, and skipped when the cache's recorded DAC still comes from a trusted
   folder (re-review); an option for the trust file's folder, so front ends started by tests keep it in their own root
   (L30).
+- From the 3.12 re-review of task 9 (Lows, listed): with the symbol server on, a failed download is retried on every
+  read and fails a whole page of string instances (`ClrMdObjectReader.EnsureOpen`, `InstancesSource.Value`: keep the
+  failure until the snapshot reopens, and turn it into the refusal reason); a test of a real download through ClrMD's own
+  locator (the network job), with `VerifyDacOnWindows` on the downloaded path; a cross-system download (a Linux dump's
+  Windows DAC by build id) has no test, since no CI job has a dump of another system; references on a refused snapshot
+  shown as #1, #2 without a note (`ReferencesSource`); the baseline refusal's "Choose a full dump" suffix on a full dump
+  whose values are refused (`InspectionRunner`); the reopen-after-restart message chosen whenever an older cache exists,
+  not only when the snapshot came from it; the "user answered" lines outside a job activity; the opener's test hooks by
+  constructor, `IndexState` in its own file, and the ClrMD exception types out of the kind-neutral opener (for a second
+  kind that loads native code); opener tests per cache refusal reason for an older cache (foreign key, damaged section);
+  a trusted DAC beside the dump that fails to load leaves the dump unopenable until it is untrusted, and the app has no
+  way to untrust a DAC; the command line end to end on a refused snapshot; a query on the snapshot while Trust this DAC and
+  reopen runs starts a reopen of its own beside the new open, which can leave a worker snapshot unclosed, or close the one
+  just rebuilt with a wrong "index cache was rebuilt" error (a swap inside the
+  session: open, update the handle, then close the old one); a user cancel during a symbol server download on a first
+  open reported as a missing DAC (ClrMD's locator takes no token).
 - From the 3.7 review (decided autonomously): a cache next to the dump that is untrusted or cannot be replaced written to
   and read from the user's cache folder instead (M4); checks behind the checksums on cache open (monotonic edge starts,
   index ranges, sorted addresses, sidecars; M9); gcdump counts checked against the bytes left with each COM record's
@@ -88,6 +154,20 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- Learning from use, without telemetry (product owner, 2026-11-15): a closed loop that shows where users wait, get stuck or
+  miss a feature, so performance work and new features follow real use. HeapScope uploads nothing and has no telemetry
+  (ARCHITECTURE 12), and that stays the default; the idea must not read as data collection for profit. Direction to design:
+  local first (a usage summary kept on the user's machine: which pages and inspections were used, how long operations took,
+  refusals and errors met, lessons finished or abandoned, never dump contents, type names, paths or filter text); shown to
+  the user before anything leaves (a "Usage report" page or file they can read in full, as the logs are today); sent only
+  when they choose, each time or by an opt-in they can turn off, to a destination they can see; with a plain promise in the
+  app and the docs (what is collected, why, how long it is kept, never sold or shared, deleted on request) and the code that
+  writes it public. Open questions: what is worth knowing (the longest operations by page, features never found, lesson
+  steps where users stop), anonymous or tied to a support request, where reports go and who may read them, whether a
+  support bundle (log plus usage summary, attached by the user to an issue) covers most of the need with nothing new to
+  trust. Needs an ADR and the owner's approval of every user-facing word.
+- The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
+  86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
 - From 3.8 (decided autonomously): the Live page view model split into live monitoring, past runs and timeline actions
   with a shared chart state (peer review P11, its view model half); an analysis workspace per snapshot, extracted from
   the Snapshots page, with a design for the worker's result sets of hidden snapshots (P21, Phase 4); the Object view,
@@ -104,9 +184,7 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   static state and doc link tests tightened; the type summaries and touched files brought to the S8 and S9 rules; a
   separate-process live tail with stack folding measured (ADR-037's gate for Phase 4).
 - From the 3.4 review (decided autonomously): `session.json` runs read one by one, an unreadable run kept as its JSON
-  so the session still opens and nothing is lost on save, with the rule that new run members are optional (M8); a seam
-  in front of `DumpCapturer` so the real per-process capture gate is tested deterministically (one pid refused, two pids
-  together, released on failure and cancel) (M13); serializing the Allocations page's recording with a gcdump of the
+  so the session still opens and nothing is lost on save, with the rule that new run members are optional (M8); serializing the Allocations page's recording with a gcdump of the
   same process, with an integration test counting induced collections across a gcdump and a trace's start and stop on
   .NET 8 and 10 (M5); the allocation trace's size per minute and the target's slowdown measured on LeakyApi and a
   high-allocation target, added to section 10 (L17); a reopened run downsampled over its whole length so every marker
@@ -123,8 +201,7 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   every front end disables it the same way (M6); the reverse index info on `SimilarRetentionResult` (M12); a test that a
   weak-handle-only referrer is not a retainer (M8); a reservation around `KeyPaths.ForTypes` and `ForMembers` (from 2.2);
   interfaces kept in a sidecar so a reopen does not read them again (L16); a dependent-handle marker on path steps (L1);
-  interface rows keyed by name and module (L3); the diagram cached, its back edges inside its bounds and redrawn on a
-  theme change (L13, L14); a request with both a type and a set refused (L15); the `MaxReferrers` constants tied by a
+  interface rows keyed by name and module (L3); the diagram cached and its back edges inside its bounds (L13); a request with both a type and a set refused (L15); the `MaxReferrers` constants tied by a
   test (L12); diagram toggles logged (L5); from the re-review: an exact back pointer test (the member dominates the
   referrer, or entry and exit numbers over the shortest-path tree) instead of the 256-step climb (M13); module metadata
   released after the interface table is built (L20); the (group, type) set in the reservation (L22); a cheap check
@@ -259,10 +336,15 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   from the baseline (M10); an `InspectionNeeds` description with a cached derived-data accessor instead of one flag per
   input (M16); the rule version and parameters on `InspectionInfo` and Kind, elapsed time and baseline in the CLI
   summary output (L6, L7).
+- From the 3.11 review (product owner, 2026-11-09): the info text wording test checks placement, not only presence: map
+  each Table 3 row to its view file and control, so a text on the wrong control, or on one of several controls only,
+  fails (M7). Mark a Type or Namespace group row's retained bytes in the Retainers tree, and in its CSV export, as a lower
+  bound: they add up the members' own, and what several hold together is counted in the row above (a per-row bound, or a
+  group-only column; the tree's Retained column has the "Exactly this much" note, `ValueBoundTexts.Exact`, for every row; M6).
 
 **Low**
-- UI cold start: measure the Avalonia app's first window and first Compare tab again (the 1.2 and 1.4 numbers were
-  WPF's); template preloading and deferring startup work remain options (from 0.3).
+- Visual design, left out of sprint 3.10 (product owner, 2026-11-04; ADR-040): inline data bars in grids, dimmed namespaces
+  in type names, a collapsible snapshot rail, the icicle chart colored by application versus framework code.
 - WinForms specific leak inspections.
 - Unmanaged/native memory overview.
 - Reading a dump on another system or architecture than the one that took it (cross-system DACs), and a Linux arm64

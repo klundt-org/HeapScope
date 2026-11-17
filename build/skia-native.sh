@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HeapScope
 # Copyright (C) 2026 Ray Klundt
-# https://github.com/rklundt/HeapScope
+# https://github.com/klundt-org/HeapScope
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -37,7 +37,7 @@
 # DEVELOPER.md section 7, "When an Avalonia update brings a new SkiaSharp", give the steps.
 set -euo pipefail
 skia_version=3.119.4
-release=https://github.com/rklundt/HeapScope/releases/download/skia-native-3.119.4-1
+release=https://github.com/klundt-org/HeapScope/releases/download/skia-native-3.119.4-1
 
 # Said wherever the versions differ, so whoever meets it (often in a Dependabot PR for Avalonia) knows what happened.
 stale() {

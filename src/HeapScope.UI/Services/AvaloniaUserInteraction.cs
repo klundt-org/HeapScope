@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -86,6 +86,9 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner) : IUserInteract
 
     public Task<bool> ConfirmAsync(string title, string message) =>
         MessageWindow.ShowAsync(owner(), title, message, MessageButtons.YesNo);
+
+    public Task<bool> ConfirmAsync(string title, string message, string confirm, string cancel) =>
+        MessageWindow.ShowAsync(owner(), title, message, MessageButtons.YesNo, (confirm, cancel));
 
     public async Task<string?> PickSaveFileAsync(string title, string suggestedName)
     {

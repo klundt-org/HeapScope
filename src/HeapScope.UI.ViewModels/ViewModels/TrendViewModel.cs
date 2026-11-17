@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -99,6 +99,15 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         if (!_started)
         {
             _started = true;
+            Changed();
+        }
+    }
+
+    /// <summary>A ticked snapshot was opened again as a new worker snapshot: the trend runs again (3.11 review).</summary>
+    public void Reopened(SnapshotItemViewModel item)
+    {
+        if (Choices.Any(c => c.Snapshot == item && c.IsIncluded))
+        {
             Changed();
         }
     }

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -47,8 +47,9 @@ public enum SnapshotMemoryMode
 /// <param name="TrustedDacs">SHA-256 hashes (lower-case hex) of DACs the user trusts to load from next to a dump (sprint
 /// 3.6, peer review P2); the worker keeps them for its lifetime.</param>
 /// <param name="CheckDac">Whether an open from the index cache refuses a full dump whose DAC lies untrusted next to it
-/// (sprint 3.6). False opens the graph anyway, and only reads that need the DAC (field values, strings) are refused:
-/// after the user declined to trust it, and for commands that need no DAC.</param>
+/// (sprint 3.6), so the app can ask. False opens the graph anyway, and reads that need the DAC (field values, strings) are
+/// refused from the start with the reason (sprint 3.12): after the user declined to trust it, and on the command line. A
+/// missing DAC is refused that way whatever this says.</param>
 public sealed record OpenSnapshotRequest(string Path, bool Rebuild = false, SnapshotMemoryMode Mode = SnapshotMemoryMode.Auto, bool RequireCache = false, IReadOnlyList<string>? TrustedDacs = null, bool CheckDac = true);
 
 /// <summary>
@@ -76,6 +77,8 @@ public sealed record SnapshotProbe(string Path, long FileBytes, SnapshotCacheSta
 /// <param name="Availability">Each optional feature (<see cref="SnapshotFeatureIds"/>) with null when the snapshot offers
 /// it, or the reason it does not; the worker refuses the feature with that same reason. Read it through
 /// <see cref="SnapshotAvailability"/>, which counts a feature missing from the list as unavailable.</param>
+/// <param name="UntrustedDac">The DAC next to the dump that was not trusted, when that is why field values and strings are
+/// refused (sprint 3.12): the app offers to trust it and open the dump again. Null otherwise.</param>
 public sealed record SnapshotDescriptor(
     Guid SnapshotId,
     string Path,
@@ -97,4 +100,5 @@ public sealed record SnapshotDescriptor(
     IReadOnlyList<string> Notes,
     ulong CacheIdentity = 0,
     bool CaptureTimeFromFile = false,
-    IReadOnlyList<FeatureAvailability>? Availability = null);
+    IReadOnlyList<FeatureAvailability>? Availability = null,
+    DacTrustDetails? UntrustedDac = null);

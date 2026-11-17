@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -44,6 +44,22 @@ public class WorkerOptionsTests
         options.DataFolder.ShouldBe(root);
         options.Folders.Root.ShouldBe(Path.GetFullPath(root));
         options.Folders.Cache.ShouldStartWith(Path.GetFullPath(root));
+    }
+
+    // Sprint 3.12 review H4: the Settings page saves in the client's own data folder; a worker given another data folder
+    // (Worker:DataFolder) still follows that file, or "filter text off" would not reach the worker's log.
+    [Fact]
+    public void The_settings_folder_is_the_clients_even_when_the_data_folder_is_elsewhere()
+    {
+        var data = Path.Combine(Path.GetTempPath(), "hs-worker-data");
+        var settings = Path.Combine(Path.GetTempPath(), "hs-client-data");
+
+        var apart = Read("--pipe", "p", "--data-folder", data, "--settings-folder", settings);
+        var together = Read("--pipe", "p", "--data-folder", data);
+
+        HeapScopeSettings.PathIn(apart.SettingsFolders).ShouldBe(Path.Combine(Path.GetFullPath(settings), HeapScopeSettings.FileName));
+        apart.Folders.Root.ShouldBe(Path.GetFullPath(data));
+        together.SettingsFolders.Root.ShouldBe(Path.GetFullPath(data), "an older client names no settings folder");
     }
 
     [Fact]

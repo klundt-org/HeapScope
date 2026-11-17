@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -30,7 +30,7 @@ public static class WorkerProtocol
     /// Bumped on any incompatible change to the worker's contracts or their DTOs. The history of every version, and the
     /// rule for when to bump, is in docs/architecture/process-model.md (ARCHITECTURE.md 4.4); it is kept there only.
     /// </summary>
-    public const int Version = 21;
+    public const int Version = 22;
 
     /// <summary>Maximum rows returned by one <see cref="IWorkerService.GetRowsAsync"/> call.</summary>
     public const int MaxPageSize = 10_000;

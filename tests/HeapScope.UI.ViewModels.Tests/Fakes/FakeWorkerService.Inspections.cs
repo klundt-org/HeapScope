@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -51,7 +51,7 @@ internal sealed partial class FakeWorkerService : IInspectionService
         var rows = InspectionRows.GetValueOrDefault(request.Name) ?? [];
         var id = Guid.NewGuid();
         _sets[id] = [.. rows];
-        var columns = InspectionColumnsFor(request.Name);
+        var columns = ColumnsOfInspection?.Invoke(request.Name) ?? InspectionColumnsFor(request.Name);
         return new InspectionResultDto(request.Name, rows.Count, 1000, request.Name == "loh" ? null : 64, null, new ResultSetInfo(id, rows.Count, columns), 0.1, request.BaselineSnapshotId);
     }
 }

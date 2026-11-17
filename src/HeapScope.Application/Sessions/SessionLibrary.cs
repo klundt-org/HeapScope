@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -94,6 +94,18 @@ public sealed record SessionDocument(
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; init; }
+
+    /// <summary>
+    /// Snapshot entries with a value this build does not know (a snapshot kind or source a newer build added), kept as they
+    /// were written and saved back unchanged (sprint 3.12, B4): one such entry used to make the whole session unreadable.
+    /// This build neither shows nor deletes them.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<JsonElement> UnknownSnapshots { get; init; } = [];
+
+    /// <summary>Run entries with a value this build does not know, kept as <see cref="UnknownSnapshots"/> are.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<JsonElement> UnknownRuns { get; init; } = [];
 }
 
 /// <summary>
@@ -258,6 +270,7 @@ public sealed class SessionLibrary
 
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
+    private readonly HashSet<string> _setAsideNoted = new(PathIdentity.Comparer());
 
     // _gate guards _currentFolder only and is never held across file work, so CurrentFolder and HasCurrent stay cheap on
     // the UI thread (peer review P1). _currentWork serializes reading or creating the current session; _writeGate
@@ -270,8 +283,8 @@ public sealed class SessionLibrary
     // Sessions something writes into (a capture, a monitoring run) and sessions being deleted (sprint 3.4 review H1):
     // a deletion refuses the first, and the second refuse to start in a session being deleted.
     private readonly object _useGate = new();
-    private readonly Dictionary<string, List<string>> _inUse = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _deleting = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> _inUse = new(PathIdentity.Comparer());
+    private readonly HashSet<string> _deleting = new(PathIdentity.Comparer());
 
     public SessionLibrary(string? root = null, TimeProvider? timeProvider = null, ILogger<SessionLibrary>? logger = null)
     {
@@ -304,6 +317,7 @@ public sealed class SessionLibrary
                     var read = SessionDocumentFile.Read(folder);
                     if (read.Status == SessionReadStatus.Read)
                     {
+                        NoteSetAside(read.Session!);
                         return read.Session!;
                     }
 
@@ -323,6 +337,22 @@ public sealed class SessionLibrary
                 }
 
                 return created;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Lets go of the current session (sprint 3.12, Purge all): its folder is not touched, and the next capture starts a new
+    /// session.
+    /// </summary>
+    public void ForgetCurrent()
+    {
+        lock (_currentWork)
+        {
+            lock (_gate)
+            {
+                _logger.LogInformation("The current session {Folder} is let go of; the next capture starts a new one", _currentFolder ?? "(none)");
+                _currentFolder = null;
             }
         }
     }
@@ -387,6 +417,11 @@ public sealed class SessionLibrary
                 throw new SessionUnreadableException($"The session {full} cannot be opened: {read.Reason}. {read.NextStep}");
             }
 
+            if (read.Session is { } readSession)
+            {
+                NoteSetAside(readSession);
+            }
+
             if (read.Session is not { } session)
             {
                 return null;
@@ -413,7 +448,7 @@ public sealed class SessionLibrary
         return Update(folder, document =>
         {
             var file = snapshot.File;
-            if (Path.IsPathFullyQualified(file) && string.Equals(Path.GetDirectoryName(file), folder, StringComparison.OrdinalIgnoreCase))
+            if (Path.IsPathFullyQualified(file) && PathIdentity.Same(Path.GetDirectoryName(file), folder))
             {
                 file = Path.GetFileName(file);
             }
@@ -520,11 +555,15 @@ public sealed class SessionLibrary
     /// <see cref="Deletion.Kept"/>. Refused, with the reason, for a folder that is not a session of this library, the
     /// current session, or a session something writes into. Nothing is deleted here.
     /// </summary>
-    public Deletion PlanSessionDeletion(string folder, string? cacheFallbackRoot = null)
+    /// <param name="allowCurrent">Purge all (sprint 3.12): the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
+    public Deletion PlanSessionDeletion(string folder, string? cacheFallbackRoot = null, bool allowCurrent = false)
     {
-        var session = SessionToDelete(folder);
+        var session = SessionToDelete(folder, allowCurrent);
         var (files, kept) = SessionFiles(session, cacheFallbackRoot);
-        return new Deletion(files, files.Sum(f => new FileInfo(f).Length), Kept: kept);
+
+        // What the folder's removal takes too (the review's M14): its lock file and links, which are removed, never followed.
+        var all = files.Concat(Leftovers(session.Folder)).ToList();
+        return new Deletion(all, files.Sum(f => new FileInfo(f).Length), Kept: kept);
     }
 
     /// <summary>
@@ -532,9 +571,10 @@ public sealed class SessionLibrary
     /// <c>session.json</c> last, so a deletion that fails part way leaves a session that is still listed and can be deleted
     /// again. The caller has made sure none of its snapshots is open.
     /// </summary>
-    public Deletion DeleteSession(string folder, string? cacheFallbackRoot = null)
+    /// <param name="allowCurrent">Purge all (sprint 3.12): the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
+    public Deletion DeleteSession(string folder, string? cacheFallbackRoot = null, bool allowCurrent = false)
     {
-        var full = SessionToDelete(folder).Folder;
+        var full = SessionToDelete(folder, allowCurrent).Folder;
         lock (_useGate)
         {
             if (_inUse.TryGetValue(full, out var users))
@@ -568,10 +608,13 @@ public sealed class SessionLibrary
                 deletion = deletion with { Files = [.. deletion.Files, document], Bytes = deletion.Bytes + size, Kept = kept };
             }
 
+            var leftovers = Leftovers(full);
             try
             {
-                // Empty folders and the lasting lock file, closed above; links are removed, never followed.
+                // Empty folders and the lasting lock file, closed above; links are removed, never followed. Both are counted
+                // with the files (the review's M14).
                 Directory.Delete(full, recursive: true);
+                deletion = deletion with { Files = [.. deletion.Files, .. leftovers] };
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -597,7 +640,7 @@ public sealed class SessionLibrary
         foreach (var summary in ListRecent(int.MaxValue))
         {
             if (TryRead(summary.Folder) is { } session
-                && session.Document.Snapshots.FirstOrDefault(s => string.Equals(Path.GetFullPath(session.PathOf(s)), full, StringComparison.OrdinalIgnoreCase)) is { } snapshot)
+                && session.Document.Snapshots.FirstOrDefault(s => PathIdentity.Same(Path.GetFullPath(session.PathOf(s)), full)) is { } snapshot)
             {
                 return (session, snapshot);
             }
@@ -630,7 +673,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>A session of this library that may be deleted now, or the reason it may not.</summary>
-    private Session SessionToDelete(string folder)
+    private Session SessionToDelete(string folder, bool allowCurrent = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(folder);
         var full = Normalize(folder);
@@ -641,7 +684,7 @@ public sealed class SessionLibrary
             throw new ArgumentException("Only a session of this library can be deleted.", nameof(folder));
         }
 
-        if (IsFile(full, CurrentFolder))
+        if (!allowCurrent && IsFile(full, CurrentFolder))
         {
             throw new InvalidOperationException("The current session cannot be deleted while it is current: start a new session first.");
         }
@@ -697,7 +740,43 @@ public sealed class SessionLibrary
             }
         }
 
-        return ([.. files.Distinct(StringComparer.OrdinalIgnoreCase)], kept);
+        return ([.. files.Distinct(PathIdentity.Comparer())], kept);
+    }
+
+    /// <summary>
+    /// What a session folder's removal takes besides its files: the lock file and every link (a file or folder that is a
+    /// reparse point), found without following one.
+    /// </summary>
+    private static List<string> Leftovers(string folder)
+    {
+        var result = new List<string>();
+        var lockFile = Path.Combine(folder, LockName);
+        if (File.Exists(lockFile))
+        {
+            result.Add(lockFile);
+        }
+
+        void Walk(DirectoryInfo directory)
+        {
+            foreach (var entry in directory.EnumerateFileSystemInfos())
+            {
+                if (entry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    result.Add(entry.FullName);
+                }
+                else if (entry is DirectoryInfo child)
+                {
+                    Walk(child);
+                }
+            }
+        }
+
+        if (Directory.Exists(folder))
+        {
+            Walk(new DirectoryInfo(folder));
+        }
+
+        return result;
     }
 
     /// <summary>A snapshot's files: itself, its partial file, and its index caches and sidecars.</summary>
@@ -710,7 +789,7 @@ public sealed class SessionLibrary
         var deleted = new List<string>();
         var failed = new List<string>();
         long bytes = 0;
-        foreach (var file in files.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var file in files.Distinct(PathIdentity.Comparer()))
         {
             try
             {
@@ -730,10 +809,10 @@ public sealed class SessionLibrary
 
     private static string Normalize(string folder) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
 
-    private static bool IsFile(string? a, string? b) => a is not null && b is not null && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    private static bool IsFile(string? a, string? b) => PathIdentity.Same(a, b);
 
     internal static bool IsUnder(string file, string folder) =>
-        Path.GetFullPath(file).StartsWith(Path.TrimEndingDirectorySeparator(folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        PathIdentity.IsUnder(Path.GetFullPath(file), Path.TrimEndingDirectorySeparator(folder));
 
     private static bool IsLink(string path) =>
         (File.Exists(path) || Directory.Exists(path)) && File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
@@ -809,7 +888,7 @@ public sealed class SessionLibrary
 
             lock (_gate)
             {
-                if (string.Equals(_currentFolder, folder, StringComparison.OrdinalIgnoreCase))
+                if (PathIdentity.Same(_currentFolder, folder))
                 {
                     // Its document is gone either way, so it is no longer a session to capture into.
                     _currentFolder = null;
@@ -862,6 +941,34 @@ public sealed class SessionLibrary
         return removed;
     }
 
+    /// <summary>
+    /// Logs, once per session and process, the entries a newer HeapScope wrote with values this build does not know (sprint
+    /// 3.12, B4; review M18): kept and saved as they are, but not shown, so "my snapshot vanished" has an answer.
+    /// </summary>
+    private void NoteSetAside(Session session)
+    {
+        var document = session.Document;
+        var count = document.UnknownSnapshots.Count + document.UnknownRuns.Count;
+        if (count == 0)
+        {
+            return;
+        }
+
+        lock (_setAsideNoted)
+        {
+            if (!_setAsideNoted.Add(session.Folder))
+            {
+                return;
+            }
+        }
+
+        _logger.LogInformation(
+            "Session {Folder}: {Count} entries kept as they are and not shown, with values a newer HeapScope wrote: {Values}",
+            session.Folder,
+            count,
+            string.Join("; ", SessionDocumentFile.UnknownValues(document).Take(50)));
+    }
+
     /// <summary>Reads a session folder; null when it has no readable, well-formed <c>session.json</c>.</summary>
     public static Session? TryRead(string folder) => SessionDocumentFile.Read(folder).Session;
 
@@ -883,6 +990,7 @@ public sealed class SessionLibrary
             var read = SessionDocumentFile.Read(folder);
             if (read.Session is { } session)
             {
+                NoteSetAside(session);
                 var d = session.Document;
                 result.Add(new SessionSummary(folder, d.Name, d.CreatedUtc, d.LastOpenedUtc, d.Snapshots.Count, FolderSize(folder)));
             }

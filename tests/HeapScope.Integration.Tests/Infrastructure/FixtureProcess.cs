@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -55,6 +55,14 @@ public sealed partial class FixtureProcess : IDisposable
     public static async Task<FixtureProcess> StartConsoleAsync(params string[] arguments)
     {
         var child = ChildProcess.Start(TestPaths.LeakyConsoleExe, [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
+        await WaitReadyAsync(child).ConfigureAwait(false);
+        return new FixtureProcess(child, null);
+    }
+
+    /// <summary>Starts the tutorial's sample (sprint 3.13) with <paramref name="arguments"/>, watched by this test process.</summary>
+    public static async Task<FixtureProcess> StartSampleAsync(params string[] arguments)
+    {
+        var child = ChildProcess.Start(TestPaths.SampleExe, [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
         await WaitReadyAsync(child).ConfigureAwait(false);
         return new FixtureProcess(child, null);
     }

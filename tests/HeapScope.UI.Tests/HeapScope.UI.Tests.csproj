@@ -12,4 +12,8 @@
     <Compile Include="..\HeapScope.UI.ViewModels.Tests\FakeCaptureService.cs" Link="Fakes\FakeCaptureService.cs" />
     <Compile Include="..\HeapScope.UI.ViewModels.Tests\FakeTreeNode.cs" Link="Fakes\FakeTreeNode.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The one way tests make a SnapshotSession (sprint 3.12). -->
+    <Compile Include="..\SharedSession\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

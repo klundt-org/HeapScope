@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -20,6 +20,8 @@
 // <https://www.gnu.org/licenses/>.
 //
 // Commercial licenses are available. See COMMERCIAL.md.
+
+using HeapScope.Application.Snapshots;
 
 namespace HeapScope.Architecture.Tests;
 
@@ -63,6 +65,57 @@ public class TextRulesTests
             .Where(f => File.ReadAllText(f).Contains("SpecialFolder.LocalApplicationData", StringComparison.Ordinal))
             .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
             .ToList();
+
+        offenders.ShouldBeEmpty();
+    }
+
+    // One path rule (sprint 3.12, B3 and the review's M3): no file but PathIdentity.cs decides by system how paths compare, so
+    // the rule cannot drift apart in copies (DacLocator kept one, ProcessDiscovery ignored case everywhere).
+    [Fact]
+    public void Only_PathIdentity_decides_by_system_how_paths_compare()
+    {
+        var copy = new System.Text.RegularExpressions.Regex(@"Is(Windows|MacOS|Linux)\(\)\s*\?\s*String(Comparer|Comparison)\.");
+        var offenders = Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && Path.GetFileName(f) != "PathIdentity.cs")
+            .Where(f => copy.IsMatch(File.ReadAllText(f)))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ToList();
+
+        offenders.ShouldBeEmpty();
+    }
+
+    // Tests make snapshot sessions only through TestSessions, which never reads the machine's free memory (sprint 3.12):
+    // a busy machine made opens ask the low memory question first and failed tests that pass alone.
+    [Fact]
+    public void Tests_make_snapshot_sessions_only_through_TestSessions()
+    {
+        var offenders = Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && Path.GetFileName(f) != "TestSessions.cs")
+            .Where(f => File.ReadAllText(f).Contains("new " + nameof(SnapshotSession) + "(", StringComparison.Ordinal))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ToList();
+
+        offenders.ShouldBeEmpty();
+    }
+
+    // Avalonia's DataGrid makes a column binding without a mode two-way, even in a read-only grid: each formatted number was
+    // written back to its source and threw twice per cell, on the UI thread, while rows were built (sprint 3.12, a trace of
+    // the smoke run). Every text column binds one way.
+    [Fact]
+    public void Every_grid_text_column_binds_one_way()
+    {
+        var offenders = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.axaml", SearchOption.AllDirectories)
+                     .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f))))
+        {
+            foreach (System.Text.RegularExpressions.Match column in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(file), @"<DataGridTextColumn(?=[\s/>])[^>]*>"))
+            {
+                if (!column.Value.Contains("Mode=OneWay", StringComparison.Ordinal))
+                {
+                    offenders.Add($"{Path.GetRelativePath(RepoPaths.Root, file)}: {column.Value}");
+                }
+            }
+        }
 
         offenders.ShouldBeEmpty();
     }

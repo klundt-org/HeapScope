@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HeapScope
 # Copyright (C) 2026 Ray Klundt
-# https://github.com/rklundt/HeapScope
+# https://github.com/klundt-org/HeapScope
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -37,6 +37,13 @@ done
 grep -q "They are not HeapScope's license" "$dir/licenses/README.md" 2>/dev/null || { echo "Missing licenses/README.md, which says whose licenses the folder holds"; failed=1; }
 ls "$dir"/licenses/Microsoft.NETCore.App.Runtime.*/* > /dev/null 2>&1 || { echo "Missing the .NET runtime's license files under licenses/"; failed=1; }
 ls "$dir"/licenses/SkiaSharp.NativeAssets.*/THIRD-PARTY-NOTICES.txt > /dev/null 2>&1 || { echo "Missing SkiaSharp's native notices under licenses/"; failed=1; }
+# The Inter typeface: its copyright, license notice and license text travel with it (SIL OFL 1.1, condition 2).
+if [ -f "$dir/Avalonia.Fonts.Inter.dll" ]; then
+  grep -q "SIL OPEN FONT LICENSE Version 1.1" "$dir"/licenses/Avalonia.Fonts.Inter.*/OFL.txt 2>/dev/null && grep -q "The Inter Project Authors" "$dir"/licenses/Avalonia.Fonts.Inter.*/OFL.txt \
+    || { echo "Missing the Inter typeface's license (OFL.txt) under licenses/"; failed=1; }
+fi
+# The tutorial's sample (sprint 3.13, ADR-042) ships beside the worker.
+ls "$dir"/sample/heapscope-sample* > /dev/null 2>&1 || { echo "Missing the tutorial's sample under sample/"; failed=1; }
 unreviewed=$(find "$dir" -iname 'msdia140.dll' -o -iname 'KernelTraceControl.dll')
 [ -z "$unreviewed" ] || { echo "Binaries not reviewed for redistribution are in the build:"; echo "$unreviewed"; failed=1; }
 skia=$(find "$dir" -maxdepth 1 -name 'libSkiaSharp.*')

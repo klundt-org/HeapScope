@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -47,9 +47,11 @@ namespace HeapScope.UI;
 /// <param name="SmokeLiveSamples">When set (<c>--smoke-live N</c>), the Live page charts N synthetic samples fed fast
 /// (sprint 1.7) and the run exits with the dispatcher checks.</param>
 /// <param name="SmokeAllocationsPath">With <c>--smoke-open</c>, an allocations trace to show on the Allocations page (sprint 2.5).</param>
-public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null)
+/// <param name="ScreenshotFolder">With <c>--headless</c> (<c>--screenshots folder</c>), saves each page as PNG files (<see cref="Smoke.ScreenshotRunner"/>).</param>
+/// <param name="ScreenshotLivePid">With <c>--screenshots</c> (<c>--screenshot-live-pid N</c>), the Live page's picture watches this process for real.</param>
+public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null, string? ScreenshotFolder = null, int? ScreenshotLivePid = null)
 {
-    public bool IsSmokeRun => SmokeSyntheticObjects is not null || SmokeOpenPath is not null || SmokeLiveSamples is not null;
+    public bool IsSmokeRun => SmokeSyntheticObjects is not null || SmokeOpenPath is not null || SmokeLiveSamples is not null || ScreenshotFolder is not null;
 }
 
 /// <summary>Builds the generic host (DI, configuration, logging) for the app.</summary>
@@ -94,7 +96,9 @@ internal static class UiHost
             builder.Configuration["smoke-compare"],
             builder.Configuration["smoke-trace"],
             smokeLive is null ? null : int.Parse(smokeLive, NumberStyles.None, CultureInfo.InvariantCulture),
-            builder.Configuration["smoke-allocations"]);
+            builder.Configuration["smoke-allocations"],
+            builder.Configuration["screenshots"],
+            builder.Configuration["screenshot-live-pid"] is { } livePid ? int.Parse(livePid, NumberStyles.None, CultureInfo.InvariantCulture) : null);
         builder.Services.AddSingleton(options);
 
         builder.Services.AddSingleton<IUiDispatcher>(new AvaloniaUiDispatcher(dispatcher));
@@ -105,6 +109,7 @@ internal static class UiHost
             : new AvaloniaUserInteraction(() => sp.GetService<MainWindow>()));
         builder.Services.AddHeapScopeViewModels();
         builder.Services.AddSingleton<MainWindow>();
+        builder.Services.AddSingleton<ViewPrewarmer>();
         return builder.Build();
     }
 }

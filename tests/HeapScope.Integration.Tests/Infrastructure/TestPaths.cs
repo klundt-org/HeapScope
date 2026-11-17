@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -42,6 +42,9 @@ internal static class TestPaths
     public static string UiOutput => Path.Combine(RepoRoot, "src", "HeapScope.UI", "bin", Configuration, "net10.0");
 
     public static string UiExe => Path.Combine(UiOutput, "HeapScope.exe");
+
+    /// <summary>The tutorial's sample process (sprint 3.13).</summary>
+    public static string SampleExe => Path.Combine(RepoRoot, "src", "HeapScope.Sample", "bin", Configuration, "net10.0", "heapscope-sample.exe");
 
     public static string LeakyConsoleExe => Path.Combine(RepoRoot, "fixtures", "LeakyConsole", "bin", Configuration, "net10.0", "LeakyConsole.exe");
 

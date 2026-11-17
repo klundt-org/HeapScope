@@ -27,6 +27,12 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   child per byte of the file, check every child and type index and duplicate addresses, and refuse an inconsistency the
   reader throws with a reason; HeapScope's own errors are never reported as a bad file (3.7 review H5). Mutation tests
   run in every CI run and nightly with more iterations (`fuzz.yml`).
+- The tutorial's sample (sprint 3.13, ADR-042) is HeapScope's own process, started as the user and refused while HeapScope
+  runs elevated, so it never runs with more rights than the user; it exits with the process that started it. Its records
+  (`samples/<pid>.json` in the data folder, owner-only) hold its pid, start time and scenarios; `heapscope-cli sample stop`
+  stops a process only when its record's start time matches the running process, so a reused pid is never stopped. The lesson
+  progress (`learn-progress.json`) holds lesson ids only. Process discovery lists the sample, the one exception to hiding
+  HeapScope's own executables.
 - Index caches are signed with a per-user key (sprint 3.7, ADR-036): a cache shipped next to a dump, written by another
   user or machine, or forged with recomputed checksums is never used.
 - Private files (sprint 3.7, peer review P15): on Windows a file HeapScope creates is created with an owner-only access
@@ -48,7 +54,8 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   commits with no token left in checkouts, Dependabot proposes NuGet and Actions updates, and `SECURITY.md` says how to
   report a vulnerability privately.
 - Releases (sprint 3.7, peer review P17; forms since 3.9, ADR-039): publishing a GitHub release builds its tag for
-  win-x64 (a `.zip`) and linux-x64 (a `.tar.gz`) and packs the CLI's dotnet tool, installs that tool file on Windows and
+  win-x64 (a `.zip`), linux-x64 and both macOS runtimes (each a `.tar.gz`; the macOS ones are built on Linux and marked untested
+  on the release) and packs the CLI's dotnet tool, installs that tool file on Windows and
   Linux, and attaches them, an SBOM (CycloneDX) of the app, the CLI and the worker, and `SHA256SUMS`, all with build
   provenance attestations in GitHub's attestation store (`release.yml`; the builds hold read access only, one job that
   builds nothing attests and attaches; a manual run is a dry run by default); CI and release builds are deterministic
@@ -70,8 +77,13 @@ references such as "ARCHITECTURE.md 12" still name the right section.
 - The UI and the CLI say once per capture that the dump contains secrets and where it was written.
 - Dumps live in the session folders under `%LOCALAPPDATA%\HeapScope\sessions` (each dump made owner-only when it is
   finished, above) unless `--out` puts them elsewhere; HeapScope never moves them. The app deletes a snapshot with its
-  caches, a session, or the sessions not opened for a chosen number of days, after showing the files (sprint 3.4); the
-  CLI deletes nothing.
+  caches, a session, or the sessions not opened for a chosen number of days, after showing the files (sprint 3.4). Since
+  sprint 3.12 the Settings page's Purge logs and Purge all, and `heapscope-cli purge logs|all --yes`, delete HeapScope's
+  logs, or its logs, the library's sessions and the bookmarks; never a dump outside the library, the trusted DACs or the
+  index cache key; Purge all asks first (the command line wants `--yes`) and waits for other HeapScope processes.
+- Filter text in logs (sprint 3.12, B1): the text typed in filters and searches is written into the logs unless the user
+  turns that off (Settings, or `heapscope-cli settings --filter-text-in-logs off`); field values and strings read from a
+  dump never are (logging.md).
 - Elevated targets require HeapScope to run elevated (ADR-014). HeapScope never tries to elevate silently.
 - Traces (`trace`, `--smoke-trace`, sprint 1.5) hold method and type names and event data such as exception messages,
   not heap contents; the CLI says so after each one, and they are written where the user asks (never uploaded).
@@ -88,8 +100,9 @@ references such as "ARCHITECTURE.md 12" still name the right section.
 - Bookmarks (sprint 2.7) are kept in `bookmarks.json` in HeapScope's data folder (owner-only): the snapshot
   file's full path, size and write time, the object's address and type name, a color and a time; no field values or
   string text.
-- CI (sprint 2.3.5) dumps only the LeakyConsole fixture on GitHub's runners and never uploads the dump. The builds it
-  uploads (sprint 2.3.6) hold build output only.
+- CI (sprint 2.3.5) dumps only HeapScope's own fixtures (LeakyConsole, LeakyApi, DenseHeap) on GitHub's runners and
+  never uploads a dump. The builds it uploads (sprint 2.3.6) hold build output only. The tests' independent ClrMD check
+  opens those dumps with a local-only file locator (2026-11-03), so no module identifier goes to a symbol server.
 - Off Windows, HeapScope's own folders and files are the user's alone (sprint 2.3.6, `PrivateFiles`): sessions, logs,
   index caches and their sidecars, monitoring timelines and traces are created 0700 (folders) and 0600 (files) instead
   of the process umask, which often lets other users read them. A folder the user picked keeps its permissions; on

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -56,8 +56,11 @@ internal static class Collections
         new(InspectionColumns.Bytes, InspectionColumnKind.Bytes),
     ];
 
-    /// <summary>Every covered collection with its count, capacity and backing storage, read through the typed reader.</summary>
-    public static IEnumerable<Shape> Shapes(InspectionContext context)
+    /// <summary>
+    /// Every covered collection with its count, capacity and backing storage, read through the typed reader; <paramref name="counts"/>
+    /// counts the covered collections and those whose count could not be read (sprint 3.12, B7).
+    /// </summary>
+    public static IEnumerable<Shape> Shapes(InspectionContext context, ShapeCounts counts)
     {
         var graph = context.Graph;
         var reader = context.Reader ?? throw new InvalidOperationException("The collection inspections need a reader.");
@@ -87,8 +90,10 @@ internal static class Collections
 
             var (_, countField, freeField, itemsField, bucketsField) = s_layouts[layout];
             var address = graph.Addresses[i];
+            counts.Scanned++;
             if (reader.ReadField(address, countField) is not { } count)
             {
+                counts.Unreadable++;
                 continue;
             }
 
@@ -121,6 +126,14 @@ internal static class Collections
             cells[5] = InspectionRows.Number(row.Bytes);
         });
 
+    /// <summary>The covered collections a walk saw, and those it could not read.</summary>
+    public sealed class ShapeCounts
+    {
+        public long Scanned { get; set; }
+
+        public long Unreadable { get; set; }
+    }
+
     /// <param name="BackingBytes">The backing arrays' sizes (entries and buckets for hashed collections).</param>
     public sealed record Shape(int Object, long Count, long Capacity, long ElementBytes, long BackingBytes);
 }
@@ -143,12 +156,14 @@ internal sealed class EmptyCollectionsInspection : IInspection
     public InspectionResult Run(InspectionContext context)
     {
         var graph = context.Graph;
-        var rows = Collections.Shapes(context)
+        var counts = new Collections.ShapeCounts();
+        var rows = Collections.Shapes(context, counts)
             .Where(s => s.Count == 0 && s.Capacity > 0)
             .Select(s => new CollectionRow(s.Object, 0, s.Capacity, s.BackingBytes, (long)graph.GetSize(s.Object) + s.BackingBytes))
             .OrderByDescending(r => r.Wasted).ThenBy(r => r.Object)
             .ToArray();
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows));
+        var basis = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{counts.Scanned} collections of the covered types read, {counts.Unreadable} whose count could not be read; {rows.Length} empty with a capacity");
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows), basis, Counts: new(counts.Scanned, counts.Unreadable));
     }
 }
 
@@ -172,12 +187,14 @@ internal sealed class OversizedCollectionsInspection : IInspection
     public InspectionResult Run(InspectionContext context)
     {
         var graph = context.Graph;
-        var rows = Collections.Shapes(context)
+        var counts = new Collections.ShapeCounts();
+        var rows = Collections.Shapes(context, counts)
             .Where(s => s.Count > 0 && s.Capacity >= (2 * s.Count) + Slack)
             .Select(s => new CollectionRow(s.Object, s.Count, s.Capacity, (s.Capacity - s.Count) * s.ElementBytes, (long)graph.GetSize(s.Object) + s.BackingBytes))
             .OrderByDescending(r => r.Wasted).ThenBy(r => r.Object)
             .ToArray();
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows));
+        var basis = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{counts.Scanned} collections of the covered types read, {counts.Unreadable} whose count could not be read; {rows.Length} with Capacity>=2*Count+{Slack}");
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), rows.Sum(r => r.Wasted), null, Collections.Table(graph, rows), basis, Counts: new(counts.Scanned, counts.Unreadable));
     }
 }
 
@@ -336,7 +353,7 @@ internal sealed class DuplicateStringsInspection : IInspection
             cells[5] = graph.Types.GetName(type);
             cells[6] = TypeGroups.ModuleKey(graph.Types.GetModule(type));
             cells[7] = InspectionScopes.SameValue;
-        }), basis);
+        }), basis, Counts: new(total, unreadable));
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -82,7 +82,7 @@ internal sealed class HeapQueryHandler(
                 // A set's Types and Generations views (sprint 3.1): its members only, aggregated per query.
                 if (request.IncludeRetained)
                 {
-                    throw new ArgumentException("A set's types have no retained column; its Retained view gives the exact figure.");
+                    throw new RequestRefusedException("A set's types have no retained column; its Retained view gives the exact figure.");
                 }
 
                 set = await resolver.ResolveAsync(request.SnapshotId, snapshot, spec, progress, cancellationToken).ConfigureAwait(false);
@@ -104,7 +104,7 @@ internal sealed class HeapQueryHandler(
                 interfaces = await derived.GetInterfacesAsync(request.SnapshotId, snapshot, progress, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeRetained)
                 {
-                    throw new ArgumentException("Interface rows have no retained column: a type counts under each of its interfaces, so the rows overlap. Leave out retained sizes (--retained), or group by type, namespace or assembly.");
+                    throw new RequestRefusedException("Interface rows have no retained column: a type counts under each of its interfaces, so the rows overlap. Leave out retained sizes (--retained), or group by type, namespace or assembly.");
                 }
             }
 
@@ -210,12 +210,12 @@ internal sealed class HeapQueryHandler(
             var ids = request.SnapshotIds ?? [];
             if (ids.Count is < 2 or > TypeTrendColumns.MaxSnapshots || ids.Distinct().Count() != ids.Count)
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"A trend takes 2 to {TypeTrendColumns.MaxSnapshots} different snapshots."), nameof(request));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"A trend takes 2 to {TypeTrendColumns.MaxSnapshots} different snapshots."), nameof(request));
             }
 
             if (!Enum.IsDefined(request.GroupBy))
             {
-                throw new ArgumentOutOfRangeException(nameof(request), $"Unknown grouping {(int)request.GroupBy}.");
+                throw new RequestRefusedException($"Unknown grouping {(int)request.GroupBy}.");
             }
 
             var stopwatch = Stopwatch.StartNew();
@@ -238,7 +238,7 @@ internal sealed class HeapQueryHandler(
                     if (i > 0 && snapshot.Info.Kind != kind)
                     {
                         // Full dumps hold garbage and name nested types apart; gcdumps hold survivors only (the 3.3 review).
-                        throw new ArgumentException("A trend takes snapshots of one kind: full dumps and gcdumps count different objects and name nested types differently. Compare a full dump with a gcdump in a two-snapshot comparison instead.");
+                        throw new RequestRefusedException("A trend takes snapshots of one kind: full dumps and gcdumps count different objects and name nested types differently. Compare a full dump with a gcdump in a two-snapshot comparison instead.");
                     }
 
                     kind = snapshot.Info.Kind;
@@ -324,7 +324,7 @@ internal sealed class HeapQueryHandler(
             var graph = snapshot.Graph;
             if (!graph.TryGetIndex(request.Address, out var index))
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
             }
 
             var type = graph.TypeIndices[index];
@@ -364,7 +364,7 @@ internal sealed class HeapQueryHandler(
             using var _ = lease;
             if (!snapshot.Graph.TryGetIndex(request.Address, out var index))
             {
-                throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
             }
 
             snapshot.TryGetService<IObjectReader>(out var reader);
@@ -387,7 +387,7 @@ internal sealed class HeapQueryHandler(
             {
                 if (!snapshot.Graph.TryGetIndex(request.Address, out var index))
                 {
-                    throw new ArgumentException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
+                    throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"There is no object at 0x{request.Address:x} in this snapshot."));
                 }
 
                 var (reverse, info) = await derived.GetReverseAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
@@ -413,7 +413,7 @@ internal sealed class HeapQueryHandler(
             ArgumentNullException.ThrowIfNull(request);
             if (string.IsNullOrEmpty(request.TypeName))
             {
-                throw new ArgumentException("A type name is required.", nameof(request));
+                throw new RequestRefusedException("A type name is required.", nameof(request));
             }
 
             var (snapshot, lease) = access.Lease(request.SnapshotId);
@@ -446,7 +446,7 @@ internal sealed class HeapQueryHandler(
         // Refused before any work (the 3.3 review).
         if (request.IncludeRetained && request.GroupBy == TypeGrouping.Interface)
         {
-            throw new ArgumentException("Interface rows have no retained bytes: a type counts under each interface it implements, so the rows overlap. Group by type, namespace or assembly.");
+            throw new RequestRefusedException("Interface rows have no retained bytes: a type counts under each interface it implements, so the rows overlap. Group by type, namespace or assembly.");
         }
 
         var comparison = new Comparison();
@@ -480,7 +480,7 @@ internal sealed class HeapQueryHandler(
 
             // Who was compared and which rule decided (the 3.3 review), so a contested match can be backed up.
             Logger.LogInformation(
-                "Object matching of {Baseline} ({BaselineKind}, process {BaselineName} {BaselinePid}, captured {BaselineCaptured:O}) and {Current} ({CurrentKind}, process {CurrentName} {CurrentPid}, captured {CurrentCaptured:O}): {Outcome}; {Survivors} survivors, {Reused} addresses reused by other objects, {FrozenSurvivors} of {Frozen} frozen objects at their address",
+                "Object matching of {Baseline} ({BaselineKind}, process {BaselineName} {BaselinePid}, captured {BaselineCaptured:O}) and {Current} ({CurrentKind}, process {CurrentName} {CurrentPid}, captured {CurrentCaptured:O}): {Outcome}; {Survivors} survivors ({PinnedYounger} of them pinned and in a younger generation), {YoungerUnpinned} addresses whose objects differ only in a younger generation, unpinned, {Reused} addresses holding another type, size, area or method table, {FrozenSurvivors} of {Frozen} frozen objects at their address",
                 request.BaselineId,
                 baseline.Info.Kind,
                 baseline.Info.ProcessName ?? "unknown",
@@ -493,6 +493,8 @@ internal sealed class HeapQueryHandler(
                 current.Info.CapturedAtUtc,
                 comparison.Matched ? "matched" + (comparison.IdentityNote is null ? string.Empty : ", with a caution") : comparison.IdentityNote,
                 comparison.Identity?.Survivors,
+                comparison.Identity?.PinnedYoungerSurvivors,
+                comparison.Identity?.YoungerUnpinned,
                 comparison.Identity?.ReusedAddresses,
                 comparison.Identity?.FrozenSurvivors,
                 comparison.Identity?.BaselineFrozen);

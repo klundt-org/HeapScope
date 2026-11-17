@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -90,6 +90,6 @@ public sealed class CellRowItem(int index, IReadOnlyList<string> blank) : Observ
         : kind is ResultColumnKind.Integer or ResultColumnKind.Bytes && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
             ? number.ToString("N0", CultureInfo.CurrentCulture)
         : kind == ResultColumnKind.Percent && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var percent)
-            ? percent.ToString("N2", CultureInfo.CurrentCulture) + " %"
+            ? percent.ToString("N1", CultureInfo.CurrentCulture) + " %"
         : text;
 }

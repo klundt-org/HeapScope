@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -48,6 +48,9 @@ internal sealed class Exclusions
 
         keys[key] = keys.GetValueOrDefault(key) + 1;
     }
+
+    /// <summary>Everything left out, every reason together.</summary>
+    public long Total => _byReason.Values.Sum(keys => keys.Values.Sum());
 
     /// <summary>"left out: reason count (Key (n), Key (n), Key (n)), ..."; "none left out" when empty.</summary>
     public override string ToString() =>

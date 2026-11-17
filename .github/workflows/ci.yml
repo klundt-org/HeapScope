@@ -48,7 +48,7 @@ jobs:
         # No token is left in the checkout for later steps (sprint 3.7, peer review P16).
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: Build
@@ -74,6 +74,8 @@ jobs:
           cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli.exe
           bash build/fixture-dump.sh "$RUNNER_TEMP/leaky.dmp" "cli=$cli"
           bash build/check-known-answers.sh "$cli" "$RUNNER_TEMP/leaky.dmp"
+          # A missing DAC and the symbol server's download rule on a real dump (sprint 3.12, the review of task 9).
+          HEAPSCOPE_FIXTURE_DUMP="$RUNNER_TEMP/leaky.dmp" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*MissingDacTests" --filter-class "*WalkComparisonTests"
       - name: Keep the test results and HeapScope's logs
         # Always, so a step that timed out still leaves its results (review).
         if: ${{ always() }}
@@ -96,7 +98,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: Build
@@ -131,7 +133,7 @@ jobs:
         # No token is left in the checkout for later steps (sprint 3.7, peer review P16).
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: Build the CLI and the app (with the worker) and the fixture
@@ -154,8 +156,10 @@ jobs:
           dump="$RUNNER_TEMP/leaky.dmp"
           bash build/fixture-dump.sh "$dump" dotnet-dump
           bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$dump"
-          # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19).
-          HEAPSCOPE_FIXTURE_DUMP="$dump" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*PlantedDacTests"
+          # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19), and a missing
+          # DAC with the symbol server's download rule (sprint 3.12), and the loader's object walk against ClrMD's on a core dump
+          # (sprint 3.12 review M1).
+          HEAPSCOPE_FIXTURE_DUMP="$dump" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*PlantedDacTests" --filter-class "*MissingDacTests" --filter-class "*WalkComparisonTests"
           # The Avalonia app opens the core dump headless and drills down as a user would (sprint 2.3.6).
           app=src/HeapScope.UI/bin/Release/net10.0/HeapScope
           "$app" --headless --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/ui-log" || { cat "$RUNNER_TEMP"/ui-log/*.log; exit 1; }
@@ -200,7 +204,7 @@ jobs:
         # No token is left in the checkout for later steps (sprint 3.7, peer review P16).
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: SkiaSharp native library is built for this SkiaSharp (ADR-038)

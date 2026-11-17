@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -79,8 +79,8 @@ internal static class FeatureRules
     public static string? WhyNoInterfaces(ISnapshot snapshot, string side = "this snapshot")
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        return HasReader(snapshot, SnapshotCapabilities.FieldValues)
-            ? null
+        return HasReader(snapshot, SnapshotCapabilities.FieldValues) ? null
+            : snapshot.TryGetService<ValueReadsRefused>(out var refused) ? refused.Reason
             : $"Interfaces need a full dump: {side} is a gcdump, which records no interfaces. Group by type, namespace or assembly, or capture a full dump.";
     }
 
@@ -101,8 +101,12 @@ internal static class FeatureRules
         return (feature is null ? null : WhyUnavailable(feature, snapshot)) ?? Worded(missing, snapshot);
     }
 
-    // A missing capability as Contracts words it for the snapshot's kind (a gcdump's "capture a full dump").
-    private static string Worded(SnapshotCapabilities missing, ISnapshot snapshot) => ContractMapping.ExplainMissing(missing, snapshot.Info.Kind);
+    // A missing capability as Contracts words it for the snapshot's kind (a gcdump's "capture a full dump"); a full dump
+    // whose values are refused says why instead (sprint 3.12, one rule for value reads).
+    private static string Worded(SnapshotCapabilities missing, ISnapshot snapshot) =>
+        (missing & DumpSnapshot.ReaderCapabilities) != SnapshotCapabilities.None && snapshot.TryGetService<ValueReadsRefused>(out var refused)
+            ? refused.Reason
+            : ContractMapping.ExplainMissing(missing, snapshot.Info.Kind);
 
     private static string? WhyNoUnreachableSet(ISnapshot snapshot)
     {

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -29,10 +29,14 @@ public enum DominatorGroupingDto
     /// <summary>Each child object on its own row.</summary>
     None = 0,
 
-    /// <summary>Children grouped by type (with its module); a group's retained size is exact, since siblings retain disjoint sets.</summary>
+    /// <summary>
+    /// Children grouped by type (with its module). A group's retained size adds up its members' retained sizes, which never overlap;
+    /// what several members keep alive together is counted in the row above (at the top level, in rows of its own), so it is a lower
+    /// bound of what they keep alive together (3.11 review M6).
+    /// </summary>
     Type = 1,
 
-    /// <summary>Children grouped by namespace.</summary>
+    /// <summary>Children grouped by namespace; a group's retained size is a lower bound, as for <see cref="Type"/>.</summary>
     Namespace = 2,
 }
 
@@ -122,7 +126,10 @@ public static class DominatorTreeColumns
     /// <summary>Objects the row stands for: 1 for an object, the members of a group or of a "more" row.</summary>
     public const string Objects = "Objects";
 
-    /// <summary>Bytes the row retains (exact: dominator subtrees are disjoint).</summary>
+    /// <summary>
+    /// Bytes the row retains: exact for an object; for a group or a "more" row, its members' retained sizes added up, a lower bound
+    /// (3.11 review M6).
+    /// </summary>
     public const string Retained = "Retained";
 
     /// <summary>The objects' own bytes.</summary>
@@ -136,6 +143,18 @@ public static class DominatorTreeColumns
 
     /// <summary>1 when the row is expanded in this answer.</summary>
     public const string Expanded = "Expanded";
+
+    /// <summary>
+    /// Whether the row's <see cref="Retained"/> is <see cref="RetainedExact"/> (an object) or <see cref="RetainedAtLeast"/> (a group
+    /// or a "more" row, its members' sizes added up; sprint 3.12, M6 of the 3.11 review). Exported with the rows.
+    /// </summary>
+    public const string RetainedIs = "Retained is";
+
+    /// <summary>A <see cref="RetainedIs"/> value.</summary>
+    public const string RetainedExact = "exact";
+
+    /// <summary>A <see cref="RetainedIs"/> value.</summary>
+    public const string RetainedAtLeast = "at least";
 }
 
 /// <summary>

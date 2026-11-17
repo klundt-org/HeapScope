@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -92,6 +92,14 @@ internal static class DetectorGraph
         var top = counts.OrderByDescending(c => c.Value).ThenBy(c => c.Key, StringComparer.Ordinal).ToList();
         var text = string.Join(", ", top.Take(shown).Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.Key} ({c.Value:N0})")));
         return top.Count > shown ? string.Create(CultureInfo.InvariantCulture, $"{text} and {top.Count - shown:N0} more types") : text;
+    }
+
+    /// <summary>"a; b; c and 12 more": a log line's list of rows, cut at <see cref="InspectionCounts.ListedCap"/> (sprint 3.12, B7).</summary>
+    public static string Listed(IEnumerable<string> items)
+    {
+        var all = items.ToList();
+        var text = string.Join("; ", all.Take(InspectionCounts.ListedCap));
+        return all.Count > InspectionCounts.ListedCap ? string.Create(CultureInfo.InvariantCulture, $"{text} and {all.Count - InspectionCounts.ListedCap} more") : text;
     }
 
     /// <summary>The framework's own types, by namespace.</summary>

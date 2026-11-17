@@ -8,12 +8,94 @@ each sprint is in `docs/reviews/sprint-X.Y.md`.
 
 | Version | Released |
 |---|---|
+| 3.13.0 | 2026-11-17, `v3.13.0` |
 | 3.9.0 | 2026-11-02, `v3.9.0` |
 | 3.8.0 | 2026-10-31, `v3.8.0` |
 | 3.5.0 | 2026-10-29, `v3.5.0` |
 | 2.2.0 | 2026-10-25, `v2.2.0` |
 
 Everything else was built on `develop` and first shipped in the next release above it.
+
+## 3.13.0: Tutorial (sprint 3.13)
+
+- **Learn HeapScope hands-on**: a new Learn page (Ctrl+7) holds twelve lessons, one per memory problem: a cache that never
+  lets go, event handlers never removed, timers never stopped, async methods that never finish, wasted collections, large
+  arrays, where allocations come from, and more. Each lesson starts a small sample process of HeapScope's own with that
+  problem planted, shows the steps beside every page while you work, and checks your answer against what was planted.
+  Finished lessons are remembered.
+- **A sample process to practice on**: the Processes page's Sample process section starts the sample with the problems you
+  tick, optionally growing every second for Live, Compare and Trend; its row is marked Sample, ready to capture or record.
+  It runs as you, at most three at once, stops growing at 512 MB and stops when HeapScope closes.
+- **On the command line**: `heapscope-cli sample list`, `sample start --scenarios ...` (until Ctrl+C) and `sample stop --pid`.
+- **Limits**: the lessons start with a capture, which runs on Windows for now, so on Linux and macOS the Learn page says so
+  and starts none. The sample adds about 77 MB to each package. Pre-built tutorial files are not shipped.
+
+## 3.12.0: First-show performance and refactor analysis (sprint 3.12)
+
+- **Faster first loads**: HeapScope now reads a dump's objects itself instead of asking for each one's type, so a 4.4 GB dump
+  of 58 million objects loads in about 13 s instead of 21 s, with the same memory and the same results.
+- **Pages ready when you open them**: after the window appears, HeapScope prepares its pages in the background ("Getting
+  pages ready" in the status bar), so the Snapshots page opens without the first-time pause.
+- **A Settings page**: choose whether the text you type in filters is written into HeapScope's logs (on by default), delete
+  the logs, or delete everything HeapScope keeps (Purge all asks first and never touches dumps you opened from your own
+  folders). The command line has the same: `heapscope-cli settings` and `heapscope-cli purge logs|all`.
+- **Dumps whose runtime component is gone**: when a dump's DAC (Data Access Component) cannot be used, HeapScope opens the
+  index cache an older version wrote instead of refusing the dump. Everything the graph holds works; field values and strings
+  are refused with the reason, and Trust this DAC and reopen reads them once you trust the DAC beside the dump.
+- **Clearer failures**: an unexpected failure in the analysis worker shows a fixed message with an id that finds it in the
+  log, never a raw exception; requests the worker refuses still say why.
+- **More precise results**: objects of types from an unloadable context now keep their context alive in the graph, a damaged
+  array or string length is counted as unreadable instead of misread, group rows in Retainers mark their retained size as a
+  lower bound, and every inspection's log line says what it scanned and left out.
+- **Paths on macOS** compare without case, as on Windows, so one file is never opened as two snapshots.
+- Limited: a snapshot opened from an older index cache cannot read field values or strings until its DAC is usable.
+
+## 3.11.0: Screens that explain themselves (sprint 3.11)
+
+- **Info icons**: every page and tab has an (i) beside its title that says what it is for, when to use it and how to start, and
+  groups of settings have one too. Hover, click, Enter or Space opens it, and it works beside a button that is turned off.
+- **Tooltips that say why**: a button, menu item or input that is turned off still shows its tooltip, and many say what they
+  need. Texts that were wrong or incomplete were fixed, and every text was checked against the code.
+- **Plainer words about memory**: what a root is, what New and dead objects means (an address reused by an object of the same
+  type and size can count as survived), what the POH holds, and that a Retainers group row's retained bytes are a lower bound.
+- **Opening a dump again**: after a refused reopen, opening the dump again shows its row and notes afresh, keeps your Compare
+  pair and Trend ticks, and runs them again on the new snapshot.
+- **Retainers chart**: bars too thin to point at are grouped into one "+N smaller" bar that says how many it holds and their size.
+- **New and dead objects**: a pinned object the GC moved to a younger generation now counts as survived, not as dead and new.
+- **Fixes**: the Processes page's CSV export names its columns, and reading the cache key no longer fails while another process
+  writes it.
+- **Limited**: an unpinned object the GC moved to a younger generation still counts as dead and new. A Retainers group row's
+  lower bound is not marked on screen yet.
+
+## 3.10.0: Visual design and README (sprint 3.10)
+
+- **A new look**: one design on every page, in both themes: slate neutrals and one indigo accent, the Inter font with
+  numbers that line up, tighter grids, and HeapScope's own logo and icons. Charts now follow a theme change.
+- **Fixes you can see**: Compare and Allocations keep type names readable, selected text is easier to read, columns no longer
+  clip or sit blank, and the Live chart has gridlines and a time axis. Fit to width on the retention diagram follows the page.
+- **Clearer messages**: empty pages say what to do next, failed jobs keep their reason, and the next steps fit the system you are on.
+- **Rows that open more**: a leak detector's row with no type or address, such as a timer's static method, now opens its
+  objects on double-click, and can be asked what those objects retain.
+- **Process names you can trust**: a dump's process name comes from the executable's path the dump records, and the log says
+  which rule chose it. It could be a library's name before, which could refuse New and Dead for two dumps of one process.
+- **A new README and a user guide**: the README shows real captures in your GitHub theme, and `docs/USER-GUIDE.md` holds the detail.
+- **macOS packages, untested**: releases attach `osx-arm64` and `osx-x64` packages. They are built on Linux, not on a Mac, and have
+  not been run. INSTALL.md says how to build on a Mac with `build/publish.sh`.
+- **Live says when it cannot help**: a process it may not monitor gets a warning that stays, with what to do, and a process that sends
+  no samples gets one after about 10 seconds, since some trimmed apps turn off the runtime events Live reads.
+- **A chart you can read**: hover over any bar in the Retainers chart for its name and size, and a line above the chart says how to read it.
+- **Allocation traces say why there is none**: stopping a run while its trace is still starting no longer reports a failure. The
+  run says there is no trace and how long it had been waiting.
+
+Limited:
+- **Each full dump's index cache is rebuilt once after upgrading**, so its first open takes as long as a first load. The process name
+  fix changed what the loader records (loader version 4): the name and the rule that chose it.
+- **That rebuild needs the dump's DAC.** Until sprint 3.12, a dump whose DAC is gone, or which you declined to trust, does not open
+  when its cache is from an older version, and the error says what is missing. This qualifies 3.6.0's "After a "no", a dump with
+  an index cache still opens": that holds for a cache written by this version.
+- After a reopen is refused, opening the dump again works, but the Snapshots page can keep showing "Open it again" and the old
+  notes. Sprint 3.11 fixes this.
+- Capture stays on Windows, and nothing is signed.
 
 ## 3.9.0: Packaging and distribution (sprint 3.9)
 

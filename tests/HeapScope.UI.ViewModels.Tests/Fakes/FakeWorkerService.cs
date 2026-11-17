@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -42,6 +42,8 @@ internal sealed partial class FakeWorkerService : IWorkerService
     public void CompleteSynthetic(int objects) => _synthetic.TrySetResult(new SyntheticJobResult(
         objects, objects * 3, (ulong)objects * 48, objects * 34L, 0.5, new ResultSetInfo(Guid.NewGuid(), 1, [])));
 
+    public void FailSynthetic(Exception error) => _synthetic.TrySetException(error);
+
     public List<OpenSnapshotRequest> Opened { get; } = [];
 
     public List<Guid> Closed { get; } = [];
@@ -61,8 +63,17 @@ internal sealed partial class FakeWorkerService : IWorkerService
     /// <summary>When set, the next opens fail with it.</summary>
     public Exception? OpenFailure { get; set; }
 
+    /// <summary>The id the next opens answer with, as the worker does for a dump that is already open; otherwise a new one.</summary>
+    public Guid? NextSnapshotId { get; set; }
+
+    /// <summary>The notes an open reports.</summary>
+    public IReadOnlyList<string> OpenNotes { get; set; } = ["A note."];
+
     /// <summary>When set, opens are refused until a request trusts this DAC (sprint 3.6).</summary>
     public DacTrustDetails? RequiredDac { get; set; }
+
+    /// <summary>With <see cref="RequiredDac"/>: the dump has an index cache, so an open that does not ask about the DAC succeeds without value reads.</summary>
+    public bool CachedWithoutDac { get; set; }
 
     /// <summary>Type summary queries received (tests check filter, sort and grouping).</summary>
     public List<TypeSummaryRequest> SummaryQueries { get; } = [];
@@ -267,6 +278,9 @@ internal sealed partial class FakeWorkerService : IWorkerService
 
     /// <summary>Inspection requests received, with their baselines (sprint 2.6).</summary>
     public List<InspectionRequest> InspectionRequests { get; } = [];
+
+    /// <summary>Columns a test gives an inspection instead of <see cref="InspectionColumnsFor"/> (a result from another build).</summary>
+    public Func<string, IReadOnlyList<ResultColumn>?>? ColumnsOfInspection { get; set; }
 
     /// <summary>The worker's columns for the fake's inspections.</summary>
     public static IReadOnlyList<ResultColumn> InspectionColumnsFor(string name) => name switch

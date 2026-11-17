@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -33,16 +33,20 @@ namespace HeapScope.Worker.Rpc;
 /// </summary>
 internal static class InspectionAvailability
 {
-    /// <summary>Why <paramref name="inspection"/> cannot run, or null when it can.</summary>
-    public static string? Explain(IInspection inspection, SnapshotCapabilities capabilities, SnapshotInfo info)
+    /// <summary>
+    /// Why <paramref name="inspection"/> cannot run on <paramref name="snapshot"/>, or null when it can. A missing capability
+    /// is worded by the feature rules, as the descriptor's list is (sprint 3.12: an inspection that reads fields of a dump
+    /// whose DAC was declined used to be listed as runnable).
+    /// </summary>
+    public static string? Explain(IInspection inspection, ISnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(inspection);
-        ArgumentNullException.ThrowIfNull(info);
-        var missing = capabilities.Missing(inspection.Requires);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        var info = snapshot.Info;
+        var missing = snapshot.Capabilities.Missing(inspection.Requires);
         if (missing != SnapshotCapabilities.None)
         {
-            // Contracts mirrors Core's capability flags (ADR-016); the lowest missing one explains it.
-            return ContractMapping.ExplainMissing(missing, info.Kind);
+            return FeatureRules.ExplainMissing(missing, snapshot);
         }
 
         var facts = inspection.RequiresFacts & ~info.Facts;

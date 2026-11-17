@@ -60,7 +60,8 @@ Capture and sessions (sprint 1.1):
   (`DiagnosticsClient.GetPublishedProcesses`) with name, working set, private bytes, start time, command line
   (`NtQueryInformationProcess`, limited query rights), runtime version and folder (the loaded `coreclr.dll`; single-file
   apps have none) and elevation. HeapScope's own processes (this pid, and executables under its installation folder,
-  the worker included) are never listed or captured, matched by path, not name. A detail that cannot be read stays
+  the worker included) are never listed or captured, matched by path, not name; the tutorial's sample, in the
+  installation's `sample/` folder, is the exception, since it is there to be captured (sprint 3.13, ADR-042). A detail that cannot be read stays
   empty. `WindowsElevationProbe` reads token elevation for targets and for HeapScope itself (one rule): a token that
   cannot be opened for query (elevated, or another user's, such as services running as SYSTEM) or that reports
   elevation means only an elevated HeapScope can dump it. Capture is Windows only (ADR-025): off Windows,
@@ -118,13 +119,15 @@ Capture and sessions (sprint 1.1):
 
 ```
 HeapScope.sln
-build/                         Shared MSBuild targets (worker deployment next to UI and CLI); the gate, test, fixture
+build/                         Shared MSBuild targets (worker and sample deployment next to UI and CLI); the gate, test, fixture
                                dump, publish, license, package and SkiaSharp native scripts shared by CI and the local
                                gate (sprint 3.6, ADR-038); release archives, the CLI's dotnet tool and the checks that
-                               run them as a user would (sprint 3.9, ADR-039)
+                               run them as a user would (sprint 3.9, ADR-039); the demo data, screenshots and the
+                               app's icon, by hand (sprint 3.10, ADR-040)
 src/
   HeapScope.Core               Domain model: snapshot abstraction, capability model, compact graph,
-                               type table, root model, string table. No dependencies at all.
+                               type table, root model, string table; the data folder, private files and the user's
+                               settings every process shares (sprint 3.12). No dependencies at all.
   HeapScope.Analysis           Algorithms over the compact graph.
   HeapScope.Storage            On-disk index cache format, versioning, read/write.
   HeapScope.Capture            Process discovery, dump/gcdump capture, live counters, timed snapshots.
@@ -140,13 +143,24 @@ src/
   HeapScope.UI                 The desktop app on Avalonia (Windows, Linux, macOS; sprint 2.3.6, ADR-025): shell,
                                views, controls, smoke runs. Executable HeapScope.
   HeapScope.Cli                Command line front end.
+  HeapScope.Sample             The tutorial's sample (sprint 3.13, ADR-042): executable heapscope-sample, a .NET process
+                               with problems planted on purpose, scenario by scenario, shipped in sample/ beside the app
+                               and the CLI. References fixtures/Leaks.
 tests/
   Shared/                      Helpers compiled into every test project (the repository root finder, sprint 1.9; the
                                per-test data folder, sprint 3.8)
+  SharedSession/               Compiled into the integration, view model and UI tests: `TestSessions`, the one way a test
+                               opens a snapshot session, with a fixed memory budget (sprint 3.12).
+  SharedCapture/               Compiled into the tests that capture: `HeldDumpWriter`, which holds a capture while it writes
+                               so a cancel or a second capture meets it there (sprint 3.12, task 11).
+  SharedSample/                Compiled into the Application and view model tests: `FakeSampleStarter`, the tutorial's
+                               sample as tests see it (sprint 3.13).
   HeapScope.Core.Tests
   HeapScope.Analysis.Tests     Synthetic graphs with known answers.
   HeapScope.Storage.Tests
-  HeapScope.Loaders.ClrMd.Tests DAC lookup (local only) with real PE files; the loader itself runs in Integration.Tests.
+  HeapScope.Loaders.ClrMd.Tests DAC lookup (local only) with real PE files; the load meter; on each CI system's fixture dump
+                               the missing DAC rules and the object walk against ClrMD's (sprint 3.12). The loader's
+                               known answers run in Integration.Tests.
   HeapScope.Capture.Tests      Capture preflight (elevation, disk, partial files) with fakes; the real probe.
   HeapScope.Application.Tests  Job tracking, logging and worker client logic with fakes.
   HeapScope.Cli.Tests          The CLI in process: usage errors, tables as text, cells by name (sprint 3.8).
@@ -157,12 +171,16 @@ tests/
   HeapScope.Architecture.Tests Enforces the dependency rules below.
   HeapScope.Integration.Tests  Real worker processes, fixtures, real dumps, known answers. References Storage,
                                Analysis and the three loaders to test them in process, and runs the built CLI and app.
+  HeapScope.Benchmarks.Tests   The benchmarks' rules on recorded numbers (`UiStallAttribution`, sprint 3.12).
+  HeapScope.Sample.Tests       The sample's scenarios and command line, and the Learn page's lessons against them and the
+                               wording table (sprint 3.13).
 perf/
-  HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.).
+  HeapScope.Benchmarks         Console benchmarks against the budgets (synthetic 50M-object graph etc.) and the
+                               trace readers (`trace-report`, `ui-stalls`, `cpu-profile`).
 .github/workflows/ci.yml       CI on GitHub's runners: Windows and Linux, and the builds per system (sprints 2.3.5,
 2.3.6; no macOS runners since 2026-10-31).
 .github/workflows/fuzz.yml     Nightly mutation tests with more iterations (sprint 3.7).
-.github/workflows/release.yml  Release builds (win-x64 .zip, linux-x64 .tar.gz, the CLI's dotnet tool), SBOM, checksums
+.github/workflows/release.yml  Release builds (win-x64 .zip; linux-x64 and untested macOS .tar.gz; the CLI's dotnet tool), SBOM, checksums
                                and attestations (sprint 3.7; ADR-039).
 .github/workflows/skia-native.yml SkiaSharp's native library built without the DNG SDK and piex (ADR-038).
 fixtures/
@@ -198,6 +216,7 @@ flowchart TD
     VM --> Con
     Cli[Cli] --> App
     Cli --> Con
+    Smp[Sample] --> Lk[fixtures/Leaks]
     App --> Con
     App --> Cap[Capture]
     App --> Core
@@ -233,10 +252,12 @@ flowchart TD
 | Application | Core, Contracts, Capture | StreamJsonRpc |
 | Cli | Application, Contracts | System.CommandLine |
 | UI.ViewModels | Application, Contracts | CommunityToolkit.Mvvm |
-| UI | Application, Contracts, UI.ViewModels | Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Controls.DataGrid, Avalonia.Headless, Avalonia.Fonts.Inter (assets excluded), CommunityToolkit.Mvvm (MIT only, ADR-025) |
+| Sample | fixtures/Leaks only (sprint 3.13, ADR-042) | none, not even Microsoft.Extensions.* |
+| UI | Application, Contracts, UI.ViewModels | Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Controls.DataGrid, Avalonia.Headless, Avalonia.Fonts.Inter, CommunityToolkit.Mvvm (MIT packages, ADR-025; the Inter font in its package is SIL OFL 1.1, allowed for fonts only, ADR-040) |
 
 Rules:
-- Core references nothing, not even Microsoft.Extensions.*. It is pure domain types and data structures.
+- Core references nothing, not even Microsoft.Extensions.*. It holds domain types and data structures, plus the data
+  folder, private files and user settings every process shares.
   ThirdParty.GcDump references no Microsoft.Extensions.* either.
 - UI and UI.ViewModels never reference Loaders, Analysis, Storage, Capture, Worker or any diagnostics library directly
   (diagnostics libraries do load into the UI process, through Capture via Application). UI.ViewModels references no
@@ -245,7 +266,7 @@ Rules:
   vocabulary (snapshot kind, capabilities, capability descriptions) is defined in Contracts (ADR-016).
 - A build-order-only reference (`ReferenceOutputAssembly="false"`) to the Worker project is allowed from
   UI, Cli and Integration.Tests; it ensures the worker is built and deployed next to them, without making
-  any worker type visible.
+  any worker type visible. The same holds for the Sample project (sprint 3.13), deployed in `sample/`.
 - `HeapScope.Architecture.Tests` checks every `src/**/*.csproj` against the table using the evaluated restore
   graph (`obj/project.assets.json`, so references added by imported props and targets count) plus build-order-only
   references from the project and the shared targets it imports. It also checks every compiled assembly reference
@@ -253,7 +274,7 @@ Rules:
 
 ## 4. Process model and IPC
 
-Three kinds of process (the app, the CLI, the analysis worker), how the worker is started, watched and restarted, the
+Three kinds of process (the app, the CLI, the analysis worker) and the tutorial's sample, how the worker is started, watched and restarted, the
 JSON-RPC transport and its contracts with the protocol version history, progress and cancellation, and large result sets
 read in pages. Full text: [architecture/process-model.md](architecture/process-model.md).
 
@@ -330,13 +351,14 @@ The table matches `Directory.Packages.props`, the authoritative list.
 | System.IO.Hashing | 10.0.14 | MIT | Storage, Analysis |
 | StreamJsonRpc | 2.26.150 | MIT | Worker, Application |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | UI.ViewModels, UI |
-| Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Headless | 12.1.4 | MIT (natives: ANGLE BSD-3, SkiaSharp and HarfBuzzSharp MIT; SkiaSharp's native library in published builds is HeapScope's own build without the DNG SDK and piex, ADR-038) | UI, UI tests (2.3.6) |
-| Avalonia.Fonts.Inter | 12.1.4 | MIT (the font is OFL-1.1, so its assets are excluded) | UI (comes with Avalonia.Headless) |
+| Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Headless | 12.1.5 | MIT (natives: ANGLE BSD-3, SkiaSharp and HarfBuzzSharp MIT; SkiaSharp's native library in published builds is HeapScope's own build without the DNG SDK and piex, ADR-038) | UI, UI tests (2.3.6) |
+| Avalonia.Fonts.Inter | 12.1.5 | MIT (the Inter typeface in it is SIL OFL 1.1, allowed for fonts; ADR-040) | UI (shipped since 3.10) |
 | Avalonia.Controls.DataGrid | 12.1.2 | MIT | UI (2.3.6) |
 | System.CommandLine | 2.0.14 | MIT | Cli |
 | Microsoft.Diagnostics.Runtime (ClrMD) | 4.2.751201 | MIT | Loaders.ClrMd |
 | Microsoft.Diagnostics.NETCore.Client | 0.2.750501 | MIT | Capture |
 | Microsoft.Diagnostics.Tracing.TraceEvent | 4.0.0 | MIT | Capture (Loaders.GcDump in 1.8, Loaders.Trace in 2.5) |
+| Microsoft.CodeAnalysis.CSharp | 5.9.0 | MIT | DenseHeap fixture |
 | xunit.v3 | 4.0.2 | Apache 2.0 | tests |
 | Shouldly | 4.3.0 | BSD 3-Clause | tests |
 

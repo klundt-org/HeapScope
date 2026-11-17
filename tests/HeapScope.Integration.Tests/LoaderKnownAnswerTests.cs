@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -98,7 +98,15 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
             {
                 objects++;
                 size += obj.Size;
-                references += obj.EnumerateReferenceAddresses(carefully: false, considerDependantHandles: false).Count();
+                var targets = obj.EnumerateReferenceAddresses(carefully: false, considerDependantHandles: false).ToList();
+                references += targets.Count;
+
+                // The loader adds the LoaderAllocator of a collectible type, which ClrMD does not yield (review H3).
+                if (obj.Type is { IsCollectible: true, LoaderAllocatorHandle: not 0 and var handle }
+                    && dump.Runtime.DataTarget.DataReader.ReadPointer(handle) is not 0 and var allocator && !targets.Contains(allocator))
+                {
+                    references++;
+                }
             }
         }
 
@@ -108,6 +116,94 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         Graph.ObjectCount.ShouldBe((int)objects);
         Graph.TotalSize.ShouldBe(size);
         ((long)Graph.EdgeCount).ShouldBe(references + dependentEdges);
+    }
+
+    // Sprint 3.12 review M1: the loader walks objects by their method tables itself (R4); it must find the objects ClrMD's own
+    // walk finds, with their types, sizes and finalizer flags, one by one (here on Windows; WalkComparisonTests on every CI
+    // system's own fixture dump).
+    [Fact]
+    public void Every_object_is_the_one_clrmds_walk_finds_with_its_type_size_and_finalizer_flag()
+    {
+        var dump = shared.Source.Dump;
+        var expected = dump.Heap.Segments.SelectMany(s => s.EnumerateObjects()).Where(o => !o.IsFree)
+            .Select(o => (o.Address, Type: o.Type?.Name ?? string.Empty, Size: o.Size))
+            .OrderBy(o => o.Address)
+            .ToList();
+        var finalizable = dump.Heap.EnumerateFinalizableObjects()
+            .Where(o => o.Type is { } type && !type.IsFinalizeSuppressed(o.Address))
+            .Select(o => o.Address)
+            .ToHashSet();
+
+        Graph.ObjectCount.ShouldBe(expected.Count);
+        var mismatches = new List<string>();
+        for (var i = 0; i < expected.Count && mismatches.Count < 10; i++)
+        {
+            var (address, type, size) = expected[i];
+            var actual = (Graph.Addresses[i], Graph.Types.GetName(Graph.TypeIndices[i]), Graph.GetSize(i));
+            if (actual != (address, type, size))
+            {
+                mismatches.Add($"#{i}: ClrMD 0x{address:x} {type} {size}, HeapScope 0x{actual.Item1:x} {actual.Item2} {actual.Item3}");
+            }
+
+            var flagged = (Graph.Flags[i] & ObjectFlags.HasFinalizer) != 0;
+            if (flagged != finalizable.Contains(address))
+            {
+                mismatches.Add($"#{i}: 0x{address:x} {type} finalizer flag {flagged}, ClrMD {!flagged}");
+            }
+        }
+
+        mismatches.ShouldBeEmpty();
+    }
+
+    // Sprint 3.12 review M1: what the method table walk cannot read goes to ClrMD's walk for the rest of its segment; that
+    // must build the same graph, and never add an object twice.
+    [Fact]
+    public void A_walk_handed_to_clrmd_in_mid_segment_builds_the_same_graph()
+    {
+        var segments = shared.Source.Dump.Heap.Segments.OrderBy(s => s.ObjectRange.Start).ToList();
+        var largest = segments.MaxBy(s => s.EnumerateObjects().Count())!;
+        var before = segments.TakeWhile(s => s != largest).Sum(s => (long)s.EnumerateObjects().Count());
+        var at = before + (largest.EnumerateObjects().Count() / 2);
+
+        using var handed = new ClrMdDumpLoader(new ClrMdLoaderOptions { FallBackAtObjectForTests = at }).Load(shared.Source.DumpPath, cancellationToken: TestContext.Current.CancellationToken).Graph;
+
+        (handed.ObjectCount, handed.TotalSize, handed.EdgeCount).ShouldBe((Graph.ObjectCount, Graph.TotalSize, Graph.EdgeCount));
+        handed.Addresses.Span.SequenceEqual(Graph.Addresses.Span).ShouldBeTrue();
+        handed.Sizes.Span.SequenceEqual(Graph.Sizes.Span).ShouldBeTrue();
+        handed.Flags.Span.SequenceEqual(Graph.Flags.Span).ShouldBeTrue();
+    }
+
+    // Sprint 3.12 review M8: a length that runs past its segment is a damaged object, not a big one: counted as unreadable,
+    // its segment incomplete, and the snapshot no longer a complete graph.
+    [Fact]
+    public void An_object_whose_length_runs_past_its_segment_is_unreadable_and_its_segment_incomplete()
+    {
+        var segments = shared.Source.Dump.Heap.Segments.OrderBy(s => s.ObjectRange.Start).ToList();
+        var largest = segments.MaxBy(s => s.EnumerateObjects().Count())!;
+        var at = segments.TakeWhile(s => s != largest).Sum(s => (long)s.EnumerateObjects().Count()) + (largest.EnumerateObjects().Count() / 2);
+
+        var damaged = new ClrMdDumpLoader(new ClrMdLoaderOptions { OverrunAtObjectForTests = at })
+            .Load(shared.Source.DumpPath, cancellationToken: TestContext.Current.CancellationToken);
+        using var graph = damaged.Graph;
+
+        damaged.Diagnostics.UnreadableObjects.ShouldBe(1);
+        damaged.Diagnostics.IncompleteSegments.ShouldBe(1);
+        damaged.Capabilities.HasFlag(Core.SnapshotCapabilities.CompleteGraph).ShouldBeFalse();
+        graph.ObjectCount.ShouldBeLessThan(Graph.ObjectCount, "nothing after it in its segment can be found");
+    }
+
+    // Sprint 3.12 review H3: an object of a collectible type holds its LoaderAllocator, even when the type has no pointers.
+    [Fact]
+    public void An_object_of_a_collectible_type_without_pointers_references_its_loader_allocator()
+    {
+        var counters = GraphQueries.Instances(Graph, RuntimeFixtures.CollectibleTypeName).ToList();
+
+        counters.Count.ShouldBe(AllLeaksDump.RuntimeItems);
+        foreach (var counter in counters)
+        {
+            Graph.GetReferences(counter).ToArray().Select(r => Graph.Types.GetName(Graph.TypeIndices[r]))
+                .ShouldContain("System.Reflection.LoaderAllocator");
+        }
     }
 
     [Fact]

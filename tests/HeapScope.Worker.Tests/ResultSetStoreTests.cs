@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -119,7 +119,9 @@ public class ResultSetStoreTests
     public async Task Domain_exceptions_map_to_error_codes()
     {
         WorkerErrors.CodeOf(new CapabilityNotSupportedException(SnapshotCapabilities.FieldValues)).ShouldBe(HeapScopeErrorCode.CapabilityNotSupported);
-        WorkerErrors.CodeOf(new ArgumentOutOfRangeException("x")).ShouldBe(HeapScopeErrorCode.InvalidArgument);
+        // Sprint 3.12 (B5): a refusal the worker means is InvalidArgument; any other ArgumentException is a bug, without a code.
+        WorkerErrors.CodeOf(new HeapScope.Core.RequestRefusedException("x")).ShouldBe(HeapScopeErrorCode.InvalidArgument);
+        WorkerErrors.CodeOf(new ArgumentOutOfRangeException("x")).ShouldBeNull();
         WorkerErrors.CodeOf(new InvalidOperationException()).ShouldBeNull();
 
         var ex = await Should.ThrowAsync<LocalRpcException>(() => WorkerErrors.GuardAsync<int>(

@@ -1,7 +1,7 @@
 <!--
   HeapScope
   Copyright (C) 2026 Ray Klundt
-  https://github.com/rklundt/HeapScope
+  https://github.com/klundt-org/HeapScope
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -33,6 +33,26 @@
              x:Class="HeapScope.UI.Views.Pages.InspectionsTab"
              x:DataType="vm:SnapshotsViewModel">
   <UserControl.Styles>
+    <!-- The selection is on the card, so the group heading above it stays out of it. -->
+    <Style Selector="ListBox#TileList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox#TileList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="Border.card:pointerover">
+      <Setter Property="Background" Value="{DynamicResource Brush.AltRow}" />
+    </Style>
+    <Style Selector="Border.card.selected">
+      <Setter Property="Background" Value="{DynamicResource Brush.Selection}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+    </Style>
     <Style Selector="TextBlock.findings">
       <Setter Property="Foreground" Value="{DynamicResource Brush.Growth}" />
     </Style>
@@ -41,41 +61,56 @@
     </Style>
   </UserControl.Styles>
   <DockPanel DataContext="{Binding Inspections}" x:DataType="vm:InspectionsViewModel" Margin="0,8,0,0">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+      <TextBlock Text="Inspections" FontWeight="SemiBold" VerticalAlignment="Center" />
+      <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Inspections}" />
+    </StackPanel>
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,6" />
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6" IsVisible="{Binding UsesBaseline}">
       <TextBlock Text="Baseline for growth" VerticalAlignment="Center" Margin="0,0,8,0" />
       <ComboBox x:Name="BaselinePicker" MinWidth="320" ItemsSource="{Binding BaselineChoices}" SelectedItem="{Binding Baseline, Mode=TwoWay}"
-                ToolTip.Tip="An earlier snapshot of the same process: the growth detectors compare with it (open both dumps). None: they report only what is large." />
+                ToolTip.Tip="An earlier full dump of the same process, for the Growing types and Growing static collections checks. With None, Growing types finds nothing and Growing static collections lists only large ones." />
     </StackPanel>
-    <ScrollViewer DockPanel.Dock="Left" Width="360" VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
+    <ScrollViewer DockPanel.Dock="Left" Width="320" VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
       <StackPanel>
+        <!-- Continue: Tab goes into the items, so it reaches a group heading's info icon (3.11 review). -->
         <ListBox x:Name="TileList" ItemsSource="{Binding Tiles}" SelectedItem="{Binding Selected, Mode=TwoWay}" Background="Transparent"
+                 KeyboardNavigation.TabNavigation="Continue"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.Styles>
             <Style Selector="ListBoxItem">
               <Setter Property="HorizontalContentAlignment" Value="Stretch" />
               <Setter Property="Padding" Value="0" />
-              <Setter Property="Margin" Value="0,0,0,6" />
+              <Setter Property="Margin" Value="0,0,0,4" />
             </Style>
           </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:InspectionTileViewModel">
               <StackPanel>
-              <TextBlock Classes="groupHeading" Text="{Binding GroupHeader}" IsVisible="{Binding HasGroupHeader}" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,4"
-                         Background="Transparent" Cursor="Arrow" />
-              <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="10,6">
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,4" IsVisible="{Binding HasGroupHeader}">
+                <TextBlock Classes="groupHeading" Text="{Binding GroupHeader}" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Background="Transparent" Cursor="Arrow" />
+                <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Detectors}" />
+              </StackPanel>
+              <Border Classes="card" Classes.selected="{Binding $parent[ListBoxItem].IsSelected}">
                 <StackPanel>
-                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                  <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"
-                             Classes.findings="{Binding HasFindings}" Classes.unavailable="{Binding !IsAvailable}" />
+                  <!-- Found nothing: one quiet row, title and count, so what found something stands out. -->
+                  <DockPanel IsVisible="{Binding !HasFindings}">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Summary}" Classes="subtle" Classes.unavailable="{Binding !IsAvailable}" Margin="8,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="150" ToolTip.Tip="{Binding Summary}" />
+                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                  </DockPanel>
+                  <StackPanel IsVisible="{Binding HasFindings}">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Classes="findings" />
+                    <ItemsControl ItemsSource="{Binding FirstRows}" Margin="0,2,0,0">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <TextBlock Text="{Binding}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
                   <ctl:NoteText Text="{Binding Status}" Classes="subtle" />
-                  <ItemsControl ItemsSource="{Binding FirstRows}" Margin="0,2,0,0">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="x:String">
-                        <TextBlock Text="{Binding}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
                   <ctl:NoteText Text="{Binding Note}" FontSize="11" TextWrapping="Wrap" Classes="subtle" />
                 </StackPanel>
               </Border>
@@ -83,8 +118,10 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-        <TextBlock Text="Fragmentation (free share of each heap)" FontWeight="SemiBold" Margin="0,8,0,4"
-                   IsVisible="{Binding HasFragments}" />
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,4" IsVisible="{Binding HasFragments}">
+          <TextBlock Text="Fragmentation (free share of each heap)" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Fragmentation}" />
+        </StackPanel>
         <ItemsControl ItemsSource="{Binding Fragments}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:FragmentItem">
@@ -99,22 +136,26 @@
     </ScrollViewer>
     <Panel DockPanel.Dock="Top" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
       <StackPanel DataContext="{Binding Selected}" x:DataType="vm:InspectionTileViewModel" Margin="0,0,0,6">
-        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
-        <TextBlock TextWrapping="Wrap" Classes="subtle"><Run Text="Cause: " /><Run Text="{Binding Cause}" /></TextBlock>
-        <TextBlock TextWrapping="Wrap" Classes="subtle"><Run Text="Fix: " /><Run Text="{Binding Fix}" /></TextBlock>
+        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,0,4" />
+        <TextBlock TextWrapping="Wrap" Margin="0,0,0,2"><Run Text="Cause " FontWeight="SemiBold" /><Run Text="{Binding Cause}" /></TextBlock>
+        <TextBlock TextWrapping="Wrap"><Run Text="Fix " FontWeight="SemiBold" /><Run Text="{Binding Fix}" /></TextBlock>
       </StackPanel>
     </Panel>
     <DataGrid x:Name="InspectionGrid" ctl:GridExports.ExportName="Inspection" CanUserSortColumns="False"
               ctl:GridBehaviors.ResultColumns="{Binding Columns}"
               ctl:GridBehaviors.Rows="{Binding Rows}"
               ctl:GridBehaviors.OpenCommand="{Binding OpenRowCommand}"
-              ToolTip.Tip="Double-click or Enter opens the row's objects on the Snapshot tab; right-click for what they retain.">
+              ToolTip.Tip="Double-click or Enter opens the row's objects on the Snapshot tab; a leak detector's row opens them as a set.">
       <DataGrid.ContextMenu>
+        <!-- A menu's own tooltip never shows: each item carries the text (3.11 review M9). -->
         <ContextMenu>
-          <MenuItem Header="Open as a set" InputGesture="Ctrl+Shift+O" Command="{Binding OpenAsSetCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}" />
-          <MenuItem Header="Show in dominator tree" Command="{Binding ShowInRetainersCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}" />
-          <MenuItem Header="{x:Static dto:ValueBoundTexts.SetAction}" Command="{Binding RetainedBySetCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}" />
+          <MenuItem Header="Open as a set" InputGesture="Ctrl+Shift+O" Command="{Binding OpenAsSetCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}"
+                    ToolTip.Tip="Open as a set, Show in dominator tree and Objects retained by this set follow the row's objects. The last needs a row with objects behind it." />
+          <MenuItem Header="Show in dominator tree" Command="{Binding ShowInRetainersCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}"
+                    ToolTip.Tip="Open as a set, Show in dominator tree and Objects retained by this set follow the row's objects. The last needs a row with objects behind it." />
+          <MenuItem Header="{x:Static dto:ValueBoundTexts.SetAction}" Command="{Binding RetainedBySetCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}"
+                    ToolTip.Tip="Open as a set, Show in dominator tree and Objects retained by this set follow the row's objects. The last needs a row with objects behind it." />
         </ContextMenu>
       </DataGrid.ContextMenu>
     </DataGrid>

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -79,6 +79,12 @@ public sealed class WorkerHostOptions
     /// <summary>Starts the worker with its crash and hang test hooks enabled (tests only).</summary>
     public bool EnableTestHooks { get; set; }
 
+    /// <summary>
+    /// With <see cref="EnableTestHooks"/>: the worker takes no DAC from an installed runtime (tests only, sprint 3.12).
+    /// Internal, so configuration binding never sets it: only test code can (3.12 re-review).
+    /// </summary>
+    internal bool HideInstalledDacsForTests { get; set; }
+
     /// <summary>The lowest level the worker logs; the front ends set their file log's level (sprint 2.3.7).</summary>
     public Microsoft.Extensions.Logging.LogLevel WorkerLogLevel { get; set; } = Microsoft.Extensions.Logging.LogLevel.Information;
 
@@ -155,7 +161,7 @@ public sealed class WorkerHostOptions
     /// self-contained process: a framework-dependent one loads the runtime from
     /// <c>&lt;dotnet&gt;/shared/Microsoft.NETCore.App/&lt;version&gt;</c>.
     /// </summary>
-    internal static string? RunningDotnetHost()
+    public static string? RunningDotnetHost()
     {
         var version = Path.GetDirectoryName(typeof(object).Assembly.Location);
         var framework = Path.GetDirectoryName(version);

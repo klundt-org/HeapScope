@@ -1,0 +1,44 @@
+<Project>
+  <!--
+    Deploys the tutorial's sample (sprint 3.13, ADR-042) into a sample/ subfolder of the importing project's output, as
+    Worker.Deploy.targets deploys the worker. The reference is build-order only: no sample type is visible to the importing
+    project (ARCHITECTURE.md 3.1).
+  -->
+  <PropertyGroup>
+    <_HeapScopeSampleProject>$(MSBuildThisFileDirectory)..\src\HeapScope.Sample\HeapScope.Sample.csproj</_HeapScopeSampleProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(_HeapScopeSampleProject)" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+  <Target Name="HeapScopeDeploySample" AfterTargets="Build">
+    <MSBuild Projects="$(_HeapScopeSampleProject)" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_HeapScopeSampleTargetPath" />
+    </MSBuild>
+    <PropertyGroup>
+      <_HeapScopeSampleDir>@(_HeapScopeSampleTargetPath->'%(RootDir)%(Directory)')</_HeapScopeSampleDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_HeapScopeSampleFiles Include="$(_HeapScopeSampleDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_HeapScopeSampleFiles)"
+          DestinationFiles="@(_HeapScopeSampleFiles->'$(OutDir)sample\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- A published UI or CLI without a runtime identifier carries the sample's build output the same way. -->
+  <Target Name="HeapScopePublishSample" AfterTargets="Publish" DependsOnTargets="HeapScopeDeploySample" Condition="'$(RuntimeIdentifier)' == '' and '$(HeapScopeTool)' != 'true'">
+    <Copy SourceFiles="@(_HeapScopeSampleFiles)"
+          DestinationFiles="@(_HeapScopeSampleFiles->'$(PublishDir)sample\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- The CLI's dotnet tool (ADR-039): the sample framework-dependent and without an executable, started through the dotnet host. -->
+  <Target Name="HeapScopePublishSampleForTool" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' == '' and '$(HeapScopeTool)' == 'true'">
+    <MSBuild Projects="$(_HeapScopeSampleProject)" Targets="Publish"
+             Properties="Configuration=$(Configuration);UseAppHost=false;HeapScopePublish=true;PublishDir=$(PublishDir)sample\" />
+  </Target>
+  <!-- Published for a runtime identifier: self-contained like the app and the worker, so it runs without an installed .NET. -->
+  <Target Name="HeapScopePublishSampleForRuntime" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
+    <MSBuild Projects="$(_HeapScopeSampleProject)" Targets="Restore" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);PublishReadyToRun=false;HeapScopeRestore=true" />
+    <MSBuild Projects="$(_HeapScopeSampleProject)" Targets="Publish"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishReadyToRun=false;PublishDir=$(PublishDir)sample" />
+  </Target>
+</Project>

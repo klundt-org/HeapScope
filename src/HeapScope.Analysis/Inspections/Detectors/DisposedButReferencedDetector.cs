@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -117,15 +117,24 @@ internal sealed class DisposedButReferencedDetector : IInspection
         }
 
         var disposed = new TypeTally();
+        long unreadableFlags = 0;
         var mask = DetectorGraph.TypeMask(graph, candidates.ContainsKey);
         foreach (var obj in DetectorGraph.ReachableOf(graph, reachable, mask, context, "Reading disposed flags"))
         {
             var type = graph.TypeIndices[obj];
-            if (Fields.Flag(reader, graph.Addresses[obj], candidates[type]) == true)
+            switch (Fields.Flag(reader, graph.Addresses[obj], candidates[type]))
             {
-                disposed.Add(type, obj, graph.GetSize(obj));
+                case true:
+                    disposed.Add(type, obj, graph.GetSize(obj));
+                    break;
+                case null:
+                    // Not known to be disposed or not (the review's M15): left out, never counted as not disposed.
+                    unreadableFlags++;
+                    break;
             }
         }
+
+        var underMinimum = disposed.Types.Where(d => d.Objects < MinObjects).Sum(d => (long)d.Objects);
 
         var rows = disposed.Types
             .Where(d => d.Objects >= MinObjects)
@@ -134,7 +143,7 @@ internal sealed class DisposedButReferencedDetector : IInspection
             .ToArray();
         var basis = string.Create(
             CultureInfo.InvariantCulture,
-            $"{reachable.Count} reachable objects; {probed} types with {MinObjects}+ probed, {candidates.Count} with a disposed flag (most objects without one: {DetectorGraph.Top(noFlag, 5)}); disposed: {string.Join("; ", disposed.Types.OrderByDescending(d => d.Objects).Take(Math.Max(10, rows.Length)).Select(d => $"{graph.Types.GetName(d.Type)} {d.Objects} by {candidates[d.Type]}"))}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Flag"), basis);
+            $"{reachable.Count} reachable objects; {probed} types with {MinObjects}+ probed, {candidates.Count} with a disposed flag (most objects without one: {DetectorGraph.Top(noFlag, 5)}); flag unreadable on {unreadableFlags}; disposed in types under {MinObjects}: {underMinimum}; disposed: {DetectorGraph.Listed(disposed.Types.OrderByDescending(d => d.Objects).Select(d => $"{graph.Types.GetName(d.Type)} {d.Objects} by {candidates[d.Type]}"))}");
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Flag"), basis, Counts: new(reachable.Count, unreadableFlags + underMinimum, ListsRows: true));
     }
 }

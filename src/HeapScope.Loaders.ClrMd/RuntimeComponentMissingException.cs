@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -50,6 +50,14 @@ public sealed class RuntimeComponentMissingException : Exception
         RuntimeVersion = runtimeVersion;
         FileName = fileName;
         Searched = searched;
+    }
+
+    /// <summary>A DAC not found locally that the symbol server did not give either (sprint 3.12): why, and what to do.</summary>
+    public RuntimeComponentMissingException(string runtimeVersion, string fileName, string message, Exception? innerException)
+        : base(message, innerException)
+    {
+        RuntimeVersion = runtimeVersion;
+        FileName = fileName;
     }
 
     public string? RuntimeVersion { get; }

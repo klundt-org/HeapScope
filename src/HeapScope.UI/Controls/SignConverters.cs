@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -22,22 +22,17 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 
-using System.Globalization;
 using Avalonia.Data.Converters;
 
 namespace HeapScope.UI.Controls;
 
-/// <summary>A diff delta's color (sprint 1.4): growth for a positive trend, shrinkage for a negative one, the text color otherwise.</summary>
-public sealed class TrendBrushConverter : IValueConverter
+/// <summary>The sign of a delta, for the style classes that color it (<c>growth</c>, <c>shrink</c>): zero has neither.</summary>
+public static class SignConverters
 {
-    public static TrendBrushConverter Instance { get; } = new();
+    public static FuncValueConverter<long, bool> IsPositive { get; } = new(static value => value > 0);
 
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
-    {
-        > 0 => ResourceKeyToBrushConverter.Instance.Convert("Brush.Growth", targetType, null, culture),
-        < 0 => ResourceKeyToBrushConverter.Instance.Convert("Brush.Shrink", targetType, null, culture),
-        _ => ResourceKeyToBrushConverter.Instance.Convert("Brush.Text", targetType, null, culture),
-    };
+    public static FuncValueConverter<long, bool> IsNegative { get; } = new(static value => value < 0);
 
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+    /// <summary>Whether a list has anything in it (its <c>Count</c>), for a panel with nothing to show otherwise.</summary>
+    public static FuncValueConverter<int, bool> HasItems { get; } = new(static count => count > 0);
 }

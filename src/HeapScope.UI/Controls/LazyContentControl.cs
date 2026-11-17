@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -65,6 +65,31 @@ public sealed class LazyContentControl : ContentControl
     {
         get => GetValue(IsShownProperty);
         set => SetValue(IsShownProperty, value);
+    }
+
+    /// <summary>
+    /// Builds the page's view and lays it out at <paramref name="size"/> without showing it (sprint 3.12, task 4), so its first
+    /// show is a visibility change; the view is the one kept, with its own view model. Returns the view, or null when the
+    /// page is already built or has none.
+    /// </summary>
+    public Control? Prebuild(Size size)
+    {
+        if (Page is null || ReferenceEquals(Content, Page))
+        {
+            return null;
+        }
+
+        Content = Page;
+        ApplyTemplate();
+        Presenter?.UpdateChild();
+        if (Presenter?.Child is not { } view)
+        {
+            return null;
+        }
+
+        view.Measure(size);
+        view.Arrange(new Rect(size));
+        return view;
     }
 
     private void Update()

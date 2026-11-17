@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -50,7 +50,7 @@ public sealed class RetentionViewsTests : IClassFixture<AllLeaksDump>, IAsyncDis
     public RetentionViewsTests(AllLeaksDump shared)
     {
         _shared = shared;
-        _session = new SnapshotSession(_host, new JobTracker(TimeProvider.System));
+        _session = TestSessions.Create(_host, new JobTracker(TimeProvider.System));
         _dump = _folder.File("retention.dmp");
         File.Copy(shared.DumpPath, _dump);
     }

@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -42,7 +42,7 @@ public sealed class SetViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(new SnapshotSession(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
         _worker.Service.Rows.Add(["App.Order", "2", "80"]);
         _worker.Service.Rows.Add(["App.Customer", "1", "60"]);
         _worker.Service.InstanceRows.Add(["0x1000", "App.Order", "40", "Gen2", ""]);

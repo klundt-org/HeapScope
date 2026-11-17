@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -102,6 +102,19 @@ public sealed class HeapGraphBuilder : IDisposable
         {
             EnsurePhase(BuildPhase.References);
             return _addresses.Span;
+        }
+    }
+
+    /// <summary>
+    /// The frozen objects' type indices, index i for object i (sprint 3.12, R4): a loader reads each object's references
+    /// with its type known, and skips types that hold none. Valid when <see cref="FrozenAddresses"/> is.
+    /// </summary>
+    public ReadOnlySpan<int> FrozenTypeIndices
+    {
+        get
+        {
+            EnsurePhase(BuildPhase.References);
+            return _typeIndices.Span;
         }
     }
 

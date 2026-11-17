@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -53,7 +53,7 @@ internal static partial class CliCommands
         AddTopOrAllValidator(command, top, all);
         command.Validators.Add(result =>
         {
-            if (result.GetValue(dumps) is { } files && files.Select(f => f.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != files.Length)
+            if (result.GetValue(dumps) is { } files && files.Select(f => f.FullName).Distinct(PathIdentity.Comparer()).Count() != files.Length)
             {
                 result.AddError("Give each dump once.");
             }
