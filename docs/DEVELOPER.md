@@ -61,6 +61,10 @@ dotnet test --solution HeapScope.sln
   locked mode, so after changing `Directory.Packages.props` or a project's references run `dotnet restore HeapScope.sln
   --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions;
   it skips major versions of `Microsoft.Extensions.*` and `System.*`, which follow the .NET 10 runtime until a deliberate move.
+  Dependabot security updates are on too (since 2026-11-17): a PR when a package has a known vulnerability and a fix.
+- GitHub Actions are pinned by full commit hash (sprint 3.7), and since 2026-11-17 the repository requires it (Settings,
+  Actions: "Require actions to be pinned to a full-length commit SHA"), so an action named by tag or branch fails the run.
+  Dependabot's action updates keep the hash and the version in the comment beside it.
 - A LeakyConsole dump for checks by hand: `bash build/fixture-dump.sh <dump> cli=<heapscope-cli>` (or `dotnet-dump`), then
   `bash build/check-known-answers.sh <heapscope-cli> <dump>`.
 - A test run that never finishes: run the test executable directly with hung test detection, for example
