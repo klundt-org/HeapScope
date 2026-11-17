@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -42,7 +42,7 @@ public sealed class InteractionTests(UiSession ui)
 {
     private const string Before = "Powered by ";
     private const string Link = "HeapScope";
-    private static readonly Uri s_uri = new("https://github.com/rklundt/HeapScope");
+    private static readonly Uri s_uri = new("https://github.com/klundt-org/HeapScope");
 
     [Fact]
     public async Task A_click_on_the_link_opens_it_and_a_click_beside_it_does_not()

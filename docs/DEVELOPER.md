@@ -558,7 +558,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   both modes, with times and private bytes; exit 1 when the build exceeds 60 s or the peak 4 GB.
 
 ## 7. Git conventions
-- Remote: https://github.com/rklundt/HeapScope (ADR-012). `main` holds releases, `develop` collects sprints. Both are
+- Remote: https://github.com/klundt-org/HeapScope (ADR-012). `main` holds releases, `develop` collects sprints. Both are
   protected by a ruleset: changes arrive only by PR (no approvals required, since there is one maintainer); direct
   pushes, force pushes and deletion are blocked.
 - Each sprint works on `sprint/X.Y`, branched from an up-to-date `develop` by `/start-sprint`.
@@ -614,7 +614,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   access only, and then, in one job that builds nothing, attaches the archives, the tool
   package, an SBOM of the app, the CLI and the worker, and `SHA256SUMS`, attesting each in GitHub's attestation store
   (`gh attestation verify <file> --repo
-  rklundt/HeapScope` checks one; attestations need a public repository or GitHub Enterprise). To try it before a
+  klundt-org/HeapScope` checks one; attestations need a public repository or GitHub Enterprise). To try it before a
   release: `gh workflow run release.yml -f tag=<tag>` builds without attaching (a dry run; `-f dry-run=false` attaches);
   manual runs need the workflow on the default branch. If a build fails after publishing, rerun the failed jobs: one
   runtime failing does not cancel the others, and attaching replaces files of the same name. Security reports:

@@ -1,7 +1,7 @@
 <!--
   HeapScope
   Copyright (C) 2026 Ray Klundt
-  https://github.com/rklundt/HeapScope
+  https://github.com/klundt-org/HeapScope
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -63,8 +63,8 @@
          the body font size, theme text on an opaque surface (contrast above 13:1 in both themes, checked by a test). Do not
          remove, hide, shrink, restyle or move it. -->
     <Border x:Name="Attribution" DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0">
-      <ctl:AttributionText Padding="8,2" Background="{DynamicResource Brush.Surface}" Foreground="{DynamicResource Brush.Text}" LinkUri="https://github.com/rklundt/HeapScope"
-                           AutomationProperties.Name="Powered by HeapScope by Ray Klundt" ToolTip.Tip="https://github.com/rklundt/HeapScope">
+      <ctl:AttributionText Padding="8,2" Background="{DynamicResource Brush.Surface}" Foreground="{DynamicResource Brush.Text}" LinkUri="https://github.com/klundt-org/HeapScope"
+                           AutomationProperties.Name="Powered by HeapScope by Ray Klundt" ToolTip.Tip="https://github.com/klundt-org/HeapScope">
         <Run Text="Powered by " /><Run Classes="link" Text="HeapScope" TextDecorations="Underline" Foreground="{DynamicResource Brush.Text}" /><Run Text=" by Ray Klundt" />
       </ctl:AttributionText>
     </Border>

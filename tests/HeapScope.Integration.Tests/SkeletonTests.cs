@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -30,7 +30,7 @@ namespace HeapScope.Integration.Tests;
 [Trait("Category", "Integration")]
 public class SkeletonTests
 {
-    private const string Attribution = "Powered by HeapScope by Ray Klundt (https://github.com/rklundt/HeapScope)";
+    private const string Attribution = "Powered by HeapScope by Ray Klundt (https://github.com/klundt-org/HeapScope)";
     private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
 
     [Fact]
