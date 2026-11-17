@@ -8,7 +8,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.15" />
-    <PackageVersion Include="System.IO.Hashing" Version="10.0.15" />
+    <PackageVersion Include="System.IO.Hashing" Version="11.0.0" />
   </ItemGroup>
   <ItemGroup Label="IPC, UI and CLI">
     <PackageVersion Include="StreamJsonRpc" Version="2.26.150" />
