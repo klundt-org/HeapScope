@@ -4,7 +4,7 @@
 
 **See what is filling your .NET heap, why it is still there, and what grew.**
 
-Powered by [HeapScope](https://github.com/rklundt/HeapScope) by Ray Klundt.
+Powered by [HeapScope](https://github.com/klundt-org/HeapScope) by Ray Klundt.
 
 A free, open source memory profiler for .NET 5 and later, as a desktop app and a command line tool. It runs on Windows and
 Linux, with untested macOS packages, and your memory dumps never leave your machine.
@@ -170,7 +170,7 @@ HeapScope is licensed under the [GNU Affero General Public License, version 3 on
 - **Copyleft, including over a network.** If you distribute a modified version, or let people use one over a network, you
   must offer it under the same license with its source code.
 - **Attribution.** Every work based on HeapScope must keep the notice "Powered by HeapScope by Ray Klundt" (or "Based
-  on HeapScope by Ray Klundt"), with HeapScope linked to https://github.com/rklundt/HeapScope. In a user interface it
+  on HeapScope by Ray Klundt"), with HeapScope linked to https://github.com/klundt-org/HeapScope. In a user interface it
   must be readable on the main screen (or a splash screen shown for at least five seconds): real text on an opaque
   background, at least 4.5:1 contrast, no smaller than the body text. Command line tools show it in help, version and
   startup output where applicable, and in their primary documentation. Modified versions must be marked as such.

@@ -32,4 +32,4 @@ If a fixed-term or subscription license expires and is not renewed, the licensee
 
 Commercial licenses are granted by Ray Klundt or an entity he designates. To discuss a commercial license, contact rayklundt (at) outlook (dot) com.
 
-Note: Third-party components included in HeapScope keep their own licenses (see `THIRD-PARTY-NOTICES`), and their notices must still be preserved under any license.
+Note: Third-party components included in HeapScope keep their own licenses (see `THIRD-PARTY-NOTICES.md`), and their notices must still be preserved under any license.

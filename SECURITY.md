@@ -27,4 +27,4 @@ from 3.9.0: a win-x64 `.zip`, a linux-x64 `.tar.gz` and the CLI's dotnet tool pa
 `.tar.gz` files, marked untested; see INSTALL.md), an SBOM
 (CycloneDX) for the app, the command line tool and the worker, and `SHA256SUMS` for them all. Releases 2.2.0 and 3.5.0
 are source only. Each file has a build provenance attestation in GitHub's attestation store, which
-`gh attestation verify <file> --repo rklundt/HeapScope` checks.
+`gh attestation verify <file> --repo klundt-org/HeapScope` checks.
