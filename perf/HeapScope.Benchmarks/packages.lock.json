@@ -150,8 +150,8 @@
       "heapscope.analysis": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[3.7.0, )",
-          "System.IO.Hashing": "[10.0.14, )"
+          "HeapScope.Core": "[3.13.0, )",
+          "System.IO.Hashing": "[10.0.15, )"
         }
       },
       "heapscope.core": {
@@ -160,27 +160,27 @@
       "heapscope.loaders.clrmd": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[3.7.0, )",
+          "HeapScope.Core": "[3.13.0, )",
           "Microsoft.Diagnostics.Runtime": "[4.2.751201, )"
         }
       },
       "heapscope.loaders.trace": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[3.7.0, )",
+          "HeapScope.Core": "[3.13.0, )",
           "Microsoft.Diagnostics.Tracing.TraceEvent": "[4.0.0, )"
         }
       },
       "heapscope.storage": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[3.7.0, )",
-          "System.IO.Hashing": "[10.0.14, )"
+          "HeapScope.Core": "[3.13.0, )",
+          "System.IO.Hashing": "[10.0.15, )"
         }
       },
       "Microsoft.Extensions.Hosting.Abstractions": {
         "type": "CentralTransitive",
-        "requested": "[10.0.14, )",
+        "requested": "[10.0.15, )",
         "resolved": "10.0.3",
         "contentHash": "GdMpC10Jf6poxSvUJ4lgYpJ5F/kJeaAoJmrPufjBoPYyCTKKY5Dyl0rZA+LBNvFqTq1cZa/lhlptlUhNvU6xrg==",
         "dependencies": {
@@ -193,7 +193,7 @@
       },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "CentralTransitive",
-        "requested": "[10.0.14, )",
+        "requested": "[10.0.15, )",
         "resolved": "10.0.3",
         "contentHash": "lxl0WLk7ROgBFAsjcOYjQ8/DVK+VMszxGBzUhgtQmAsTNldLL5pk9NG/cWTsXHq0lUhUEAtZkEE7jOGOA8bGKQ==",
         "dependencies": {
@@ -202,7 +202,7 @@
       },
       "Microsoft.Extensions.Options": {
         "type": "CentralTransitive",
-        "requested": "[10.0.14, )",
+        "requested": "[10.0.15, )",
         "resolved": "10.0.3",
         "contentHash": "hU6WzGTPvPoLA2ng1ILvWQb3g0qORdlHNsxI8IcPLumJb3suimYUl+bbDzdo1V4KFsvVhnMWzysHpKbZaoDQPQ==",
         "dependencies": {
@@ -212,9 +212,9 @@
       },
       "System.IO.Hashing": {
         "type": "CentralTransitive",
-        "requested": "[10.0.14, )",
-        "resolved": "10.0.14",
-        "contentHash": "lVqovhCt3HlZe7ONG5ydaj6BYwYI004gldVfMMkJl/lR5ueeCtWNpW4nejOX75sPmzm8vXCxB69GqwHaYCnyUQ=="
+        "requested": "[10.0.15, )",
+        "resolved": "10.0.15",
+        "contentHash": "8dyz8adVemyDILwoEFTCq2NsB6XgqOgVHbnv0XgnttQac76XUR3S5L2qcIkJJqOw97mjQttCTWccyk4DKtfm3Q=="
       }
     }
   }
