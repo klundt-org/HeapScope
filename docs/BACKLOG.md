@@ -47,7 +47,7 @@ Sprint 3.11:
 
 ## Open
 
-Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
+Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
 
 **High**
 - The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
