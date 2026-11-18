@@ -59,8 +59,11 @@ dotnet test --solution HeapScope.sln
   takes no DAC from an installed runtime (`SnapshotTests`, the older cache fallback).
 - Packages (sprint 3.7): nuget.org only (`nuget.config`); every project has a `packages.lock.json` and CI restores in
   locked mode, so after changing `Directory.Packages.props` or a project's references run `dotnet restore HeapScope.sln
-  --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions;
-  it skips major versions of `Microsoft.Extensions.*` and `System.*`, which follow the .NET 10 runtime until a deliberate move.
+  --force-evaluate` and commit the changed lock files. Dependabot opens weekly PRs into `develop` for NuGet and Actions,
+  grouped since 2026-11-17 so a week's updates take few CI runs: Avalonia and SkiaSharp in one PR (they need the license
+  check and can need the SkiaSharp rebuild), every other minor and patch update in another, all action updates in a third;
+  a major version comes in a PR of its own. It skips major versions of `Microsoft.Extensions.*` and `System.*`, which
+  follow the .NET 10 runtime until a deliberate move.
   Dependabot security updates are on too (since 2026-11-17): a PR when a package has a known vulnerability and a fix.
 - GitHub Actions are pinned by full commit hash (sprint 3.7), and since 2026-11-17 the repository requires it (Settings,
   Actions: "Require actions to be pinned to a full-length commit SHA"), so an action named by tag or branch fails the run.
@@ -84,8 +87,8 @@ dotnet test --solution HeapScope.sln
   `linux-x64`, `osx-arm64` or `osx-x64`, self-contained and ReadyToRun, each with the self-contained worker in
   `worker/`. `bash build/archive.sh pack <folder> <output folder>` packs a build into its release archive (sprint 3.9,
   ADR-039): a `.zip` for Windows, a `.tar.gz` elsewhere (it keeps the executables' modes); `archive.sh unpack` reverses
-  it, and `build/zip.cs` does the zip work without zip or unzip installed. CI uploads the four archives on pushes to
-  `develop` and `main` and on manual runs (artifacts `HeapScope-<rid>`, kept 14 days; the download is a zip holding
+  it, and `build/zip.cs` does the zip work without zip or unzip installed. CI uploads the four archives on manual runs
+  (`gh workflow run ci.yml --ref <branch>`; artifacts `HeapScope-<rid>`, kept 14 days; the download is a zip holding
   the archive). Releases attach the macOS builds marked untested: built on Linux, never run (ADR-039). Since 3.6 every build carries `LICENSE`,
   `ADDITIONAL-TERMS.md`, `COMMERCIAL.md`, `THIRD-PARTY-NOTICES.md` and each shipped package's own license and notice
   files under `licenses/` (`build/collect-licenses.cs`, with a README there since 3.9 saying whose licenses they are),
@@ -569,9 +572,17 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - Commits happen only through `/close-sprint`, one per sprint, message `Sprint X.Y: <title>` plus a short body. Since
   sprint 2.3.5, work-in-progress commits may be pushed to `sprint/X.Y` to run CI on its draft PR; the squash merge still
   leaves one commit per sprint on `develop`. Work outside a sprint that the owner asks for (a fix, docs, a chore) uses
-  its own short branch (`fix/...`, `chore/...`) off `develop` and the same PR flow.
-- CI (`.github/workflows/ci.yml`, sprints 2.3.5, 2.3.6 and 3.6) runs on every PR into `develop` or `main`, every push to
-  them and on demand, on GitHub's hosted runners. Tests run through `build/test.sh` and the fixture dump through
+  its own short branch (`fix/...`, `chore/...`) off `develop` and the same PR flow. Every PR waits for CI (about 10
+  minutes), so a small fix to the docs or the records rides along with the next PR instead of opening its own, unless
+  it cannot wait (2026-11-17).
+- CI (`.github/workflows/ci.yml`, sprints 2.3.5, 2.3.6 and 3.6) runs on every PR into `develop` or `main` and on demand,
+  on GitHub's hosted runners. Since 2026-11-17 it runs once per change: a PR's run tests the merge of the change into
+  its target, which is what lands, so the push that merges it runs nothing. A PR that changes only Markdown files and
+  `docs/` runs the Linux job's tests (they check every Markdown file's links and text rules, and the info texts) and
+  skips the Windows, heavy and package jobs and the Linux fixture dump; the first job ("What changed") decides from the
+  PR's file list. The last job, "CI passed", passes when every job passed (or, for a docs-only change, passed or was
+  skipped), and is the one check the ruleset requires: a skipped matrix job never creates its named checks, so
+  requiring them directly would leave a docs-only PR waiting. Tests run through `build/test.sh` and the fixture dump through
   `build/fixture-dump.sh`, the scripts the local gate uses; every job keeps its TRX results 14 days
   (`test-results-<system>`), which is where a test that fails now and then shows up:
   - Windows builds the solution, runs the fast and the integration tiers (since 3.6), captures the LeakyConsole fixture
@@ -592,12 +603,10 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     Windows with .NET off the path, on Linux in a plain `ubuntu:24.04` container with only the libraries INSTALL.md
     lists), and installs the CLI's dotnet tool from its file (`build/check-tool.sh`), packed first by `build/pack-tool.sh`
     (a publish for a runtime identifier rewrites the lock files, and the tool restores locked). `osx-arm64` and
-    `osx-x64` are built on Linux and not run. On pushes and manual runs it uploads the archives (`HeapScope-<rid>`, kept
-    14 days), and it always uploads HeapScope's logs of the checks (`package-logs-<rid>`).
-    Pushes to `develop` and `main` come from PRs whose required checks passed; a manual run uploads its builds whatever
-    its tests do.
-  The local gate runs the same tiers. Fixture dumps are never uploaded. Making the CI jobs
-  required checks on `develop` and `main` is a repository setting the owner applies.
+    `osx-x64` are built on Linux and not run. On manual runs it uploads the archives (`HeapScope-<rid>`, kept 14 days),
+    whatever the tests do, and it always uploads HeapScope's logs of the checks (`package-logs-<rid>`).
+  The local gate runs the same tiers. Fixture dumps are never uploaded. The required check ("CI passed") on `develop`
+  and `main` is a repository setting the owner applies (the ruleset "Protect main and develop").
 - A sprint's PR into `develop` is squash merged; the annotated tag `sprint-X.Y` goes on the resulting commit on
   `develop` and is pushed. In autonomous mode Claude merges sprint PRs once the gate passes; otherwise the owner
   merges.
