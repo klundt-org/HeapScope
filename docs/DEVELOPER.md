@@ -516,6 +516,21 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   and can also be run directly from their output folder.
 - Assertions: Shouldly or plain xUnit asserts. FluentAssertions is not allowed (commercial license).
 - Tests that call methods taking a `CancellationToken` pass `TestContext.Current.CancellationToken` (xUnit1051).
+- **Checks by hand** (2026-11-17): what the headless tests cannot see, in the real window on Windows. Run them after a
+  change to the screens they cover, and before a release that changed them:
+  1. Info icons: on every page and tab, hover the (i) beside the title, then click it, then reach it
+     with Tab and press Enter or Space; each opens its text. One beside a turned-off button opens too.
+  2. Retainers chart: start the sample with StaticCache (Processes page, Sample process), capture it, select a
+     `StaticCacheEntry` row and open Retainers. Hover a bar: its name and size show. Hover the "+N smaller" bar: it says
+     how many bars it holds and their size.
+  3. Live's refusal: from an administrator terminal, `dotnet run --project src/HeapScope.Sample -- --scenarios StaticCache`.
+     In HeapScope, not elevated, monitor that pid on the Live page: a warning says it runs elevated and what to do, and
+     stays.
+  4. Allocations on a busy process: start the sample with SteadyAllocation and growth on. On Live, tick Record
+     allocations, start the run, wait about 30 s, stop. The window stays responsive, and the Allocations
+     page shows Types and Back traces.
+  5. Settings: Purge logs empties the logs folder (About shows it) except the logs running processes still write. Purge
+     all asks first, then Home lists no sessions, and a dump opened from your own folder is still there.
 
 ## 6. Benchmarks
 `perf/HeapScope.Benchmarks` is a plain console app (no BenchmarkDotNet, because the interesting cases use
