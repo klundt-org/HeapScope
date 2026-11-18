@@ -16,6 +16,12 @@ each sprint is in `docs/reviews/sprint-X.Y.md`.
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 3.13.1: The CLI on nuget.org
+
+- **`dotnet tool install --global HeapScope.Cli`**: the CLI's dotnet tool package is ready for nuget.org. Its license file
+  now holds the additional terms and the commercial terms with the AGPL, so nuget.org shows all of them, and it has a readme.
+  The app and the CLI are unchanged from 3.13.0.
+
 ## 3.13.0: Tutorial (sprint 3.13)
 
 - **Learn HeapScope hands-on**: a new Learn page (Ctrl+7) holds twelve lessons, one per memory problem: a cache that never

@@ -30,6 +30,11 @@
 - Amended in sprint 3.10 (product owner, 2026-11-05): releases also attach `osx-arm64` and `osx-x64` as `.tar.gz`, where
   3.9 left them off. They are built on Linux and never run (Backlog "Testing on macOS"), so `release.yml` puts a note saying
   so at the top of the release's notes, and README and `INSTALL.md` say it too. `INSTALL.md`'s macOS steps are unconfirmed.
+- Amended 2026-11-18 (3.13.1, product owner): the dotnet tool goes to nuget.org, uploaded by the owner from the release's
+  attached package (Trusted Publishing from a workflow stays in the Backlog). The package's own license file, the one
+  nuget.org shows, joins the AGPL with the additional terms and the commercial terms, since one file alone would show the
+  AGPL without its additional terms; the package has a readme. The ID prefix `HeapScope.*` is requested from nuget.org.
+  `INSTALL.md` installs by name from nuget.org, with the downloaded file kept as the second way.
 - Consequences: a user verifies a download by its checksum and attestation, not a signature. The worker has two ways
   to start (its executable in a self-contained build, its assembly through `dotnet` in the tool), both covered by CI.
   Adding a channel later (nuget.org, winget) repackages these files and keeps the license files and checks.

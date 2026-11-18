@@ -25,6 +25,9 @@
 # Packs the CLI as a dotnet tool (sprint 3.9, ADR-039): one framework-dependent package for every system, HeapScope.Cli,
 # command heapscope-cli, with the worker's assembly (no executable; the front end starts it through the dotnet host),
 # HeapScope's license files and the third-party licenses. Then checks the package.
+# The package's own license file (the one nuget.org shows) is LICENSE.txt: build/package-license-header.txt, then
+# ADDITIONAL-TERMS.md, COMMERCIAL.md and LICENSE, so the additional terms are shown with the AGPL (2026-11-18, 3.13.1).
+# Its readme is src/HeapScope.Cli/README.md.
 # Usage: pack-tool.sh <output folder>
 set -euo pipefail
 [ $# -eq 1 ] || { echo "Usage: pack-tool.sh <output folder>" >&2; exit 64; }
@@ -32,14 +35,24 @@ out="$1"
 mkdir -p "$out"
 staging=$(mktemp -d)
 publish=$(mktemp -d)
-trap 'rm -rf "$staging" "$publish"' EXIT
+package_files=$(mktemp -d)
+trap 'rm -rf "$staging" "$publish" "$package_files"' EXIT
+root="$(cd "$(dirname "$0")/.." && pwd)"
+separator=$(printf '=%.0s' $(seq 1 100))
+{
+  cat "$root/build/package-license-header.txt"
+  for file in ADDITIONAL-TERMS.md COMMERCIAL.md LICENSE; do
+    printf '\r\n%s\r\n%s\r\n%s\r\n\r\n' "$separator" "$file" "$separator"
+    cat "$root/$file"
+  done
+} > "$package_files/LICENSE.txt"
 
 # HeapScopePublish leaves TraceEvent's native binaries out (Directory.Build.targets), as in a published build. The pack
 # publishes into a fresh folder: the tool takes every file there.
 dotnet restore src/HeapScope.Cli -p:HeapScopeTool=true -p:HeapScopePublish=true
 dotnet run build/collect-licenses.cs -- "$staging" any src/HeapScope.Cli src/HeapScope.Worker
 dotnet pack src/HeapScope.Cli -c Release --no-restore -p:HeapScopeTool=true -p:HeapScopePublish=true \
-  -p:HeapScopeToolLicenses="$staging" -p:PublishDir="$publish/" -o "$out"
+  -p:HeapScopeToolLicenses="$staging" -p:HeapScopePackageFiles="$package_files" -p:PublishDir="$publish/" -o "$out"
 
 version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
 package="$out/HeapScope.Cli.$version.nupkg"
@@ -52,7 +65,9 @@ for file in heapscope-cli.dll DotnetToolSettings.xml worker/HeapScope.Worker.dll
   LICENSE ADDITIONAL-TERMS.md COMMERCIAL.md THIRD-PARTY-NOTICES.md licenses/README.md; do
   grep -qx "$tools/$file" <<< "$listing" || { echo "Missing $tools/$file"; failed=1; }
 done
-grep -qx "LICENSE" <<< "$listing" || { echo "Missing the package's LICENSE"; failed=1; }
+for file in LICENSE.txt README.md; do
+  grep -qx "$file" <<< "$listing" || { echo "Missing the package's $file"; failed=1; }
+done
 # No worker executable and no runtime at any depth (3.9 review M5), no unreviewed binaries, at least one third-party
 # license folder.
 unwanted=$(grep -iE "/HeapScope\.Worker(\.exe)?$|/heapscope-sample(\.exe)?$|(^|/)(lib)?(hostfxr|coreclr)\.(dll|so|dylib)$|msdia140\.dll|KernelTraceControl\.dll" <<< "$listing" || true)

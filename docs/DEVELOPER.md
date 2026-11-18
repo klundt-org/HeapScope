@@ -634,7 +634,11 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   (`X.Y.Z` for an in-between sprint such as 2.3.5).
 - Releases: when the owner says so, a PR from `develop` to `main`, merged with a merge commit (never squash, so the
   branches do not drift), then the annotated tag `vX.Y.0` on `main` and a GitHub Release (`gh release create`, marked
-  pre-release for now). Only the owner decides when to release.
+  pre-release for now). Only the owner decides when to release. The CLI's dotnet tool goes to nuget.org from the release's
+  attached `HeapScope.Cli.X.Y.Z.nupkg`: the owner uploads it on nuget.org (Upload; a version can be unlisted, never
+  replaced). The package's license file is `LICENSE.txt`, which `build/pack-tool.sh` joins from
+  `build/package-license-header.txt`, `ADDITIONAL-TERMS.md`, `COMMERCIAL.md` and `LICENSE`, so nuget.org shows the
+  additional terms with the AGPL; its readme is `src/HeapScope.Cli/README.md` (since 3.13.1).
 - Release builds (sprint 3.7; channels and formats since 3.9, ADR-039): publishing the GitHub release runs `release.yml`,
   which builds the tag for win-x64 (a `.zip`), linux-x64, osx-arm64 and osx-x64 (each a `.tar.gz`; the macOS ones on Linux,
   and its last step puts a note at the top of the release's notes saying they are untested) and packs the CLI's dotnet tool (its version

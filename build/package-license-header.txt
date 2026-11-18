@@ -1,0 +1,14 @@
+HeapScope
+Copyright (C) 2026 Ray Klundt
+https://github.com/klundt-org/HeapScope
+
+HeapScope is licensed under the GNU Affero General Public License, version 3 only, together with additional terms
+under Section 7 of that license, including attribution requirements. A commercial license is also available.
+
+This file holds, in order:
+  1. The additional terms (ADDITIONAL-TERMS.md).
+  2. Commercial licensing (COMMERCIAL.md).
+  3. The GNU Affero General Public License, version 3 (LICENSE).
+
+The same files, and the licenses of the third-party components HeapScope includes (THIRD-PARTY-NOTICES.md and the
+licenses folder), are in this package's tools folder and in the repository above.

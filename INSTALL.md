@@ -95,9 +95,17 @@ own architecture). Installing needs the SDK (`dotnet tool` is an SDK command); r
 which the SDK includes. Without the .NET 10 runtime, `heapscope-cli` stops with .NET's own "You must install or update
 .NET" message and a download link. Without the SDK, use the archive for your system instead: it needs no .NET.
 
-The tool is not on nuget.org yet, so install it from the downloaded file, and from that file only: a package of the
-same name on nuget.org would not be HeapScope's. If `~/.nuget/packages/heapscope.cli` exists and you did not put it
-there, delete it first, so no earlier download of that name is reused.
+Install it by name from nuget.org (since 3.13.1), then run `heapscope-cli --help`:
+
+```bash
+dotnet tool install --global HeapScope.Cli
+```
+
+Its page, https://www.nuget.org/packages/HeapScope.Cli, links back to this repository. To update: `dotnet tool update
+--global HeapScope.Cli`. To remove it: `dotnet tool uninstall --global HeapScope.Cli`. The tool works like the CLI in
+the archives (capture on Windows only); it is not tested on macOS.
+
+Or install it from the release's file, without nuget.org:
 
 1. Make a folder of its own, for example `heapscope-packages` in your home folder, and put `HeapScope.Cli.X.Y.Z.nupkg`
    in it.
@@ -123,8 +131,7 @@ there, delete it first, so no earlier download of that name is reused.
 
 To update, put the new version's file in that folder and run `dotnet tool update --global HeapScope.Cli --version X.Y.Z
 --configfile ~/heapscope-packages/nuget.config` with the new version (in PowerShell,
-`$HOME\heapscope-packages\nuget.config`). To remove it: `dotnet tool uninstall --global
-HeapScope.Cli`. The tool works like the CLI in the archives (capture on Windows only); it is not tested on macOS.
+`$HOME\heapscope-packages\nuget.config`).
 
 ## Your first snapshot
 

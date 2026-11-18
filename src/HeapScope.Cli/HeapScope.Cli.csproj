@@ -20,7 +20,8 @@
 
   <!--
     The CLI as a dotnet tool (sprint 3.9, ADR-039): one framework-dependent package for every system, built by
-    build/pack-tool.sh, which collects the license files into HeapScopeToolLicenses first. The worker ships as its
+    build/pack-tool.sh, which collects the license files into HeapScopeToolLicenses first, and the package's own license
+    file (the AGPL with its additional terms and the commercial terms) into HeapScopePackageFiles. The worker ships as its
     assembly without an executable (a tool's files must run anywhere), and the front end starts it through the dotnet host.
   -->
   <PropertyGroup Condition="'$(HeapScopeTool)' == 'true'">
@@ -33,10 +34,12 @@
     <PackageTags>dotnet;memory;heap;dump;gcdump;leak;diagnostics</PackageTags>
     <PackageProjectUrl>https://github.com/klundt-org/HeapScope</PackageProjectUrl>
     <RepositoryUrl>https://github.com/klundt-org/HeapScope</RepositoryUrl>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup Condition="'$(HeapScopeTool)' == 'true'">
-    <None Include="$(HeapScopeToolLicenses)/LICENSE" Pack="true" PackagePath="" Visible="false" />
+    <None Include="$(HeapScopePackageFiles)/LICENSE.txt" Pack="true" PackagePath="" Visible="false" />
+    <None Include="README.md" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
   <!-- The license files go next to the CLI in the tool's folder, as in a published build. -->
   <Target Name="HeapScopeToolLicenses" AfterTargets="Publish" Condition="'$(HeapScopeTool)' == 'true'">

@@ -291,9 +291,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   lists of subjects not shown (M3); export marks for a gcdump's sampled counts (L17).
 - More channels and formats (sprint 3.9 decided GitHub Releases with a Windows `.zip`, a Linux `.tar.gz` and the CLI's
   dotnet tool, ADR-039; product owner, 2026-10-31):
-  - nuget.org for the dotnet tool, so it installs by name (`dotnet tool install -g HeapScope.Cli`): needs a nuget.org
-    account; publish from a manual workflow with Trusted Publishing (no stored API key), run with the owner's OK per
-    release.
+  - nuget.org for the dotnet tool: since 3.13.1 the owner uploads the release's package by hand (ADR-039). Next: publish
+    from a manual workflow with Trusted Publishing (no stored API key), run with the owner's OK per release.
   - winget: a manifest per release in Microsoft's winget-pkgs repository, pointing at the release's zip.
   - Linux packages: rpm first, then deb or AppImage; and an `install.sh` that links the commands into `~/.local/bin` and
     adds a desktop menu entry.
