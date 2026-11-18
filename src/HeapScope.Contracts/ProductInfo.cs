@@ -1,6 +1,6 @@
 // HeapScope
 // Copyright (C) 2026 Ray Klundt
-// https://github.com/rklundt/HeapScope
+// https://github.com/klundt-org/HeapScope
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published
@@ -31,7 +31,7 @@ public static class ProductInfo
     public const string Name = "HeapScope";
 
     /// <summary>The project repository, the target of the attribution link.</summary>
-    public const string RepositoryUrl = "https://github.com/rklundt/HeapScope";
+    public const string RepositoryUrl = "https://github.com/klundt-org/HeapScope";
 
     /// <summary>
     /// The Attribution Notice that ADDITIONAL-TERMS.md section 1 requires on the main screen and in CLI help, version

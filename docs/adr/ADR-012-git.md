@@ -2,6 +2,11 @@
 
 - Decision: local repository, work on `main`, annotated tag `sprint-X.Y` per closed sprint. Remote,
   branches and CI are backlog items.
+- Amended 2026-11-17 (after the 3.13.0 release): CI runs once per change, on its PR, not again on the push that merges it;
+  a docs-only PR runs the Linux tests only; one job, "CI passed", sums up the others and is the ruleset's one required
+  check (DEVELOPER.md 7).
+- Amended 2026-11-17 (after 3.13): the repository moved to the owner's GitHub organization, at
+  https://github.com/klundt-org/HeapScope, still public; the old address redirects. Everything below holds there.
 - Amended 2026-10-25 (after 2.2): the repository is published at https://github.com/rklundt/HeapScope. `main` holds
   releases and `develop` collects sprints; each sprint works on `sprint/X.Y` off `develop` and lands by a squash-merged
   PR, tagged `sprint-X.Y` on `develop`. A release is a PR from `develop` to `main` (merge commit), tagged `vX.Y.0`

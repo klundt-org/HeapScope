@@ -2,7 +2,7 @@
 
 **HeapScope**
 Copyright (C) 2026 Ray Klundt
-Project repository: https://github.com/rklundt/HeapScope
+Project repository: https://github.com/klundt-org/HeapScope
 
 This program is licensed under the GNU Affero General Public License, version 3 only (the "AGPL"), the full text of which is in the `LICENSE` file, together with the additional terms below, as permitted by Section 7 of the AGPL. These terms apply to this version of HeapScope and to any work that contains, is based on, or is derived from it, in whole or in part, including modified versions and forks.
 
@@ -18,7 +18,7 @@ or
 
 > Powered by HeapScope by Ray Klundt
 
-where "HeapScope" is a hyperlink to https://github.com/rklundt/HeapScope. Where hyperlinks are not supported, the full URL must be displayed next to the Attribution Notice.
+where "HeapScope" is a hyperlink to https://github.com/klundt-org/HeapScope. Where hyperlinks are not supported, the full URL must be displayed next to the Attribution Notice.
 
 **1.2 Placement.** For any work with an interactive user interface, including one offered to users over a network under Section 13 of the AGPL, the Appropriate Legal Notices, including the Attribution Notice, must be displayed in at least one of the following ways:
 
@@ -57,12 +57,12 @@ HeapScope is also available under a separate commercial license, which may waive
 
 **6.1 Reservation of rights.** Ray Klundt expressly reserves all rights to use this work for text and data mining, including collecting, training, fine-tuning, or evaluating artificial intelligence or machine learning models ("AI Use"). This includes the reservation of rights under Article 4(3) of EU Directive 2019/790 and any similar law in any jurisdiction. AI Use is permitted only in compliance with this section or under a commercial license.
 
-**6.2 Models.** Any model trained, fine-tuned, or evaluated using this work must identify "HeapScope by Ray Klundt" with a link to https://github.com/rklundt/HeapScope in its documentation, model card, or training data disclosures.
+**6.2 Models.** Any model trained, fine-tuned, or evaluated using this work must identify "HeapScope by Ray Klundt" with a link to https://github.com/klundt-org/HeapScope in its documentation, model card, or training data disclosures.
 
 **6.3 AI-derived works.** Any software, code, or other content that is produced by an AI system, and that reproduces, adapts, or is substantially based on this work as a result of that system having been trained on, having learned from, or having accessed this work, is a work based on HeapScope for purposes of the AGPL and these terms. Such a work must:
 
 - (a) carry the Attribution Notice as required by Section 1;
-- (b) clearly inform the human user, at the time it is provided to them, that it is based on HeapScope by Ray Klundt, with a link to https://github.com/rklundt/HeapScope; and
+- (b) clearly inform the human user, at the time it is provided to them, that it is based on HeapScope by Ray Klundt, with a link to https://github.com/klundt-org/HeapScope; and
 - (c) be licensed under the AGPL together with these additional terms, unless covered by a commercial license.
 
 **6.4 Intent and enforceability.** This section states the copyright holder's intent and applies to the fullest extent permitted by applicable law, as that law exists now or as it may develop in the future. If any part of this section is found unenforceable, the remainder of this section, these terms, and the AGPL remain in full effect.

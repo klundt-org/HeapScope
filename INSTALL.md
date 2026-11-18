@@ -1,6 +1,6 @@
 # Installing HeapScope
 
-HeapScope ships on [GitHub Releases](https://github.com/rklundt/HeapScope/releases) for Windows and Linux (x64), plus untested macOS packages. Each
+HeapScope ships on [GitHub Releases](https://github.com/klundt-org/HeapScope/releases) for Windows and Linux (x64), plus untested macOS packages. Each
 release has:
 
 | File | What it is |
@@ -23,7 +23,7 @@ HeapScope's files are not signed. Check them against the release's checksums and
 - macOS: `shasum -a 256 HeapScope-vX.Y.Z-osx-arm64.tar.gz`, and compare the hash with its line in `SHA256SUMS`.
 - Windows (PowerShell): `Get-FileHash .\HeapScope-vX.Y.Z-win-x64.zip`, and compare the hash with its line in
   `SHA256SUMS` (PowerShell prints it in capitals).
-- Provenance, with the [GitHub CLI](https://cli.github.com/): `gh attestation verify <file> --repo rklundt/HeapScope`
+- Provenance, with the [GitHub CLI](https://cli.github.com/): `gh attestation verify <file> --repo klundt-org/HeapScope`
   confirms that GitHub Actions built the file from this repository.
 
 ## Windows
@@ -82,7 +82,7 @@ Also unconfirmed. Both steps turn off a macOS check for this folder, so [check t
 - Terminal says `killed` on Apple silicon: give the files a local signature, the `worker` folder included:
   `find <folder> -type f \( -perm +111 -o -name '*.dylib' \) -exec codesign --force --sign - {} \;`
 
-If you try a macOS package, please say how it went in an [issue](https://github.com/rklundt/HeapScope/issues): nobody has
+If you try a macOS package, please say how it went in an [issue](https://github.com/klundt-org/HeapScope/issues): nobody has
 reported yet.
 
 To build on your Mac instead, with the .NET 10 SDK, run `bash build/publish.sh osx-arm64 <folder>` (or `osx-x64`) in a clone
@@ -188,5 +188,5 @@ There is no installer and nothing in the registry. To update, extract the new re
 the Linux links at it, and copy any `appsettings.json`); to remove HeapScope, delete its folder and the links. Your
 data folder, with its dumps, stays until you delete it (Purge all on the Settings page, or `heapscope-cli purge all --yes`,
 deletes its logs, sessions and bookmarks first); on Windows, trace conversions may also leave files in
-`%TEMP%\HeapScope`. The [releases page](https://github.com/rklundt/HeapScope/releases) lists every version; watch the repository's
+`%TEMP%\HeapScope`. The [releases page](https://github.com/klundt-org/HeapScope/releases) lists every version; watch the repository's
 releases on GitHub to hear of new ones.
