@@ -66,7 +66,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   keeps TRX results 14 days): `DenseHeapTests` once in CI (2026-11-02, release PR #45; ClrMD's default DAC lookup in
   the test helper failed where HeapScope's loader had just opened the dump; the helper is local-only since 2026-11-03
   and explains any failure); under full local load only, passing alone: `LiveWorkflowTests` (an allocation trace for a
-  run's whole length; again 2026-11-13, 45 ms past its deadline, and 2026-11-14 in the wrap's full run),
+  run's whole length; again 2026-11-13, 45 ms past its deadline, 2026-11-14 in the wrap's full run, and 2026-11-17 in CI,
+  release PR #66, the push run only: its wait ended 64 ms past its deadline; the rerun passed),
   `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
   beside four reviewers and a build; both passed alone), `AllocationTraceTests` (2026-11-15, the 3.13 wrap's full Debug run:
   its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
@@ -290,9 +291,8 @@ Phase 4 candidates are listed in [SPRINTS.md](SPRINTS.md) only.
   lists of subjects not shown (M3); export marks for a gcdump's sampled counts (L17).
 - More channels and formats (sprint 3.9 decided GitHub Releases with a Windows `.zip`, a Linux `.tar.gz` and the CLI's
   dotnet tool, ADR-039; product owner, 2026-10-31):
-  - nuget.org for the dotnet tool, so it installs by name (`dotnet tool install -g HeapScope.Cli`): needs a nuget.org
-    account; publish from a manual workflow with Trusted Publishing (no stored API key), run with the owner's OK per
-    release.
+  - nuget.org for the dotnet tool: since 3.13.1 the owner uploads the release's package by hand (ADR-039). Next: publish
+    from a manual workflow with Trusted Publishing (no stored API key), run with the owner's OK per release.
   - winget: a manifest per release in Microsoft's winget-pkgs repository, pointing at the release's zip.
   - Linux packages: rpm first, then deb or AppImage; and an `install.sh` that links the commands into `~/.local/bin` and
     adds a desktop menu entry.

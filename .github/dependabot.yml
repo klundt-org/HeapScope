@@ -18,11 +18,20 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "System.*"
         update-types: ["version-update:semver-major"]
+    # Grouped so a week's updates take one CI run, not one each (2026-11-17). Avalonia and SkiaSharp come in their own PR,
+    # since they need the license check and can need the SkiaSharp rebuild; a package goes in the first group it matches.
+    # Major versions of other packages still come one per PR.
     groups:
-      patches:
-        update-types: [patch]
+      avalonia:
+        patterns: ["Avalonia*", "SkiaSharp*"]
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop
     schedule:
       interval: weekly
+    # All action updates in one PR (2026-11-17).
+    groups:
+      actions:
+        patterns: ["*"]

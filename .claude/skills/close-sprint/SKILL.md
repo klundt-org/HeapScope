@@ -27,7 +27,12 @@ Follow these steps exactly.
    If anything is unmet, list exactly what is missing and stop. Do not close.
 2. **Status.** In SPRINTS.md set the sprint to Closed with today's date and the tag `sprint-X.Y`. Set
    `<Version>X.Y.0</Version>` in `Directory.Build.props`. Add the version's section at the top of `RELEASE-NOTES.md`
-   ("## X.Y.0: <title> (sprint X.Y)"): what a user gets, in a few bullets, and anything refused or limited. Move the
+   ("## X.Y.0: <title> (sprint X.Y)"): what a user gets, in a few bullets, and anything refused or limited. Update the CLI
+   package's release notes too, `src/HeapScope.Cli/package-release-notes.txt` (what nuget.org shows): set its first line to
+   "X.Y.0: <headline>". If the version it described is released (in RELEASE-NOTES.md's table), replace the rest with
+   this sprint's changes to the CLI; otherwise add them to the changes already listed, so the notes cover everything
+   since the last version on nuget.org. A sprint that changes nothing in the CLI says so in a line. Both are required:
+   the architecture test `ReleaseNotesTests` fails a version missing from either. Move the
    sprint's closed section from SPRINTS.md to the end of its phase's file in `docs/sprints/` (the status table row stays).
 3. **Commit.** On `sprint/X.Y`: `git add -A`, check `git status` shows no dumps, caches, traces or logs, then commit with the
    subject `Sprint X.Y: <title>` and a short body: what was delivered and any deferred items.

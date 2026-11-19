@@ -4,11 +4,15 @@
 # - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests, takes a core dump of the fixture
 #   with dotnet-dump, checks the CLI's known answers and opens the dump in the app without a display.
 # - Packages: self-contained builds per runtime identifier with their license files (checked), in their release archives,
-#   built beside the tests and uploaded as artifacts on pushes and manual runs. The Windows and Linux ones are unpacked
+#   built beside the tests and uploaded as artifacts on manual runs. The Windows and Linux ones are unpacked
 #   and run as a user gets them, without .NET (Linux in a plain Ubuntu container), on a fixture dump, and the CLI's
 #   dotnet tool is packed and installed from its file (sprint 3.9, ADR-039).
 # - No macOS runners (owner, 2026-10-31: their minutes cost about ten times Linux's). The macOS packages are built on
 #   Linux and not run; nothing here tests on macOS.
+# - Once per change (2026-11-17): on PRs (which test the merge of the change into its target, what lands) and by hand,
+#   not again on the push that merges it. A PR that changes only Markdown files and docs/ runs the Linux job's tests
+#   (they check every Markdown file's links and text rules, and the info texts) and skips the others. "CI passed" sums up
+#   the jobs and is the one check the ruleset requires, so a skipped job never leaves a required check waiting.
 # Tests run through build/test.sh and the fixture dump through build/fixture-dump.sh, as in the local gate (build/gate.sh).
 # Test results (TRX: test names, outcomes and messages) are kept 14 days to track tests that fail now and then.
 # Fixture dumps hold fixture data only and are never uploaded (ARCHITECTURE.md 12). Nothing here sends telemetry.
@@ -18,8 +22,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main]
-  push:
     branches: [develop, main]
   workflow_dispatch:
 
@@ -39,8 +41,46 @@ env:
   Logging__File__Directory: ${{ github.workspace }}/artifacts/heapscope-logs
 
 jobs:
+  changes:
+    # Whether the change needs the build jobs: no when every file it changes, adds, removes or renames is a Markdown file
+    # or under docs/. A manual run, or a change the API cannot list in full (3000 files), runs everything.
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: List the changed files
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$PR" ]; then
+            echo "A manual run: every job runs."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] | .filename, (.previous_filename // empty)')
+          count=$(printf '%s\n' "$files" | grep -c . || true)
+          other=$(printf '%s\n' "$files" | grep -vE '(\.md$|^docs/)' || true)
+          if [ "$count" -eq 0 ] || [ "$count" -ge 3000 ] || [ -n "$other" ]; then
+            echo "$count files; not only docs, so every job runs. For example:"
+            printf '%s\n' "$other" | head -5
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$count files, Markdown and docs/ only: the Linux job's tests run, the other jobs are skipped."
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   windows:
     name: Windows (build, fast and integration tests, fixture capture)
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -92,6 +132,8 @@ jobs:
     # The integration tests that load the machine heavily (gigabyte heaps and dumps, the Ctrl+C capture), which run one
     # at a time: about three minutes on their own, so they run beside the Windows job instead of after its tests.
     name: Windows heavy integration tests
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -120,6 +162,8 @@ jobs:
 
   unix:
     name: ${{ matrix.name }} (engine, CLI, app, fixture dump)
+    # Runs for every change: its tests check the Markdown files too. A docs-only change skips the fixture dump.
+    needs: changes
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -148,7 +192,7 @@ jobs:
         run: bash build/test.sh fast Release "$RUNNER_TEMP/test-results"
       - name: Dump the fixture, check the known answers, open it in the app without a display
         # Runs when a test failed but the build did not: the dump, the CLI and the app are what this job is for.
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.changes.outputs.code == 'true' }}
         timeout-minutes: 15
         run: |
           dotnet tool install --global dotnet-dump --version 10.0.750501
@@ -178,8 +222,10 @@ jobs:
 
   package:
     name: Package ${{ matrix.rid }}
-    # Runs beside the tests rather than after them (2026-10-31: three minutes off every run). Pushes to develop and main
-    # come from PRs whose required checks passed; a manual run uploads its builds whatever its tests do.
+    # Runs beside the tests rather than after them (2026-10-31: three minutes off every run). A manual run uploads its
+    # builds whatever its tests do.
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -274,10 +320,32 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload
-        # Build output only; on pushes to develop or main and manual runs (sprint 2.3.6, decision 7).
-        if: ${{ github.event_name != 'pull_request' }}
+        # Build output only; on manual runs (sprint 2.3.6, decision 7; pushes no longer run CI since 2026-11-17).
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: HeapScope-${{ matrix.rid }}
           path: ${{ runner.temp }}/out/HeapScope-${{ matrix.rid }}.*
           retention-days: 14
+
+  passed:
+    # The one check the ruleset "Protect main and develop" requires (2026-11-17). It passes when every job passed, or, for
+    # a docs-only change, when the jobs it does not need were skipped. A skipped matrix job never creates its named checks,
+    # so requiring those directly would leave a docs-only PR waiting.
+    name: CI passed
+    needs: [changes, windows, windows-heavy, unix, package]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed, or was not needed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          CODE: ${{ needs.changes.outputs.code }}
+        run: |
+          printf '%s' "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if [ "$CODE" = "true" ]; then allowed='["success"]'; else allowed='["success","skipped"]'; fi
+          bad=$(printf '%s' "$RESULTS" | jq --argjson ok "$allowed" '[to_entries[] | select(.value.result as $r | $ok | index($r) | not)] | length')
+          [ "$(printf '%s' "$RESULTS" | jq -r '.changes.result')" = "success" ] || { echo "Could not tell what changed."; exit 1; }
+          [ "$bad" -eq 0 ] || { echo "$bad job(s) did not pass."; exit 1; }
+          echo "CI passed."
