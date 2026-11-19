@@ -32,6 +32,16 @@ Installing needs the .NET 10 SDK; running needs the .NET 10 runtime, which the S
 [user guide](https://github.com/klundt-org/HeapScope/blob/main/docs/USER-GUIDE.md) and
 [install guide](https://github.com/klundt-org/HeapScope/blob/main/INSTALL.md) cover the rest.
 
+## Private by design
+
+A dump holds everything the process had in memory, passwords included, so HeapScope never uploads one, and it has no
+telemetry. What it keeps (your captures, their indexes, sessions and logs) stays on your machine, in
+`%LOCALAPPDATA%\HeapScope` on Windows and `~/.local/share/HeapScope` on Linux, and `heapscope-cli purge all` deletes it
+(dumps you opened from your own folders are kept). The logs never hold values read from a dump; the text you type in
+filters is logged unless you turn that off (`heapscope-cli settings --filter-text-in-logs off`). The one thing it can
+fetch is a runtime component a dump needs, from Microsoft's symbol server, and only if you allow it; that request sends
+module identifiers, never dump contents.
+
 ## License
 
 HeapScope is licensed under the GNU Affero General Public License, version 3 only, with

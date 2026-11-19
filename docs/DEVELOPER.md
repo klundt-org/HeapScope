@@ -638,7 +638,10 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   attached `HeapScope.Cli.X.Y.Z.nupkg`: the owner uploads it on nuget.org (Upload; a version can be unlisted, never
   replaced). The package's license file is `LICENSE.txt`, which `build/pack-tool.sh` joins from
   `build/package-license-header.txt`, `ADDITIONAL-TERMS.md`, `COMMERCIAL.md` and `LICENSE`, so nuget.org shows the
-  additional terms with the AGPL; its readme is `src/HeapScope.Cli/README.md` (since 3.13.1).
+  additional terms with the AGPL; its readme is `src/HeapScope.Cli/README.md` (since 3.13.1). Its release notes, which nuget.org shows on the version's
+  page, are `src/HeapScope.Cli/package-release-notes.txt`: before the release PR, rewrite them for the version (first line
+  `X.Y.Z: <headline>`, then what changed for the CLI since the previous nuget.org version); `release.yml` refuses a
+  release whose notes start with another version.
 - Release builds (sprint 3.7; channels and formats since 3.9, ADR-039): publishing the GitHub release runs `release.yml`,
   which builds the tag for win-x64 (a `.zip`), linux-x64, osx-arm64 and osx-x64 (each a `.tar.gz`; the macOS ones on Linux,
   and its last step puts a note at the top of the release's notes saying they are untested) and packs the CLI's dotnet tool (its version

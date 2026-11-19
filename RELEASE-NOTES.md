@@ -19,8 +19,10 @@ Everything else was built on `develop` and first shipped in the next release abo
 ## 3.13.1: The CLI on nuget.org
 
 - **`dotnet tool install --global HeapScope.Cli`**: the CLI's dotnet tool package is ready for nuget.org. Its license file
-  now holds the additional terms and the commercial terms with the AGPL, so nuget.org shows all of them, and it has a readme.
-  The app and the CLI are unchanged from 3.13.0.
+  now holds the additional terms and the commercial terms with the AGPL, so nuget.org shows all of them, and it has a readme
+  and release notes. The app and the CLI are unchanged from 3.13.0.
+- **The additional terms, section 6.1**: it now says first that it concerns the use of HeapScope itself as data, and gives
+  no rights to any data of HeapScope's users.
 
 ## 3.13.0: Tutorial (sprint 3.13)
 

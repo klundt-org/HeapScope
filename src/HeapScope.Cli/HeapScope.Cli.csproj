@@ -36,6 +36,8 @@
     <RepositoryUrl>https://github.com/klundt-org/HeapScope</RepositoryUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- The notes nuget.org shows for this version; a release checks they start with its version (release.yml). -->
+    <PackageReleaseNotes>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)package-release-notes.txt'))</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup Condition="'$(HeapScopeTool)' == 'true'">
     <None Include="$(HeapScopePackageFiles)/LICENSE.txt" Pack="true" PackagePath="" Visible="false" />

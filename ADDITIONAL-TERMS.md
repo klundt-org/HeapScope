@@ -55,7 +55,7 @@ HeapScope is also available under a separate commercial license, which may waive
 
 ## 6. Artificial Intelligence and Machine Learning
 
-**6.1 Reservation of rights.** Ray Klundt expressly reserves all rights to use this work for text and data mining, including collecting, training, fine-tuning, or evaluating artificial intelligence or machine learning models ("AI Use"). This includes the reservation of rights under Article 4(3) of EU Directive 2019/790 and any similar law in any jurisdiction. AI Use is permitted only in compliance with this section or under a commercial license.
+**6.1 Reservation of rights.** This section concerns the use of HeapScope itself (its source code, documentation and other materials) as data. It gives no rights to any data of HeapScope's users, and HeapScope sends none of it to Ray Klundt or anyone else. Ray Klundt expressly reserves all rights to use this work for text and data mining, including collecting, training, fine-tuning, or evaluating artificial intelligence or machine learning models ("AI Use"). This includes the reservation of rights under Article 4(3) of EU Directive 2019/790 and any similar law in any jurisdiction. AI Use is permitted only in compliance with this section or under a commercial license.
 
 **6.2 Models.** Any model trained, fine-tuned, or evaluated using this work must identify "HeapScope by Ray Klundt" with a link to https://github.com/klundt-org/HeapScope in its documentation, model card, or training data disclosures.
 
