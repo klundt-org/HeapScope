@@ -301,6 +301,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             case LiveViewModel live when !live.IsRunning && live.RefreshCommand.CanExecute(null):
                 live.RefreshCommand.Execute(null);
                 break;
+            case SettingsViewModel settings:
+                settings.Reload();
+                break;
         }
     }
 

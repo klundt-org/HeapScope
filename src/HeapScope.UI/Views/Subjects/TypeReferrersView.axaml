@@ -34,6 +34,8 @@
       <ctl:InfoIcon DockPanel.Dock="Left" Text="{x:Static vm:InfoTexts.Referrers}" Margin="0,0,6,0" />
       <TextBlock Text="{Binding Totals}" VerticalAlignment="Center" Classes="subtle" TextTrimming="CharacterEllipsis" />
     </DockPanel>
+    <!-- Sprint 3.13.2: moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
+    <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" TextWrapping="Wrap" />
     <DataGrid x:Name="TypeReferrersGrid" ctl:GridExports.ExportName="TypeReferrers" CanUserSortColumns="True"
               ctl:GridBehaviors.Rows="{Binding Rows}"

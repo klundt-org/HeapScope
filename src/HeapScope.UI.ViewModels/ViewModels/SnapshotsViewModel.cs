@@ -358,12 +358,13 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     /// <summary>
     /// The status after an open: a full dump whose DAC cannot be used opens without field values and strings (sprint 3.12:
     /// missing, declined, or an older cache in place of a rebuild); the notes say why, and an untrusted DAC offers Trust this
-    /// DAC and reopen. Null otherwise.
+    /// DAC and reopen. Otherwise it says the snapshot is open and where to go next (sprint 3.13.2, owner 2026-11-19: after an
+    /// open nothing said it had worked).
     /// </summary>
-    private static string? OpenedStatus(SnapshotHandle handle) =>
+    private static string OpenedStatus(SnapshotHandle handle) =>
         handle.Descriptor.Kind == SnapshotKindDto.FullDump && !handle.Descriptor.IsAvailable(SnapshotFeatureIds.FieldValues)
             ? "Opened without the dump's DAC (Data Access Component): field values and strings are not shown. The snapshot's notes say why."
-            : null;
+            : string.Format(CultureInfo.CurrentCulture, InfoTexts.OpenedStatus, System.IO.Path.GetFileName(handle.Path));
 
     /// <summary>Whether the selected snapshot reads no field values because its DAC is not trusted, which the user can change.</summary>
     public bool CanTrustDac => Selected?.Handle.Descriptor.UntrustedDac is not null && _session.TrustedDacs is not null && !IsOpening;

@@ -38,6 +38,7 @@ public sealed class LogPrivacy
     private DateTime _written;
     private long _checked;
     private bool _includeFilterText = new HeapScopeSettings().IncludeFilterTextInLogs;
+    private bool _includeDumpValues;
     private bool _readOnce;
 
     /// <summary>Reads the settings of <paramref name="folders"/>, checking the file at most every <paramref name="checkEvery"/> (1 s by default).</summary>
@@ -54,10 +55,10 @@ public sealed class LogPrivacy
     public static void Use(HeapScopeFolders folders) => Volatile.Write(ref s_current, new LogPrivacy(folders));
 
     /// <summary>
-    /// Raised with the new value when the setting read changes (the review's M19: each process logs the privacy it applies).
-    /// Raised under the instance's lock; a handler must not read <see cref="IncludeFilterText"/>.
+    /// Raised with the new values when a setting read changes (the review's M19: each process logs the privacy it applies).
+    /// Raised under the instance's lock; a handler must not read <see cref="IncludeFilterText"/> or <see cref="IncludeDumpValues"/>.
     /// </summary>
-    public event Action<bool>? Changed;
+    public event Action<LogPrivacyChange>? Changed;
 
     /// <summary>The settings file this instance follows, for a process's start line.</summary>
     public string SettingsFile => HeapScopeSettings.PathIn(_folders);
@@ -72,6 +73,42 @@ public sealed class LogPrivacy
                 Refresh();
                 return _includeFilterText;
             }
+        }
+    }
+
+    /// <summary>
+    /// Whether values read from a dump (field values, string text) may be written into a log line now (sprint 3.13.2): off by
+    /// default, and off until the settings file has been read once.
+    /// </summary>
+    public bool IncludeDumpValues
+    {
+        get
+        {
+            lock (_gate)
+            {
+                Refresh();
+                return _includeDumpValues;
+            }
+        }
+    }
+
+    /// <summary>Both settings in one read, so a log line never mixes two versions of the file.</summary>
+    public LogPrivacyChange Read()
+    {
+        lock (_gate)
+        {
+            Refresh();
+            return new LogPrivacyChange(_includeFilterText, _includeDumpValues);
+        }
+    }
+
+    /// <summary>Both settings as one log text, for a process's start line: "filter text on, dump values off".</summary>
+    public string Describe()
+    {
+        lock (_gate)
+        {
+            Refresh();
+            return LogPrivacyChange.Describe(_includeFilterText, _includeDumpValues);
         }
     }
 
@@ -93,10 +130,7 @@ public sealed class LogPrivacy
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // As an unreadable file below (review H5): never the default "on" before the file was read once.
-            if (!_readOnce)
-            {
-                Set(false);
-            }
+            SetUnreadable();
 
             return;
         }
@@ -108,27 +142,34 @@ public sealed class LogPrivacy
 
         if (!HeapScopeSettings.TryRead(_folders, out var settings))
         {
-            // There and unreadable now (sprint 3.12 review H5): never fall back to the default "on". Keep what was read last, or
-            // keep filter text out until the file has been read once; the write time is not recorded, so the next check reads again.
-            if (!_readOnce)
-            {
-                Set(false);
-            }
-
+            // There and unreadable now (sprint 3.12 review H5): never fall back to the default "on" (see SetUnreadable); the write
+            // time is not recorded, so the next check reads again.
+            SetUnreadable();
             return;
         }
 
         _written = written;
         _readOnce = true;
-        Set(settings.IncludeFilterTextInLogs);
+        Set(settings.IncludeFilterTextInLogs, settings.IncludeDumpValuesInLogs);
     }
 
-    private void Set(bool include)
+    // A file that cannot be read now: filter text keeps what was read last, or is off until the file was read once (3.12
+    // review H5); dump values are off whatever was read before, since they are on only by the user's confirmed choice
+    // (sprint 3.13.2 review M1).
+    // The write time is forgotten, so the next check that can read the file reads it again, even unchanged (3.13.2 re-review).
+    private void SetUnreadable()
     {
-        if (include != _includeFilterText)
+        _written = default;
+        Set(_readOnce && _includeFilterText, includeDumpValues: false);
+    }
+
+    private void Set(bool includeFilterText, bool includeDumpValues)
+    {
+        if (includeFilterText != _includeFilterText || includeDumpValues != _includeDumpValues)
         {
-            _includeFilterText = include;
-            Changed?.Invoke(include);
+            _includeFilterText = includeFilterText;
+            _includeDumpValues = includeDumpValues;
+            Changed?.Invoke(new LogPrivacyChange(includeFilterText, includeDumpValues));
         }
     }
 }

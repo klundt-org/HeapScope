@@ -32,7 +32,9 @@ namespace HeapScope.UI.ViewModels;
 
 /// <summary>
 /// The Settings page (sprint 3.12, B1; owner, 2026-11-12), above About: its Logging section has Include filter text in logs
-/// (on by default; the app, the worker and the command line follow it), Purge logs and Purge all, which asks first.
+/// (on by default; the app, the worker and the command line follow it), Include dump values in logs (off by default, and
+/// turned on only after the user confirms; owner, 2026-11-19), Purge logs and Purge all, which asks first. The page shows the
+/// settings file each time it is shown, since the command line can change it while the app runs.
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
@@ -40,9 +42,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IUserInteraction _interaction;
     private readonly ILogger? _logger;
     private bool _reverting;
+    private bool _confirming;
 
     [ObservableProperty]
     private bool _includeFilterTextInLogs;
+
+    [ObservableProperty]
+    private bool _includeDumpValuesInLogs;
 
     [ObservableProperty]
     private string? _status;
@@ -58,6 +64,24 @@ public sealed partial class SettingsViewModel : ObservableObject
         _logger = logger;
         _reverting = true;
         IncludeFilterTextInLogs = settings.IncludeFilterTextInLogs;
+        IncludeDumpValuesInLogs = settings.IncludeDumpValuesInLogs;
+        _reverting = false;
+    }
+
+    /// <summary>The question asked before dump values are turned on, while it is open (tests wait for it).</summary>
+    internal Task DumpValuesConfirmation { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Shows the settings as saved now: another HeapScope process or the command line may have changed them.</summary>
+    public void Reload()
+    {
+        if (_confirming)
+        {
+            return;
+        }
+
+        _reverting = true;
+        IncludeFilterTextInLogs = _settings.IncludeFilterTextInLogs;
+        IncludeDumpValuesInLogs = _settings.IncludeDumpValuesInLogs;
         _reverting = false;
     }
 
@@ -86,6 +110,82 @@ public sealed partial class SettingsViewModel : ObservableObject
             IncludeFilterTextInLogs = !value;
             _reverting = false;
         }
+    }
+
+    partial void OnIncludeDumpValuesInLogsChanged(bool value)
+    {
+        if (_reverting)
+        {
+            return;
+        }
+
+        if (_confirming)
+        {
+            // The question is open (review M8): the box shows on until it is answered.
+            Revert(true);
+            return;
+        }
+
+        if (value)
+        {
+            // Not saved until the user says yes; a no turns the check box off again.
+            _confirming = true;
+            DumpValuesConfirmation = ConfirmDumpValuesAsync();
+            return;
+        }
+
+        SaveDumpValues(false);
+    }
+
+    private async Task ConfirmDumpValuesAsync()
+    {
+        bool yes;
+        try
+        {
+            yes = await _interaction.ConfirmAsync(InfoTexts.DumpValuesQuestionTitle, InfoTexts.DumpValuesQuestion, "Turn on", "Cancel");
+        }
+        catch (Exception ex)
+        {
+            // Never on without an answer (review M8): the question could not be shown, so nothing is saved.
+            _logger?.LogWarning(ex, "The question to include dump values in logs could not be shown; the setting stays off");
+            yes = false;
+        }
+        finally
+        {
+            _confirming = false;
+        }
+
+        _logger?.LogInformation("Asked to include dump values in logs; the user answered {Answer}", yes ? "yes" : "no");
+        if (yes)
+        {
+            SaveDumpValues(true);
+        }
+        else
+        {
+            Revert(false);
+        }
+    }
+
+    private void SaveDumpValues(bool include)
+    {
+        try
+        {
+            _settings.SetIncludeDumpValuesInLogs(include);
+            Status = include ? InfoTexts.DumpValuesOn : InfoTexts.DumpValuesOff;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "The setting could not be saved to {File}", _settings.SettingsPath);
+            Status = $"The setting could not be saved to {_settings.SettingsPath}: {ex.Message}";
+            Revert(!include);
+        }
+    }
+
+    private void Revert(bool include)
+    {
+        _reverting = true;
+        IncludeDumpValuesInLogs = include;
+        _reverting = false;
     }
 
     [RelayCommand(CanExecute = nameof(CanPurge))]

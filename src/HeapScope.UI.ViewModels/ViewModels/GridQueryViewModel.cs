@@ -58,6 +58,13 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     [ObservableProperty]
     private string? _totals;
 
+    /// <summary>
+    /// Whether a query runs now, for the grid's busy bar (sprint 3.13.2, owner 2026-11-19: a first Retained sizes took about a
+    /// minute with nothing moving on screen).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isQuerying;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SortState))]
     private string _sortColumn;
@@ -134,6 +141,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
         Rows = EmptyRows();
         Totals = null;
         Status = null;
+        IsQuerying = false;
         OnCleared();
     }
 
@@ -206,6 +214,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     {
         using var activity = QueryRunner.StartActivity("grid", GetType().Name);
         Status = BusyText;
+        IsQuerying = true;
         try
         {
             var query = await RunQueryAsync(cancellationToken);
@@ -250,6 +259,14 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
         {
             Logger.LogError(ex, "A {Grid} query failed", GetType().Name);
             Status = "The query failed. Details are in the log; try again, or reopen the snapshot.";
+        }
+        finally
+        {
+            // A newer query keeps the bar going; it ends it when it finishes.
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                IsQuerying = false;
+            }
         }
     }
 

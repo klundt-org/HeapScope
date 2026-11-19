@@ -154,7 +154,8 @@ dotnet test --solution HeapScope.sln
   on a Medium heap, phases on stderr) and saves them as `<snapshot>.dom.hsidx` next to the index cache; later runs reuse
   them. The address is hex with or without `0x`; no object at it
   exits 1. A snapshot without field values (a gcdump, or a full dump whose DAC is missing or not trusted: sprint 3.12)
-  prints the object's graph facts and, on stderr, why the fields are missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log.
+  prints the object's graph facts and, on stderr, why the fields are missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log (the worker's result line holds them
+  only with Include dump values in logs on, ADR-043).
   `referrers <snapshot> (--address <hex> | --type <name> [--module <file>] [--sort references|objects|targets|bytes|type])
   [--top N | --all] [--format table|csv|json]` (sprint 2.1) lists who references one object (each referrer once, with
   its references to it and, on a full dump, the field that holds it, for objects with up to 1,000 referrers) or the
@@ -259,8 +260,10 @@ dotnet test --solution HeapScope.sln
   `Ui__Prewarm=false` in the environment (or pass `--Ui:Prewarm false`); alternate the two, one smoke run each (task 4's
   script stayed local under `artifacts/`, which git ignores).
 - Settings and housekeeping (sprint 3.12 review M4, as the Settings page): `heapscope-cli settings
-  [--filter-text-in-logs on|off]` shows the settings file, the log folder and Include filter text in logs, or changes it;
-  `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write; `heapscope-cli purge all` says what
+  [--filter-text-in-logs on|off] [--dump-values-in-logs on|off [--yes]]` shows the settings file, the log folder, Include
+  filter text in logs and Include dump values in logs, or changes them (sprint 3.13.2: turning dump values on needs `--yes`,
+  and without it nothing changes); `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write
+  (this process's own log goes on in a new part first, so all it wrote before goes too); `heapscope-cli purge all` says what
   it would delete, and with `--yes` deletes the logs, every session of the library and the bookmarks (never a dump of the
   user's own folders). Purge all is refused while a capture, recording or open runs in the same process, and while another
   HeapScope app or command line run is running (by the pid in its log's name); Purge logs keeps the logs running HeapScope

@@ -65,10 +65,19 @@ internal sealed class FakeUserInteraction : HeapScope.UI.Services.IUserInteracti
 
     public List<string> Titles { get; } = [];
 
+    /// <summary>When set, the next question is answered by this task (a question still open, or one that fails).</summary>
+    public Task<bool>? Pending { get; set; }
+
     public Task<bool> ConfirmAsync(string title, string message)
     {
         Titles.Add(title);
         Questions.Add(message);
+        if (Pending is { } pending)
+        {
+            Pending = null;
+            return pending;
+        }
+
         return Task.FromResult(Answers.Count > 0 ? Answers.Dequeue() : Answer);
     }
 

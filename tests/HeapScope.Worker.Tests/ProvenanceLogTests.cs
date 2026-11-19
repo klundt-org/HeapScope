@@ -125,12 +125,96 @@ public sealed class ProvenanceLogTests
     {
         var details = new ObjectDetails(0x1000, "System.String", 42, HeapKindDto.Gen0, 0, true, [new ObjectFieldDto("_firstChar", "System.Char", ObjectFieldKindDto.Primitive, "p", 0, [])], null, "password123");
 
-        var line = Provenance.Describe(details);
+        // Explicit: the shared test data folder's settings may be changed by other test processes (review M10).
+        var line = Provenance.Describe(details, includeFilterText: true, includeDumpValues: false);
 
         line.ShouldContain("TypeName=System.String");
         line.ShouldContain("Fields=[1]");
         line.ShouldContain("Text=(11 chars)");
         line.ShouldNotContain("password");
+    }
+
+    // Sprint 3.13.2 (owner, 2026-11-19): only with Include dump values in logs on, which the user confirmed.
+    [Fact]
+    public void With_dump_values_on_a_fields_value_and_an_objects_text_are_written_quoted()
+    {
+        var details = new ObjectDetails(0x1000, "App.Account", 42, HeapKindDto.Gen0, 0, true, [new ObjectFieldDto("_token", "System.String", ObjectFieldKindDto.String, "abc \"def\"\n", 0x2000, [])], null, "password123");
+
+        var line = Provenance.Describe(details, includeFilterText: false, includeDumpValues: true);
+
+        line.ShouldContain("Text=\"password123\" (11 chars)");
+        line.ShouldContain("Fields=[1: ObjectFieldDto { Name=_token, TypeName=System.String, Kind=String, Value=\"abc \\\"def\\\"\\n\" (10 chars)");
+        line.ShouldNotContain("\n");
+    }
+
+    [Fact]
+    public void With_dump_values_on_a_long_text_and_a_long_list_are_cut()
+    {
+        var fields = Enumerable.Range(0, 25).Select(i => new ObjectFieldDto($"f{i}", "System.Int32", ObjectFieldKindDto.Primitive, i.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, [])).ToList();
+        var details = new ObjectDetails(0x1000, "System.String", 42, HeapKindDto.Gen0, 0, true, fields, null, new string('x', 250));
+
+        var line = Provenance.Describe(details, includeFilterText: false, includeDumpValues: true);
+
+        line.ShouldContain($"Text=\"{new string('x', Provenance.MaxValueChars)}\"... (250 chars)");
+        line.ShouldContain("Name=f19");
+        line.ShouldNotContain("Name=f20");
+        line.ShouldContain(", and 5 more]");
+    }
+
+    [Fact]
+    public void With_dump_values_on_control_characters_stay_escaped_on_one_line_and_a_cut_never_splits_a_character()
+    {
+        var emoji = new string('a', Provenance.MaxValueChars - 1) + "\U0001F600" + "tail";
+        var line = Provenance.Describe(new ObjectDetails(0x1000, "App.A", 1, HeapKindDto.Gen0, 0, true, null, null, "a\r\nb\u001b"), includeFilterText: false, includeDumpValues: true);
+        var cut = Provenance.Describe(new ObjectDetails(0x1000, "App.A", 1, HeapKindDto.Gen0, 0, true, null, null, emoji), includeFilterText: false, includeDumpValues: true);
+        var exact = Provenance.Describe(new ObjectDetails(0x1000, "App.A", 1, HeapKindDto.Gen0, 0, true, null, null, new string('b', Provenance.MaxValueChars)), includeFilterText: false, includeDumpValues: true);
+        var lone = Provenance.Describe(new ObjectDetails(0x1000, "App.A", 1, HeapKindDto.Gen0, 0, true, null, null, "x\uD800y"), includeFilterText: false, includeDumpValues: true);
+
+        line.ShouldNotContain("\n");
+        line.ShouldNotContain("\r");
+        line.ShouldContain("Text=\"a\\r\\nb\\u001B\" (5 chars)", Case.Insensitive);
+        cut.ShouldContain($"... ({emoji.Length} chars)");
+        cut.ShouldNotContain("\U0001F600");
+        exact.ShouldContain($"\" ({Provenance.MaxValueChars} chars)", customMessage: "exactly the limit is not cut");
+        lone.ShouldContain("(3 chars)");
+    }
+
+    [Fact]
+    public void With_dump_values_on_struct_fields_show_their_values_and_a_huge_line_is_cut()
+    {
+        var inner = new ObjectFieldDto("Ticks", "System.Int64", ObjectFieldKindDto.Primitive, "638000000000000000", 0, []);
+        var field = new ObjectFieldDto("_when", "System.DateTime", ObjectFieldKindDto.Struct, "", 0, [inner]);
+        var details = new ObjectDetails(0x1000, "App.Order", 42, HeapKindDto.Gen0, 0, true, [field], null, null);
+        var rows = Enumerable.Range(0, 25).Select(r => (IReadOnlyList<string?>)Enumerable.Range(0, 20).Select(c => new string('v', 300)).ToList()).ToList();
+
+        var line = Provenance.Describe(details, includeFilterText: false, includeDumpValues: true);
+        var page = Provenance.Describe(rows, includeFilterText: false, includeDumpValues: true);
+        var empty = Provenance.Describe(new ObjectDetails(0x1000, "App.A", 1, HeapKindDto.Gen0, 0, true, [], null, null), includeFilterText: false, includeDumpValues: true);
+
+        line.ShouldContain("Name=Ticks, TypeName=System.Int64, Kind=Primitive, Value=\"638000000000000000\"");
+        page.Length.ShouldBeLessThan(Provenance.MaxLineChars + 100);
+        page.ShouldEndWith($"... (line cut at {Provenance.MaxLineChars} chars)");
+        empty.ShouldContain("Fields=[0]");
+    }
+
+    [Fact]
+    public void A_value_that_cannot_be_described_never_fails_the_line()
+    {
+        Provenance.Describe(new Throwing(), includeFilterText: false, includeDumpValues: true).ShouldBe("(Throwing not described: InvalidOperationException)");
+    }
+
+    private sealed class Throwing
+    {
+        public string Value => throw new InvalidOperationException("no");
+    }
+
+    [Fact]
+    public void Dump_values_on_leave_the_filter_to_its_own_setting()
+    {
+        var line = Provenance.Describe(new TypeSummaryRequest(s_snapshot, Filter: "secret"), includeFilterText: false, includeDumpValues: true);
+
+        line.ShouldContain("Filter=(6 chars;");
+        line.ShouldNotContain("secret");
     }
 
     [Fact]

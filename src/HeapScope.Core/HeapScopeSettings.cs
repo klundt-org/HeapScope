@@ -35,7 +35,11 @@ namespace HeapScope.Core;
 /// Whether the text typed in filters and searches is written into the logs, to troubleshoot a result (on by default: the logs
 /// stay on this machine; owner, 2026-11-12). Off, the logs keep a filter's shape only: its length and its terms.
 /// </param>
-public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true)
+/// <param name="IncludeDumpValuesInLogs">
+/// Whether values read from a dump (field values, string text) are written into the logs (sprint 3.13.2; owner, 2026-11-19):
+/// off by default, turned on only after the user confirms. Off, the logs keep a value's length only.
+/// </param>
+public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool IncludeDumpValuesInLogs = false)
 {
     /// <summary>The file's name in the data folder's root.</summary>
     public const string FileName = "settings.json";

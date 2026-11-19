@@ -32,10 +32,10 @@ namespace HeapScope.UI.ViewModels;
 public static class LessonCatalog
 {
     /// <summary>The catalog's version (review M4): raised when a lesson is added or its steps or question change.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
-    private const string Capture = "On the Processes page, select the row marked Sample and choose Capture dump (leave As gcdump unticked), then open the dump.";
-    private const string ByRetained = "On the Snapshots page, tick Retained sizes, type Fixtures.Leaks in the filter and sort by Retained.";
+    private const string Capture = "On the Processes page, select the sample's row (it says Sample in the Kind column) and choose Capture dump (leave As gcdump unticked). When it asks to open the dump, say yes: the dump opens on the Snapshots page.";
+    private const string ByRetained = "On the Snapshots page, tick Retained sizes, type Fixtures.Leaks in the filter and sort by Retained. The first time, working out retained sizes can take a minute; the bar above the grid moves until it is done.";
     private const string Inspections = "On the Snapshots page, open the Inspections tab and select ";
 
     public static IReadOnlyList<Lesson> All { get; } =
@@ -182,7 +182,7 @@ public static class LessonCatalog
             false,
             LessonPage.Processes,
             [
-                "On the Processes page, select the row marked Sample and choose Record allocations; stop after a few seconds.",
+                "On the Processes page, select the sample's row (it says Sample in the Kind column) and choose Record allocations; stop after a few seconds.",
                 "On the Allocations page, the Types list is ordered by bytes: find the sample's type nearest the top, select it and look at Back traces for the method that allocates it.",
             ],
             "Which of the sample's types is allocated most?",

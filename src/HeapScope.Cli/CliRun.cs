@@ -62,10 +62,10 @@ internal static partial class CliCommands
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var filterText = HeapScope.Application.Settings.SettingsService.FilterTextInLogs;
         logger.LogInformation(
-            "Command {Command} started: {Arguments}; filter text in logs {FilterText} ({SettingsFile})",
+            "Command {Command} started: {Arguments}; logs hold {LogPrivacy} ({SettingsFile})",
             command,
             DescribeTokens(parseResult, filterText),
-            filterText ? "on" : "off",
+            HeapScope.Application.Settings.SettingsService.LogPrivacyFollowed,
             HeapScope.Application.Settings.SettingsService.SettingsFileFollowed);
         int exitCode;
         try
@@ -108,7 +108,7 @@ internal static partial class CliCommands
     /// <summary>
     /// The command line for the log, value by value by the option it belongs to (sprint 3.12, B1): a filter's text as given
     /// when <paramref name="includeFilterText"/> (the user's setting, on by default) and by its length otherwise, whatever it
-    /// looks like; paths, numbers and true or false of other options as given; any other text by its length.
+    /// looks like; paths, numbers, true or false and on or off of other options as given; any other text by its length.
     /// </summary>
     internal static string DescribeTokens(ParseResult parseResult, bool includeFilterText)
     {
@@ -128,7 +128,7 @@ internal static partial class CliCommands
                 ? (includeFilterText ? JsonQuoted(token.Value) : length)
                 : File.Exists(token.Value) || Directory.Exists(token.Value)
                     || double.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
-                    || token.Value is "true" or "false" ? token.Value : length);
+                    || token.Value is "true" or "false" or "on" or "off" ? token.Value : length);
             option = null;
         }
 
