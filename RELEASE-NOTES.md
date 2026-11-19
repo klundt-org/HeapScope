@@ -4,7 +4,8 @@ Each sprint sets the version to its number (sprint 3.5 is version 3.5.0). A vers
 so: it is merged into `main`, tagged `vX.Y.Z` and published as a GitHub Release whose notes are the sections since the
 previous release, after a first line pointing to [INSTALL.md](INSTALL.md), which takes you from download to a first
 snapshot. Versions without a release are listed too, so every change can be traced to its sprint. The review of
-each sprint is in `docs/reviews/sprint-X.Y.md`.
+each sprint is in `docs/reviews/sprint-X.Y.md`. The CLI's package on nuget.org carries notes of its own, the changes to the CLI
+since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`); every version updates both.
 
 | Version | Released |
 |---|---|
