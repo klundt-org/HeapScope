@@ -7,7 +7,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
 - **Core.** `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
   `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
-  (what the logs may hold, followed within a second by every process) [3.12]; `RequestRefusedException` (a request the worker
+  (what the logs may hold, followed within a second by every process) [3.12], with `LogPrivacyChange` (both settings as one
+  value) [3.13.2]; `RequestRefusedException` (a request the worker
   refuses for a reason the user can act on; any other exception at its boundary is a bug) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,

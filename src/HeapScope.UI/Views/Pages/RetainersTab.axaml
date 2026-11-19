@@ -70,6 +70,8 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
+    <!-- Moves while the tree's query runs: its first query computes the dominators, which can take a minute. -->
+    <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" TextWrapping="Wrap" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Note}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,8,4"
@@ -97,6 +99,8 @@
           </TextBlock>
         </DockPanel>
         <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,2,0,2" />
+        <!-- Sprint 3.13.2: moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
+        <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
         <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,2" />
         <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Totals}" Classes="subtle" Margin="0,0,0,2" />
         <DataGrid x:Name="SetGrid" ctl:GridExports.ExportName="RetainedBySet" CanUserSortColumns="False"

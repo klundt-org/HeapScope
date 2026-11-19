@@ -102,8 +102,8 @@ collected, so for a stable gate capture after a full GC in the target, or compar
 ### Private by design: dumps are full of secrets?
 
 A dump holds everything the process had in memory, passwords included, so HeapScope never uploads one. Analysis runs on your
-machine, and the logs never hold field values or strings read from a dump; the text you type in filters is logged unless
-you turn that off in Settings. The one thing it can fetch is a runtime component a dump needs, from
+machine, and the logs never hold field values or strings read from a dump unless you turn that on in Settings (it is off by
+default, and asks you to confirm); the text you type in filters is logged unless you turn that off in Settings. The one thing it can fetch is a runtime component a dump needs, from
 Microsoft's symbol server, and only if you allow it. That request sends module identifiers, never dump contents.
 
 ### Built for big dumps: tired of your profiler freezing?
@@ -121,8 +121,8 @@ Retained sizes take more: computing them in memory peaked at about 3.3 and 3.9 G
 
 ### Results you can check: someone doubts a number?
 
-The log records why each result was produced, with no field values or strings from the dump in it, so a finding can be
-backed up later. The
+The log records why each result was produced, with no field values or strings from the dump in it unless you turn that on,
+so a finding can be backed up later. The
 test suite checks results against fixture dumps whose answers are known.
 
 ## What to expect

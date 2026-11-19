@@ -47,6 +47,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.11 | Screens that explain themselves | Closed | 2026-11-10 | sprint-3.11 |
 | 3.12 | First-show performance and refactor analysis | Closed | 2026-11-15 | sprint-3.12 |
 | 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
+| 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
 
 ---
 

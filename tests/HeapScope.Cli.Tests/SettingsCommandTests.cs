@@ -53,6 +53,69 @@ public sealed class SettingsCommandTests
         }
     }
 
+    // Sprint 3.13.2 (owner, 2026-11-19): values read from a dump reach the logs only when the user confirms it.
+    [Fact]
+    public async Task Dump_values_in_logs_turn_on_only_with_yes_and_off_without_it()
+    {
+        var before = HeapScopeSettings.Read(HeapScopeFolders.Default);
+        try
+        {
+            new HeapScopeSettings().Save(HeapScopeFolders.Default);
+
+            var (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--dump-values-in-logs", "on");
+            code.ShouldBe(0);
+            output.ShouldContain(CliCommands.DumpValuesQuestion);
+            output.ShouldContain("Include dump values in logs: off");
+            HeapScopeSettings.Read(HeapScopeFolders.Default).IncludeDumpValuesInLogs.ShouldBeFalse("nothing changes without --yes");
+
+            (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--dump-values-in-logs", "on", "--yes");
+            code.ShouldBe(0);
+            output.ShouldContain("Include dump values in logs: on");
+            HeapScopeSettings.Read(HeapScopeFolders.Default).IncludeDumpValuesInLogs.ShouldBeTrue();
+
+            (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--dump-values-in-logs", "off");
+            code.ShouldBe(0);
+            output.ShouldContain("Logs written while it was on still hold values read from dumps. Purge logs on the Settings page deletes them, or heapscope-cli purge logs once every HeapScope window is closed.");
+            output.ShouldContain("Include dump values in logs: off");
+            HeapScopeSettings.Read(HeapScopeFolders.Default).IncludeFilterTextInLogs.ShouldBeTrue("the other setting is kept");
+        }
+        finally
+        {
+            before.Save(HeapScopeFolders.Default);
+        }
+    }
+
+    [Fact]
+    public async Task Dump_values_on_without_yes_changes_no_other_setting_either()
+    {
+        var before = HeapScopeSettings.Read(HeapScopeFolders.Default);
+        try
+        {
+            new HeapScopeSettings().Save(HeapScopeFolders.Default);
+
+            var (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--filter-text-in-logs", "off", "--dump-values-in-logs", "on");
+
+            code.ShouldBe(0);
+            output.ShouldContain(CliCommands.DumpValuesQuestion);
+            output.ShouldContain("Include filter text in logs: on");
+            var after = HeapScopeSettings.Read(HeapScopeFolders.Default);
+            after.IncludeFilterTextInLogs.ShouldBeTrue("not changed either");
+            after.IncludeDumpValuesInLogs.ShouldBeFalse();
+        }
+        finally
+        {
+            before.Save(HeapScopeFolders.Default);
+        }
+    }
+
+    [Fact]
+    public void The_refusal_is_the_one_the_owner_approved()
+    {
+        var table = File.ReadAllText(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "docs", "design", "info-text.md"));
+
+        table.ShouldContain("on without `--yes`: \"" + CliCommands.DumpValuesQuestion + "\"");
+    }
+
     [Fact]
     public async Task A_value_other_than_on_or_off_is_a_usage_error()
     {

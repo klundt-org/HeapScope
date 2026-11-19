@@ -82,14 +82,17 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   logs, or its logs, the library's sessions and the bookmarks; never a dump outside the library, the trusted DACs or the
   index cache key; Purge all asks first (the command line wants `--yes`) and waits for other HeapScope processes.
 - Filter text in logs (sprint 3.12, B1): the text typed in filters and searches is written into the logs unless the user
-  turns that off (Settings, or `heapscope-cli settings --filter-text-in-logs off`); field values and strings read from a
-  dump never are (logging.md).
+  turns that off (Settings, or `heapscope-cli settings --filter-text-in-logs off`). Field values and strings read from a
+  dump are written only when the user turns on Include dump values in logs (sprint 3.13.2, ADR-043): off by default, and
+  turned on only after the user confirms (the command line: `--dump-values-in-logs on --yes`); every log says whether it
+  holds them (logging.md).
 - Elevated targets require HeapScope to run elevated (ADR-014). HeapScope never tries to elevate silently.
 - Traces (`trace`, `--smoke-trace`, sprint 1.5) hold method and type names and event data such as exception messages,
   not heap contents; the CLI says so after each one, and they are written where the user asks (never uploaded).
 - Inspecting an object reads its field values and string text from the dump on demand (sprint 1.5); they are shown,
-  never written to the index cache or the log. The same holds for inspections (sprint 1.6): duplicate strings shows
-  the first 100 characters of each duplicated value in the UI and the CLI only; logs record counts and sizes.
+  never written to the index cache, nor to the log unless the user turned on Include dump values in logs (ADR-043). The same holds for inspections (sprint 1.6): duplicate strings shows
+  the first 100 characters of each duplicated value in the UI and the CLI only; logs record counts and sizes, unless the user
+  turned on Include dump values in logs (ADR-043: then a result page's first rows, at Debug).
 - Monitoring (sprint 1.7) reads the target's runtime counters (sizes, counts, rates), never its memory; the timeline
   file in the session folder holds those numbers and the snapshot file names.
 - Shared results (ADR-026, sprint 2.3.5; built by the shared analysis export): what a team shares is an exported

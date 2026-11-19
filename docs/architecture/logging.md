@@ -91,6 +91,11 @@ references such as "ARCHITECTURE.md 11" still name the right section.
 - **What a log may hold (sprint 2.3.7 review M6)**: paths, file and process names, type, module and field names, counts,
   sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump:
   `Provenance` writes any other text by its length only, and error messages that would echo a filter leave it out. The
+  one exception is the user's (sprint 3.13.2, ADR-043; owner, 2026-11-19): with Include dump values in logs on (off by
+  default; the Settings page asks first, the command line needs `--yes`), `Provenance` writes each such text quoted (its
+  first 200 characters, and its length) and a list's first 20 items, each described, then how many more. Every process's
+  start line names both settings ("logs hold filter text on, dump values off"), and the worker logs each change, with a
+  warning not to share the log from there on. The
   user's filter text (sprint 3.12, B1; owner, 2026-11-12) is logged, quoted on one line, unless the user turns off Include
   filter text in logs on the Settings page (on by default: logs stay on the user's machine, and the setting's tooltip says
   to turn it off before sharing one); its shape (length and term counts) always is. The setting lives in `settings.json` in
@@ -114,13 +119,25 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   written, the columns, whether values were included and the time, never the file's path or a cell (a failure logs its
   exception type and HResult); bookmarks log counts, opens and file problems only. Provenance logs a filter by its shape
   (length and counts of terms, excluding terms and module terms), and its text as the setting above allows.
-- Settings (sprint 3.12, B1): a saved setting ("Setting saved to {File}: include filter text in logs on|off"); Purge logs,
-  the files and bytes it deletes and keeps (the log being written); Purge all, the question and the answer, what it deletes
+- Settings (sprint 3.12, B1; sprint 3.13.2): a saved setting ("Setting saved to {File}: include filter text in logs on|off",
+  "Setting saved to {File}: include dump values in logs on, confirmed by the user" or "... off"); the question to turn dump
+  values on and the answer ("Asked to include dump values in logs; the user answered yes|no"), or on the command line "Settings
+  not changed: --dump-values-in-logs on needs --yes"; after dump values are turned off, "This log goes on in {Part}; Purge logs
+  deletes this process's earlier parts, which may hold values read from dumps"; Purge logs,
+  the files and bytes it deletes and keeps (the part being written); Purge all, the question and the answer, what it deletes
   (sessions, bookmarks, logs, files, bytes) and keeps, each failure, or why it was refused; the current session let go of.
-  The worker follows the `settings.json` of its client's own data folder (`--settings-folder`), and a file that is there but
-  cannot be read keeps the last setting read, or filter text out (review H4, H5). The app, the worker and the command line say on
-  their start lines which file they follow and whether filter text is logged; the worker, which writes filter text, logs each
-  change it sees ("Filter text in logs is now off", M19), and the app logs each change the user saves.
+  The worker follows the `settings.json` of its client's own data folder (`--settings-folder`). A file that is there but
+  cannot be read keeps the last filter text setting read, or filter text out (review H4, H5), and always turns dump values off
+  (3.13.2 review M1); the Settings page and `heapscope-cli settings` refuse to save over it, so one setting never resets the
+  other (3.13.2 review H2). The app, the worker and the command line say on their start lines which file they follow and what
+  the logs hold ("logs hold filter text on, dump values off"), and so does the header of every log part, a new day's file
+  included; the worker logs each change it sees ("The logs now hold filter text on, dump values on ({File}); from here on
+  this log holds values read from dumps, so do not share it", a warning when dump values are on; M19), and the app logs each
+  change the user saves. Turning dump values off starts a new part of the process's log, and so does every purge (after
+  waiting out the two seconds a worker needs to see dump values turned off), logged first in the new part ("This log goes on
+  in {Part} before the purge, after waiting {N} ms for the workers to see dump values turned off"), so Purge logs deletes all
+  this process wrote before, and Purge all keeps its own record: its start line says it was confirmed, since the question
+  and answer were logged in the part it deletes (3.13.2 review H1 and re-reviews).
   Purge logs names the logs it kept (being written by running HeapScope processes) and the files it could not delete; Purge
   all logs one line per session (its files, bytes and the dumps kept outside it, 50 sessions at most), a refusal where it is
   decided, and an outcome when a snapshot cannot be closed (M5, M10, M13, M14).

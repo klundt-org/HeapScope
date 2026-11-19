@@ -104,5 +104,61 @@ public sealed class HeapScopeSettingsTests : IDisposable
         HeapScopeSettings.TryRead(new HeapScopeFolders(Path.Combine(_root, "none")), out _).ShouldBeTrue("no file is the defaults");
     }
 
+    // Sprint 3.13.2 (owner, 2026-11-19): values read from a dump reach the logs only when the user turned that on.
+    [Fact]
+    public void Dump_values_are_off_by_default_and_in_a_file_written_before_the_setting_existed()
+    {
+        HeapScopeSettings.Read(Folders).IncludeDumpValuesInLogs.ShouldBeFalse();
+        new LogPrivacy(Folders).IncludeDumpValues.ShouldBeFalse();
+
+        File.WriteAllText(HeapScopeSettings.PathIn(Folders), "{\"IncludeFilterTextInLogs\": true}");
+        HeapScopeSettings.Read(Folders).IncludeDumpValuesInLogs.ShouldBeFalse("a 3.12 file");
+        new LogPrivacy(Folders).Describe().ShouldBe("filter text on, dump values off");
+    }
+
+    [Fact]
+    public void Turning_dump_values_on_reaches_a_running_process_and_is_announced_with_both_settings()
+    {
+        var privacy = new LogPrivacy(Folders, checkEvery: TimeSpan.Zero);
+        var changes = new List<LogPrivacyChange>();
+        privacy.IncludeDumpValues.ShouldBeFalse();
+        privacy.Changed += changes.Add;
+
+        new HeapScopeSettings(IncludeDumpValuesInLogs: true).Save(Folders);
+        privacy.IncludeDumpValues.ShouldBeTrue();
+        privacy.IncludeFilterText.ShouldBeTrue("the other setting is unchanged");
+
+        new HeapScopeSettings(IncludeFilterTextInLogs: false, IncludeDumpValuesInLogs: false).Save(Folders);
+        File.SetLastWriteTimeUtc(HeapScopeSettings.PathIn(Folders), DateTime.UtcNow.AddSeconds(5));
+        privacy.IncludeDumpValues.ShouldBeFalse();
+
+        changes.Select(c => c.ToString()).ShouldBe(["filter text on, dump values on", "filter text off, dump values off"]);
+    }
+
+    [Fact]
+    public void A_file_that_cannot_be_read_from_the_start_keeps_dump_values_out()
+    {
+        File.WriteAllText(HeapScopeSettings.PathIn(Folders), "{\"IncludeDumpValuesInLogs\": tru");
+
+        new LogPrivacy(Folders, checkEvery: TimeSpan.Zero).IncludeDumpValues.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Dump_values_go_off_when_the_file_cannot_be_read_and_filter_text_keeps_what_was_read()
+    {
+        var path = HeapScopeSettings.PathIn(Folders);
+        var privacy = new LogPrivacy(Folders, checkEvery: TimeSpan.Zero);
+        var changes = new List<LogPrivacyChange>();
+        privacy.Changed += changes.Add;
+        new HeapScopeSettings(IncludeFilterTextInLogs: true, IncludeDumpValuesInLogs: true).Save(Folders);
+        privacy.Read().ShouldBe(new LogPrivacyChange(true, true));
+
+        File.WriteAllText(path, "{ damaged");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(5));
+
+        privacy.Read().ShouldBe(new LogPrivacyChange(true, false), "dump values off, filter text as read last");
+        changes[^1].ShouldBe(new LogPrivacyChange(true, false), "the change is announced, so the worker logs it");
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 }

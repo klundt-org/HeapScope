@@ -169,6 +169,41 @@ public sealed class TypeSummaryViewModelTests : IDisposable
         await WaitUntilAsync(() => _worker.Service.Released.Count == 1);
     }
 
+    // Sprint 3.13.2 (owner, 2026-11-19): the bar above the grid moves while its query runs, and only then.
+    [Fact]
+    public async Task The_busy_bar_shows_while_a_query_runs_and_a_newer_query_keeps_it()
+    {
+        await ShowAsync();
+        _types.IsQuerying.ShouldBeFalse();
+        _worker.Service.SummaryGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _types.SortByCommand.Execute("Name");
+        var stale = _types.QueryTask;
+        _types.IsQuerying.ShouldBeTrue();
+        _types.SortByCommand.Execute("Objects");
+        _worker.Service.SummaryGate.SetResult();
+        await stale;
+        await _types.QueryTask;
+
+        _types.IsQuerying.ShouldBeFalse("the newer query ended it");
+    }
+
+    [Fact]
+    public async Task Closing_the_snapshot_while_its_query_runs_ends_the_busy_bar()
+    {
+        _worker.Service.SummaryGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var query = StartShowAsync();
+        await WaitUntilAsync(() => _worker.Service.SummaryQueries.Count == 1);
+        _types.IsQuerying.ShouldBeTrue();
+
+        _types.Show(null);
+
+        _types.IsQuerying.ShouldBeFalse();
+        _worker.Service.SummaryGate.SetResult();
+        await (await query).QueryTask;
+        _types.IsQuerying.ShouldBeFalse();
+    }
+
     [Fact]
     public async Task Closing_the_snapshot_while_its_query_runs_leaves_the_view_empty()
     {

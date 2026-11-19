@@ -124,7 +124,7 @@ if (!optionsValid || options is null)
 // self-contained worker's own DAC depend on them (sprint 2.3.7 review H4).
 var gc = GC.GetConfigurationVariables();
 logger.LogInformation(
-    "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); settings {SettingsFile}, filter text in logs {FilterText}; log level {LogLevel}; test hooks {TestHooks}{HiddenDacs}",
+    "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); settings {SettingsFile}, logs hold {LogPrivacy}; log level {LogLevel}; test hooks {TestHooks}{HiddenDacs}",
     ProductInfo.Name,
     ProductInfo.InformationalVersion,
     Environment.ProcessId,
@@ -140,12 +140,12 @@ logger.LogInformation(
     options.Folders.Root,
     options.Folders.Source,
     HeapScope.Core.HeapScopeSettings.PathIn(options.SettingsFolders),
-    HeapScope.Core.LogPrivacy.Current.IncludeFilterText ? "on" : "off",
+    HeapScope.Core.LogPrivacy.Current.Describe(),
     options.LogLevel,
     options.EnableTestHooks,
     options.HideInstalledDacs ? "; installed runtimes' DACs hidden (test hook): every full dump opens as on a machine without its runtime" : string.Empty);
 // The privacy this worker applies, from now on whenever the user changes it (sprint 3.12 review M19).
-HeapScope.Core.LogPrivacy.Current.Changed += include => logger.LogInformation("Filter text in logs is now {State} ({File})", include ? "on" : "off", HeapScope.Core.LogPrivacy.Current.SettingsFile);
+HeapScope.Worker.PrivacyLog.Attach(HeapScope.Core.LogPrivacy.Current, logger);
 if (!enableTestHooks && args.Contains(WorkerOptions.HideInstalledDacsSwitch, StringComparer.Ordinal))
 {
     logger.LogWarning("{Switch} was ignored: it is honored only with {TestHooks}", WorkerOptions.HideInstalledDacsSwitch, WorkerOptions.EnableTestHooksSwitch);

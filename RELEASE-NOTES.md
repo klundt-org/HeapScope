@@ -9,6 +9,7 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 | Version | Released |
 |---|---|
+| 3.13.1 | 2026-11-19, `v3.13.1` |
 | 3.13.0 | 2026-11-17, `v3.13.0` |
 | 3.9.0 | 2026-11-02, `v3.9.0` |
 | 3.8.0 | 2026-10-31, `v3.8.0` |
@@ -16,6 +17,19 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 | 2.2.0 | 2026-10-25, `v2.2.0` |
 
 Everything else was built on `develop` and first shipped in the next release above it.
+
+## 3.13.2: Dump values in logs, by consent (sprint 3.13.2)
+
+- **Include dump values in logs**, a new check box on the Settings page: HeapScope's logs can now hold the values it reads
+  from your dumps (field values and string text), to back up a result in full. It is off by default, and turning it on asks
+  you to confirm. The logs stay on your machine; turn it off and use Purge logs before you share one.
+- **On the command line**: `heapscope-cli settings --dump-values-in-logs on --yes` (without `--yes` it only says what it
+  would do), and `off`.
+- **Each log says what it holds**: its first lines name both logging settings, and a change is logged when it happens.
+  Turning dump values off starts a new log file, so Purge logs can delete the one that holds them.
+- **The tutorial, clearer** (found by the owner trying the first lesson): the steps name the sample's row by its Kind column
+  and say to open the dump when asked; the Snapshots page says when a dump is open and where to go next; and a bar moves
+  above the Types, Instances, Referrers and Retainers grids while they load, since the first Retained sizes can take a minute.
 
 ## 3.13.1: The CLI on nuget.org
 

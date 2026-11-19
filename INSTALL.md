@@ -165,7 +165,8 @@ under "Logs and getting help".
 ## Settings
 
 The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: whether the text
-typed in filters is written into the logs. It is saved in `settings.json` in the data folder.
+typed in filters is written into the logs (on by default), and whether values read from dumps are (off by default; turning
+it on asks you to confirm, or needs `--yes` on the command line). It is saved in `settings.json` in the data folder.
 
 HeapScope reads its other settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
 environment variables that name the setting with `__` between its parts. For example, a DAC folder:

@@ -221,7 +221,7 @@ public sealed class InfoIconTests(UiSession ui)
                 .Select(File.ReadAllText));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).ToList();
 
-        texts.Count.ShouldBe(50);
+        texts.Count.ShouldBe(56);
         foreach (var text in texts)
         {
             sources.ShouldContain("InfoTexts." + text.Name, customMessage: text.Name);
@@ -335,6 +335,33 @@ public sealed class InfoIconTests(UiSession ui)
         {
             screens.ShouldContain("\"" + row[2] + "\"", customMessage: row[0] + ", " + row[1]);
         }
+    }
+
+    /// <summary>
+    /// Sprint 3.13.2's approved rows (the review's M11): the consent texts and the open status are held to the table word for
+    /// word, and the question's buttons to the labels the page uses.
+    /// </summary>
+    [Fact]
+    public void The_sprint_3_13_2_texts_the_owner_approved_are_the_ones_shown()
+    {
+        var repo = global::HeapScope.Tests.Shared.RepoRoot.Path;
+        var rows = File.ReadAllText(Path.Combine(repo, "docs", "design", "info-text.md")).ReplaceLineEndings("\n").Split('\n')
+            .Where(static l => l.StartsWith("| Settings |", StringComparison.Ordinal) || l.StartsWith("| Snapshots |", StringComparison.Ordinal))
+            .Where(static l => l.Contains("sprint 3.13.2)", StringComparison.Ordinal))
+            .Select(static l => l.Trim('|').Split(" | ").Select(static c => c.Trim()).ToArray())
+            .ToList();
+        string Row(string where) => rows.Single(r => r[1].StartsWith(where, StringComparison.Ordinal))[2];
+        var page = File.ReadAllText(Path.Combine(repo, "src", "HeapScope.UI.ViewModels", "ViewModels", "SettingsViewModel.cs"));
+
+        rows.Count.ShouldBe(6);
+        rows.ShouldAllBe(static r => r[3].StartsWith("approved", StringComparison.Ordinal));
+        Row("Include dump values in logs (tooltip").ShouldBe(InfoTexts.DumpValuesTip);
+        Row("Status after dump values are turned on").ShouldBe(InfoTexts.DumpValuesOn);
+        Row("Status after dump values are turned off").ShouldBe(InfoTexts.DumpValuesOff);
+        Row("Status after a dump opens").ShouldBe(InfoTexts.OpenedStatus.Replace("{0}", "{file}", StringComparison.Ordinal));
+        Row("Question before dump values are turned on").ShouldBe(
+            $"Title \"{InfoTexts.DumpValuesQuestionTitle}\"; body \"{InfoTexts.DumpValuesQuestion}\"; buttons \"Turn on\" and \"Cancel\"");
+        page.ShouldContain("\"Turn on\", \"Cancel\"");
     }
 
     /// <summary>An icon in a header acts on its own: a click opens its text and leaves the expander as it was.</summary>

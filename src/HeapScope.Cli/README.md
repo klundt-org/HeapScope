@@ -38,8 +38,9 @@ A dump holds everything the process had in memory, passwords included. HeapScope
 reports anything about you or how you use it: no usage statistics, no crash reports. What it does create stays on your
 machine (your captures, their indexes, sessions and logs), in `%LOCALAPPDATA%\HeapScope` on Windows and
 `~/.local/share/HeapScope` on Linux, and `heapscope-cli purge all` deletes it (dumps you opened from your own folders are
-kept). The logs never hold values read from a dump. The text you type in filters is logged unless you turn that off
-(`heapscope-cli settings --filter-text-in-logs off`). The only request HeapScope makes over the network is for a runtime
+kept). The logs never hold values read from a dump unless you turn that on (it is off by default, and asks you to
+confirm), and like everything else they stay on your machine. The text you type in filters is logged unless you turn that
+off (`heapscope-cli settings --filter-text-in-logs off`). The only request HeapScope makes over the network is for a runtime
 component a dump needs, from Microsoft's symbol server, and only if you allow it; that request sends module identifiers,
 never dump contents.
 
