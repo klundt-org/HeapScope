@@ -93,6 +93,9 @@ jobs:
         run: |
           version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
           [ "${{ github.event_name }}" != "release" ] || [ "v$version" = "$TAG" ] || { echo "The tag $TAG does not match the version $version"; exit 1; }
+          # The notes nuget.org shows must be this version's (DEVELOPER.md 7).
+          notes=src/HeapScope.Cli/package-release-notes.txt
+          [ "${{ github.event_name }}" != "release" ] || head -1 "$notes" | grep -q "^$version: " || { echo "$notes does not start with \"$version: \"; write the notes nuget.org shows for this version first."; exit 1; }
           bash build/pack-tool.sh "$RUNNER_TEMP/out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

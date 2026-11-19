@@ -1,0 +1,18 @@
+3.13.1: the first version on nuget.org.
+
+heapscope-cli analyzes .NET memory dumps and gcdumps on Windows and Linux (x64; macOS untested):
+- summary: what is on the heap, by type, namespace, assembly or interface.
+- inspect: leak detectors (event handlers, timers, growing static collections, disposed but referenced objects,
+  undisposed service scopes, HttpClient piles, async methods that never complete, a finalizer backlog) and memory
+  waste (duplicate strings, oversized collections, sparse and large arrays, fragmentation), each with its cause and fix.
+- paths, referrers, retainers, retained-by: why objects are still alive and what they keep alive.
+- diff and trend: what grew between dumps.
+- instances, object, set: find and inspect objects.
+- allocations: what allocated the most while a trace recorded.
+
+On Windows it also captures full dumps and gcdumps (list, capture), watches a process and captures when rules fire
+(monitor), and records allocation traces (trace). On Linux, take dumps with dotnet-dump for now.
+
+sample start runs a small process with memory problems planted on purpose, to learn HeapScope on.
+
+All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md
