@@ -34,13 +34,14 @@ Installing needs the .NET 10 SDK; running needs the .NET 10 runtime, which the S
 
 ## Private by design
 
-A dump holds everything the process had in memory, passwords included, so HeapScope never uploads one, and it has no
-telemetry. What it keeps (your captures, their indexes, sessions and logs) stays on your machine, in
-`%LOCALAPPDATA%\HeapScope` on Windows and `~/.local/share/HeapScope` on Linux, and `heapscope-cli purge all` deletes it
-(dumps you opened from your own folders are kept). The logs never hold values read from a dump; the text you type in
-filters is logged unless you turn that off (`heapscope-cli settings --filter-text-in-logs off`). The one thing it can
-fetch is a runtime component a dump needs, from Microsoft's symbol server, and only if you allow it; that request sends
-module identifiers, never dump contents.
+A dump holds everything the process had in memory, passwords included. HeapScope never uploads a dump, and it never
+reports anything about you or how you use it: no usage statistics, no crash reports. What it does create stays on your
+machine (your captures, their indexes, sessions and logs), in `%LOCALAPPDATA%\HeapScope` on Windows and
+`~/.local/share/HeapScope` on Linux, and `heapscope-cli purge all` deletes it (dumps you opened from your own folders are
+kept). The logs never hold values read from a dump. The text you type in filters is logged unless you turn that off
+(`heapscope-cli settings --filter-text-in-logs off`). The only request HeapScope makes over the network is for a runtime
+component a dump needs, from Microsoft's symbol server, and only if you allow it; that request sends module identifiers,
+never dump contents.
 
 ## License
 
