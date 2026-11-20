@@ -34,6 +34,16 @@ public static class PlatformHints
     /// <summary>The Processes page's banner for a process HeapScope needs more rights to reach, per system (sprint 4.1).</summary>
     public static string ElevationHint => HeapScope.Application.Sessions.RightsTexts.Hint;
 
+    /// <summary>The Learn page's note on who can capture whom, on Linux only (sprint 4.1 task 8); null elsewhere.</summary>
+    public static string? LearnNote { get; } = LearnNoteOn(OperatingSystem.IsLinux());
+
+    /// <summary>Whether this system has a <see cref="LearnNote"/> (the page shows its box only then).</summary>
+    public static bool HasLearnNote => LearnNote is not null;
+
+    public static string? LearnNoteOn(bool linux) => linux
+        ? "On Linux, HeapScope reaches a process that runs as your own user, as the sample does. Another user's process needs HeapScope run as that user or as root, and some systems block it altogether (kernel.yama.ptrace_scope); when a capture is refused, HeapScope says what to change."
+        : null;
+
     /// <summary>The Processes page's Elevation column tooltip, per system (sprint 4.1).</summary>
     public static string ElevationColumnTip => HeapScope.Application.Sessions.RightsTexts.ColumnTip;
 

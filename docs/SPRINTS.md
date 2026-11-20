@@ -171,9 +171,13 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    `list`, a full dump and a gcdump, and `summary` of both; it passes on Windows here, and CI's Linux job runs it with
    the fixture capture by the CLI and the live smoke run. The Linux package job captures with its own CLI too. Proven on
    Linux by the PR's first CI run.
-8. [ ] The tutorial on Linux: the sample starts from the Learn page and every lesson that captures runs there; this
+8. [x] The tutorial on Linux: the sample starts from the Learn page and every lesson that captures runs there; this
    sprint's lesson is the Linux rules (who can capture whom, ptrace) as a short lesson or a lesson note, drafted for the
    owner. Tests: the lesson catalog on Linux; the sample launch path per system.
+   Done: the lessons open on Linux with capture (task 6); a note on the Learn page, on Linux only, says who can capture
+   whom (decided autonomously: a note rather than a lesson; drafted for the owner). Tests: `ShellViewModelTests` (the
+   note per system); the lesson catalog and the sample launch path run on Linux in CI (`LessonCatalogTests`,
+   `SampleServiceTests`), and `build/linux-capture-check.sh` starts the sample there.
 9. [ ] Docs: ADR-025 amended (Linux capture), ARCHITECTURE and its capture pages, DEVELOPER.md (Linux capture, the CI
    steps), README's platform table, info text for the changed screens (owner approves), Backlog (the macOS work and what
    stays out).
