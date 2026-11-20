@@ -52,6 +52,7 @@ public sealed class SettingsService
     private readonly HeapScopeFolders _folders;
     private readonly string _cacheRoot;
     private readonly ILogger _logger;
+    private long _dumpValuesOffAt;
 
     /// <param name="folders">HeapScope's data folder (settings and logs); null for <see cref="HeapScopeFolders.Default"/>.</param>
     /// <param name="workerOptions">The worker's options, whose data folder holds the caches of dumps it cannot write beside.</param>
@@ -83,6 +84,9 @@ public sealed class SettingsService
     /// </summary>
     public static bool FilterTextInLogs => LogPrivacy.Current.IncludeFilterText;
 
+    /// <summary>What this process may write into its log now, for its start line: "filter text on, dump values off" (sprint 3.13.2).</summary>
+    public static string LogPrivacyFollowed => LogPrivacy.Current.Describe();
+
     /// <summary>The settings file this process follows, for its start line (sprint 3.12 review M19).</summary>
     public static string SettingsFileFollowed => LogPrivacy.Current.SettingsFile;
 
@@ -99,10 +103,73 @@ public sealed class SettingsService
     /// <exception cref="IOException">The settings file could not be written.</exception>
     public void SetIncludeFilterTextInLogs(bool include)
     {
-        var settings = HeapScopeSettings.Read(_folders) with { IncludeFilterTextInLogs = include };
+        var settings = ReadForSave() with { IncludeFilterTextInLogs = include };
         settings.Save(_folders);
         _logger.LogInformation("Setting saved to {File}: include filter text in logs {State}", SettingsPath, include ? "on" : "off");
     }
+
+    /// <summary>Include dump values in logs, as saved (off when nothing is saved; sprint 3.13.2).</summary>
+    public bool IncludeDumpValuesInLogs => HeapScopeSettings.Read(_folders).IncludeDumpValuesInLogs;
+
+    /// <summary>
+    /// Saves Include dump values in logs; the app, the worker and the command line follow it within a second. The caller has
+    /// asked the user first: the app's Settings page with a question, the command line with <c>--yes</c>.
+    /// </summary>
+    /// <exception cref="IOException">The settings file could not be written.</exception>
+    public void SetIncludeDumpValuesInLogs(bool include)
+    {
+        var settings = ReadForSave() with { IncludeDumpValuesInLogs = include };
+        settings.Save(_folders);
+        _logger.LogInformation(
+            "Setting saved to {File}: include dump values in logs {State}{Note}",
+            SettingsPath,
+            include ? "on" : "off",
+            include ? ", confirmed by the user" : string.Empty);
+        if (!include)
+        {
+            Volatile.Write(ref _dumpValuesOffAt, Environment.TickCount64);
+        }
+
+        if (!include && _logs?.StartNewPart() is { } part)
+        {
+            // The review's H1: the part that holds the values is closed, so Purge logs can delete it.
+            _logger.LogInformation("This log goes on in {Part}; Purge logs deletes this process's earlier parts, which may hold values read from dumps", part);
+        }
+    }
+
+    /// <summary>The time a worker needs to see a settings change (it checks once a second) and its lines to reach this log.</summary>
+    internal static readonly TimeSpan WorkerCatchUp = TimeSpan.FromSeconds(2);
+
+    // Before a purge lists the logs: waits until the workers have seen dump values turned off, if that was just now, then closes
+    // the part being written, so the purge deletes everything this process logged before it.
+    private void StartNewLogPart()
+    {
+        if (_logs is null)
+        {
+            return;
+        }
+
+        var off = Volatile.Read(ref _dumpValuesOffAt);
+        var wait = off == 0 ? TimeSpan.Zero : WorkerCatchUp - TimeSpan.FromMilliseconds(Environment.TickCount64 - off);
+        if (wait > TimeSpan.Zero)
+        {
+            Thread.Sleep(wait);
+        }
+
+        // Logged in the new part, which the purge keeps (the 3.13.2 re-review: a purge must not delete its own record).
+        if (_logs.StartNewPart() is { } part)
+        {
+            _logger.LogInformation(
+                "This log goes on in {Part} before the purge{Waited}",
+                part,
+                wait > TimeSpan.Zero ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $", after waiting {(int)wait.TotalMilliseconds} ms for the workers to see dump values turned off") : string.Empty);
+        }
+    }
+
+    // The sprint 3.13.2 review's H2: a file that is there but cannot be read is never replaced by the defaults.
+    private HeapScopeSettings ReadForSave() => HeapScopeSettings.TryRead(_folders, out var settings)
+        ? settings
+        : throw new IOException($"{SettingsPath} could not be read, so nothing was saved. Close any program that has it open, or delete it to go back to the defaults.");
 
     /// <summary>
     /// The log files Purge logs would delete: every HeapScope log but those a running HeapScope process writes now, this one's
@@ -114,9 +181,14 @@ public sealed class SettingsService
         return new Deletion(files, files.Sum(Length), Kept: kept);
     }
 
-    /// <summary>Deletes HeapScope's log files but those running HeapScope processes write now (kept until they close).</summary>
+    /// <summary>
+    /// Deletes HeapScope's log files but those running HeapScope processes write now (kept until they close). This process's
+    /// own log goes on in a new part first, so all it wrote before the purge is deleted too (the 3.13.2 re-review): values a
+    /// worker wrote in the moment before it saw dump values turned off, or while another process had them on, go with it.
+    /// </summary>
     public Deletion PurgeLogs()
     {
+        StartNewLogPart();
         var plan = PlanPurgeLogs();
         _logger.LogInformation(
             "Purge logs: deleting {Files} files ({Bytes} bytes) in {Folder}; kept, being written by running HeapScope processes: {Kept}",
@@ -190,8 +262,11 @@ public sealed class SettingsService
             throw new InvalidOperationException(refused);
         }
 
+        // Before its first line, so its record stays in the part it keeps (the 3.13.2 re-review); the question it answered
+        // was logged in the earlier part, so the start line says it was confirmed.
+        await Task.Run(StartNewLogPart, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Purge all: {Sessions} sessions in {Library}, bookmarks {Bookmarks}, logs in {Logs}; {Files} files ({Bytes} bytes). Kept: dumps outside the library and their caches, trusted DACs, the index cache key, the log written now",
+            "Purge all, confirmed by the user: {Sessions} sessions in {Library}, bookmarks {Bookmarks}, logs in {Logs} (this process's earlier parts included); {Files} files ({Bytes} bytes). Kept: dumps outside the library and their caches, trusted DACs, the index cache key, the log part written now",
             plan.Sessions,
             _library.Root,
             _bookmarks.Path,
@@ -306,10 +381,14 @@ public sealed class SettingsService
         }
 
         var current = _logs?.CurrentPath;
+        var writer = current is null ? null : Writer(current);
         foreach (var file in Directory.EnumerateFiles(LogFolder, "heapscope-*.log"))
         {
             var mine = current is not null && HeapScope.Contracts.PathIdentity.Same(Path.GetFullPath(file), Path.GetFullPath(current));
-            (mine || WrittenByRunningProcess(file) ? kept : delete).Add(file);
+
+            // An earlier part of this process's log (the review's H1): closed, so it goes, values and all.
+            var earlierPartOfMine = !mine && writer is not null && Writer(file) == writer;
+            (mine || (!earlierPartOfMine && WrittenByRunningProcess(file)) ? kept : delete).Add(file);
         }
 
         return (delete, kept);
@@ -343,6 +422,15 @@ public sealed class SettingsService
 
     /// <summary>Whether the pid in a log file's name is a running HeapScope process (the name's fourth part, before any "-part").</summary>
     internal bool WrittenByRunningProcess(string file) => RunningWriter(file) is not null;
+
+    /// <summary>The app and pid in a log file's name (<c>heapscope-date-app-pid[-part].log</c>); null for another name.</summary>
+    private static (string App, int Pid)? Writer(string file)
+    {
+        var parts = Path.GetFileNameWithoutExtension(file).Split('-');
+        return parts.Length >= 4 && int.TryParse(parts[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid)
+            ? (parts[2], pid)
+            : null;
+    }
 
     /// <summary>The app part, pid and process name of a log file's writer when it still runs; null otherwise.</summary>
     private (string App, int Pid, string Process)? RunningWriter(string file)

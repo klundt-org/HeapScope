@@ -83,6 +83,8 @@
       <ctl:InfoIcon Text="{Binding OptionsInfoText}" Margin="12,0,0,0" VerticalAlignment="Center" />
       <TextBlock Text="{Binding Totals}" VerticalAlignment="Center" Margin="12,0,0,0" Classes="subtle" TextTrimming="CharacterEllipsis" />
     </WrapPanel>
+    <!-- Sprint 3.13.2: moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
+    <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding GroupNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding GenerationsExplanation}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />

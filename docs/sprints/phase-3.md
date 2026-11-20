@@ -1452,3 +1452,78 @@ and the rounds that confirmed the fixes.
   files, a lesson on reading fields.
 - Low: listed in the review file; four that were faults in the fixes themselves were fixed with them (L27, L28, L32 and the
   dictionary step's wording).
+
+---
+
+## Sprint 3.13.2: Dump values in logs, by consent
+
+Closed 2026-11-19, tag `sprint-3.13.2`.
+
+**Goal.** A user who wants a log that backs up a result in full can let HeapScope write the values it reads from a dump
+(field values and string text) into its logs: off by default, turned on only after the user confirms, and stated in every
+log it applies to (owner, 2026-11-19: "logs never hold values read from a dump, unless you explicitly tell it to").
+
+**Starting point.** Since 3.12 the Settings page's Logging section has Include filter text in logs (on by default), Purge
+logs and Purge all; the worker's request and result lines (`Provenance`) write any text not on its list of names by its
+length only, and lists by their count (ARCHITECTURE.md 12, logging.md).
+
+**Tasks**
+
+1. [x] The setting: `HeapScopeSettings.IncludeDumpValuesInLogs` (off by default) and `LogPrivacy.IncludeDumpValues`, off
+   whenever the file cannot be read. Tests: `HeapScopeSettingsTests` (the default, a round trip, an older file without it,
+   a change is followed, an unreadable file means off before and after a first read).
+2. [x] The worker's lines: with the setting on, `Provenance` writes a text quoted (its first 200 characters, and its length)
+   and a list's first 20 items, each described, then how many more; off, as before. Tests: `ProvenanceLogTests` (on: a field
+   value and an object's text appear, capped; off: lengths only; filter text still follows its own setting).
+3. [x] Every process says what it applies: the app's, the worker's and the CLI's start lines name both settings, and the
+   worker logs a change of either, and every log part's header says it too. Tests: `PrivacyLogTests` (the worker's
+   change line), `HeapScopeSettingsTests` (`Describe`), `SettingsViewModelTests` (a new part's header).
+4. [x] The Settings page: the check box Include dump values in logs, off by default; turning it on asks first (Turn on,
+   Cancel) and a no leaves it off; turning it off says that logs written while it was on still hold values, and that
+   Purge logs deletes them. Tests: `SettingsViewModelTests` (yes saves, no keeps it off, off saves and says so, a save that
+   fails reverts).
+5. [x] The command line: `heapscope-cli settings --dump-values-in-logs on|off`; on needs `--yes`, and without it the command
+   says what it would do and changes nothing. Tests: `SettingsCommandTests`.
+6. [x] Wording (approved by the owner on 2026-11-19): drafts in `docs/design/info-text.md` (check box, tooltip, question, status, CLI help and output) for the
+   owner's approval; the approved readme sentence in `src/HeapScope.Cli/README.md`.
+7. [x] Docs: ADR-043, ARCHITECTURE.md 12 (`security-privacy.md`), `logging.md`, USER-GUIDE.md, INSTALL.md's Settings,
+   README.md's privacy section, the support-engineer reviewer's brief, RELEASE-NOTES.md and the package's release notes.
+
+Added after the owner tried the first lesson (2026-11-19):
+
+8. [x] The lessons name the sample's row by its Kind column, and the capture step says to answer yes to opening the dump
+   (LessonCatalog version 2). Tests: `LessonCatalogTests` (the steps match the wording table).
+9. [x] A normal open says it worked and where to go next (`InfoTexts.OpenedStatus`). Tests: `SnapshotsViewModelTests`.
+10. [x] A bar moves above the Types, Instances, Referrers and Retainers grids while their query runs
+   (`GridQueryViewModel.IsQuerying`), and the Retained sizes step says the first time can take a minute. Tests: the
+   `TypeSummaryViewModelTests` (the bar while a query runs, kept by a newer one, ended by a close).
+
+**Decisions** (decided autonomously unless marked as the owner's)
+
+- The owner, 2026-11-19: an opt-in to log values read from a dump, off by default, with explicit consent, in an extra
+  sprint 3.13.2 before Phase 4; the readme says "The logs never hold values read from a dump unless you turn that on (it is
+  off by default, and asks you to confirm), and like everything else they stay on your machine."
+- Which values: everything the worker's request and result lines write by length today (field values, string text, and
+  any other text not on `Provenance`'s list of names), capped at 200 characters each, plus a list's first 20 items. Not
+  the index cache, traces or exports, which keep their own rules.
+- Filter text keeps its own setting: dump values on does not turn it on.
+- A log says it holds values in its start line and in the line logging the change, not on every line; a log written
+  before the change stays as it was.
+- Turning it off does not delete anything: the status names Purge logs.
+- No lesson (ADR-042 adds lessons for analysis features; this is a setting).
+- Version 3.13.2; the app's and the package's release notes both get it.
+
+
+**Review summary** ([reviews/sprint-3.13.2.md](../reviews/sprint-3.13.2.md)): 2 High, 13 Moderate, 31 Low, from the four reviewers
+and the rounds that confirmed the fixes.
+- Fixed and confirmed, High: Purge logs kept the log part holding the values (turning dump values off now starts a new part,
+  and every purge starts one first, so all this process wrote before goes); saving one setting over an unreadable file reset
+  the other (both now refuse to save).
+- Fixed and confirmed, Moderate (decided autonomously): an unreadable file turns dump values off; every log part's header
+  says what it holds; the Settings page reloads when shown; the change line and the busy bar are tested; values nested in
+  structs and arrays, a 16 KB line limit and cuts that never split a character; the command line refuses the whole command
+  without `--yes`; logging.md; the consent question cannot be raced; the busy bar on the main Retainers grid; tests pass
+  the settings they assert on; the approved texts are checked word for word; a purge waits for the workers to see dump
+  values off (M12); Purge all keeps its own record (M13).
+- After the review, the owner approved a new wording for the command line's off message, true while the app is open.
+- Low: listed in the review file, several applied with the fixes.

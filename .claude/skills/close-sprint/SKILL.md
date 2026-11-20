@@ -9,7 +9,7 @@ Follow these steps exactly.
 
 1. **Verify the Definition of Done** (DEVELOPER.md section 9), item by item, and show the result:
    - `bash build/gate.sh` passes: Debug and Release builds with zero warnings, the fast and integration tiers, and
-     the fixture check against the known answers.
+     the fixture check against the known answers. A tier it skips as passed before counts: the same inputs passed.
    - Every acceptance criterion in the sprint's section is met (cite the test or measurement) or explicitly
      deferred by the human (or, in autonomous mode, deferred and recorded as "decided autonomously").
    - `docs/reviews/sprint-X.Y.md` exists; every High finding is Fixed and confirmed; every Moderate finding

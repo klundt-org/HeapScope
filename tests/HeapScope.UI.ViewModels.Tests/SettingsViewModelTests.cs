@@ -107,6 +107,159 @@ public sealed class SettingsViewModelTests : IDisposable
         page.Status.ShouldBeNull();
     }
 
+    // Sprint 3.13.2 (owner, 2026-11-19): off by default, and turned on only after the user confirms.
+    [Fact]
+    public async Task Include_dump_values_in_logs_is_off_by_default_and_turned_on_only_after_a_yes()
+    {
+        var page = new SettingsViewModel(_service, _interaction);
+        page.IncludeDumpValuesInLogs.ShouldBeFalse();
+
+        _interaction.Answer = true;
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+
+        _interaction.Questions.ShouldHaveSingleItem().ShouldBe(InfoTexts.DumpValuesQuestion);
+        HeapScopeSettings.Read(Folders).IncludeDumpValuesInLogs.ShouldBeTrue();
+        new LogPrivacy(Folders).IncludeDumpValues.ShouldBeTrue();
+        new SettingsViewModel(_service, _interaction).IncludeDumpValuesInLogs.ShouldBeTrue("a new run shows it");
+        page.Status.ShouldBe(InfoTexts.DumpValuesOn);
+        _serviceLog.Lines.ShouldContain(l => l.Contains("include dump values in logs on, confirmed by the user", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_no_leaves_dump_values_off_and_saves_nothing()
+    {
+        var page = new SettingsViewModel(_service, _interaction);
+        _interaction.Answer = false;
+
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+
+        page.IncludeDumpValuesInLogs.ShouldBeFalse();
+        File.Exists(HeapScopeSettings.PathIn(Folders)).ShouldBeFalse();
+        page.Status.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Turning_dump_values_off_asks_nothing_and_points_to_purge_logs()
+    {
+        _interaction.Answer = true;
+        var page = new SettingsViewModel(_service, _interaction);
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+        _interaction.Questions.Clear();
+
+        page.IncludeDumpValuesInLogs = false;
+
+        _interaction.Questions.ShouldBeEmpty();
+        HeapScopeSettings.Read(Folders).IncludeDumpValuesInLogs.ShouldBeFalse();
+        page.Status.ShouldBe(InfoTexts.DumpValuesOff);
+        HeapScopeSettings.Read(Folders).IncludeFilterTextInLogs.ShouldBeTrue("the other setting is kept");
+    }
+
+    [Fact]
+    public async Task A_dump_values_setting_that_cannot_be_saved_is_turned_back_off()
+    {
+        // The settings file's place is taken by a folder, so it cannot be written.
+        Directory.CreateDirectory(HeapScopeSettings.PathIn(Folders));
+        var page = new SettingsViewModel(_service, _interaction);
+
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+
+        page.IncludeDumpValuesInLogs.ShouldBeFalse();
+        page.Status.ShouldNotBeNull().ShouldStartWith("The setting could not be saved to ");
+    }
+
+    // The sprint 3.13.2 review (M8): the box shows on only while the question is open, and never on without an answer.
+    [Fact]
+    public async Task A_second_click_while_the_question_is_open_is_ignored_and_a_question_that_fails_leaves_it_off()
+    {
+        var question = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _interaction.Pending = question.Task;
+        var page = new SettingsViewModel(_service, _interaction);
+
+        page.IncludeDumpValuesInLogs = true;
+        page.IncludeDumpValuesInLogs = false;
+        page.IncludeDumpValuesInLogs.ShouldBeTrue("still asking");
+        question.SetException(new InvalidOperationException("the window is closing"));
+        await page.DumpValuesConfirmation;
+
+        page.IncludeDumpValuesInLogs.ShouldBeFalse();
+        File.Exists(HeapScopeSettings.PathIn(Folders)).ShouldBeFalse("nothing saved");
+    }
+
+    // The review's M3: the command line may change the file while the app runs.
+    [Fact]
+    public void The_page_shows_the_settings_saved_since_it_was_built()
+    {
+        var page = new SettingsViewModel(_service, _interaction);
+        new HeapScopeSettings(IncludeFilterTextInLogs: false, IncludeDumpValuesInLogs: true).Save(Folders);
+
+        page.Reload();
+
+        (page.IncludeFilterTextInLogs, page.IncludeDumpValuesInLogs).ShouldBe((false, true));
+        _interaction.Questions.ShouldBeEmpty("a reload asks nothing");
+    }
+
+    // The review's H2: a file that cannot be read is never replaced by the defaults, which would turn filter text back on.
+    [Fact]
+    public async Task A_settings_file_that_cannot_be_read_is_not_overwritten()
+    {
+        var path = HeapScopeSettings.PathIn(Folders);
+        new HeapScopeSettings(IncludeFilterTextInLogs: false).Save(Folders);
+        var page = new SettingsViewModel(_service, _interaction);
+        await File.WriteAllTextAsync(path, "{ damaged", TestContext.Current.CancellationToken);
+        _interaction.Answer = true;
+
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+
+        (await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken)).ShouldBe("{ damaged");
+        page.IncludeDumpValuesInLogs.ShouldBeFalse();
+        page.Status.ShouldNotBeNull().ShouldContain("could not be read, so nothing was saved");
+    }
+
+    [Fact]
+    public async Task Turning_dump_values_off_when_the_file_cannot_be_written_keeps_the_box_on()
+    {
+        var page = new SettingsViewModel(_service, _interaction);
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+        File.Delete(HeapScopeSettings.PathIn(Folders));
+        Directory.CreateDirectory(HeapScopeSettings.PathIn(Folders));
+
+        page.IncludeDumpValuesInLogs = false;
+
+        page.IncludeDumpValuesInLogs.ShouldBeTrue();
+        page.Status.ShouldNotBeNull().ShouldStartWith("The setting could not be saved to ");
+    }
+
+    // The review's H1: turning dump values off closes the log part that holds them, and Purge logs deletes it.
+    [Fact]
+    public async Task After_dump_values_are_turned_off_purge_logs_deletes_the_part_that_held_them()
+    {
+        _log.CreateLogger("test").LogInformation("A line written while dump values were on.");
+        var held = _log.CurrentPath.ShouldNotBeNull();
+        _interaction.Answer = true;
+        var page = new SettingsViewModel(_service, _interaction);
+        page.IncludeDumpValuesInLogs = true;
+        await page.DumpValuesConfirmation;
+
+        page.IncludeDumpValuesInLogs = false;
+        var afterOff = _log.CurrentPath.ShouldNotBeNull();
+        await page.PurgeLogsCommand.ExecuteAsync(null);
+        var now = _log.CurrentPath.ShouldNotBeNull();
+
+        afterOff.ShouldNotBe(held);
+        File.Exists(held).ShouldBeFalse();
+        File.Exists(afterOff).ShouldBeFalse("a purge closes the part being written first");
+        Directory.GetFiles(Folders.Logs).ShouldBe([now]);
+        await using var reader = new FileStream(now, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var text = new StreamReader(reader);
+        (await text.ReadToEndAsync(TestContext.Current.CancellationToken)).ShouldContain("; logs hold filter text ", customMessage: "every part says what it holds");
+    }
+
     [Fact]
     public async Task Purge_logs_deletes_every_log_but_the_one_being_written()
     {
@@ -115,8 +268,10 @@ public sealed class SettingsViewModelTests : IDisposable
 
         await page.PurgeLogsCommand.ExecuteAsync(null);
 
-        Directory.GetFiles(Folders.Logs).ShouldBe([writtenNow]);
-        page.Status.ShouldNotBeNull().ShouldStartWith("Deleted 2 log files");
+        // The part being written was closed first (the 3.13.2 re-review), so it goes too and a new part is kept.
+        Directory.GetFiles(Folders.Logs).ShouldBe([_log.CurrentPath.ShouldNotBeNull()]);
+        File.Exists(writtenNow).ShouldBeFalse();
+        page.Status.ShouldNotBeNull().ShouldStartWith("Deleted 3 log files");
         _interaction.Questions.ShouldBeEmpty();
     }
 
@@ -152,7 +307,8 @@ public sealed class SettingsViewModelTests : IDisposable
         Directory.Exists(current).ShouldBeFalse("the current session goes too");
         Directory.Exists(older).ShouldBeFalse();
         File.Exists(_bookmarks.Path).ShouldBeFalse();
-        Directory.GetFiles(Folders.Logs).ShouldBe([writtenNow]);
+        Directory.GetFiles(Folders.Logs).ShouldBe([_log.CurrentPath.ShouldNotBeNull()], "only the part started for the purge");
+        File.Exists(writtenNow).ShouldBeFalse();
         new[] { outside, outsideCache, trusted, key }.ShouldAllBe(f => File.Exists(f));
         _library.HasCurrent.ShouldBeFalse("the next capture starts a new session");
         page.Status.ShouldNotBeNull().ShouldStartWith("Deleted everything HeapScope keeps: 2 sessions, ");
@@ -267,7 +423,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         File.Exists(running).ShouldBeTrue();
         File.Exists(gone).ShouldBeFalse();
-        page.Status.ShouldNotBeNull().ShouldStartWith("Deleted 3 log files", customMessage: "the two old ones without a pid, and the gone process's");
+        page.Status.ShouldNotBeNull().ShouldStartWith("Deleted 4 log files", customMessage: "the two old ones without a pid, the gone process's, and this process's part closed for the purge");
     }
 
     private static SessionSnapshot Snapshot(string path) =>

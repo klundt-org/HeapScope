@@ -108,12 +108,16 @@ together. The lessons start with a capture, which runs on Windows for now: on Li
 ## Logs and getting help
 
 HeapScope writes a log file per run, which records the versions, the snapshots opened and why each result was produced
-(never field values or strings read from a dump; the text you type in filters, unless you turn that off with Include filter
-text in logs on the Settings page or `heapscope-cli settings --filter-text-in-logs off`): `%LOCALAPPDATA%\HeapScope\logs` on Windows, `~/.local/share/HeapScope/logs` on Linux and
+(field values and strings read from a dump only if you turn on Include dump values in logs on the Settings page, which
+asks you to confirm, or `heapscope-cli settings --dump-values-in-logs on --yes`; it is off by default, and each log says
+whether it holds them; the text you type in filters, unless you turn that off with Include filter text in logs or
+`heapscope-cli settings --filter-text-in-logs off`): `%LOCALAPPDATA%\HeapScope\logs` on Windows, `~/.local/share/HeapScope/logs` on Linux and
 `~/Library/Application Support/HeapScope/logs` on macOS (under the folder `HEAPSCOPE_DATA_FOLDER` names, when set).
 The About page shows the folder and copies the version details for a support request. For more detail in one run,
 start the app with `--Logging:File:MinimumLevel Debug`, or set the environment variable
 `Logging__File__MinimumLevel=Debug` (the CLI reads settings from the environment, not from its arguments). Logs are kept
 14 days. They hold file paths and type names, so share them only with someone you trust. Purge logs on the Settings page
-(or `heapscope-cli purge logs`) deletes them, but the ones running HeapScope processes write; Purge all deletes the logs,
+(or `heapscope-cli purge logs`) deletes them, but the ones other running HeapScope processes write (the app's own log goes
+on in a new file, so all it wrote before goes too; after you turn dump values off, it waits two seconds so the last values
+go with it); Purge all deletes the logs,
 every session of the library and the bookmarks, never a dump you opened from your own folders.

@@ -342,7 +342,7 @@ public sealed class SnapshotsViewModelTests : IDisposable
         declined.Handle.Descriptor.IsAvailable(SnapshotFeatureIds.FieldValues).ShouldBeTrue();
         _worker.Service.Opened[^1].TrustedDacs.ShouldBe([dac.Sha256]);
         snapshots.CanTrustDac.ShouldBeFalse();
-        snapshots.Status.ShouldBeNull();
+        snapshots.Status.ShouldNotBeNull().ShouldEndWith("the Compare, Inspections and Retainers tabs analyze it further.", customMessage: "opened with everything (sprint 3.13.2)");
     }
 
     // The 3.12 re-review: a reopen that loads the dump asks about memory first, and a "no" leaves the snapshot as it was.
@@ -406,7 +406,7 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
         _worker.Service.Unavailable.Clear();
         await _snapshots.OpenPathAsync(Dump("fine.dmp", 10));
-        _snapshots.Status.ShouldBeNull();
+        _snapshots.Status.ShouldBe(string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.OpenedStatus, "fine.dmp"), "sprint 3.13.2: an open says it worked");
     }
 
     [Fact]

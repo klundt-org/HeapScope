@@ -39,10 +39,21 @@ namespace HeapScope.Worker.Rpc;
 /// result can be traced to its inputs. Numbers, flags, enums, ids, times and the names below are written as they are;
 /// lists by their count; any other text by its length only, so field values and string contents never reach the log
 /// (ARCHITECTURE.md 11 and 12). The user's filter text is written, quoted, unless the user turned that off on the Settings
-/// page (sprint 3.12, B1); its shape always is.
+/// page (sprint 3.12, B1); its shape always is. Only when the user turned on Include dump values in logs, and confirmed it
+/// (sprint 3.13.2; owner, 2026-11-19), is any other text written too, quoted (its first <see cref="MaxValueChars"/>
+/// characters, and its length), and a list's first <see cref="MaxListItems"/> items, each described.
 /// </summary>
 internal static class Provenance
 {
+    /// <summary>The characters of a value written when dump values are on; its length is written too.</summary>
+    internal const int MaxValueChars = 200;
+
+    /// <summary>The items of a list described when dump values are on; the rest are counted.</summary>
+    internal const int MaxListItems = 20;
+
+    /// <summary>The longest line written when dump values are on; the rest is cut and said so.</summary>
+    internal const int MaxLineChars = 16 * 1024;
+
     // Texts HeapScope or the runtime's metadata produce, never values read from the dump or typed by the user.
     private static readonly HashSet<string> s_namedTexts = new(StringComparer.Ordinal)
     {
@@ -80,23 +91,53 @@ internal static class Provenance
             $"group {group.Number} #{group.Key}: {group.Objects} objects, {group.Bytes} bytes, {group.Types} types from {group.FirstType}, {group.PathCount} paths: {string.Join(" | ", group.Paths.Select(p => $"[{Describe(p.Root)}] {string.Join(" > ", p.Steps.Select(s => s.TypeName))}"))}");
     }
 
-    /// <summary>The value for the log, at most two levels of nested records deep, by the user's settings.</summary>
-    public static string Describe(object? value) => Describe(value, LogPrivacy.Current.IncludeFilterText);
+    /// <summary>The value for the log by the user's settings: two levels of nested records deep, four with dump values on.</summary>
+    public static string Describe(object? value)
+    {
+        var privacy = LogPrivacy.Current.Read();
+        return Describe(value, privacy.IncludeFilterText, privacy.IncludeDumpValues);
+    }
 
-    /// <summary>The value for the log, with or without the filter's text.</summary>
-    internal static string Describe(object? value, bool includeFilterText)
+    /// <summary>
+    /// The value for the log, with or without the filter's text, and with or without values read from a dump. With values,
+    /// records go two levels deeper (an object's struct fields and array elements) and the line stops at
+    /// <see cref="MaxLineChars"/>. A value that cannot be described is named by its type: the log line never fails the answer.
+    /// </summary>
+    internal static string Describe(object? value, bool includeFilterText, bool includeDumpValues = false)
     {
         var text = new StringBuilder();
-        Append(text, value, depth: 0, includeFilterText);
+        try
+        {
+            Append(text, value, depth: 0, new Privacy(includeFilterText, includeDumpValues));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            var cause = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
+            return string.Create(CultureInfo.InvariantCulture, $"({value?.GetType().Name} not described: {cause.GetType().Name})");
+        }
+
+        if (includeDumpValues && text.Length > MaxLineChars)
+        {
+            var cut = char.IsHighSurrogate(text[MaxLineChars - 1]) ? MaxLineChars - 1 : MaxLineChars;
+            text.Length = cut;
+            text.Append(CultureInfo.InvariantCulture, $"... (line cut at {cut} chars)");
+        }
+
         return text.ToString();
     }
 
-    private static void Append(StringBuilder text, object? value, int depth, bool includeFilterText)
+    private static void Append(StringBuilder text, object? value, int depth, Privacy privacy)
     {
         switch (value)
         {
             case null:
                 text.Append("null");
+                return;
+            case string s when privacy.IncludeDumpValues:
+                text.Append(JsonSerializer.Serialize(s.Length > MaxValueChars ? s[..(char.IsHighSurrogate(s[MaxValueChars - 1]) ? MaxValueChars - 1 : MaxValueChars)] : s, s_quoted))
+                    .Append(s.Length > MaxValueChars ? "... (" : " (")
+                    .Append(s.Length.ToString(CultureInfo.InvariantCulture))
+                    .Append(" chars)");
                 return;
             case string s:
                 text.Append('(').Append(s.Length.ToString(CultureInfo.InvariantCulture)).Append(" chars)");
@@ -111,6 +152,29 @@ internal static class Provenance
                 // A set by its shape (sprint 3.1 review): kind, names and counts, never addresses or its cache key.
                 text.Append("ObjectSetSpec {").Append(set.Shape).Append('}');
                 return;
+            case ICollection { Count: > 0 } collection when privacy.IncludeDumpValues:
+                // Each item at the list's own depth, so a list of fields shows each field's value (sprint 3.13.2).
+                text.Append('[').Append(collection.Count.ToString(CultureInfo.InvariantCulture)).Append(':');
+                var shown = 0;
+                foreach (var item in collection)
+                {
+                    if (shown == MaxListItems || text.Length > MaxLineChars)
+                    {
+                        break;
+                    }
+
+                    text.Append(shown == 0 ? " " : ", ");
+                    Append(text, item, depth, privacy);
+                    shown++;
+                }
+
+                if (collection.Count > shown)
+                {
+                    text.Append(CultureInfo.InvariantCulture, $", and {collection.Count - shown} more");
+                }
+
+                text.Append(']');
+                return;
             case ICollection collection:
                 text.Append('[').Append(collection.Count.ToString(CultureInfo.InvariantCulture)).Append(']');
                 return;
@@ -121,7 +185,7 @@ internal static class Provenance
 
         var type = value.GetType();
         text.Append(type.Name);
-        if (depth >= 2)
+        if (depth >= (privacy.IncludeDumpValues ? 4 : 2))
         {
             return;
         }
@@ -141,7 +205,7 @@ internal static class Provenance
             {
                 // The filter's shape (2.7 review): "why is my type missing?" needs to know that an exclusion or a module term
                 // was there; its text too, unless the user turned that off (sprint 3.12, B1, owner 2026-11-12).
-                if (includeFilterText)
+                if (privacy.IncludeFilterText)
                 {
                     text.Append(JsonSerializer.Serialize(filter, s_quoted)).Append(' ');
                 }
@@ -151,10 +215,12 @@ internal static class Provenance
             }
             else
             {
-                Append(text, propertyValue, depth + 1, includeFilterText);
+                Append(text, propertyValue, depth + 1, privacy);
             }
         }
 
         text.Append(" }");
     }
+
+    private readonly record struct Privacy(bool IncludeFilterText, bool IncludeDumpValues);
 }

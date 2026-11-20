@@ -20,7 +20,9 @@ the changed files and the logging they add or change.
   "why this?" and "why not that?" from the log alone, without the dump.
 - **Correlation**: lines of one job carry its trace id across the UI, the CLI and the worker; job start and end lines
   carry the outcome. A refusal or failure says which check refused it.
-- **Privacy**: logs, messages and exceptions never contain dump contents (field values, string contents). Filter text
+- **Privacy**: logs, messages and exceptions never contain dump contents (field values, string contents), unless the user
+  turned on Include dump values in logs (off by default, confirmed by the user; ADR-043): then only the worker's
+  `Provenance` lines may hold them, following `LogPrivacy.IncludeDumpValues`. Filter text
   is logged unless the user turns it off on the Settings page (owner, 2026-11-12): it must follow `LogPrivacy` everywhere
   it is logged, and never reach a message or exception. Type names, counts, sizes, addresses, paths and settings are fine. Flag anything that could carry a value
   from the dump into a log line, a crash report or an error message (High).

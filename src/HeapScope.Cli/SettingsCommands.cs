@@ -24,12 +24,14 @@
 using System.CommandLine;
 using System.Globalization;
 using HeapScope.Application.Settings;
+using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Cli;
 
 /// <summary>
 /// The <c>settings</c> and <c>purge</c> commands (sprint 3.12 review M4, ADR-008: every feature in the UI and on the command
-/// line): the Settings page's Include filter text in logs, Purge logs and Purge all, for a user without the app (CI).
+/// line): the Settings page's Include filter text in logs, Purge logs and Purge all, for a user without the app (CI). Since
+/// sprint 3.13.2, Include dump values in logs too, which turns on only with --yes (the app asks instead).
 /// </summary>
 internal static partial class CliCommands
 {
@@ -40,23 +42,62 @@ internal static partial class CliCommands
             Description = "Write the text typed in filters and searches into HeapScope's logs (on, the default) or only its length and terms (off). The app, the worker and the command line follow it.",
         };
         filterText.AcceptOnlyFromAmong("on", "off");
+        var dumpValues = new Option<string?>("--dump-values-in-logs")
+        {
+            Description = "Write the values HeapScope reads from dumps (field values and string text) into its logs (on, with --yes) or only their length (off, the default). Dumps can hold passwords, tokens and personal data. The app, the worker and the command line follow it.",
+        };
+        dumpValues.AcceptOnlyFromAmong("on", "off");
+        var yes = new Option<bool>("--yes") { Description = "Confirm turning on --dump-values-in-logs; without it, the command says what it would do and changes nothing." };
         var command = new Command("settings", "Show HeapScope's settings, or change one. They apply to the app and the command line on this machine.");
         command.Options.Add(filterText);
+        command.Options.Add(dumpValues);
+        command.Options.Add(yes);
         command.SetAction((parseResult, ct) => RunAsync(parseResult, services, async context =>
         {
             var settings = context.Get<SettingsService>();
+            if (parseResult.GetValue(dumpValues) == "on" && !parseResult.GetValue(yes))
+            {
+                // Turned on only when the user confirms, as the app asks first (owner, 2026-11-19); then nothing else changes
+                // either, so "Nothing was changed" holds (review M6).
+                context.Logger.LogInformation("Settings not changed: --dump-values-in-logs on needs --yes");
+                await context.Output.WriteLineAsync(DumpValuesQuestion).ConfigureAwait(false);
+                await WriteSettingsAsync(context, settings).ConfigureAwait(false);
+                return Success;
+            }
+
             if (parseResult.GetValue(filterText) is { } value)
             {
                 settings.SetIncludeFilterTextInLogs(value == "on");
             }
 
-            await context.Output.WriteLineAsync($"Include filter text in logs: {(settings.IncludeFilterTextInLogs ? "on" : "off")}").ConfigureAwait(false);
-            await context.Output.WriteLineAsync($"Settings file: {settings.SettingsPath}").ConfigureAwait(false);
-            await context.Output.WriteLineAsync($"Log folder: {settings.LogFolder}").ConfigureAwait(false);
+            switch (parseResult.GetValue(dumpValues))
+            {
+                case "on":
+                    settings.SetIncludeDumpValuesInLogs(true);
+                    break;
+                case "off":
+                    settings.SetIncludeDumpValuesInLogs(false);
+                    await context.Output.WriteLineAsync("Logs written while it was on still hold values read from dumps. Purge logs on the Settings page deletes them, or heapscope-cli purge logs once every HeapScope window is closed.").ConfigureAwait(false);
+                    break;
+            }
+
+            await WriteSettingsAsync(context, settings).ConfigureAwait(false);
             return Success;
         }));
         return command;
     }
+
+    private static async Task WriteSettingsAsync(CliContext context, SettingsService settings)
+    {
+        await context.Output.WriteLineAsync($"Include filter text in logs: {(settings.IncludeFilterTextInLogs ? "on" : "off")}").ConfigureAwait(false);
+        await context.Output.WriteLineAsync($"Include dump values in logs: {(settings.IncludeDumpValuesInLogs ? "on" : "off")}").ConfigureAwait(false);
+        await context.Output.WriteLineAsync($"Settings file: {settings.SettingsPath}").ConfigureAwait(false);
+        await context.Output.WriteLineAsync($"Log folder: {settings.LogFolder}").ConfigureAwait(false);
+    }
+
+    /// <summary>What --dump-values-in-logs on without --yes says (sprint 3.13.2; approved by the owner on 2026-11-19).</summary>
+    internal const string DumpValuesQuestion =
+        "Turning this on writes the values HeapScope reads from your dumps (field values and string text) into its logs, and they can include passwords, tokens and personal data. The logs stay on this machine and are never sent anywhere, but anyone you give a log to can read them. Nothing was changed: run it again with --yes to turn it on.";
 
     private static Command BuildPurgeCommand(Func<IServiceProvider> services)
     {

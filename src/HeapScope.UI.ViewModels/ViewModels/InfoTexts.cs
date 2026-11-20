@@ -138,6 +138,30 @@ public static class InfoTexts
     public const string Settings =
         "Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
 
+    // Sprint 3.13.2 (owner, 2026-11-19): Include dump values in logs, approved by the owner on 2026-11-19 (docs/design/info-text.md).
+
+    /// <summary>Settings: the Include dump values in logs check box's tooltip.</summary>
+    public const string DumpValuesTip =
+        "Write the values HeapScope reads from your dumps (field values and string text) into its logs, to back up a result in full. Off by default. Dumps can hold passwords, tokens and personal data, so turn this off and purge the logs before you share one.";
+
+    /// <summary>Settings: the title of the question asked before dump values are turned on.</summary>
+    public const string DumpValuesQuestionTitle = "Write dump values into the logs?";
+
+    /// <summary>Settings: the question asked before dump values are turned on.</summary>
+    public const string DumpValuesQuestion =
+        "HeapScope's logs will hold the values it reads from your dumps: field values and string text, which can include passwords, tokens and personal data. The logs stay on this machine and are never sent anywhere, but anyone you give a log to can read them. Before you share a log, turn this off and use Purge logs.";
+
+    /// <summary>Snapshots: the status after a dump opens with everything it can show; {0} is the file's name (sprint 3.13.2).</summary>
+    public const string OpenedStatus =
+        "Opened {0}. Its overview and types are on the Snapshot tab below; the Compare, Inspections and Retainers tabs analyze it further.";
+
+    /// <summary>Settings: the status after dump values are turned on.</summary>
+    public const string DumpValuesOn = "From now on, HeapScope's logs hold the values it reads from your dumps.";
+
+    /// <summary>Settings: the status after dump values are turned off.</summary>
+    public const string DumpValuesOff =
+        "HeapScope's logs no longer get values read from your dumps. Logs written while this was on still hold them: Purge logs deletes them.";
+
     /// <summary>Learn (sprint 3.13).</summary>
     public const string Learn =
         "Lessons that teach HeapScope on a sample process of its own, with problems planted on purpose. Use it to learn the pages hands-on before you look at your own application. Choose a lesson and press Start lesson, then follow its steps and answer its question.";

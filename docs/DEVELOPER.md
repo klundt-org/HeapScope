@@ -27,10 +27,16 @@ dotnet test --solution HeapScope.sln
   `jq` or `dotnet-dump` the check is reported as skipped) and appends a line to `artifacts/gate/history.csv`
   (git-ignored): time, commit, outcome, durations, test counts and failed test names; a test that failed in an earlier run
   is named again. Its log and TRX results are kept under `artifacts/test-results/<time>`. Run it before closing a sprint.
+  A tier or the fixture check whose inputs already passed is skipped and the log says so (2026-11-19, to spare the
+  machine): the key is a hash of every file git would commit, untracked ones included, with the SDK, runtimes and system;
+  the integration tier and the fixture check leave Markdown out of it, so a docs-only change reruns only the fast tier.
+  The builds always run; `bash build/gate.sh --force` runs everything. CI runs everything on every PR.
 - One tier (sprint 3.6): `bash build/test.sh fast|integration [Release|Debug] [results folder]`. `fast` runs every test
   project that runs on this system but the Integration project, found rather than listed, without the Integration and
   Slow traits; a project left with no tests fails. `integration` runs the Integration project (Windows). Integration and
-  Slow tests belong in that project only; the script fails when one is elsewhere. Results are TRX files.
+  Slow tests belong in that project only; the script fails when one is elsewhere. Results are TRX files. Off CI it runs
+  tests on half the CPU threads at once (xunit's default, one per thread, pinned a 24-thread machine and made timed tests
+  fail); `HEAPSCOPE_TEST_THREADS` sets it (a number, `0.5x`, `default`), and CI keeps xunit's default.
 - Fast tests by hand: `dotnet test --solution HeapScope.sln --filter-not-trait "Category=Integration" --filter-not-trait "Category=Slow" --ignore-exit-code 8`.
 - Test fakes (sprint 3.8): `FakeWorkerService` (UI tests) is split into a partial per worker contract under
   `tests/HeapScope.UI.ViewModels.Tests/Fakes/`; a test that needs one area only builds an `IWorkerService` from the
@@ -154,7 +160,8 @@ dotnet test --solution HeapScope.sln
   on a Medium heap, phases on stderr) and saves them as `<snapshot>.dom.hsidx` next to the index cache; later runs reuse
   them. The address is hex with or without `0x`; no object at it
   exits 1. A snapshot without field values (a gcdump, or a full dump whose DAC is missing or not trusted: sprint 3.12)
-  prints the object's graph facts and, on stderr, why the fields are missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log.
+  prints the object's graph facts and, on stderr, why the fields are missing, and exits 0. Both print dump contents (field values, strings) to the console only, never to the log (the worker's result line holds them
+  only with Include dump values in logs on, ADR-043).
   `referrers <snapshot> (--address <hex> | --type <name> [--module <file>] [--sort references|objects|targets|bytes|type])
   [--top N | --all] [--format table|csv|json]` (sprint 2.1) lists who references one object (each referrer once, with
   its references to it and, on a full dump, the field that holds it, for objects with up to 1,000 referrers) or the
@@ -259,8 +266,10 @@ dotnet test --solution HeapScope.sln
   `Ui__Prewarm=false` in the environment (or pass `--Ui:Prewarm false`); alternate the two, one smoke run each (task 4's
   script stayed local under `artifacts/`, which git ignores).
 - Settings and housekeeping (sprint 3.12 review M4, as the Settings page): `heapscope-cli settings
-  [--filter-text-in-logs on|off]` shows the settings file, the log folder and Include filter text in logs, or changes it;
-  `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write; `heapscope-cli purge all` says what
+  [--filter-text-in-logs on|off] [--dump-values-in-logs on|off [--yes]]` shows the settings file, the log folder, Include
+  filter text in logs and Include dump values in logs, or changes them (sprint 3.13.2: turning dump values on needs `--yes`,
+  and without it nothing changes); `heapscope-cli purge logs` deletes the logs but those running HeapScope processes write
+  (this process's own log goes on in a new part first, so all it wrote before goes too); `heapscope-cli purge all` says what
   it would delete, and with `--yes` deletes the logs, every session of the library and the bookmarks (never a dump of the
   user's own folders). Purge all is refused while a capture, recording or open runs in the same process, and while another
   HeapScope app or command line run is running (by the pid in its log's name); Purge logs keeps the logs running HeapScope

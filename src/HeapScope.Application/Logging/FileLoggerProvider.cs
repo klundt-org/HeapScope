@@ -122,6 +122,33 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
             ? level
             : LogLevel.Information;
 
+    /// <summary>
+    /// Closes the part being written and goes on in the next one (sprint 3.13.2 review H1): after Include dump values in logs is
+    /// turned off, Purge logs can delete this process's earlier parts, which hold the values, and keeps only the new part.
+    /// Returns the new part's path, or null when nothing was written yet (the first line opens a part without values).
+    /// </summary>
+    public string? StartNewPart()
+    {
+        lock (_gate)
+        {
+            if (_disposed || _writer is null)
+            {
+                return null;
+            }
+
+            try
+            {
+                Open(_writerDate, _timeProvider.GetLocalNow());
+                return GetPath(_writerDate, _part);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"HeapScope file log could not start a new part: {ex.Message}");
+                return null;
+            }
+        }
+    }
+
     /// <summary>Path of this process's file written on <paramref name="date"/> (its first part).</summary>
     public string GetPath(DateOnly date) => GetPath(date, part: 1);
 
@@ -210,7 +237,7 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
         _written = stream.Length;
         var header = string.Create(
             CultureInfo.InvariantCulture,
-            $"# {RuntimeEnvironment.Summary}; {_app} pid {_processId}; part {_part}; level {_minimumLevel}; log folder {_directory}; data folder {HeapScope.Core.HeapScopeFolders.Default.Root} ({HeapScope.Core.HeapScopeFolders.Default.Source}); opened {Timestamp(now)}");
+            $"# {RuntimeEnvironment.Summary}; {_app} pid {_processId}; part {_part}; level {_minimumLevel}; log folder {_directory}; data folder {HeapScope.Core.HeapScopeFolders.Default.Root} ({HeapScope.Core.HeapScopeFolders.Default.Source}); logs hold {HeapScope.Core.LogPrivacy.Current.Describe()}; opened {Timestamp(now)}");
         _writer.WriteLine(header);
         _written += Encoding.UTF8.GetByteCount(header) + Environment.NewLine.Length;
     }
