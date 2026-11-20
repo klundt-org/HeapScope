@@ -91,7 +91,7 @@ public sealed class LinuxCaptureRulesTests
     {
         // Review H3: a service with PrivateTmp, or a container, names the same /tmp and sees another one.
         LinuxCaptureRules.WhyNoDiagnostics(Target(sameMounts: false)).ShouldNotBeNull()
-            .ShouldStartWith("Process 4321 has its own /tmp (a service with PrivateTmp, or a container)");
+            .ShouldStartWith("Process 4321 probably has its own /tmp (a service with PrivateTmp, or a container)");
         LinuxCaptureRules.WhyNoDiagnostics(Target(sameMounts: null)).ShouldBeNull("unknown is not claimed");
     }
 

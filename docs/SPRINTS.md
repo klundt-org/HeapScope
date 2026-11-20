@@ -48,7 +48,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.12 | First-show performance and refactor analysis | Closed | 2026-11-15 | sprint-3.12 |
 | 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
-| 4.1 | Capture on Linux | In Progress | | |
+| 4.1 | Capture on Linux | Wrapping | | |
 | 4.2 | Capture on macOS | Planned | | |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
@@ -197,4 +197,18 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
   autonomously. Once the owner's planned native Ubuntu laptop (claude-dev-3) exists, Linux checks may also run there, as a
   convenience only (owner, 2026-11-19: work must not depend on the extra laptops).
 
-**Review summary:** to be filled by /wrap-sprint.
+**Review summary:** 6 High, 13 Moderate, 34 Low ([docs/reviews/sprint-4.1.md](reviews/sprint-4.1.md)); every High fixed
+and confirmed, every Moderate decided autonomously and its fix confirmed. Fixed: as root, another user's full dump is
+refused for HeapScope's folders before anything is written (the runtime writes it as that user; `--out` names a folder
+that user can write); a write failure is named from what createdump reported before any ptrace or container setting;
+another user is told by effective user ids, a process in another mount namespace probably has its own `/tmp`, and a
+single-file app is no longer called not .NET; every `dac/` folder beside a dump is searched and `libcoreclr.so` is copied
+with the DAC, proven by a test that opens the fixture dump through the capture's own `dac/` folder with no runtime
+installed; files a target names are read only when regular and of a sane size; each Linux decision logs what it rests on
+(user ids, ptrace_scope, container, `TMPDIR`s, mount namespace, runtime), in a capture, Live and a recording; Live and
+recording give the capture's Linux reasons; CI's Linux check also monitors the sample and reads an allocations trace,
+with a scratch data folder, and warns when a dump is larger than its estimate; the capture tests skip where capture is not
+built. Deferred: the per-system split made whole for macOS (M6, to start sprint 4.2), a full dump as root of another
+user's process (staging), and the Lows. Measured: on CI's Linux runner the dump estimate was 94 and 95% written (Windows,
+90%); the first Linux CI run failed 3 tests that expected Windows wording, the second passed the Linux job end to end.
+New wording awaits the owner: the own-`/tmp` and root refusal texts and the Record allocations tooltip (info-text.md).

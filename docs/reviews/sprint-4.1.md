@@ -2,7 +2,7 @@
 
 Reviewers: solution-architect, senior-dev, gc-specialist, support-engineer (2026-11-20), on `sprint/4.1` against the tag
 `sprint-3.13.2`. Each reviewer read the working tree (none had a shell or ran anything). Findings that overlap are merged
-and keep the highest severity. Counts: 6 High, 11 Moderate, 19 Low.
+and keep the highest severity. Counts: 6 High, 13 Moderate (2 from the confirmations), 34 Low (15 from the confirmations).
 
 Before the review: Debug build with 0 warnings; the fast tier passed (1,534 tests, 1,522 passed, 12 skipped). The first CI
 run on Linux failed 3 tests that expected the Windows wording on every system (fixed before the review: each expects its
@@ -29,7 +29,7 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
   full dump into HeapScope's own folders. Making it work (a staging folder owned by the target's user) is in the backlog.
   Tests: `CaptureExplanationTests.As_root_on_linux_another_users_full_dump_is_refused_for_the_library_before_anything_is_written`
   (Linux), `LinuxCaptureRulesTests.As_root_another_users_full_dump_is_refused_for_the_library_only_on_linux`.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H2. A Linux write failure was blamed on ptrace or the container whatever its cause
 - Reviewers: support-engineer (High), solution-architect (Moderate), gc-specialist (Low).
@@ -42,7 +42,7 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
   container explain only a reported ptrace failure ("ptrace", "Operation not permitted") or scope 3, where nothing can
   attach. The rule that decided is logged (H6). Tests: `LinuxCaptureRulesTests.A_write_failure_createdump_explains_is_named_before_any_system_setting`,
   `The_ptrace_rule_and_the_container_explain_only_a_ptrace_failure_or_scope_3`.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H3. A single-file app was called "not a .NET process", and a process with its own /tmp was not explained
 - Reviewers: support-engineer (High), gc-specialist, senior-dev (Moderate).
@@ -53,10 +53,10 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
 - Why it matters: a stated cause that was not measured sends the user and support the wrong way, for the most likely Linux
   targets (services).
 - Fix: "not .NET" only when the executable holds no runtime version string either (read in 64 KB pieces); a process in
-  another mount namespace gets a draft text ("has its own /tmp (a service with PrivateTmp, or a container) ... Run
+  another mount namespace gets a draft text ("probably has its own /tmp (a service with PrivateTmp, or a container) ... Run
   HeapScope where the process runs"). Tests: `Only_a_process_without_a_runtime_anywhere_is_called_not_dotnet`,
   `A_process_with_its_own_tmp_says_so_before_comparing_temp_folders`, `A_marker_is_found_across_the_pieces_a_large_executable_is_read_in`.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H4. The DAC copied beside a Linux dump would not be found
 - Reviewers: solution-architect (High), gc-specialist (Moderate), senior-dev (Low).
@@ -70,7 +70,7 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
   capture copies `libcoreclr.so` beside the DAC (read for its identity, never loaded or trusted). Test:
   `DacLocatorTests.Every_dac_folder_beside_the_dump_is_searched_after_the_one_named_by_the_version`. A CI open with the
   installed runtimes switched off is in the backlog with the Low findings.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H5. As root, HeapScope read and copied files at paths another user's process named
 - Reviewers: solution-architect.
@@ -81,7 +81,7 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
 - Fix: `TargetFiles.IsReadable`: a file named by a target is read or copied only when it is a regular file (links followed)
   of 64 bytes to 64 MB. Test: `LinuxCaptureRulesTests.Only_a_regular_file_of_a_sane_size_from_a_target_is_read` (on Linux
   also `/dev/zero` and a link to it). A file swapped between the check and the read is not covered (Low).
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H6. The Linux refusals logged their conclusion, never what it rested on
 - Reviewers: support-engineer.
@@ -95,7 +95,7 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
   `The_evidence_names_ids_folders_and_the_runtime_but_no_values`,
   `CaptureExplanationTests.A_capture_of_a_pid_that_is_not_found_says_why_and_logs_what_that_rests_on`. Described in
   `docs/architecture/logging.md`.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ## Moderate
 
@@ -150,6 +150,20 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
 - Reviewers: senior-dev. Fix: CI warns when a Linux dump is larger than its estimate; the first runs wrote 94 and 95%.
   Fixed (decided autonomously).
 
+### M12. A refusal of another user's process logged no user ids (from the confirmations)
+- Reviewers: support-engineer (H6's second round). The CLI's `capture --pid` and `monitor --pid` run in their own process,
+  so no process list backs their refusal up. Fix: on Linux a refusal of another user's process logs "Pid {pid} was refused
+  as another user's: effective user {n}, HeapScope's {n}" in a capture, Live and a recording; the list line adds HeapScope's
+  id and each marked process's (and "and N more" past 200); Live and recording log their not-found evidence too. Confirmed
+  by the support-engineer (decided autonomously).
+
+### M13. Nothing opened a Linux capture with only the DAC copied beside it (from the confirmations)
+- Reviewers: solution-architect (H4's second round). Fix: `PlantedDacTests.A_DAC_kept_in_a_dac_folder_beside_a_real_dump_is_found_without_installed_runtimes`
+  opens the fixture dump with no installed runtime, through the `dac/` folder the capture left beside it (CI's CLI
+  capture), or one it plants under a name no version matches; refused until trusted, then loaded from the private copy.
+  CI's Linux job runs it with `HEAPSCOPE_REQUIRE_FIXTURE=1`; run here both ways. Confirmed by the solution-architect
+  (decided autonomously).
+
 ## Low (listed, not fixed)
 
 - L1 (support-engineer): the "Captured" line and a disk refusal do not say whether the estimate came from `maps` or the
@@ -178,10 +192,53 @@ The owner decided the Moderates' handling in advance (autonomy for Phase 4): eac
 - L18 (senior-dev): `ProcFactsTests` compares the image path with itself and the runtime folder without resolving links.
 - L19 (senior-dev): `PlatformHints.CanCapture` repeats `CapturePlatform.IsSupported` untested (with M6).
 
+From the confirmations (listed, not fixed):
+
+- L20 (gc-specialist): two self-contained runtimes whose version cannot be read share `dac/unknown`; the first copy wins
+  (the identity checks reject the other, so it is safe).
+- L21 (gc-specialist): a socket removed by a temp cleaner gets the generic text; a hint could name it.
+- L22 (gc-specialist): an open() failing with "Operation not permitted" would be classed as a ptrace failure.
+- L23 (solution-architect): a monitor run as root on another user's process is refused at each rule firing, not at Start;
+  `profile.CopiesDac` stands for "a full dump" (now commented).
+- L24 (solution-architect): the createdump messages the rules match are assumed, not recorded from a real Linux failure;
+  replace the test strings when one is seen (the generic text stays the fallback).
+- L25 (solution-architect): a file swapped between `TargetFiles`' check and the read is not covered; a bounded read would.
+- L26 (solution-architect): the new DAC test compares a path ignoring case.
+- L27 (support-engineer): the approved column tooltip says root "can" capture another user's process; a full dump into
+  HeapScope's folders is refused.
+- L28 (support-engineer): Live and recording reuse texts that end "then capture it again".
+- L29 (support-engineer): another user's process that is not .NET is still told to run as that user (its maps cannot be
+  read).
+- L30 (support-engineer): "probably has its own /tmp" rests on another mount namespace, not on comparing the folders.
+- L31 (support-engineer): a monitoring run's own allocation recorder (`new TraceService()`) has no logger; Force GC does not
+  log a `GcTrigger` failure's evidence.
+- L32 (support-engineer): when a user id cannot be read, Live and recording log "(null)" where a capture logs "unknown".
+- L33 (senior-dev): no test checks the "judged by" log line of a write failure.
+- L34 (senior-dev): the ci.yml header did not mention monitor and trace (fixed with the sweep).
+
 ## Confirmations
 
-Pending.
+Each fix went back to the reviewer that raised it (resumed with the finding and the changed files); all four read the code
+and ran nothing.
+- gc-specialist: H1, H3, H4 Confirmed (first round), with L20 to L22.
+- solution-architect: H1, H2, H5, M6 (deferral), M7 Confirmed (first round); H4 Confirmed in code, with a Moderate (M13) and
+  the docs (L5) pending; second round: docs Confirmed, M13's first test would fail in CI (the capture's own `dac/` folder
+  made it fail its guard); third round: M13 and the security page Confirmed.
+- support-engineer: H1, H2, H3, M1 to M5 Confirmed (first round); H6 not confirmed (Live and recording, the list's ids, the
+  root refusal's ids); second round: those Confirmed, H6 no longer High, a Moderate left (M12); third round: M12 Confirmed,
+  with L32.
+- senior-dev: H1, M1, H3, M8, M3, M7, M10, M11 Confirmed (first round); M9 not confirmed (the gcdump tests) and a doc comment
+  out of place; second round: both Confirmed.
 
 ## Markdown sweep
 
-Pending.
+Every tracked Markdown file was searched for what this sprint changed (capture "on Windows" or "a backlog item" off
+Windows, the renamed or new types, `mscordaccore.dll` alone, the Linux job's steps, the data folder rule) and the hits
+read against the code. Changed: `docs/ARCHITECTURE.md` (Linux capture since 4.1, the DAC pair and the `dac` search),
+ADR-025 (the backlog line; what `IProcessFacts` carries and what stays Linux calls until 4.2; root, `TargetFiles`, the
+`dac` search), `docs/architecture/code-map.md` (the review's types), `docs/architecture/logging.md` (the Linux lines),
+`docs/architecture/security-privacy.md` (capture on Linux), `docs/DEVELOPER.md` (the Linux job's monitor and trace steps,
+the scripts' scratch data folder), `docs/SPRINTS.md` (task notes: the version, the approval, the CI proof),
+`docs/BACKLOG.md` (what 4.1 left out, M6 for 4.2), `docs/design/info-text.md` (the review's drafts), `README.md` and
+`INSTALL.md` (root, macOS), and the CI header. `RELEASE-NOTES.md`'s 3.13 limit and `docs/sprints/` are records and stay.
+ADR-014 is not amended for Linux (L4). No em or en dashes in the 73 changed files.
