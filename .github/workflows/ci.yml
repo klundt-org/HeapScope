@@ -1,8 +1,10 @@
 # HeapScope CI (sprints 2.3.5, 2.3.6 and 3.6):
 # - Windows builds everything, runs the fast and the integration tests, captures the LeakyConsole fixture with the CLI and
 #   checks the known answers. The heavy integration tests run in a second Windows job beside it.
-# - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests, takes a core dump of the fixture
-#   with dotnet-dump, checks the CLI's known answers and opens the dump in the app without a display.
+# - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests, captures the fixture with the CLI
+#   (sprint 4.1: capture runs on Linux), checks the CLI's known answers and opens the dump in the app without a display,
+#   captures the tutorial's sample as a full dump and a gcdump and opens both, monitors it and reads an allocations trace
+#   of it (build/linux-capture-check.sh), and runs the app's live smoke run.
 # - Packages: self-contained builds per runtime identifier with their license files (checked), in their release archives,
 #   built beside the tests and uploaded as artifacts on manual runs. The Windows and Linux ones are unpacked
 #   and run as a user gets them, without .NET (Linux in a plain Ubuntu container), on a fixture dump, and the CLI's
@@ -190,15 +192,14 @@ jobs:
         # Every test project that runs here, found by build/test.sh rather than listed (peer review S1).
         timeout-minutes: 15
         run: bash build/test.sh fast Release "$RUNNER_TEMP/test-results"
-      - name: Dump the fixture, check the known answers, open it in the app without a display
-        # Runs when a test failed but the build did not: the dump, the CLI and the app are what this job is for.
+      - name: Capture the fixture with the CLI, check the known answers, open it in the app without a display
+        # Runs when a test failed but the build did not: the dump, the CLI and the app are what this job is for. Since sprint
+        # 4.1 HeapScope's own CLI captures it, as on Windows (it took dotnet-dump before capture ran on Linux).
         if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.changes.outputs.code == 'true' }}
         timeout-minutes: 15
         run: |
-          dotnet tool install --global dotnet-dump --version 10.0.750501
-          export PATH="$PATH:$HOME/.dotnet/tools"
           dump="$RUNNER_TEMP/leaky.dmp"
-          bash build/fixture-dump.sh "$dump" dotnet-dump
+          bash build/fixture-dump.sh "$dump" cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli
           bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$dump"
           # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19), and a missing
           # DAC with the symbol server's download rule (sprint 3.12), and the loader's object walk against ClrMD's on a core dump
@@ -209,6 +210,18 @@ jobs:
           "$app" --headless --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/ui-log" || { cat "$RUNNER_TEMP"/ui-log/*.log; exit 1; }
           grep -h "Smoke open\|Smoke drill" "$RUNNER_TEMP"/ui-log/*.log | cut -c1-400
           grep -q "Smoke open types: .*Fixtures.Leaks.StaticCacheEntry 2000" "$RUNNER_TEMP"/ui-log/*.log || { echo "The app did not show 2000 StaticCacheEntry objects"; exit 1; }
+      - name: Capture the tutorial's sample on Linux, and run the app's live smoke run
+        # Sprint 4.1 task 7: list, a full dump and a gcdump through the CLI, both opened; then the Live page charts made-up
+        # samples headless. HeapScope's logs go where the next step keeps them (Logging__File__Directory, set for the workflow).
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.changes.outputs.code == 'true' }}
+        timeout-minutes: 10
+        run: |
+          bash build/linux-capture-check.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$RUNNER_TEMP/linux-capture"
+          grep -h "Captured .*; estimated" "$Logging__File__Directory"/*.log | cut -c1-300 || true
+          # Review M11: the disk check relies on the estimate erring high; a dump larger than it is flagged (sprint 4.1: 94 to 95%).
+          over=$(grep -h "Captured .*% of it written" "$Logging__File__Directory"/*.log | sed -n 's/.*(\([0-9,]*\)% of it written).*/\1/p' | tr -d ',' | awk '$1 > 100' | head -1)
+          [ -z "$over" ] || echo "::warning::A Linux dump was ${over}% of its estimate: the disk space check underestimates on Linux."
+          src/HeapScope.UI/bin/Release/net10.0/HeapScope --headless --smoke-live 1800 --Logging:File:Directory "$RUNNER_TEMP/live-log" || { cat "$RUNNER_TEMP"/live-log/*.log; exit 1; }
       - name: Keep the test results and HeapScope's logs
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -278,14 +291,9 @@ jobs:
           dir=$(bash build/archive.sh unpack "$RUNNER_TEMP"/out/HeapScope-${{ matrix.rid }}.* "$RUNNER_TEMP/unpacked")
           echo "UNPACKED=$dir" >> "$GITHUB_ENV"
           dotnet build fixtures/LeakyConsole -c Release
-          if [ "${{ matrix.rid }}" = "win-x64" ]; then
-            # Captured by the unpacked CLI, as a user would.
-            bash build/fixture-dump.sh "$RUNNER_TEMP/dump/leaky.dmp" "cli=$dir/heapscope-cli.exe"
-          else
-            dotnet tool install --global dotnet-dump --version 10.0.750501
-            export PATH="$PATH:$HOME/.dotnet/tools"
-            bash build/fixture-dump.sh "$RUNNER_TEMP/dump/leaky.dmp" dotnet-dump
-          fi
+          # Captured by the unpacked CLI, as a user would (on Linux too since sprint 4.1).
+          ext=; [ "${{ matrix.rid }}" = "win-x64" ] && ext=.exe
+          bash build/fixture-dump.sh "$RUNNER_TEMP/dump/leaky.dmp" "cli=$dir/heapscope-cli$ext"
       - name: Run the build as a user gets it, without .NET
         # The CLI, its worker and the app (without a display) open the fixture dump (build/check-install.sh). Windows hides
         # its installed .NET; Linux runs in a plain Ubuntu container with only the libraries INSTALL.md lists. The image

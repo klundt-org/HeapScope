@@ -272,6 +272,8 @@ public sealed class InfoIconTests(UiSession ui)
         var screens = string.Concat(
             Directory.EnumerateFiles(Path.Combine(src, "Views"), "*.axaml", SearchOption.AllDirectories)
                 .Concat(Directory.EnumerateFiles(Path.Combine(src, "Controls"), "*.cs"))
+                // Sprint 4.1: texts that differ per system are chosen in Core and bound by the views.
+                .Append(Path.Combine(repo, "src", "HeapScope.Core", "ElevationTexts.cs"))
                 .Select(File.ReadAllText))
             .Replace("&quot;", "\"", StringComparison.Ordinal).Replace("&lt;", "<", StringComparison.Ordinal).Replace("&gt;", ">", StringComparison.Ordinal)
             .Replace("&amp;", "&", StringComparison.Ordinal).Replace("\\\"", "\"", StringComparison.Ordinal);

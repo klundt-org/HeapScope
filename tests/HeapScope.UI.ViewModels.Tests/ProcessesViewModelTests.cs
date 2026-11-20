@@ -60,7 +60,7 @@ public sealed class ProcessesViewModelTests : IDisposable
         await _processes.RefreshCommand.ExecuteAsync(null);
 
         _processes.Processes.Select(p => p.Name).ShouldBe(["Api", "Service"]);
-        _processes.Processes[1].Elevation.ShouldBe("Needs administrator");
+        _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Needs root or its user" : "Needs administrator");
         _processes.Processes[0].Elevation.ShouldBeEmpty();
         _processes.ShowElevationHint.ShouldBeTrue();
         _processes.CaptureCommand.CanExecute(null).ShouldBeFalse("nothing selected");
@@ -89,7 +89,7 @@ public sealed class ProcessesViewModelTests : IDisposable
         await _processes.RefreshCommand.ExecuteAsync(null);
 
         _processes.ShowElevationHint.ShouldBeFalse();
-        _processes.Processes[1].Elevation.ShouldBe("Elevated");
+        _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Another user's" : "Elevated");
     }
 
     [Fact]

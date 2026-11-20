@@ -20,7 +20,7 @@ Installing needs the .NET 10 SDK; running needs the .NET 10 runtime, which the S
 ## Use
 
 - `heapscope-cli list`, then `heapscope-cli capture --pid <pid> --out app.dmp`: capture a full dump, or a gcdump with
-  `--kind gcdump` (capture runs on Windows for now; on Linux, take a dump with `dotnet-dump`).
+  `--kind gcdump` (capture runs on Windows and Linux; on macOS, take a dump with `dotnet-dump`).
 - `heapscope-cli summary app.dmp`: what is on the heap, by type, namespace or assembly.
 - `heapscope-cli inspect app.dmp`: leak detectors and memory waste, each with its cause and fix.
 - `heapscope-cli paths app.dmp --type <type>`: why objects are still alive, from their GC roots.

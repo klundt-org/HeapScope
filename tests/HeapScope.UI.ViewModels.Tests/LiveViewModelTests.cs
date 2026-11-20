@@ -184,7 +184,7 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await WaitUntilAsync(() => !live.IsRunning);
 
         live.RunWarning.ShouldNotBeNull().ShouldContain("cannot monitor it");
-        live.RunWarning!.ShouldContain("Run HeapScope as administrator");
+        live.RunWarning!.ShouldContain(OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
         live.RunWarning!.ShouldNotContain("dump");
         live.Status.ShouldBeNull("the warning says it; a second line would repeat it");
         live.ShowEmptyState.ShouldBeFalse();

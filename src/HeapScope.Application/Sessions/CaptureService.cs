@@ -55,7 +55,13 @@ public sealed record CaptureResult(string Path, long SizeBytes, ProcessEntry Pro
 /// </summary>
 public sealed class CaptureService : ICaptureService
 {
-    private const string DacFileName = "mscordaccore.dll";
+    // The DAC's name on this system (sprint 4.1: Linux captures too); the loader picks the same name for a dump of this system.
+    private static readonly string s_dacFileName =
+        OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so";
+
+    // Sprint 4.1 review H4: on Linux the loader accepts a DAC found by its runtime library's build id only with that library
+    // next to it, so the library is copied too. It is read for its identity, never loaded.
+    private static readonly string? s_runtimeFileName = OperatingSystem.IsLinux() ? "libcoreclr.so" : null;
 
     private readonly IProcessDiscovery _discovery;
     private readonly DumpCapturer _capturer;
@@ -111,11 +117,14 @@ public sealed class CaptureService : ICaptureService
             // Sprint 3.13 review H5: why a process the user expects is not listed (HeapScope's own, or gone while listing).
             var omitted = _discovery.LastOmitted;
             _logger.LogInformation(
-                "Listed {Count} .NET processes ({Pids}); left out as HeapScope's own: {Own}; not readable or exited: {NotDescribed}",
+                "Listed {Count} .NET processes ({Pids}); left out as HeapScope's own: {Own}; not readable or exited: {NotDescribed}{Where}",
                 processes.Count,
                 string.Join(", ", processes.Take(200).Select(p => p.ProcessId)) + (processes.Count > 200 ? $" and {processes.Count - 200} more" : string.Empty),
                 omitted.Own.Count == 0 ? "none" : string.Join(", ", omitted.Own),
-                omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed));
+                omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed),
+                // Sprint 4.1: off Windows a process is found by its socket in this temp folder; one using another is not seen.
+                // On Linux the ids behind each "needs more rights" mark too (review H6).
+                OperatingSystem.IsWindows() ? string.Empty : $"; diagnostics sockets looked for in {Path.GetTempPath()} only{UserIds(processes)}");
             return [.. processes.Select(ToEntry)];
         }
         catch (PlatformNotSupportedException ex)
@@ -157,11 +166,12 @@ public sealed class CaptureService : ICaptureService
             }
 
             var process = found
-                ?? throw Failure(CaptureFailure.ProcessNotFound, string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."), null);
+                ?? throw NotFound(processId);
 
             string? path = null;
             string? sessionFolder = null;
             var createdSession = false;
+            var reports = new CaptureProgressAdapter(progress);
 
             // The session is written into until the capture is recorded: it cannot be deleted meanwhile (review H1 of 3.4).
             using var inUse = new Claim();
@@ -169,6 +179,18 @@ public sealed class CaptureService : ICaptureService
             {
                 if (outputPath is null)
                 {
+                    // Sprint 4.1 review H1: as root, another user's full dump cannot go into root's own folders (a full
+                    // dump is the profile that copies the DAC).
+                    if (profile.CopiesDac && DumpCapturer.LibraryRefusal(process, _elevation.IsCurrentProcessElevated) is { } refusal)
+                    {
+                        _logger.LogInformation(
+                            "A full dump of pid {Pid} into the library is refused: HeapScope runs as root (effective user {Own}) and the process as effective user {Target}",
+                            process.ProcessId,
+                            UserId(Environment.ProcessId),
+                            UserId(process.ProcessId));
+                        throw new DumpWriteFailedException(refusal);
+                    }
+
                     // Check against the library root before a session folder exists.
                     PrivateFiles.CreateDirectory(Library.Root);
                     profile.Preflight?.Invoke(process, Path.Combine(Library.Root, "probe" + profile.Extension));
@@ -187,11 +209,22 @@ public sealed class CaptureService : ICaptureService
                 }
 
                 _logger.LogInformation("Capturing a {Kind} of {Name} (pid {Pid}) to {Path}", profile.Noun, process.Name, process.ProcessId, path);
-                await profile.Capture(process, path, new CaptureProgressAdapter(progress), ct).ConfigureAwait(false);
+                await profile.Capture(process, path, reports, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (Translate(ex) is { } failure)
             {
                 _logger.LogWarning(ex, "Capture of pid {Pid} failed: {Reason}", processId, failure.Reason);
+                if (ex is DumpWriteFailedException { Evidence: { } evidence })
+                {
+                    _logger.LogInformation("The write failure of pid {Pid} was judged by: {Evidence}", processId, evidence);
+                }
+
+                if (OperatingSystem.IsLinux() && ex is ElevationRequiredException)
+                {
+                    // Sprint 4.1 review H6: the ids the refusal rests on, also where no process list was logged (the CLI).
+                    _logger.LogInformation("Pid {Pid} was refused as another user's: effective user {Target}, HeapScope's {Own}", processId, UserId(processId), UserId(Environment.ProcessId));
+                }
+
                 if (createdSession && sessionFolder is not null)
                 {
                     RemoveIfEmpty(sessionFolder);
@@ -222,7 +255,16 @@ public sealed class CaptureService : ICaptureService
 
             // Assigned in both branches of the try above, which returned or threw otherwise.
             var size = new FileInfo(path!).Length;
-            _logger.LogInformation("Captured {Name} (pid {Pid}): {Bytes} bytes in {Seconds:N1} s", process.Name, process.ProcessId, size, stopwatch.Elapsed.TotalSeconds);
+            // Sprint 4.1: the estimate beside the size, so a log (and CI's) shows the preflight's margin on each system.
+            _logger.LogInformation(
+                "Captured {Name} (pid {Pid}): {Bytes} bytes in {Seconds:N1} s; estimated {Estimate}",
+                process.Name,
+                process.ProcessId,
+                size,
+                stopwatch.Elapsed.TotalSeconds,
+                reports.EstimatedBytes is { } estimated && estimated > 0
+                    ? string.Create(CultureInfo.InvariantCulture, $"{estimated} bytes ({100.0 * size / estimated:N0}% of it written)")
+                    : "nothing (no estimate for this kind)");
             if (profile.CopiesDac)
             {
                 CopyDac(process, Path.GetDirectoryName(path!)!);
@@ -295,7 +337,7 @@ public sealed class CaptureService : ICaptureService
         {
             // Decision 1: the runtime's GC heap collect keyword over EventPipe needs .NET 5 or later.
             var process = await Task.Run(() => _discovery.Find(processId), cancellationToken).ConfigureAwait(false)
-                ?? throw Failure(CaptureFailure.ProcessNotFound, string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."), null);
+                ?? throw NotFound(processId);
             if (Version.TryParse(process.RuntimeVersion, out var runtime) && runtime.Major < 5)
             {
                 _logger.LogInformation("Refused a forced collection of pid {Pid}: runtime {Runtime} is older than .NET 5", processId, process.RuntimeVersion);
@@ -362,6 +404,44 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
+    /// On Linux, HeapScope's effective user id and each marked process's (sprint 4.1 review H6): the mark "Needs root or its
+    /// user" rests on the two differing. Empty elsewhere.
+    /// </summary>
+    private static string UserIds(IReadOnlyList<DotNetProcess> processes)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return string.Empty;
+        }
+
+        var all = processes.Where(p => p.Elevation == ElevationState.Elevated).ToList();
+        var marked = all.Take(200).Select(p => $"{p.ProcessId} (user {UserId(p.ProcessId)})").ToList();
+        var more = all.Count > 200 ? $" and {all.Count - 200} more" : string.Empty;
+        return $"; HeapScope's effective user {UserId(Environment.ProcessId)}; another user's: {(marked.Count == 0 ? "none" : string.Join(", ", marked) + more)}";
+    }
+
+    private static string UserId(int processId) =>
+        CapturePlatform.EffectiveUserId(processId) is { } id ? id.ToString(CultureInfo.InvariantCulture) : "unknown";
+
+    /// <summary>
+    /// The failure for a pid that is not found: why, where the system can tell (sprint 4.1), and what that rests on in the
+    /// log (review H6), so support can back the reason up.
+    /// </summary>
+    private CaptureFailedException NotFound(int processId)
+    {
+        var explanation = _discovery.WhyNotFound(processId);
+        if (explanation.Evidence is { } evidence)
+        {
+            _logger.LogInformation("Pid {Pid} was not found: {Evidence}", processId, evidence);
+        }
+
+        return Failure(
+            CaptureFailure.ProcessNotFound,
+            explanation.Reason ?? string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."),
+            null);
+    }
+
+    /// <summary>
     /// What differs per kind of capture (sprint 1.9): a full dump is checked against the disk (its size is about the
     /// process's memory) and gets the target's DAC beside it; a gcdump is a fraction of the heap and needs no DAC.
     /// </summary>
@@ -393,7 +473,7 @@ public sealed class CaptureService : ICaptureService
         Func<DotNetProcess, string, IProgress<CaptureProgress>, CancellationToken, Task> Capture);
 
     /// <summary>
-    /// Copies the target's mscordaccore.dll next to the dump, so the 1.2 loader finds the matching DAC in the dump's
+    /// Copies the target's DAC (and on Linux its runtime library, review H4) next to the dump, so the 1.2 loader finds the matching DAC in the dump's
     /// folder even after the runtime on this machine is updated or for self-contained apps. A failed copy is logged; the
     /// dump stays readable while the runtime stays installed.
     /// </summary>
@@ -405,13 +485,14 @@ public sealed class CaptureService : ICaptureService
         }
 
         // One copy per runtime version (dac\<file version>), so dumps of two runtimes in one folder keep their own DAC.
-        var source = Path.Combine(runtime, DacFileName);
-        var target = Path.Combine(folder, "dac", process.RuntimeVersion ?? "unknown", DacFileName);
+        var source = Path.Combine(runtime, s_dacFileName);
+        var target = Path.Combine(folder, "dac", process.RuntimeVersion ?? "unknown", s_dacFileName);
         try
         {
-            if (!File.Exists(source))
+            // Review H5: the runtime folder comes from the target; only a regular file of a sane size is copied.
+            if (!TargetFiles.IsReadable(source))
             {
-                _logger.LogInformation("The target's runtime folder {Runtime} has no {Dac}; none is copied next to the dump", runtime, DacFileName);
+                _logger.LogInformation("The target's runtime folder {Runtime} has no {Dac} HeapScope copies (a regular file of at most 64 MB); none is copied next to the dump", runtime, s_dacFileName);
                 return;
             }
 
@@ -422,6 +503,15 @@ public sealed class CaptureService : ICaptureService
             }
 
             TrustCopiedDac(source, target);
+            if (s_runtimeFileName is { } runtimeFile)
+            {
+                var library = Path.Combine(runtime, runtimeFile);
+                var libraryCopy = Path.Combine(Path.GetDirectoryName(target)!, runtimeFile);
+                if (TargetFiles.IsReadable(library) && !File.Exists(libraryCopy))
+                {
+                    File.Copy(library, libraryCopy);
+                }
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -512,6 +602,13 @@ public sealed class CaptureService : ICaptureService
 
     private sealed class CaptureProgressAdapter(IProgress<JobProgress> target) : IProgress<CaptureProgress>
     {
-        public void Report(CaptureProgress value) => target.Report(new JobProgress(value.Phase, 0, null, value.Message));
+        /// <summary>The last size estimate the capturer reported, for the log line after the capture.</summary>
+        public long? EstimatedBytes { get; private set; }
+
+        public void Report(CaptureProgress value)
+        {
+            EstimatedBytes = value.EstimatedBytes ?? EstimatedBytes;
+            target.Report(new JobProgress(value.Phase, 0, null, value.Message));
+        }
     }
 }

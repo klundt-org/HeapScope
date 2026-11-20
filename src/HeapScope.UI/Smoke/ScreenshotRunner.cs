@@ -21,10 +21,14 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using HeapScope.UI.Controls;
+using HeapScope.UI.Views;
 using HeapScope.UI.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -57,14 +61,98 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
     /// Saves the window as it stands, named by the run's theme (<c>--Ui:Theme Light</c> or <c>Dark</c>). One theme per run: the
     /// charts resolve their colors when they first draw, so a theme switched mid-run would leave them in the old colors.
     /// </summary>
-    private async Task CaptureAsync(string name)
+    private async Task CaptureAsync(string name, TopLevel? of = null)
     {
         await SettleAsync();
         var suffix = Avalonia.Application.Current!.ActualThemeVariant == ThemeVariant.Dark ? "dark" : "light";
         var path = Path.Combine(folder, $"{name}-{suffix}.png");
-        using var frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No frame was rendered.");
+        using var frame = (of ?? window).CaptureRenderedFrame() ?? throw new InvalidOperationException("No frame was rendered.");
         frame.Save(path, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
         _logger.LogInformation("Screenshot written: {Path}", path);
+    }
+
+    // Sprint 4.1 task 1: the popups DEVELOPER.md 5 checked by hand. A headless window draws its popups into its own frame, so
+    // the picture shows the popup over the page; a popup that does not open fails the run.
+
+    /// <summary>Opens the text of the first info icon shown that <paramref name="which"/> picks, captures it, and closes it.</summary>
+    private async Task CaptureInfoAsync(string name, Func<InfoIcon, bool> which)
+    {
+        await SettleAsync();
+        var icon = window.GetVisualDescendants().OfType<InfoIcon>().FirstOrDefault(i => i.IsEffectivelyVisible && i.Bounds.Width > 0 && which(i))
+            ?? throw new InvalidOperationException($"No info icon for {name} is on the page shown.");
+        var flyout = icon.Flyout ?? throw new InvalidOperationException($"The info icon for {name} has no text to open.");
+        flyout.ShowAt(icon);
+        await SettleAsync();
+        if (!flyout.IsOpen)
+        {
+            throw new InvalidOperationException($"The info icon's text for {name} did not open.");
+        }
+
+        await CaptureAsync(name);
+        flyout.Hide();
+    }
+
+    /// <summary>
+    /// Points at the widest bar of the chart shown that <paramref name="which"/> picks, opens its hover text, captures it,
+    /// and moves off. A chart without such a bar is logged and skipped (not every dump has a "+N smaller" bar).
+    /// </summary>
+    private async Task CaptureChartTipAsync(string name, Func<IcicleBar, bool> which)
+    {
+        await SettleAsync();
+        var chart = window.GetVisualDescendants().OfType<IcicleChart>().FirstOrDefault(static c => c.IsEffectivelyVisible && c.Bounds.Width > 0)
+            ?? throw new InvalidOperationException($"No Retainers chart is shown for {name}.");
+        if (chart.Bars.Where(which).OrderBy(static b => b.Y).ThenByDescending(static b => b.Width).FirstOrDefault() is not { } bar)
+        {
+            _logger.LogInformation("Screenshot skipped: {Name}, the chart has no such bar", name);
+            return;
+        }
+
+        var point = chart.TranslatePoint(new Point(bar.X + (bar.Width / 2), bar.Y + (bar.Height / 2)), window)
+            ?? throw new InvalidOperationException($"The bar for {name} is not in the window.");
+        window.MouseMove(point);
+        await SettleAsync();
+        if (ToolTip.GetTip(chart) is null)
+        {
+            throw new InvalidOperationException($"Pointing at the bar for {name} gave it no hover text.");
+        }
+
+        ToolTip.SetIsOpen(chart, true);
+        await CaptureAsync(name);
+        ToolTip.SetIsOpen(chart, false);
+        window.MouseMove(new Point(0, 0));
+    }
+
+    /// <summary>Shows a question window, captures it and answers it Cancel; the answer is checked to be no.</summary>
+    private async Task CaptureQuestionAsync(string name, Func<Task<bool>> ask)
+    {
+        MessageWindow? asked = null;
+        void Seen(MessageWindow question) => asked = question;
+        MessageWindow.Showing += Seen;
+        try
+        {
+            var command = ask();
+            for (var waited = 0; asked is not { IsVisible: true } && waited < 300; waited++)
+            {
+                await Task.Delay(100);
+            }
+
+            if (asked is not { IsVisible: true } question)
+            {
+                throw new InvalidOperationException($"The question for {name} was not shown.");
+            }
+
+            question.SetRenderScaling(2);
+            await CaptureAsync(name, question);
+            question.Close(false);
+            if (await command)
+            {
+                throw new InvalidOperationException($"The question for {name} was answered yes.");
+            }
+        }
+        finally
+        {
+            MessageWindow.Showing -= Seen;
+        }
     }
 
     /// <summary>Drives the pages and returns the exit code.</summary>
@@ -102,6 +190,11 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             processes.Processes.Add(new ProcessRow(20112, "OrdersWorker", ".NET 8.0.21", "No", 1_260_000_000, "dotnet OrdersWorker.dll", false));
             processes.Processes.Add(new ProcessRow(9320, "ReportingService", ".NET 9.0.10", "Yes", 788_000_000, "ReportingService.exe", true));
             await CaptureAsync("02-processes");
+            // Sprint 4.1 task 1: an info icon's open text, by the title and beside a turned-off button (Capture dump, with no
+            // process selected).
+            await CaptureInfoAsync("02-processes-info", static icon => icon.Text == InfoTexts.Processes);
+            await CaptureInfoAsync("02-processes-info-beside-off", static icon =>
+                icon.Parent is Panel panel && panel.Children.Any(static c => c is Button button and not InfoIcon && !button.IsEffectivelyEnabled));
             if (processes.Processes.Count != 3 || processes.Processes.Any(static p => p.ProcessId is not (18244 or 20112 or 9320)))
             {
                 File.Delete(Path.Combine(folder, $"02-processes-{(Avalonia.Application.Current!.ActualThemeVariant == ThemeVariant.Dark ? "dark" : "light")}.png"));
@@ -160,6 +253,9 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             await snapshots.Retainers.IcicleTask;
             await TouchAsync(snapshots.Retainers.Rows);
             await CaptureAsync("10-retainers");
+            // Sprint 4.1 task 1: the chart's hover text on a bar, and on a "+N smaller" bar when the chart has one.
+            await CaptureChartTipAsync("10-retainers-bar", static bar => bar.Count == 1 && bar.Y > 0);
+            await CaptureChartTipAsync("10-retainers-smaller", static bar => bar.Count > 1);
 
             if (options.SmokeComparePath is { } other)
             {
@@ -205,6 +301,24 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
         await CaptureAsync("14-jobs");
         Show(shell.NavigationItems.Single(i => i.Title == "About").Page);
         await CaptureAsync("15-about");
+
+        // Sprint 4.1 task 1: Settings, and Purge all's question. Never through its command: a smoke run answers every question
+        // yes (AutomaticUserInteraction), so the command would delete. The question is shown in the real question window and
+        // answered Cancel here.
+        if (shell.NavigationItems.SingleOrDefault(i => i.Title == "Settings")?.Page is SettingsViewModel settings)
+        {
+            Show(settings);
+            await CaptureAsync("18-settings");
+            if (await settings.PurgeAllQuestionAsync() is { } question)
+            {
+                await CaptureQuestionAsync("19-purge-all-question", () => MessageWindow.ShowAsync(
+                    window, SettingsViewModel.PurgeAllTitle, question, MessageButtons.YesNo, (SettingsViewModel.PurgeAllConfirm, SettingsViewModel.PurgeAllCancel)));
+            }
+            else
+            {
+                _logger.LogInformation("Screenshot skipped: 19-purge-all-question, Purge all is refused now ({Status})", settings.Status);
+            }
+        }
 
         // Sprint 3.13: the first lesson started on the real sample. The page it opens, with the lesson's steps in the panel beside
         // it, then the Learn page with its question (review M15: a lesson that does not start fails the run).

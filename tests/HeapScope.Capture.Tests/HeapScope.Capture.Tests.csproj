@@ -1,8 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <!-- Capture runs on Windows only (ADR-025): build/test.sh runs this project there only. -->
-    <HeapScopeTestsRunOn>Windows</HeapScopeTestsRunOn>
-  </PropertyGroup>
+  <!-- Capture runs on Windows and Linux since sprint 4.1 (ADR-025), so build/test.sh runs this project on every system; a test of one system skips elsewhere. -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\HeapScope.Capture\HeapScope.Capture.csproj" />
   </ItemGroup>

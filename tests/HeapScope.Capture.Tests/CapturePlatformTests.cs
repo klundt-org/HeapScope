@@ -29,10 +29,12 @@ public sealed class CapturePlatformTests
     [Fact]
     public void Capture_is_refused_off_windows_with_the_way_to_take_a_dump_there()
     {
-        var refused = Should.Throw<PlatformNotSupportedException>(() => CapturePlatform.EnsureSupported(isWindows: false));
+        var refused = Should.Throw<PlatformNotSupportedException>(() => CapturePlatform.EnsureSupported(supported: false));
 
         refused.Message.ShouldContain("dotnet-dump collect");
-        Should.NotThrow(() => CapturePlatform.EnsureSupported(isWindows: true));
+        refused.Message.ShouldStartWith("Capturing from HeapScope runs on Windows and Linux for now. On macOS,");
+        CapturePlatform.IsSupported.ShouldBe(OperatingSystem.IsWindows() || OperatingSystem.IsLinux());
+        Should.NotThrow(() => CapturePlatform.EnsureSupported(supported: true));
     }
 
     [Fact]
@@ -40,6 +42,18 @@ public sealed class CapturePlatformTests
     {
         CapturePlatform.ElevationProbe().ShouldBeOfType(OperatingSystem.IsWindows() ? typeof(WindowsElevationProbe) : typeof(UnixElevationProbe));
         UnixElevationProbe.Instance.IsCurrentProcessElevated.ShouldBe(Environment.IsPrivilegedProcess);
-        UnixElevationProbe.Instance.GetState(Environment.ProcessId).ShouldBe(ElevationState.Unknown);
+        UnixElevationProbe.Instance.GetState(Environment.ProcessId).ShouldBe(OperatingSystem.IsLinux() ? ElevationState.NotElevated : ElevationState.Unknown);
+    }
+
+    [Fact]
+    public void On_linux_another_users_process_needs_root_or_that_user()
+    {
+        // Sprint 4.1 task 4: the rule on effective user ids (root is 0).
+        UnixElevationProbe.StateOf(target: 1000, own: 1000).ShouldBe(ElevationState.NotElevated);
+        UnixElevationProbe.StateOf(target: 1001, own: 1000).ShouldBe(ElevationState.Elevated);
+        UnixElevationProbe.StateOf(target: 0, own: 1000).ShouldBe(ElevationState.Elevated);
+        UnixElevationProbe.StateOf(target: 0, own: 0).ShouldBe(ElevationState.NotElevated);
+        UnixElevationProbe.StateOf(target: null, own: 1000).ShouldBe(ElevationState.Unknown);
+        UnixElevationProbe.StateOf(target: 1000, own: null).ShouldBe(ElevationState.Unknown);
     }
 }

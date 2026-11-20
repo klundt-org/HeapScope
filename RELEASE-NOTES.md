@@ -9,6 +9,7 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 | Version | Released |
 |---|---|
+| 3.13.2 | 2026-11-20, `v3.13.2` |
 | 3.13.1 | 2026-11-19, `v3.13.1` |
 | 3.13.0 | 2026-11-17, `v3.13.0` |
 | 3.9.0 | 2026-11-02, `v3.9.0` |
@@ -17,6 +18,22 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 | 2.2.0 | 2026-10-25, `v2.2.0` |
 
 Everything else was built on `develop` and first shipped in the next release above it.
+
+## 4.1.0: Capture on Linux (sprint 4.1)
+
+- **Capture on Linux**: the Processes page and `heapscope-cli` list the .NET processes you can capture, take full dumps
+  and gcdumps, watch the Live page and record allocations on Linux, as on Windows. The tutorial's sample and lessons run
+  there too.
+- **Who can capture whom on Linux**: a process that runs as your user, yes. Another user's process is marked "Needs root or
+  its user": run HeapScope as that user, or as root (`sudo`) for everything but a full dump into HeapScope's own folders
+  (the runtime writes a full dump as the process's user; on the command line, `--out` can name a folder that user can
+  write).
+- **Refusals that say what to change**: when the system stops a capture (`kernel.yama.ptrace_scope`, a container without
+  `SYS_PTRACE`), the process turned its diagnostics off, keeps its socket in another `TMPDIR` or has its own `/tmp` (a
+  service with PrivateTmp), HeapScope says so and what to change. It never changes system settings itself, and its log
+  keeps what each refusal rests on.
+- **Limits**: capture on macOS is not built yet (sprint 4.2): take a dump with `dotnet-dump` and open it. Linux was
+  proven in CI on Ubuntu; HeapScope finds a process only through the diagnostics socket in its own temp folder.
 
 ## 3.13.2: Dump values in logs, by consent (sprint 3.13.2)
 

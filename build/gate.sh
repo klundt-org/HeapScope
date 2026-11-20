@@ -24,7 +24,7 @@
 
 # The local full gate (sprint 1.9; bash since sprint 3.6, so it runs wherever CI does): Debug and Release builds with
 # zero warnings, the fast and the integration tiers (build/test.sh), then CI's fixture check: a LeakyConsole dump
-# (build/fixture-dump.sh; the CLI captures it on Windows, dotnet-dump elsewhere) checked against the known answers
+# (build/fixture-dump.sh; the CLI captures it on Windows and Linux, dotnet-dump on macOS) checked against the known answers
 # (build/check-known-answers.sh, which needs jq; without jq the check is reported as skipped). Each run appends a line to
 # artifacts/gate/history.csv (git-ignored) with the failed tests' names, so tests that fail now and then show up, and
 # keeps its log and TRX results under artifacts/test-results/<time>. The dump is deleted. Exit code 0 when all passed.
@@ -101,7 +101,7 @@ if [ "$build_ok" = true ]; then
   echo "== Fixture dump and known answers" | tee -a "$log"
   cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli
   capture="dotnet-dump"
-  case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) cli="$cli.exe"; capture="cli=$cli" ;; esac
+  case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) cli="$cli.exe"; capture="cli=$cli" ;; Linux) capture="cli=$cli" ;; esac
   dump="$(pwd)/$results/leaky.dmp"
   if passed_before fixture "$fixture_key" "Fixture check"; then
     fixture=skipped-passed-before

@@ -55,6 +55,9 @@ public sealed class IcicleChart : Control
         AvaloniaProperty.Register<IcicleChart, double>(nameof(RowHeight), 22);
 
     private IReadOnlyList<IcicleBar> _bars = [];
+
+    /// <summary>The bars as last drawn, in the chart's own coordinates (the screenshot run points at them, sprint 4.1).</summary>
+    internal IReadOnlyList<IcicleBar> Bars => _bars;
     private IcicleSegmentDto? _hovered;
 
     static IcicleChart()

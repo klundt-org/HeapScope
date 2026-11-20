@@ -39,6 +39,11 @@
             IsVisible="{Binding Unavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <SelectableTextBlock TextWrapping="Wrap" Text="{Binding Unavailable}" />
     </Border>
+    <!-- Sprint 4.1: who can capture whom on Linux (the rules the lessons meet there); shown on Linux only. -->
+    <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8"
+            IsVisible="{x:Static vm:PlatformHints.HasLearnNote}">
+      <SelectableTextBlock TextWrapping="Wrap" Text="{x:Static vm:PlatformHints.LearnNote}" />
+    </Border>
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,8" />
     <Grid ColumnDefinitions="320,*">
       <DockPanel Grid.Column="0" Margin="0,0,12,0">

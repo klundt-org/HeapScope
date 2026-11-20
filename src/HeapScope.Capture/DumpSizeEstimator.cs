@@ -29,7 +29,9 @@ namespace HeapScope.Capture;
 /// Estimates the size of a full dump (sprint 1.1 review). A full dump holds every committed, readable page of the
 /// process: private memory, loaded images and mapped files. Walking the address space with <c>VirtualQueryEx</c> sums
 /// exactly those pages; when the walk is not allowed, the estimate falls back to private bytes plus a fixed part for
-/// images and mapped files (measured on the samples: 250 to 660 MB outside the GC heap).
+/// images and mapped files (measured on the samples: 250 to 660 MB outside the GC heap). On Linux (sprint 4.1) the readable
+/// mappings in <c>/proc/&lt;pid&gt;/maps</c> are summed instead (<see cref="ProcText.ReadableBytes"/>), with the same fallback
+/// when another user's maps cannot be read.
 /// </summary>
 public static partial class DumpSizeEstimator
 {
@@ -63,6 +65,24 @@ public static partial class DumpSizeEstimator
     /// <summary>Sum of committed pages that are neither no-access nor guard pages; null when the walk is denied.</summary>
     public static long? CommittedReadableBytes(int processId)
     {
+        if (OperatingSystem.IsLinux())
+        {
+            try
+            {
+                return ProcText.ReadableBytes(File.ReadAllText(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"/proc/{processId}/maps")));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null; // Exited, or another user's.
+            }
+        }
+
+        // Review M9: elsewhere (macOS until sprint 4.2) no walk is built; the fallback estimates.
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
         var handle = OpenProcess(ProcessQueryInformation, false, (uint)processId);
         if (handle == IntPtr.Zero)
         {

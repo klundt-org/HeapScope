@@ -36,14 +36,30 @@ public interface IDiskSpace
 
 /// <summary>
 /// Reads free space with <c>GetDiskFreeSpaceEx</c> on the folder itself, so UNC paths and volumes mounted into folders
-/// report the right volume (sprint 1.1 review).
+/// report the right volume (sprint 1.1 review). Elsewhere (sprint 4.1) through <see cref="DriveInfo"/> on the folder, which
+/// asks the file system holding it (statfs), so a folder on another mount reports that mount.
 /// </summary>
 public sealed partial class VolumeDiskSpace : IDiskSpace
 {
     public static VolumeDiskSpace Instance { get; } = new();
 
-    public long? AvailableBytes(string directory) =>
-        GetDiskFreeSpaceEx(Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar, out var available, out _, out _) ? (long)available : null;
+    public long? AvailableBytes(string directory)
+    {
+        ArgumentNullException.ThrowIfNull(directory);
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                return new DriveInfo(directory).AvailableFreeSpace;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        return GetDiskFreeSpaceEx(Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar, out var available, out _, out _) ? (long)available : null;
+    }
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetDiskFreeSpaceExW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -131,6 +147,19 @@ public sealed class DumpCapturer(
     /// <summary>The estimated dump size of <paramref name="process"/>.</summary>
     public long Estimate(DotNetProcess process) => _estimate(process);
 
+    /// <summary>
+    /// Why a full dump of <paramref name="process"/> cannot go into HeapScope's own folders (review H1 of sprint 4.1): on
+    /// Linux, while HeapScope runs as root, the runtime writes another user's dump as that user, who cannot write to
+    /// root's folders. Null when it can. A folder the user names (--out) is not judged: the write's own failure says.
+    /// </summary>
+    public static string? LibraryRefusal(DotNetProcess process, bool heapScopeElevated)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        return OperatingSystem.IsLinux() && heapScopeElevated && process.Elevation == ElevationState.Elevated
+            ? LinuxCaptureRules.RootLibraryRefusal(process.Name, process.ProcessId)
+            : null;
+    }
+
     /// <summary>Checks elevation and disk space; throws the specific exception with a next step when one fails.</summary>
     public long Preflight(DotNetProcess process, string path)
     {
@@ -211,13 +240,31 @@ public sealed class DumpCapturer(
 
         if (ex is DiagnosticsClientException)
         {
-            // The dump is written by createdump under the target's own account, not HeapScope's.
-            var reason = ex.Message.Contains("0x80070070", StringComparison.OrdinalIgnoreCase) ? "the disk is full"
-                : ex.Message.Contains("0x80070005", StringComparison.OrdinalIgnoreCase) ? $"the account {process.Name} runs as cannot write to {directory}"
-                : "the runtime refused the request";
+            // The dump is written by createdump under the target's own account, not HeapScope's. On Linux (review H2) what
+            // createdump reported decides first; the ptrace rule and the container only explain a ptrace failure.
+            var account = process.Name;
+            string? reason;
+            string? evidence = null;
+            if (OperatingSystem.IsLinux())
+            {
+                var scope = LinuxCaptureRules.PtraceScope();
+                var inContainer = LinuxCaptureRules.InContainer();
+                reason = LinuxCaptureRules.WriteFailure(ex.Message, scope, inContainer, account, directory, out var rule);
+                evidence = LinuxCaptureRules.WriteEvidence(scope, inContainer, rule);
+            }
+            else
+            {
+                reason = ex.Message.Contains("0x80070070", StringComparison.OrdinalIgnoreCase) ? "the disk is full"
+                    : ex.Message.Contains("0x80070005", StringComparison.OrdinalIgnoreCase) ? $"the account {account} runs as cannot write to {directory}"
+                    : null;
+            }
+
             return new DumpWriteFailedException(
-                $"The dump of {process.Name} (pid {process.ProcessId}) could not be written: {reason}. The target process writes the dump itself, under its own account; choose a folder it can write to (--out), and check free space. Details: {ex.Message}",
-                ex);
+                $"The dump of {process.Name} (pid {process.ProcessId}) could not be written: {reason ?? "the runtime refused the request"}. The target process writes the dump itself, under its own account; choose a folder it can write to (--out), and check free space. Details: {ex.Message}",
+                ex)
+            {
+                Evidence = evidence,
+            };
         }
 
         return ex is IOException

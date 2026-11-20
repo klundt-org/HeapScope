@@ -85,9 +85,25 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   2 KB at most); a lesson's start (scenarios, answer type and scenario, catalog and lesson versions, the choices offered), its
   answer (chosen, expected, the sample and whether it still runs, right or wrong), its end and a sample gone under it; the
   progress file's writes and a damaged file kept as `.bak`. Every process list logs the pids it listed (200 at most) and the
-  pids it left out as HeapScope's own or could not read, and the Processes page logs a sample it started that the list does
-  not show, so "the sample is not in the list" can be backed up. All of these are names,
+  pids it left out as HeapScope's own or could not read (off Windows, since 4.1, also the temp folder it looked in for
+  diagnostics sockets, so a process using another one is explained), and the Processes page logs a sample it started that
+  the list does not show, so "the sample is not in the list" can be backed up. All of these are names,
   pids and counts: the sample's messages are its own, never a dump's contents.
+- **Capture on Linux (sprint 4.1 and its review H6, M4)**: each capture logs "Captured {name} (pid): {bytes} bytes in {s} s;
+  estimated {bytes} ({n}% of it written)", so the disk check's margin is known on each system (CI flags a Linux dump larger
+  than its estimate; the first runs wrote 94 to 95%). A pid that is not found logs "Pid {pid} was not found: Linux check
+  of pid ...", what the reason given rests on: whether it runs, its effective user id and HeapScope's, whether its
+  environment could be read, which diagnostics setting turned the port off (its name only), its `TMPDIR` and HeapScope's,
+  whether it shares HeapScope's mount namespace (its own `/tmp`), and where its runtime is (`libcoreclr.so`'s folder, the
+  JIT, inside a single-file executable, or none). A dump the runtime could not write logs "The write failure of pid {pid}
+  was judged by: ptrace_scope {n}; container yes/no; rule: ...", the rule that named the cause (no space left, a folder the
+  target's account cannot write, ptrace refused, scope 3, or none). A full dump refused because HeapScope runs as root and
+  the process as another user says so, with both effective user ids. Live and recording log the same evidence when a
+  process does not answer ("Pid {pid} could not be monitored: ..." and "could not be traced: ..."), and a refusal of
+  another user's process logs both effective user ids in a capture, Live and a recording ("was refused as another
+  user's"); the process list adds HeapScope's effective user id and each marked process's. The refusal itself lands on
+  the job's failed line under its trace id. `/proc`
+  command lines and environments are never logged: of the environment only `TMPDIR` and the name of a setting that is 0.
 - **What a log may hold (sprint 2.3.7 review M6)**: paths, file and process names, type, module and field names, counts,
   sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump:
   `Provenance` writes any other text by its length only, and error messages that would echo a filter leave it out. The

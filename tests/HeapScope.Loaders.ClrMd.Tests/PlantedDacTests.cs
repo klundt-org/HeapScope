@@ -84,6 +84,63 @@ public sealed class PlantedDacTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Sprint 4.1 review (H4 confirmation): a capture keeps the DAC, and on Linux the runtime library with it, in a
+    /// <c>dac/</c> folder beside the dump, named by a version ClrMD may not read the same way. With no installed runtime to
+    /// fall back on, the loader finds the pair there, refuses it until trusted, then loads its private copy. When the dump
+    /// was taken by HeapScope's capture (CI's CLI capture), its own <c>dac/</c> folder is used as the capture left it, so
+    /// the copy and the search are proven together; otherwise the pair is planted under a name no version matches and
+    /// removed after.
+    /// </summary>
+    [Fact]
+    public void A_DAC_kept_in_a_dac_folder_beside_a_real_dump_is_found_without_installed_runtimes()
+    {
+        var dump = Environment.GetEnvironmentVariable("HEAPSCOPE_FIXTURE_DUMP");
+        SkipUnless(!string.IsNullOrEmpty(dump) && File.Exists(dump), "HEAPSCOPE_FIXTURE_DUMP names no dump (set by CI after it takes one).");
+        string[] names = OperatingSystem.IsWindows() ? ["mscordaccore.dll"]
+            : OperatingSystem.IsMacOS() ? ["libmscordaccore.dylib", "libcoreclr.dylib"]
+            : ["libmscordaccore.so", "libcoreclr.so"];
+        var dumpFolder = Path.GetDirectoryName(Path.GetFullPath(dump!))!;
+        SkipUnless(!names.Any(n => File.Exists(Path.Combine(dumpFolder, n))), "The dump's own folder holds a DAC or runtime library, which would be found first.");
+        var dacRoot = Path.Combine(dumpFolder, "dac");
+        var planted = !Directory.Exists(dacRoot);
+        if (planted)
+        {
+            DacChoice? installed = null;
+            new ClrMdDumpLoader(new ClrMdLoaderOptions { DacChosen = c => installed = c }).Load(dump!, cancellationToken: TestContext.Current.CancellationToken).Graph.Dispose();
+            var runtime = Path.GetDirectoryName(installed?.Path);
+            SkipUnless(runtime is not null, "The dumped runtime's DAC was not found on this machine.");
+            var kept = Directory.CreateDirectory(Path.Combine(dacRoot, "not-the-version-clrmd-reads")).FullName;
+            foreach (var name in names)
+            {
+                File.Copy(Path.Combine(runtime!, name), Path.Combine(kept, name));
+            }
+        }
+
+        var noRuntimes = Directory.CreateDirectory(Path.Combine(_work, "no-runtimes-2")).FullName;
+        try
+        {
+            var untrusted = new ClrMdLoaderOptions { InstalledRuntimeRoots = [noRuntimes], SearchDumpedRuntimeDirectory = false, OwnRuntimeDirectory = null };
+            var refused = Should.Throw<UntrustedDacException>(() => new ClrMdDumpLoader(untrusted).Load(dump!, cancellationToken: TestContext.Current.CancellationToken));
+            refused.Path.ShouldNotBeNull().ShouldStartWith(dacRoot + Path.DirectorySeparatorChar, Case.Insensitive, "the DAC came from a dac folder beside the dump");
+
+            DacChoice? chosen = null;
+            var copies = Path.Combine(_work, "copies-2");
+            var trusted = untrusted with { IsTrustedDac = s => s == refused.Sha256, TrustedDacCopyFolder = copies, DacChosen = c => chosen = c };
+            var loaded = new ClrMdDumpLoader(trusted).Load(dump!, cancellationToken: TestContext.Current.CancellationToken);
+            loaded.Graph.ObjectCount.ShouldBeGreaterThan(1000);
+            loaded.Graph.Dispose();
+            chosen.ShouldNotBeNull().Path.ShouldBe(Path.Combine(copies, refused.Sha256 ?? "", names[0]), "the private copy is loaded, not the file beside the dump");
+        }
+        finally
+        {
+            if (planted)
+            {
+                Directory.Delete(dacRoot, recursive: true);
+            }
+        }
+    }
+
     public void Dispose() => Directory.Delete(_work, recursive: true);
 
     private static void SkipUnless(bool condition, string reason)
