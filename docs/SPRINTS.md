@@ -142,9 +142,11 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    temp folder is positive on every system; the estimate is logged beside the written size so CI shows the margin.
    Done: `ProcFactsTests` (the readable mappings, free space); a Windows capture logs, for example, 146,213,206 bytes
    written against 162,721,792 estimated (90%).
-4. [ ] Elevation on Linux: another user's process needs HeapScope to run as root or as that user (its diagnostics socket
+4. [x] Elevation on Linux: another user's process needs HeapScope to run as root or as that user (its diagnostics socket
    is that user's); the same user's process is not elevated; root reaches all. Tests: the rule on uid pairs; the probe
    on the test process.
+   Done: `UnixElevationProbe.StateOf` on effective user ids, `CapturePlatformTests` (the rule; the probe on the test
+   process). The texts that say "administrator" (the Processes page, the refusal, the CLI) get Linux wording in task 5.
 5. [ ] Refusals with a next step on Linux: `WriteDump` failing for ptrace rules (`/proc/sys/kernel/yama/ptrace_scope`
    3, or a container without `SYS_PTRACE`), a target whose diagnostics socket is in another `TMPDIR`, and a target that
    disabled diagnostics (`DOTNET_EnableDiagnostics=0`). Wording drafted for the owner. Tests: the translation of each
