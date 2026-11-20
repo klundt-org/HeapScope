@@ -156,7 +156,7 @@ public sealed class DumpCapturerTests : IDisposable
 
         var ex = await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Process(ElevationState.Unknown), Dump(), null, Ct));
 
-        ex.Message.ShouldContain("administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsLinux() ? "or as root (sudo)" : "administrator");
     }
 
     [Fact]

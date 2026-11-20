@@ -89,7 +89,7 @@ public sealed class ProcessesViewModelTests : IDisposable
         await _processes.RefreshCommand.ExecuteAsync(null);
 
         _processes.ShowElevationHint.ShouldBeFalse();
-        _processes.Processes[1].Elevation.ShouldBe("Elevated");
+        _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Another user's" : "Elevated");
     }
 
     [Fact]
