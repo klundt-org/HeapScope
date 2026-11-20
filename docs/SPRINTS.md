@@ -121,10 +121,14 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
 `PlatformHints.CanCapture` is Windows only.
 
 **Tasks**
-1. [ ] The checks by hand, automated where they can be: the headless screenshot mode (`--headless --screenshots`) also
+1. [x] The checks by hand, automated where they can be: the headless screenshot mode (`--headless --screenshots`) also
    captures an info icon's popup open (one beside a turned-off button too), the Retainers chart with a bar's and the
    "+N smaller" bar's popups, and Settings' Purge all confirmation; DEVELOPER.md 5 keeps only what needs a person (looks
    on a real monitor, an elevated target). Tests: the screenshot run's list of files; the popup states in UI tests.
+   Done: the run opens each popup (Purge all's question shown in its real window and answered Cancel, never through the
+   command, which a smoke run would answer yes), fails when one does not open, and `build/screenshots.sh` fails on a
+   missing picture; `SettingsViewModelTests.Purge_alls_question_can_be_shown_without_asking_or_deleting`. The popup
+   states were already tested (`InfoIconTests`, `IcicleChartTests`).
 2. [ ] Process facts per system: an `IProcessFacts` with the Windows calls as they are and a Linux reader of `/proc/<pid>`
    (`exe`, `cmdline`, `status` for the owner, `maps` for the runtime's `libcoreclr.so` folder and version and the
    readable mappings). The parsers take text and run on every system. Tests: parser tests on recorded `/proc` text

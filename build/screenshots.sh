@@ -68,4 +68,13 @@ for theme in Light Dark; do
   [ "$code" -eq 0 ] || failed=1
 done
 echo "$(ls "$out"/[0-9][0-9]-*-light.png "$out"/[0-9][0-9]-*-dark.png 2>/dev/null | wc -l) pictures in $out"
+# Every picture the run must make, in both themes (sprint 4.1: the popups the real window shows are among them, so a popup
+# that stops opening is found here too). 10-retainers-smaller is left out: not every chart has a "+N smaller" bar.
+for name in 01-home 02-processes 02-processes-info 02-processes-info-beside-off 03-types 04-instances 05-object \
+  06-object-retention 07-why-alive 08-why-alive-diagram 09-inspections 10-retainers 10-retainers-bar 11-compare \
+  12-allocations 13-live 14-jobs 15-about 16-lesson-panel 17-learn 18-settings 19-purge-all-question; do
+  for theme in light dark; do
+    [ -s "$out/$name-$theme.png" ] || { echo "Missing picture: $name-$theme.png"; failed=1; }
+  done
+done
 exit "$failed"
