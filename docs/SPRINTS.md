@@ -155,9 +155,14 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    failure from `ptrace_scope` or a container; a pid not found: another user's, diagnostics off, another `TMPDIR`, not
    .NET) and `ElevationTexts` in Core (the texts that said "administrator", per system; front ends reach them through
    Application's `RightsTexts`); the discovery log names the temp folder it looked in. Tests: `LinuxCaptureRulesTests`.
-6. [ ] Turn capture on for Linux: `CapturePlatform` supports Windows and Linux (macOS refuses until 4.2, its message
+6. [x] Turn capture on for Linux: `CapturePlatform` supports Windows and Linux (macOS refuses until 4.2, its message
    updated); `PlatformHints.CanCapture` follows it, so the Capture and Live pages and the tutorial's lessons open there.
    Tests: the platform rule per system; the view models' empty texts per system.
+   Done: `CapturePlatform.IsSupported` (Windows and Linux); the capture tests run on Linux too (`HeapScopeTestsRunOn`
+   dropped; a test of one system skips elsewhere); tests that named the Windows texts expect each system's. Also needed:
+   the DAC copied beside a dump has its Linux name (`libmscordaccore.so`), and the runtime version on Linux is the file
+   version embedded in `libcoreclr.so` (as ClrMD reads it from a dump), so `dac/<version>` matches. Wording drafted
+   (info-text.md, Sprint 4.1 additions).
 7. [ ] End to end on Linux in CI: an integration test starts the sample, finds it in the list, captures a full dump and a
    gcdump through the application layer and opens both; CI's fixture dump is taken with HeapScope's own CLI instead of
    `dotnet-dump`, and the app's `--smoke-live` runs headless on Linux. Tests: those runs.

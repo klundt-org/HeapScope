@@ -47,7 +47,7 @@ public sealed class DumpCapturerTests : IDisposable
     {
         var ex = await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Process(ElevationState.Elevated), Dump(), null, Ct));
 
-        ex.Message.ShouldContain("Run HeapScope as administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
         ex.Message.ShouldContain("pid 4242");
         _writer.Calls.ShouldBe(0, "refused before the runtime is asked");
     }
@@ -183,7 +183,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task An_exited_target_gives_a_plain_message()
     {
-        Assert.SkipUnless(OperatingSystem.IsWindows(), "Capture runs on Windows only (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows and Linux (ADR-025): elsewhere it refuses before the writer is called.");
         _writer.Behavior = _ => throw new ServerNotAvailableException("gone");
 
         var ex = await Should.ThrowAsync<TargetUnavailableException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
@@ -212,6 +212,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public void The_real_probe_answers_for_this_process()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The Windows probe asks the Windows kernel.");
         WindowsElevationProbe.Instance.GetState(Environment.ProcessId)
             .ShouldBe(WindowsElevationProbe.Instance.IsCurrentProcessElevated ? ElevationState.Elevated : ElevationState.NotElevated);
     }

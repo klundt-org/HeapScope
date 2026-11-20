@@ -59,7 +59,7 @@ public sealed class CaptureRefusalTests : IDisposable
         {
             try
             {
-                CapturePlatform.EnsureSupported(isWindows: false);
+                CapturePlatform.EnsureSupported(supported: false);
             }
             catch (PlatformNotSupportedException ex)
             {

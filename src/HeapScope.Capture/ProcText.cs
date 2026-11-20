@@ -117,6 +117,31 @@ internal static class ProcText
     }
 
     /// <summary>
+    /// The file version a runtime library carries in its <c>@(#)Version 10.0.125.57005 ...</c> string: what ClrMD reads from
+    /// a dump's runtime module, so the DAC copied beside a dump goes into the folder the loader looks in (<c>dac/&lt;version&gt;</c>).
+    /// Null when the library has no such string.
+    /// </summary>
+    public static string? EmbeddedVersion(ReadOnlySpan<byte> library)
+    {
+        ReadOnlySpan<byte> marker = "@(#)Version "u8;
+        var at = library.IndexOf(marker);
+        if (at < 0)
+        {
+            return null;
+        }
+
+        var rest = library[(at + marker.Length)..];
+        var end = 0;
+        while (end < rest.Length && end < 64 && (char.IsAsciiDigit((char)rest[end]) || rest[end] == (byte)'.'))
+        {
+            end++;
+        }
+
+        var text = Encoding.ASCII.GetString(rest[..end]);
+        return Version.TryParse(text, out _) ? text : null;
+    }
+
+    /// <summary>
     /// The effective user id from <c>status</c> (its <c>Uid:</c> line holds the real, effective, saved and file system
     /// ids): the user the process acts as, whose diagnostics socket it creates. Null when the line is missing.
     /// </summary>

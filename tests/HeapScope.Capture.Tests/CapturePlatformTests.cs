@@ -29,10 +29,12 @@ public sealed class CapturePlatformTests
     [Fact]
     public void Capture_is_refused_off_windows_with_the_way_to_take_a_dump_there()
     {
-        var refused = Should.Throw<PlatformNotSupportedException>(() => CapturePlatform.EnsureSupported(isWindows: false));
+        var refused = Should.Throw<PlatformNotSupportedException>(() => CapturePlatform.EnsureSupported(supported: false));
 
         refused.Message.ShouldContain("dotnet-dump collect");
-        Should.NotThrow(() => CapturePlatform.EnsureSupported(isWindows: true));
+        refused.Message.ShouldStartWith("Capturing from HeapScope runs on Windows and Linux for now. On macOS,");
+        CapturePlatform.IsSupported.ShouldBe(OperatingSystem.IsWindows() || OperatingSystem.IsLinux());
+        Should.NotThrow(() => CapturePlatform.EnsureSupported(supported: true));
     }
 
     [Fact]

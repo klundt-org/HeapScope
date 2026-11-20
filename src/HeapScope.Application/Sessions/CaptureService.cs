@@ -55,7 +55,9 @@ public sealed record CaptureResult(string Path, long SizeBytes, ProcessEntry Pro
 /// </summary>
 public sealed class CaptureService : ICaptureService
 {
-    private const string DacFileName = "mscordaccore.dll";
+    // The DAC's name on this system (sprint 4.1: Linux captures too); the loader picks the same name for a dump of this system.
+    private static readonly string s_dacFileName =
+        OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so";
 
     private readonly IProcessDiscovery _discovery;
     private readonly DumpCapturer _capturer;
@@ -417,13 +419,13 @@ public sealed class CaptureService : ICaptureService
         }
 
         // One copy per runtime version (dac\<file version>), so dumps of two runtimes in one folder keep their own DAC.
-        var source = Path.Combine(runtime, DacFileName);
-        var target = Path.Combine(folder, "dac", process.RuntimeVersion ?? "unknown", DacFileName);
+        var source = Path.Combine(runtime, s_dacFileName);
+        var target = Path.Combine(folder, "dac", process.RuntimeVersion ?? "unknown", s_dacFileName);
         try
         {
             if (!File.Exists(source))
             {
-                _logger.LogInformation("The target's runtime folder {Runtime} has no {Dac}; none is copied next to the dump", runtime, DacFileName);
+                _logger.LogInformation("The target's runtime folder {Runtime} has no {Dac}; none is copied next to the dump", runtime, s_dacFileName);
                 return;
             }
 

@@ -68,7 +68,7 @@ grep -q '"Name":"StaticCache"' <<< "$catalog" || { echo "$catalog"; fail "The sa
 if scenarios=$("$dir/heapscope-cli$ext" sample list 2>&1 | tr -d '\r'); then
   grep -qE '^StaticCache +yes ' <<< "$scenarios" || { echo "$scenarios"; fail "heapscope-cli sample list did not list StaticCache"; }
 else
-  grep -q "HeapScope runs as administrator, so the sample would too." <<< "$scenarios" || { echo "$scenarios"; fail "heapscope-cli sample list failed"; }
+  grep -qE "HeapScope runs as (administrator|root), so the sample would too." <<< "$scenarios" || { echo "$scenarios"; fail "heapscope-cli sample list failed"; }
   echo "heapscope-cli sample list refused the sample, as it must when HeapScope runs elevated."
 fi
 
