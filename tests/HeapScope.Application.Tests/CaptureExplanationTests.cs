@@ -113,7 +113,13 @@ public sealed class CaptureExplanationTests : IDisposable
         }
         else
         {
-            line.ShouldEndWith($"; diagnostics sockets looked for in {Path.GetTempPath()} only");
+            line.ShouldContain($"; diagnostics sockets looked for in {Path.GetTempPath()} only");
+            if (OperatingSystem.IsLinux())
+            {
+                // Review H6: the ids behind the marks.
+                line.ShouldContain("; HeapScope's effective user ");
+                line.ShouldEndWith("; another user's: none");
+            }
         }
     }
 

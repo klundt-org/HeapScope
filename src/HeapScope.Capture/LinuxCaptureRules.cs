@@ -160,8 +160,8 @@ internal static class LinuxCaptureRules
 
         if (target.SameMountNamespace == false)
         {
-            return $"Process {pid} has its own /tmp (a service with PrivateTmp, or a container), so HeapScope cannot see its "
-                + "diagnostics socket. Run HeapScope where the process runs (in its container, or with the service's settings), "
+            return $"Process {pid} probably has its own /tmp (a service with PrivateTmp, or a container), so HeapScope cannot "
+                + "see its diagnostics socket. Run HeapScope where the process runs (in its container, or with the service's settings), "
                 + "then capture it again.";
         }
 
@@ -189,6 +189,7 @@ internal static class LinuxCaptureRules
             : ProcText.Runtime(maps) is { } found ? "libcoreclr.so in " + found.Directory
             : maps.Contains("libclrjit.so", StringComparison.Ordinal) ? "libclrjit.so"
             : target.ExecutableCarriesRuntime == true ? "in its executable (single-file)"
+            : target.ExecutableCarriesRuntime is null ? "none in maps, executable not read"
             : "none";
         var line = new StringBuilder();
         line.Append(CultureInfo.InvariantCulture, $"Linux check of pid {target.ProcessId}: running {(target.Running ? "yes" : "no")}; ");
@@ -199,6 +200,21 @@ internal static class LinuxCaptureRules
         line.Append(CultureInfo.InvariantCulture, $"mount namespace {(target.SameMountNamespace switch { true => "same", false => "another", null => "unknown" })}; ");
         line.Append(CultureInfo.InvariantCulture, $"runtime {runtime}");
         return line.ToString();
+    }
+
+    /// <summary>
+    /// The failure for a process that did not answer on its diagnostics port (Live and recording, review M2 and H6): on
+    /// Linux the reason a capture would give, with its evidence for the log; <paramref name="otherwise"/> when none applies.
+    /// </summary>
+    public static TargetUnavailableException NotAnswering(int processId, string otherwise, Exception inner)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return new TargetUnavailableException(otherwise, inner);
+        }
+
+        var target = Read(processId);
+        return new TargetUnavailableException(WhyNoDiagnostics(target) ?? otherwise, inner) { Evidence = Evidence(target) };
     }
 
     /// <summary>The value of <c>kernel.yama.ptrace_scope</c>, or null where Yama is not built in.</summary>

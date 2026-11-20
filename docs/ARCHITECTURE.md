@@ -16,7 +16,8 @@ traffic, takes snapshots over time, and uses HeapScope to find what is growing a
 - Live counters and timed snapshots.
 - Reverse references, retention paths, dominator tree, retained sizes, smart leak detectors.
 - A CLI with the same capabilities as the UI, usable in automation.
-- Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture there is a backlog item.
+- Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture on Linux since sprint 4.1,
+  on macOS in sprint 4.2.
 - Sharing results as an exported analysis the user writes and passes on (ADR-026).
 
 **Non-goals (for now).**
@@ -113,8 +114,8 @@ Capture and sessions (sprint 1.1):
   The current session is created when the first capture passes its checks (a refused capture leaves no folder), or
   chosen with `Open` (Home's Open, CLI `--session`). `CaptureService` (behind `ICaptureService`) lists processes off
   the calling thread, runs captures as tracked jobs with collision-free file names into the session that was current
-  when the capture started, copies the target's `mscordaccore.dll` to `dac\<file version>\` next to the dump (the
-  loader searches it; the dump stays readable after the runtime on this machine is updated, for self-contained apps,
+  when the capture started, copies the target's DAC (`mscordaccore.dll`; on Linux `libmscordaccore.so` with `libcoreclr.so`, sprint 4.1) to
+  `dac\<file version>\` next to the dump (the loader searches every `dac` folder there; the dump stays readable after the runtime on this machine is updated, for self-contained apps,
   and with several runtimes in one session) and, since 3.6, trusts that copy by its SHA-256 (`TrustedDacs`, ADR-035),
   records the snapshot, and logs start, end and failures. Every capture states that the dump
   contains secrets and where it was written. Front ends see only Application types: `ICaptureService`, `ProcessEntry`

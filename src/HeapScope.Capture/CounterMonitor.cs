@@ -170,7 +170,14 @@ public static class CounterMonitor
         }
         catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException)
         {
-            throw Translate(processId, ex);
+            var failure = Translate(processId, ex);
+            if (failure is TargetUnavailableException { Evidence: { } evidence })
+            {
+                // Sprint 4.1 review H6: what the reason given rests on.
+                logger?.LogInformation("Pid {Pid} could not be monitored: {Evidence}", processId, evidence);
+            }
+
+            throw failure;
         }
 
         using (session)
@@ -289,8 +296,6 @@ public static class CounterMonitor
         // Sprint 4.1 review M2: on Linux the same reasons as a capture's (another user's, diagnostics off, another /tmp).
         return ex is UnauthorizedAccessException
             ? ElevationRequiredException.ForMonitoring(processId, processName, ex)
-            : OperatingSystem.IsLinux() && LinuxCaptureRules.WhyNoDiagnostics(LinuxCaptureRules.Read(processId)) is { } why
-            ? new TargetUnavailableException(why, ex)
-            : new TargetUnavailableException($"{processName} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
+            : LinuxCaptureRules.NotAnswering(processId, $"{processName} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
     }
 }

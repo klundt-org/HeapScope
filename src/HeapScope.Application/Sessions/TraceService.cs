@@ -22,6 +22,8 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using HeapScope.Capture;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.Application.Sessions;
 
@@ -46,8 +48,10 @@ public sealed record TraceResult(string Path, long Bytes, TimeSpan Duration, boo
 /// Records EventPipe traces of .NET processes, HeapScope's own included (sprint 1.5): no dotnet-trace install. Failures
 /// are <see cref="CaptureFailedException"/> with a plain-language next step, like captures.
 /// </summary>
-public sealed class TraceService
+public sealed class TraceService(ILogger<TraceService>? logger = null)
 {
+    private readonly ILogger _logger = logger ?? NullLogger<TraceService>.Instance;
+
     /// <summary>Records <paramref name="processId"/> for <paramref name="duration"/> (or until canceled) into <paramref name="path"/>.</summary>
     public async Task<TraceResult> RecordAsync(int processId, string path, TraceKind kind, TimeSpan duration, CancellationToken cancellationToken)
     {
@@ -58,6 +62,12 @@ public sealed class TraceService
         }
         catch (Exception ex) when (Translate(ex) is { } failure)
         {
+            if (ex is TargetUnavailableException { Evidence: { } evidence })
+            {
+                // Sprint 4.1 review H6: what the reason given rests on.
+                _logger.LogInformation("Pid {Pid} could not be traced: {Evidence}", processId, evidence);
+            }
+
             throw failure;
         }
     }

@@ -30,6 +30,9 @@ public sealed class TargetUnavailableException : Exception
     {
     }
 
+    /// <summary>What the reason given rests on, for the log (sprint 4.1 review H6, Linux); null when nothing was checked.</summary>
+    public string? Evidence { get; init; }
+
     public TargetUnavailableException(string message)
         : base(message)
     {

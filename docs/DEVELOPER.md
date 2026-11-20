@@ -46,7 +46,8 @@ dotnet test --solution HeapScope.sln
 - Data folders (sprint 3.8): every test process sets `HEAPSCOPE_DATA_FOLDER` to `HeapScopeTests/data` under the temporary
   folder (`tests/Shared/TestDataFolder.cs`) before anything reads `HeapScopeFolders`, and the workers and front ends it
   starts inherit it, so no test writes into the user's sessions, logs, index cache key, trusted DACs or bookmarks. Set it
-  by hand to run the app or the CLI against a scratch profile. The worker also takes `--data-folder` (from
+  by hand to run the app or the CLI against a scratch profile; the build scripts that drive the CLI set it to a scratch
+  folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `linux-capture-check.sh`). The worker also takes `--data-folder` (from
   `Worker:DataFolder` on the client), which wins over the variable.
 - Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`) run a short pass in every run;
   `HEAPSCOPE_FUZZ_ITERATIONS` and `HEAPSCOPE_FUZZ_SEED` raise and vary it. The nightly `fuzz.yml` runs 2,000 iterations on
@@ -624,8 +625,10 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     path root, a complete graph, a named runtime version) and opens the dump in the app without a display
     (`--headless --smoke-open`). Then `build/linux-capture-check.sh` starts the tutorial's sample with `sample start`,
     finds it with `list`, captures a full dump and a gcdump and opens both with `summary` (2,000 `StaticCacheEntry`
-    objects each), its capture log line naming the size estimate beside the size written, and the app runs its live
-    smoke run headless (`--smoke-live 1800`). The Linux package is captured by its own unpacked CLI too.
+    objects each), watches it with `monitor` and records an allocations trace with `trace` that `allocations` must name
+    the SteadyAllocation scenario's `PricedOrder` from (the 4.1 review, M7), all with a scratch data folder; the capture
+    log lines name the size estimate beside the size written, and the job warns when a dump is larger than its estimate.
+    The app runs its live smoke run headless (`--smoke-live 1800`). The Linux package is captured by its own unpacked CLI too.
   - No macOS runners since 2026-10-31 (owner: their minutes cost about ten times Linux's). Until then a macOS job did
     what Linux does, informational (an arm64 runner; ADR-025). Nothing in CI tests on macOS now.
   - Beside the tests (since 2026-10-31; before, after them), a package job publishes the self-contained builds per

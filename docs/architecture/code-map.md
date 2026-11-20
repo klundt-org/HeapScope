@@ -85,6 +85,14 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `CapturePlatform.ProcessFacts`): `WindowsProcessFacts` (the kernel calls `ProcessDiscovery` made before) and
   `LinuxProcessFacts` (reads `/proc/<pid>`), whose text `ProcText` parses on every system: the command line, a deleted
   executable, the runtime's folder and version from `maps`, the effective user id from `status` [4.1].
+  `LinuxCaptureRules` (why Linux refuses: a pid not found, from a `LinuxTarget` read from `/proc`, by user ids, diagnostics
+  turned off, its own `/tmp`, another `TMPDIR`, no runtime even in a single-file executable; a dump createdump could not
+  write, from what it reported, then the ptrace rule or the container; each with the evidence the log keeps), returned as
+  `NotFoundExplanation` by `IProcessDiscovery.WhyNotFound` and used by `CounterMonitor` and `TraceRecorder` too;
+  `UnixElevationProbe` (on Linux another user's process, by effective user id, is Elevated); `DumpCapturer.LibraryRefusal`
+  (as root, another user's full dump never goes to HeapScope's folders); `TargetFiles` (a file a target names is read only
+  when regular and of a sane size) [4.1, its review]. The per-system texts for more rights are Core's `ElevationTexts`,
+  passed to the front ends by Application's `RightsTexts` [4.1].
 - **Loaders.ClrMd.** `ClrMdDumpLoader` (truncated dumps refused or marked incomplete: heap creation failures, objects
   without a type, segments whose memory is missing, files shorter than their minidump directory) [1.2, 1.8];
   `ClrMdObjectReader` (opens the dump on first use, serialized, disposed with the snapshot) and `ClrMdDump` (opening
@@ -95,7 +103,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `UnixLocalPath` (the local path rule on Linux and macOS: the mount holding the path, links resolved) [2.3.5];
   `DacLocator` and `LocalOnlyFileLocator` (the matching DAC from local folders only, ADR-017, section 6.3) [0.1, 1.2];
   a DAC next to the dump only once trusted by its SHA-256 and loaded from a private copy (`BesideDumpDirectories`,
-  `UntrustedDacException`, ADR-035) [3.6];
+  `UntrustedDacException`, ADR-035) [3.6], searched in every `dac/` folder beside the dump [4.1 review];
   the DAC of the system HeapScope runs on, matched on Linux and macOS by `ImageIdentity` (ELF GNU build id, Mach-O
   UUID) against the DAC itself or, when the dump archives it under the runtime's identity, against `libcoreclr` in the
   same folder; ClrMD reads a core file's runtime version as 0.0 at times, and the runtime's folder name names it then

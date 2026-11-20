@@ -3,8 +3,8 @@
 #   checks the known answers. The heavy integration tests run in a second Windows job beside it.
 # - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests, captures the fixture with the CLI
 #   (sprint 4.1: capture runs on Linux), checks the CLI's known answers and opens the dump in the app without a display,
-#   captures the tutorial's sample as a full dump and a gcdump and opens both (build/linux-capture-check.sh), and runs the
-#   app's live smoke run.
+#   captures the tutorial's sample as a full dump and a gcdump and opens both, monitors it and reads an allocations trace
+#   of it (build/linux-capture-check.sh), and runs the app's live smoke run.
 # - Packages: self-contained builds per runtime identifier with their license files (checked), in their release archives,
 #   built beside the tests and uploaded as artifacts on manual runs. The Windows and Linux ones are unpacked
 #   and run as a user gets them, without .NET (Linux in a plain Ubuntu container), on a fixture dump, and the CLI's

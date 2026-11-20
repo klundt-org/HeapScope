@@ -34,6 +34,12 @@ public static class CapturePlatform
     internal static IProcessFacts ProcessFacts() =>
         OperatingSystem.IsLinux() ? LinuxProcessFacts.Instance : WindowsProcessFacts.Instance;
 
+    /// <summary>
+    /// The user a process acts as (its effective user id), on Linux, for the log (sprint 4.1 review H6): the rule that marks
+    /// another user's process rests on it. Null elsewhere, or when the process exited.
+    /// </summary>
+    public static int? EffectiveUserId(int processId) => OperatingSystem.IsLinux() ? LinuxProcessFacts.EffectiveUserId(processId) : null;
+
     /// <summary>Whether capture is built for this system: Windows, and Linux since sprint 4.1 (macOS follows in 4.2).</summary>
     public static bool IsSupported { get; } = OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 

@@ -123,7 +123,8 @@ public sealed class CaptureService : ICaptureService
                 omitted.Own.Count == 0 ? "none" : string.Join(", ", omitted.Own),
                 omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed),
                 // Sprint 4.1: off Windows a process is found by its socket in this temp folder; one using another is not seen.
-                OperatingSystem.IsWindows() ? string.Empty : $"; diagnostics sockets looked for in {Path.GetTempPath()} only");
+                // On Linux the ids behind each "needs more rights" mark too (review H6).
+                OperatingSystem.IsWindows() ? string.Empty : $"; diagnostics sockets looked for in {Path.GetTempPath()} only{UserIds(processes)}");
             return [.. processes.Select(ToEntry)];
         }
         catch (PlatformNotSupportedException ex)
@@ -178,14 +179,19 @@ public sealed class CaptureService : ICaptureService
             {
                 if (outputPath is null)
                 {
-                    // Check against the library root before a session folder exists.
-                    // Sprint 4.1 review H1: as root, another user's full dump cannot go into root's own folders.
+                    // Sprint 4.1 review H1: as root, another user's full dump cannot go into root's own folders (a full
+                    // dump is the profile that copies the DAC).
                     if (profile.CopiesDac && DumpCapturer.LibraryRefusal(process, _elevation.IsCurrentProcessElevated) is { } refusal)
                     {
-                        _logger.LogInformation("A full dump of pid {Pid} into the library is refused: HeapScope runs as root and the process as another user", process.ProcessId);
+                        _logger.LogInformation(
+                            "A full dump of pid {Pid} into the library is refused: HeapScope runs as root (effective user {Own}) and the process as effective user {Target}",
+                            process.ProcessId,
+                            UserId(Environment.ProcessId),
+                            UserId(process.ProcessId));
                         throw new DumpWriteFailedException(refusal);
                     }
 
+                    // Check against the library root before a session folder exists.
                     PrivateFiles.CreateDirectory(Library.Root);
                     profile.Preflight?.Invoke(process, Path.Combine(Library.Root, "probe" + profile.Extension));
 
@@ -392,9 +398,23 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
-    /// What differs per kind of capture (sprint 1.9): a full dump is checked against the disk (its size is about the
-    /// process's memory) and gets the target's DAC beside it; a gcdump is a fraction of the heap and needs no DAC.
+    /// On Linux, HeapScope's effective user id and each marked process's (sprint 4.1 review H6): the mark "Needs root or its
+    /// user" rests on the two differing. Empty elsewhere.
     /// </summary>
+    private static string UserIds(IReadOnlyList<DotNetProcess> processes)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return string.Empty;
+        }
+
+        var marked = processes.Where(p => p.Elevation == ElevationState.Elevated).Take(200).Select(p => $"{p.ProcessId} (user {UserId(p.ProcessId)})").ToList();
+        return $"; HeapScope's effective user {UserId(Environment.ProcessId)}; another user's: {(marked.Count == 0 ? "none" : string.Join(", ", marked))}";
+    }
+
+    private static string UserId(int processId) =>
+        CapturePlatform.EffectiveUserId(processId) is { } id ? id.ToString(CultureInfo.InvariantCulture) : "unknown";
+
     /// <summary>
     /// The failure for a pid that is not found: why, where the system can tell (sprint 4.1), and what that rests on in the
     /// log (review H6), so support can back the reason up.
@@ -413,6 +433,10 @@ public sealed class CaptureService : ICaptureService
             null);
     }
 
+    /// <summary>
+    /// What differs per kind of capture (sprint 1.9): a full dump is checked against the disk (its size is about the
+    /// process's memory) and gets the target's DAC beside it; a gcdump is a fraction of the heap and needs no DAC.
+    /// </summary>
     private CaptureProfile ProfileOf(SnapshotKindDto kind) => kind switch
     {
         SnapshotKindDto.GcDump => new(

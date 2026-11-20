@@ -21,8 +21,8 @@
   - Windows only for now (Linux since sprint 4.1, below): capture (process discovery, dump writing, elevation). Off Windows it refuses with
     `PlatformNotSupportedException` naming `dotnet-dump` (`CapturePlatform.EnsureSupported`), which Application reports
     as `CaptureFailedException` with `CaptureFailure.NotSupportedOnThisSystem`; the elevation probe
-    reports `Environment.IsPrivilegedProcess`. Linux and macOS capture (createdump through the diagnostics client,
-    `/proc` for discovery) is a backlog item.
+    reports `Environment.IsPrivilegedProcess`. Linux capture came in sprint 4.1 (amendment below); macOS capture is
+    sprint 4.2.
   - Some tests depend on Windows file semantics (an open or mapped file cannot be deleted or replaced there; it can on
     Linux and macOS) or Windows paths; they skip off Windows.
 - Prototype (`spikes/AvaloniaGrid`, outside the solution, removed in 2.3.6, Small dump): Avalonia 12.1.4 with the Fluent theme and the
@@ -66,11 +66,14 @@
 - Amended in sprint 4.1: capture runs on Linux too (macOS follows in 4.2). The diagnostics client does what it does on
   Windows (discovery through the runtime's published sockets, `WriteDump` through the runtime's createdump, EventPipe for
   live counters and allocation traces); what Windows asks the kernel, Linux reads from `/proc/<pid>` (`IProcessFacts`:
-  the executable, the command line, the runtime's folder and its embedded file version, the readable mappings for the
-  dump size estimate, the effective user id). Elevation follows the user a process acts as: its diagnostics socket is that
+  the executable, the command line, the runtime's folder and its embedded file version; beside it, Linux calls until 4.2
+  makes the split whole, the readable mappings for the dump size estimate and the effective user id). Elevation follows the user a process acts as: its diagnostics socket is that
   user's, so another user's process needs HeapScope run as that user or as root. HeapScope never changes system
   settings: when `kernel.yama.ptrace_scope`, a container without `SYS_PTRACE`, another `TMPDIR` or a process's own
-  `DOTNET_EnableDiagnostics=0` stops a capture, the refusal names it and what to change. Discovery looks only where the
+  `DOTNET_EnableDiagnostics=0` stops a capture, the refusal names it and what to change, and the log keeps what it rests on (the 4.1 review). As
+  root, a full dump of another user's process goes only to a folder that user can write (`--out`): the runtime writes it
+  as that user. Files a target names (its runtime folder) are read only when regular and of a sane size, and a DAC copied
+  beside a dump comes with `libcoreclr.so`; the loader searches every `dac/` folder there. Discovery looks only where the
   runtime publishes (this user's temp folder); it does not search others. Proven in CI's Linux job (the capture tests,
   `build/linux-capture-check.sh`); there is no local Linux run on the development machine.
 - Amended by ADR-039 (sprint 3.9): releases ship win-x64 and linux-x64 (since 3.10 also the macOS builds, marked untested),

@@ -135,8 +135,8 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    (cmdline separators, deleted executables, the runtime folder and version from the shared framework path, a
    single-file app without `libcoreclr.so`); on Linux, the facts of the test process itself.
    Done: `ProcFactsTests` (11; the one on the test process itself runs once the capture tests run on Linux, task 6).
-   On Linux the runtime's version is the shared framework folder's name (`10.0.1`), where Windows gives coreclr.dll's
-   file version (`10.0.125.57005`); a self-contained app's is unknown.
+   The shared framework folder's name (`10.0.1`) is only the fallback since task 6, which reads the file version embedded
+   in `libcoreclr.so` (`10.0.125.57005`), as Windows gives coreclr.dll's; a self-contained app's comes from its library too.
 3. [x] The dump size estimate on Linux from the readable mappings, erring high like Windows'; free disk space through the
    file system's own figure (`DriveInfo` on the folder). Tests: the estimate on sample `maps` text; free space of the
    temp folder is positive on every system; the estimate is logged beside the written size so CI shows the margin.
@@ -151,7 +151,7 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    3, or a container without `SYS_PTRACE`), a target whose diagnostics socket is in another `TMPDIR`, and a target that
    disabled diagnostics (`DOTNET_EnableDiagnostics=0`). Wording drafted for the owner. Tests: the translation of each
    failure; the discovery log names what it skipped.
-   Done (wording drafted, waiting for the owner: info-text.md, Sprint 4.1 additions): `LinuxCaptureRules` (the write
+   Done (wording approved by the owner 2026-11-20: info-text.md, Sprint 4.1 additions): `LinuxCaptureRules` (the write
    failure from `ptrace_scope` or a container; a pid not found: another user's, diagnostics off, another `TMPDIR`, not
    .NET) and `ElevationTexts` in Core (the texts that said "administrator", per system; front ends reach them through
    Application's `RightsTexts`); the discovery log names the temp folder it looked in. Tests: `LinuxCaptureRulesTests`.
@@ -170,7 +170,8 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    `build/linux-capture-check.sh` drives the CLI (the application layer a user's command runs) through `sample start`,
    `list`, a full dump and a gcdump, and `summary` of both; it passes on Windows here, and CI's Linux job runs it with
    the fixture capture by the CLI and the live smoke run. The Linux package job captures with its own CLI too. Proven on
-   Linux by the PR's first CI run.
+   Linux by a CI run of the branch on 2026-11-20 (the first failed three tests that expected Windows wording, now fixed);
+   since the review it also monitors the sample and records and reads an allocations trace (M7).
 8. [x] The tutorial on Linux: the sample starts from the Learn page and every lesson that captures runs there; this
    sprint's lesson is the Linux rules (who can capture whom, ptrace) as a short lesson or a lesson note, drafted for the
    owner. Tests: the lesson catalog on Linux; the sample launch path per system.

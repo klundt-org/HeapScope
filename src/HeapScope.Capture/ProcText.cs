@@ -89,7 +89,8 @@ internal static class ProcText
     /// The runtime from <c>maps</c>: the folder of the mapped <c>libcoreclr.so</c>, and its version from the shared
     /// framework's folder name (<c>.../shared/Microsoft.NETCore.App/10.0.1/libcoreclr.so</c>). A self-contained app carries
     /// the runtime in its own folder, which names no version. Null when no <c>libcoreclr.so</c> is mapped: a single-file
-    /// app links the runtime into its executable.
+    /// app links the runtime into its executable. The folder's version is a fallback: <see cref="LinuxProcessFacts"/>
+    /// replaces it with the library's embedded file version (<see cref="EmbeddedVersion"/>), as on Windows.
     /// </summary>
     public static RuntimeFacts? Runtime(string maps)
     {
