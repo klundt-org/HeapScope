@@ -50,7 +50,7 @@
     </Border>
     <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8" IsVisible="{Binding ShowElevationHint}">
       <TextBlock TextWrapping="Wrap"
-                 Text="Processes marked 'Needs administrator' run elevated or as another user. To capture them, run HeapScope as administrator." />
+                 Text="{x:Static vm:PlatformHints.ElevationHint}" />
     </Border>
     <!-- Sprint 3.13 (ADR-042): the tutorial's sample, a process of HeapScope's own with planted problems to look at. -->
     <Expander DockPanel.Dock="Top" Margin="0,0,0,8" IsVisible="{Binding HasSample}" Header="Sample process"
@@ -89,7 +89,7 @@
         <DataGridTextColumn Header="Runtime" x:DataType="vm:ProcessRow" Binding="{Binding Runtime, Mode=OneWay}" Width="130" />
         <DataGridTextColumn x:DataType="vm:ProcessRow" Binding="{Binding Elevation, Mode=OneWay}" Width="140">
           <DataGridTextColumn.Header>
-            <TextBlock Text="Elevation" ToolTip.Tip="&quot;Needs administrator&quot; means you must run HeapScope as administrator to capture this process. &quot;Elevated&quot; means it runs elevated and HeapScope does too." />
+            <TextBlock Text="Elevation" ToolTip.Tip="{x:Static vm:PlatformHints.ElevationColumnTip}" />
           </DataGridTextColumn.Header>
         </DataGridTextColumn>
         <DataGridTextColumn x:DataType="vm:ProcessRow" Binding="{Binding WorkingSetBytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="130" CellStyleClasses="number">

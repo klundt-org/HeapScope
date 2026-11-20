@@ -85,8 +85,9 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   2 KB at most); a lesson's start (scenarios, answer type and scenario, catalog and lesson versions, the choices offered), its
   answer (chosen, expected, the sample and whether it still runs, right or wrong), its end and a sample gone under it; the
   progress file's writes and a damaged file kept as `.bak`. Every process list logs the pids it listed (200 at most) and the
-  pids it left out as HeapScope's own or could not read, and the Processes page logs a sample it started that the list does
-  not show, so "the sample is not in the list" can be backed up. All of these are names,
+  pids it left out as HeapScope's own or could not read (off Windows, since 4.1, also the temp folder it looked in for
+  diagnostics sockets, so a process using another one is explained), and the Processes page logs a sample it started that
+  the list does not show, so "the sample is not in the list" can be backed up. All of these are names,
   pids and counts: the sample's messages are its own, never a dump's contents.
 - **What a log may hold (sprint 2.3.7 review M6)**: paths, file and process names, type, module and field names, counts,
   sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump:

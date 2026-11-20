@@ -147,10 +147,14 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    on the test process.
    Done: `UnixElevationProbe.StateOf` on effective user ids, `CapturePlatformTests` (the rule; the probe on the test
    process). The texts that say "administrator" (the Processes page, the refusal, the CLI) get Linux wording in task 5.
-5. [ ] Refusals with a next step on Linux: `WriteDump` failing for ptrace rules (`/proc/sys/kernel/yama/ptrace_scope`
+5. [x] Refusals with a next step on Linux: `WriteDump` failing for ptrace rules (`/proc/sys/kernel/yama/ptrace_scope`
    3, or a container without `SYS_PTRACE`), a target whose diagnostics socket is in another `TMPDIR`, and a target that
    disabled diagnostics (`DOTNET_EnableDiagnostics=0`). Wording drafted for the owner. Tests: the translation of each
    failure; the discovery log names what it skipped.
+   Done (wording drafted, waiting for the owner: info-text.md, Sprint 4.1 additions): `LinuxCaptureRules` (the write
+   failure from `ptrace_scope` or a container; a pid not found: another user's, diagnostics off, another `TMPDIR`, not
+   .NET) and `ElevationTexts` in Core (the texts that said "administrator", per system; front ends reach them through
+   Application's `RightsTexts`); the discovery log names the temp folder it looked in. Tests: `LinuxCaptureRulesTests`.
 6. [ ] Turn capture on for Linux: `CapturePlatform` supports Windows and Linux (macOS refuses until 4.2, its message
    updated); `PlatformHints.CanCapture` follows it, so the Capture and Live pages and the tutorial's lessons open there.
    Tests: the platform rule per system; the view models' empty texts per system.

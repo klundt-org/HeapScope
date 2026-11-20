@@ -39,6 +39,12 @@ public interface IProcessDiscovery
     /// describe (they exited meanwhile), by pid, so the log can say why a process is not listed.
     /// </summary>
     DiscoveryOmissions LastOmitted => DiscoveryOmissions.None;
+
+    /// <summary>
+    /// Why a process that was asked for by pid is not found, with what to do, where the system can tell (sprint 4.1: on
+    /// Linux, another user's process, diagnostics turned off, or a socket in another temp folder); null otherwise.
+    /// </summary>
+    string? WhyNotFound(int processId) => null;
 }
 
 /// <summary>
@@ -95,6 +101,8 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
         CapturePlatform.EnsureSupported();
         return FindOnThisSystem(processId);
     }
+
+    public string? WhyNotFound(int processId) => OperatingSystem.IsLinux() ? LinuxCaptureRules.WhyNoDiagnostics(processId) : null;
 
     private DotNetProcess? FindOnThisSystem(int processId) =>
         !IsOwn(processId) && DiagnosticsClient.GetPublishedProcesses().Contains(processId) ? Describe(processId) : null;

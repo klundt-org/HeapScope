@@ -111,11 +111,13 @@ public sealed class CaptureService : ICaptureService
             // Sprint 3.13 review H5: why a process the user expects is not listed (HeapScope's own, or gone while listing).
             var omitted = _discovery.LastOmitted;
             _logger.LogInformation(
-                "Listed {Count} .NET processes ({Pids}); left out as HeapScope's own: {Own}; not readable or exited: {NotDescribed}",
+                "Listed {Count} .NET processes ({Pids}); left out as HeapScope's own: {Own}; not readable or exited: {NotDescribed}{Where}",
                 processes.Count,
                 string.Join(", ", processes.Take(200).Select(p => p.ProcessId)) + (processes.Count > 200 ? $" and {processes.Count - 200} more" : string.Empty),
                 omitted.Own.Count == 0 ? "none" : string.Join(", ", omitted.Own),
-                omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed));
+                omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed),
+                // Sprint 4.1: off Windows a process is found by its socket in this temp folder; one using another is not seen.
+                OperatingSystem.IsWindows() ? string.Empty : $"; diagnostics sockets looked for in {Path.GetTempPath()} only");
             return [.. processes.Select(ToEntry)];
         }
         catch (PlatformNotSupportedException ex)
@@ -157,7 +159,7 @@ public sealed class CaptureService : ICaptureService
             }
 
             var process = found
-                ?? throw Failure(CaptureFailure.ProcessNotFound, string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."), null);
+                ?? throw Failure(CaptureFailure.ProcessNotFound, _discovery.WhyNotFound(processId) ?? string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."), null);
 
             string? path = null;
             string? sessionFolder = null;
@@ -305,7 +307,7 @@ public sealed class CaptureService : ICaptureService
         {
             // Decision 1: the runtime's GC heap collect keyword over EventPipe needs .NET 5 or later.
             var process = await Task.Run(() => _discovery.Find(processId), cancellationToken).ConfigureAwait(false)
-                ?? throw Failure(CaptureFailure.ProcessNotFound, string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."), null);
+                ?? throw Failure(CaptureFailure.ProcessNotFound, _discovery.WhyNotFound(processId) ?? string.Create(CultureInfo.InvariantCulture, $"No running .NET process with id {processId} was found (or it has no diagnostics port)."), null);
             if (Version.TryParse(process.RuntimeVersion, out var runtime) && runtime.Major < 5)
             {
                 _logger.LogInformation("Refused a forced collection of pid {Pid}: runtime {Runtime} is older than .NET 5", processId, process.RuntimeVersion);

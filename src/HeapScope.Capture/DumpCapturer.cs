@@ -230,7 +230,8 @@ public sealed class DumpCapturer(
             // The dump is written by createdump under the target's own account, not HeapScope's.
             var reason = ex.Message.Contains("0x80070070", StringComparison.OrdinalIgnoreCase) ? "the disk is full"
                 : ex.Message.Contains("0x80070005", StringComparison.OrdinalIgnoreCase) ? $"the account {process.Name} runs as cannot write to {directory}"
-                : "the runtime refused the request";
+                : (OperatingSystem.IsLinux() ? LinuxCaptureRules.WriteFailureReason(LinuxCaptureRules.PtraceScope(), LinuxCaptureRules.InContainer()) : null)
+                    ?? "the runtime refused the request";
             return new DumpWriteFailedException(
                 $"The dump of {process.Name} (pid {process.ProcessId}) could not be written: {reason}. The target process writes the dump itself, under its own account; choose a folder it can write to (--out), and check free space. Details: {ex.Message}",
                 ex);

@@ -253,6 +253,30 @@ question checks yet (a lesson on reading an object's fields is in the Backlog).
 | large-objects | Large arrays on the large object heap | Find which arrays are big enough for the large object heap. | 1. On the Processes page, select the sample's row (it says Sample in the Kind column) and choose Capture dump (leave As gcdump unticked). When it asks to open the dump, say yes: the dump opens on the Snapshots page.<br>2. On the Snapshots page, open the Inspections tab and select Large arrays.<br>3. Its rows are the arrays of 85,000 bytes or more, which live on the large object heap; the sample's small arrays are not listed. | Which arrays are on the large object heap? | approved 2026-11-15; steps reworded in sprint 3.13.2, approved 2026-11-19 |
 | steady-allocation | Where allocations come from | Record allocations and find the type and call site that allocate most. | 1. On the Processes page, select the sample's row (it says Sample in the Kind column) and choose Record allocations; stop after a few seconds.<br>2. On the Allocations page, the Types list is ordered by bytes: find the sample's type nearest the top, select it and look at Back traces for the method that allocates it. | Which of the sample's types is allocated most? | approved 2026-11-15; steps reworded in sprint 3.13.2, approved 2026-11-19 |
 
+## Sprint 4.1 additions
+
+Drafts for the owner (sprint 4.1, capture on Linux). On Windows every text stays as approved; these are what Linux shows
+instead. `HeapScope.Core.ElevationTexts` and `HeapScope.Capture.LinuxCaptureRules` hold them, and
+`LinuxCaptureRulesTests` checks them word for word, so a change goes here first. A "..." stands for the start or end the
+row above gives.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Processes (Linux) | Elevation column, a process HeapScope cannot reach | Needs root or its user | draft 2026-11-20 |
+| Processes (Linux) | Elevation column, another user's process while HeapScope runs as root | Another user's | draft 2026-11-20 |
+| Processes (Linux) | Banner when a process is marked | Processes marked 'Needs root or its user' run as another user. To capture them, run HeapScope as that user, or as root (sudo). | draft 2026-11-20 |
+| Processes (Linux) | Elevation column tooltip | "Needs root or its user" means you must run HeapScope as that process's user, or as root, to capture it. "Another user's" means it runs as another user and HeapScope runs as root, so it can. | draft 2026-11-20 |
+| Capture, Live, Allocations (Linux) | Refusal for another user's process | {name} (pid {pid}) runs as another user, so HeapScope cannot {dump it / monitor it / record its allocations}. Run HeapScope as that user, or as root (sudo), and {capture again / start again / record again}. | draft 2026-11-20 |
+| Command line (Linux) | Note under `list` when a process is marked elevated | Processes marked elevated run as another user: run heapscope-cli as that user, or with sudo, to capture them. | draft 2026-11-20 |
+| Learn (Linux) | Why the sample does not start | HeapScope runs as root, so the sample would too. Start HeapScope as your own user to run it. | draft 2026-11-20 |
+| Capture (Linux) | A dump the runtime could not write, ptrace_scope 3 | The dump of {name} (pid {pid}) could not be written: this system lets no process examine another (kernel.yama.ptrace_scope is 3), and the runtime needs to examine the process to write its dump. Only restarting the system with a lower setting allows it. The target process writes the dump itself, under its own account; choose a folder it can write to (--out), and check free space. Details: {details} | draft 2026-11-20 |
+| Capture (Linux) | The same, ptrace_scope 2 | ... could not be written: this system lets only administrators' tools examine another process (kernel.yama.ptrace_scope is 2), and the runtime writes the dump as the process's own user. An administrator can allow it until the next restart with 'sudo sysctl kernel.yama.ptrace_scope=1'. The target process writes ... (as above) | draft 2026-11-20 |
+| Capture (Linux) | The same, in a container | ... could not be written: HeapScope runs in a container, which may not let the runtime examine the process (the SYS_PTRACE capability). Start the container with --cap-add=SYS_PTRACE. The target process writes ... (as above) | draft 2026-11-20 |
+| Capture (Linux) | A pid that is not found: another user's | Process {pid} runs as another user, and HeapScope finds a process by the diagnostics socket it creates in its own temp folder. Run HeapScope as that user, or as root (sudo) when both use the same temp folder. | draft 2026-11-20 |
+| Capture (Linux) | A pid that is not found: diagnostics off | Process {pid} turned its diagnostics off ({variable}=0), so no tool can capture it. Start it without that setting, then capture it again. | draft 2026-11-20 |
+| Capture (Linux) | A pid that is not found: another temp folder | Process {pid} keeps its diagnostics socket in {folder} (its TMPDIR), and HeapScope looks in {our folder}. Start HeapScope with TMPDIR={folder}, then capture it again. | draft 2026-11-20 |
+| Capture (Linux) | A pid that is not found: not .NET | Process {pid} is not a .NET process: no .NET runtime is loaded in it. | draft 2026-11-20 |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

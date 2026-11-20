@@ -42,7 +42,7 @@ public sealed record ProcessRow(int ProcessId, string Name, string Runtime, stri
         ArgumentNullException.ThrowIfNull(process);
         var elevation = process.Elevation switch
         {
-            ProcessElevation.Elevated => process.NeedsAdministrator ? "Needs administrator" : "Elevated",
+            ProcessElevation.Elevated => process.NeedsAdministrator ? HeapScope.Application.Sessions.RightsTexts.NeedsMore : HeapScope.Application.Sessions.RightsTexts.Reachable,
             ProcessElevation.NotElevated => string.Empty,
             _ => "Unknown",
         };

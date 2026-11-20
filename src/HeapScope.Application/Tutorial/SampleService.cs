@@ -96,7 +96,7 @@ public sealed class SampleService : IDisposable
     public string? UnavailableReason => _resolve() is null
         ? $"The sample is not in this installation. {RepairStep}."
         : _isElevated()
-            ? "HeapScope runs as administrator, so the sample would too. Start HeapScope without administrator rights to run it."
+            ? HeapScope.Core.ElevationTexts.SampleRefused
             : null;
 
     /// <summary>The version of the catalog read, or null before it is read.</summary>

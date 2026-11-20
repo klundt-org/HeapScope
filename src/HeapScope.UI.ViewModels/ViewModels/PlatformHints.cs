@@ -31,6 +31,12 @@ public static class PlatformHints
 {
     public static bool CanCapture { get; } = OperatingSystem.IsWindows();
 
+    /// <summary>The Processes page's banner for a process HeapScope needs more rights to reach, per system (sprint 4.1).</summary>
+    public static string ElevationHint => HeapScope.Application.Sessions.RightsTexts.Hint;
+
+    /// <summary>The Processes page's Elevation column tooltip, per system (sprint 4.1).</summary>
+    public static string ElevationColumnTip => HeapScope.Application.Sessions.RightsTexts.ColumnTip;
+
     public static string SnapshotEmpty { get; } = SnapshotEmptyOn(CanCapture);
 
     public static string LiveEmpty { get; } = LiveEmptyOn(CanCapture);

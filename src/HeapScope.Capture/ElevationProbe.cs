@@ -131,8 +131,7 @@ public sealed class ElevationRequiredException : Exception
 
     private static ElevationRequiredException Refusal(int processId, string? name, string cannot, string again, Exception? inner)
     {
-        var message = $"{name ?? "The process"} (pid {processId}) runs elevated or as another user, so HeapScope cannot {cannot}. " +
-            $"Run HeapScope as administrator (right-click, Run as administrator) and {again}.";
+        var message = HeapScope.Core.ElevationTexts.Refusal(name, processId, cannot, again, OperatingSystem.IsLinux());
         return inner is null ? new ElevationRequiredException(message) : new ElevationRequiredException(message, inner);
     }
 }
