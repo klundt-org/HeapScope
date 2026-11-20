@@ -81,7 +81,10 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   writing through `PartialSnapshotFile` (reserve, never overwrite, commit by rename, discard with retries) [1.9];
   `TraceRecorder` (EventPipe sessions to `.nettrace`, profiles cpu and gc) [1.5]; `CounterMonitor` (an EventPipe session
   on the target's `System.Runtime` EventCounters) and `CounterSampleBuilder` (counter events to one `CounterSample` per
-  interval) [1.7].
+  interval) [1.7]. `IProcessFacts` (a process's image path, command line and runtime per system, chosen by
+  `CapturePlatform.ProcessFacts`): `WindowsProcessFacts` (the kernel calls `ProcessDiscovery` made before) and
+  `LinuxProcessFacts` (reads `/proc/<pid>`), whose text `ProcText` parses on every system: the command line, a deleted
+  executable, the runtime's folder and version from `maps`, the effective user id from `status` [4.1].
 - **Loaders.ClrMd.** `ClrMdDumpLoader` (truncated dumps refused or marked incomplete: heap creation failures, objects
   without a type, segments whose memory is missing, files shorter than their minidump directory) [1.2, 1.8];
   `ClrMdObjectReader` (opens the dump on first use, serialized, disposed with the snapshot) and `ClrMdDump` (opening

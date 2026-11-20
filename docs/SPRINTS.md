@@ -129,11 +129,14 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    command, which a smoke run would answer yes), fails when one does not open, and `build/screenshots.sh` fails on a
    missing picture; `SettingsViewModelTests.Purge_alls_question_can_be_shown_without_asking_or_deleting`. The popup
    states were already tested (`InfoIconTests`, `IcicleChartTests`).
-2. [ ] Process facts per system: an `IProcessFacts` with the Windows calls as they are and a Linux reader of `/proc/<pid>`
+2. [x] Process facts per system: an `IProcessFacts` with the Windows calls as they are and a Linux reader of `/proc/<pid>`
    (`exe`, `cmdline`, `status` for the owner, `maps` for the runtime's `libcoreclr.so` folder and version and the
    readable mappings). The parsers take text and run on every system. Tests: parser tests on recorded `/proc` text
    (cmdline separators, deleted executables, the runtime folder and version from the shared framework path, a
    single-file app without `libcoreclr.so`); on Linux, the facts of the test process itself.
+   Done: `ProcFactsTests` (11; the one on the test process itself runs once the capture tests run on Linux, task 6).
+   On Linux the runtime's version is the shared framework folder's name (`10.0.1`), where Windows gives coreclr.dll's
+   file version (`10.0.125.57005`); a self-contained app's is unknown.
 3. [ ] The dump size estimate on Linux from the readable mappings, erring high like Windows'; free disk space through the
    file system's own figure (`DriveInfo` on the folder). Tests: the estimate on sample `maps` text; free space of the
    temp folder is positive on every system; the estimate is logged beside the written size so CI shows the margin.

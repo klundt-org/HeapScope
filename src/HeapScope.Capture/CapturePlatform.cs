@@ -30,6 +30,10 @@ public static class CapturePlatform
     public static IElevationProbe ElevationProbe() =>
         OperatingSystem.IsWindows() ? WindowsElevationProbe.Instance : UnixElevationProbe.Instance;
 
+    /// <summary>What this system lets HeapScope read about a process (sprint 4.1); macOS is refused before it is used.</summary>
+    internal static IProcessFacts ProcessFacts() =>
+        OperatingSystem.IsLinux() ? LinuxProcessFacts.Instance : WindowsProcessFacts.Instance;
+
     /// <summary>
     /// Refuses capture where it is not built yet: listing processes and writing dumps call Windows APIs. Opening and
     /// analyzing snapshots works everywhere.
