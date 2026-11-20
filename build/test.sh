@@ -30,7 +30,8 @@
 #                the Integration project split in two for CI's parallel Windows jobs (2026-10-31): the heavy
 #                collection (classes with the Run=Heavy trait, run one at a time) and everything else
 # Test projects are found, not listed, so a new one is never left out; the Integration and Slow traits belong in the
-# Integration project only, which this script checks. Results go to <results>/<tier> as TRX files.
+# Integration project only, which this script checks. Results go to <results>/<tier> as TRX files. Off CI, half the CPU
+# threads run tests at once (HEAPSCOPE_TEST_THREADS, below).
 # Usage: test.sh <fast|integration|integration-light|integration-heavy> [Release|Debug] [results folder]
 set -uo pipefail
 [ $# -ge 1 ] || { echo "Usage: test.sh <fast|integration|integration-light|integration-heavy> [Release|Debug] [results folder]" >&2; exit 64; }
@@ -38,6 +39,13 @@ tier="$1"
 configuration="${2:-Release}"
 results="${3:-artifacts/test-results}/$tier"
 report=(--report-xunit-trx --results-directory "$results")
+# Tests at once (2026-11-19): xunit runs one class per CPU thread by default, and each integration test starts its own CLI
+# and worker processes, which pinned a 24-thread machine and made its timed tests fail. Off CI, half the CPU threads; CI
+# (CI=true, GitHub's 4-core runners) keeps xunit's default. HEAPSCOPE_TEST_THREADS sets it: a number, a multiple of the
+# CPU threads such as 0.5x, default or unlimited.
+threads="${HEAPSCOPE_TEST_THREADS:-}"
+[ -z "$threads" ] && [ -z "${CI:-}" ] && threads=0.5x
+[ -n "$threads" ] && report+=(--max-threads "$threads")
 windows=false
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) windows=true ;; esac
 [ "${OS:-}" = "Windows_NT" ] && windows=true
