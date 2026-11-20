@@ -24,24 +24,29 @@
 
 # Capture on Linux end to end (sprint 4.1 task 7), through HeapScope's CLI, which runs the same application layer as the
 # app: the tutorial's sample started by 'sample start', found by 'list', captured as a full dump and as a gcdump, and both
-# opened by 'summary', which counts the 2,000 StaticCacheEntry objects the StaticCache scenario plants. CI's Linux job runs
-# it; it runs on Windows too. The dumps hold the sample's data only and are deleted.
+# opened by 'summary', which counts the 2,000 StaticCacheEntry objects the StaticCache scenario plants; then watched by
+# 'monitor' and recorded by 'trace', whose allocations trace 'allocations' reads and must name the PricedOrder objects the
+# SteadyAllocation scenario allocates without end (review M7). CI's Linux job runs it; it runs on Windows too. Everything HeapScope keeps goes to a scratch data folder (review M10), never the user's own, and the
+# work folder is removed when the script made it. The files hold the sample's data only.
 # Usage: linux-capture-check.sh <heapscope-cli path> [work folder]
 set -euo pipefail
 [ $# -ge 1 ] || { echo "Usage: linux-capture-check.sh <heapscope-cli path> [work folder]" >&2; exit 64; }
 cli="$1"
-work="${2:-$(mktemp -d)}"
+made_work=
+if [ $# -ge 2 ]; then work="$2"; else work=$(mktemp -d); made_work=1; fi
 mkdir -p "$work"
+export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$work/data}"
 fail() { echo "Linux capture check: $1" >&2; exit 1; }
 
 out="$work/sample.out"
-"$cli" sample start --scenarios StaticCache > "$out" 2>&1 &
+"$cli" sample start --scenarios StaticCache,SteadyAllocation > "$out" 2>&1 &
 starter=$!
 pid=
 cleanup() {
   [ -n "$pid" ] && "$cli" sample stop --pid "$pid" > /dev/null 2>&1 || true
   kill "$starter" 2> /dev/null || true
-  rm -f "$work"/sample.dmp* "$work"/sample.gcdump*
+  rm -rf "$work"/sample.dmp* "$work"/sample.gcdump* "$work"/sample.nettrace* "$work"/dac
+  [ -n "$made_work" ] && rm -rf "$work" || true
 }
 trap cleanup EXIT
 
@@ -54,7 +59,7 @@ done
 [ -n "$pid" ] || { cat "$out"; fail "the sample did not start within 60 s"; }
 cat "$out"
 
-list=$("$cli" list | tr -d '\r')
+list=$("$cli" list | tr -d '\r') || fail "'list' failed"
 echo "$list"
 grep -qE "^ *$pid " <<< "$list" || fail "'list' did not show the sample (pid $pid)"
 
@@ -66,6 +71,18 @@ for snapshot in sample.dmp sample.gcdump; do
   grep -qE "^ +2,000 .* Fixtures\.Leaks\.StaticCacheEntry$" <<< "$summary" || { echo "$summary"; fail "$snapshot does not count 2,000 StaticCacheEntry objects"; }
 done
 
+# Live counters (review M7): a header and at least two samples in three seconds.
+samples=$("$cli" monitor --pid "$pid" --duration 3 --format csv | tr -d '\r') || fail "'monitor' of the sample failed"
+echo "$samples"
+[ "$(grep -c . <<< "$samples")" -ge 3 ] || fail "'monitor' printed fewer than two samples in three seconds"
+
+# Allocations (review M7): a trace is recorded, and 'allocations' reads it.
+"$cli" trace --pid "$pid" --profile allocations --duration 3 --out "$work/sample.nettrace" || fail "'trace' of the sample failed"
+[ -s "$work/sample.nettrace" ] || fail "'trace' wrote no allocations trace"
+allocations=$("$cli" allocations "$work/sample.nettrace" --types 5 --stacks 1 | tr -d '\r') || fail "'allocations' could not read the trace"
+echo "$allocations"
+grep -q "HeapScope.Sample.PricedOrder" <<< "$allocations" || fail "'allocations' did not name the type the SteadyAllocation scenario allocates"
+
 "$cli" sample stop --pid "$pid" || fail "'sample stop' did not stop the sample"
 pid=
-echo "Linux capture check passed: the sample was listed, captured as a full dump and a gcdump, and both counted its 2,000 entries."
+echo "Linux capture check passed: the sample was listed, captured as a full dump and a gcdump (both counted its 2,000 entries), monitored and traced."

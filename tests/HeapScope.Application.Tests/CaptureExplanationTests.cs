@@ -97,6 +97,26 @@ public sealed class CaptureExplanationTests : IDisposable
         _writer.Calls.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Off_windows_the_list_names_the_temp_folder_it_looked_in()
+    {
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Listing refuses first where capture is not built (ADR-025).");
+        var service = Service(new Discovery(found: null, NotFoundExplanation.None));
+
+        await service.ListProcessesAsync(Ct);
+
+        var line = _logger.Lines.ShouldHaveSingleItem();
+        line.ShouldStartWith("Listed 0 .NET processes");
+        if (OperatingSystem.IsWindows())
+        {
+            line.ShouldNotContain("diagnostics sockets looked for in");
+        }
+        else
+        {
+            line.ShouldEndWith($"; diagnostics sockets looked for in {Path.GetTempPath()} only");
+        }
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     private CaptureService Service(IProcessDiscovery discovery, bool elevated = false)

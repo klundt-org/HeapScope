@@ -159,7 +159,12 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   another temp folder (discovery looks only in this user's `TMPDIR`; the refusal says which `TMPDIR` to start HeapScope
   with); a run on a real Linux machine besides CI (none on the development machine; the owner's planned Ubuntu laptop
   could take it); capturing as root another user's process whose `TMPDIR` differs from root's; and the Linux texts' own
-  screenshots. macOS capture is sprint 4.2.
+  screenshots. macOS capture is sprint 4.2. From the 4.1 review (decided autonomously): to start 4.2 with, the per-system
+  split made whole (M6): the effective user id and the readable-bytes estimate behind `IProcessFacts`, a system enum in
+  place of `bool linux` in `ElevationTexts`, facts that refuse on systems without a reader, and `PlatformHints.CanCapture`
+  taken from Application rather than repeated. Later: a full dump as root of another user's process into HeapScope's
+  folders (stage it in a folder owned by that user, then move it; 4.1 refuses it and says how), a socket removed by a
+  temp cleaner (systemd-tmpfiles), a target in another pid namespace, and the review's Low findings.
 - Learning from use, without telemetry (product owner, 2026-11-15): a closed loop that shows where users wait, get stuck or
   miss a feature, so performance work and new features follow real use. HeapScope uploads nothing and has no telemetry
   (ARCHITECTURE 12), and that stays the default; the idea must not read as data collection for profit. Direction to design:

@@ -77,6 +77,12 @@ public static partial class DumpSizeEstimator
             }
         }
 
+        // Review M9: elsewhere (macOS until sprint 4.2) no walk is built; the fallback estimates.
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
         var handle = OpenProcess(ProcessQueryInformation, false, (uint)processId);
         if (handle == IntPtr.Zero)
         {

@@ -218,6 +218,9 @@ jobs:
         run: |
           bash build/linux-capture-check.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$RUNNER_TEMP/linux-capture"
           grep -h "Captured .*; estimated" "$Logging__File__Directory"/*.log | cut -c1-300 || true
+          # Review M11: the disk check relies on the estimate erring high; a dump larger than it is flagged (sprint 4.1: 94 to 95%).
+          over=$(grep -h "Captured .*% of it written" "$Logging__File__Directory"/*.log | sed -n 's/.*(\([0-9,]*\)% of it written).*/\1/p' | tr -d ',' | awk '$1 > 100' | head -1)
+          [ -z "$over" ] || echo "::warning::A Linux dump was ${over}% of its estimate: the disk space check underestimates on Linux."
           src/HeapScope.UI/bin/Release/net10.0/HeapScope --headless --smoke-live 1800 --Logging:File:Directory "$RUNNER_TEMP/live-log" || { cat "$RUNNER_TEMP"/live-log/*.log; exit 1; }
       - name: Keep the test results and HeapScope's logs
         if: ${{ always() }}

@@ -87,7 +87,7 @@ A control that can be disabled shows its tooltip anyway, so it can say why. Tool
 | Home, Snapshots | Open dump | Opens a full dump (.dmp), a gcdump (.gcdump) or a core dump. If a first load may not fit in free memory, it asks first. | none |
 | Processes | Elevation column | "Needs administrator" means you must run HeapScope as administrator to capture this process. "Elevated" means it runs elevated and HeapScope does too. | none |
 | Processes | Working set column | Physical memory the operating system has given the whole process right now, not only its .NET heap. | none |
-| Processes | Record allocations | Records which types and call stacks allocate, for up to 30 seconds, while you use the application. The process keeps running; Stop keeps what was recorded. Needs a selected process, on Windows, with no recording running. | changed |
+| Processes | Record allocations | Records which types and call stacks allocate, for up to 30 seconds, while you use the application. The process keeps running; Stop keeps what was recorded. Needs a selected process, on Windows or Linux, with no recording running. | changed |
 | Snapshots | Close and delete | Closes the snapshot and deletes its dump and index caches, after asking. It works only for a dump in a HeapScope session; any other dump you delete yourself. | changed |
 | Types, Compare, Trend | Filter | Keeps rows whose name matches: terms separated by spaces must all match, and an all lower-case term ignores case. * matches anything, -term leaves out matches, module:name or m:name matches the module, and capitals also match word starts, so SCE finds StaticCacheEntry. Ctrl+F (Cmd+F on macOS) comes here. | changed; Trend had none |
 | Types | Menu: Open as a set | Treats the selected rows as one group of objects, with its own views. Takes up to 10,000 types, or one namespace, assembly or interface row. | none |
@@ -279,7 +279,10 @@ row above gives.
 | Capture (Linux) | A pid that is not found: another user's | Process {pid} runs as another user, and HeapScope finds a process by the diagnostics socket it creates in its own temp folder. Run HeapScope as that user, or as root (sudo) when both use the same temp folder. | approved 2026-11-20 |
 | Capture (Linux) | A pid that is not found: diagnostics off | Process {pid} turned its diagnostics off ({variable}=0), so no tool can capture it. Start it without that setting, then capture it again. | approved 2026-11-20 |
 | Capture (Linux) | A pid that is not found: another temp folder | Process {pid} keeps its diagnostics socket in {folder} (its TMPDIR), and HeapScope looks in {our folder}. Start HeapScope with TMPDIR={folder}, then capture it again. | approved 2026-11-20 |
-| Capture (Linux) | A pid that is not found: not .NET | Process {pid} is not a .NET process: no .NET runtime is loaded in it. | approved 2026-11-20 |
+| Capture (Linux) | A pid that is not found: not .NET | Process {pid} is not a .NET process: no .NET runtime is loaded in it. | approved 2026-11-20 (since review H3, only when its executable holds no runtime either: a single-file app gets the generic text) |
+| Capture (Linux) | A pid that is not found: its own /tmp (review H3) | Process {pid} has its own /tmp (a service with PrivateTmp, or a container), so HeapScope cannot see its diagnostics socket. Run HeapScope where the process runs (in its container, or with the service's settings), then capture it again. | draft 2026-11-20 |
+| Capture (Linux) | A full dump of another user's process into HeapScope's folders while HeapScope runs as root (review H1) | {name} (pid {pid}) runs as another user, and the runtime writes its full dump as that user, who cannot write to HeapScope's folders while HeapScope runs as root. Run HeapScope as that user to capture a full dump, or capture a gcdump; on the command line, --out can name a folder that user can write. | draft 2026-11-20 |
+| Processes | Record allocations tooltip (review M3): "on Windows" | Needs a selected process, on Windows or Linux, with no recording running. | draft 2026-11-20 |
 
 ## Evidence: the per-setting drafts
 
