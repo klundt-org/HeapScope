@@ -155,6 +155,11 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- Capture on Linux, what sprint 4.1 left out (decided autonomously): finding a process whose diagnostics socket is in
+  another temp folder (discovery looks only in this user's `TMPDIR`; the refusal says which `TMPDIR` to start HeapScope
+  with); a run on a real Linux machine besides CI (none on the development machine; the owner's planned Ubuntu laptop
+  could take it); capturing as root another user's process whose `TMPDIR` differs from root's; and the Linux texts' own
+  screenshots. macOS capture is sprint 4.2.
 - Learning from use, without telemetry (product owner, 2026-11-15): a closed loop that shows where users wait, get stuck or
   miss a feature, so performance work and new features follow real use. HeapScope uploads nothing and has no telemetry
   (ARCHITECTURE 12), and that stays the default; the idea must not read as data collection for profit. Direction to design:
@@ -220,8 +225,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
 - From the 2.3.5 review (decided autonomously, deferred; the Compare baseline and the Windows CI dump step were done in
   2.3.6):
   - Unix file semantics stated by tests: replacing or deleting a mapped index cache on Linux and macOS succeeds and
-    the open graph keeps reading the old file; the Windows-only tests skip there today. Capture.Tests join the Linux CI
-    job with Linux capture (a Phase 4 candidate).
+    the open graph keeps reading the old file; the Windows-only tests skip there today. (Capture.Tests joined the Linux
+    CI job in sprint 4.1.)
 - gcdump survivors without a recorded root as path and dominator sources (from the 2.3 review M6; agreed with the
   product owner on 2026-10-25 to defer the fix). Today they retain nothing, and the note beside retained sizes gives their
   count and bytes. The fix marks them "root not recorded" sources in `PathRoots.Sources` (so paths and dominators keep

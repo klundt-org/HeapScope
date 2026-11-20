@@ -1,4 +1,4 @@
-# ADR-025 UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039)
+# ADR-025 UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039 and sprint 4.1)
 
 - Context: the product owner wants to reach Linux developers (possibly macOS) and teams sharing results (2026-10-25).
   Everything but the WPF UI already targets plain `net10.0`; the engine stays .NET because ClrMD has no equivalent
@@ -18,7 +18,7 @@
   - Already portable: the pipe (`PipeOptions.CurrentUserOnly` on every system), the worker's below-normal priority, the
     memory status calls (guarded by `OperatingSystem.IsWindows()`; off Windows they read the GC's view of the
     machine's memory, `GC.GetGCMemoryInfo()`, which honors container limits).
-  - Windows only for now: capture (process discovery, dump writing, elevation). Off Windows it refuses with
+  - Windows only for now (Linux since sprint 4.1, below): capture (process discovery, dump writing, elevation). Off Windows it refuses with
     `PlatformNotSupportedException` naming `dotnet-dump` (`CapturePlatform.EnsureSupported`), which Application reports
     as `CaptureFailedException` with `CaptureFailure.NotSupportedOnThisSystem`; the elevation probe
     reports `Environment.IsPrivilegedProcess`. Linux and macOS capture (createdump through the diagnostics client,
@@ -63,6 +63,16 @@
   drawing in software measures the machine); the Windows smoke gate is unchanged. Avalonia's build telemetry is off for
   the repository (`Directory.Build.targets`, CI's `AVALONIA_TELEMETRY_OPTOUT`), since HeapScope sends nothing anywhere
   (12).
+- Amended in sprint 4.1: capture runs on Linux too (macOS follows in 4.2). The diagnostics client does what it does on
+  Windows (discovery through the runtime's published sockets, `WriteDump` through the runtime's createdump, EventPipe for
+  live counters and allocation traces); what Windows asks the kernel, Linux reads from `/proc/<pid>` (`IProcessFacts`:
+  the executable, the command line, the runtime's folder and its embedded file version, the readable mappings for the
+  dump size estimate, the effective user id). Elevation follows the user a process acts as: its diagnostics socket is that
+  user's, so another user's process needs HeapScope run as that user or as root. HeapScope never changes system
+  settings: when `kernel.yama.ptrace_scope`, a container without `SYS_PTRACE`, another `TMPDIR` or a process's own
+  `DOTNET_EnableDiagnostics=0` stops a capture, the refusal names it and what to change. Discovery looks only where the
+  runtime publishes (this user's temp folder); it does not search others. Proven in CI's Linux job (the capture tests,
+  `build/linux-capture-check.sh`); there is no local Linux run on the development machine.
 - Amended by ADR-039 (sprint 3.9): releases ship win-x64 and linux-x64 (since 3.10 also the macOS builds, marked untested),
   and the CLI's dotnet tool carries a framework-dependent worker started through the dotnet host, beside the
   self-contained worker per runtime identifier.

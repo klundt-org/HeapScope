@@ -12,7 +12,7 @@ release has:
 | `HeapScope-vX.Y.Z-sbom-*.cdx.json` | Software bills of materials (CycloneDX) of the app, the CLI, the worker and the tutorial's sample. |
 | `SHA256SUMS` | The SHA-256 checksum of every file above. |
 
-Capturing a snapshot of a running process works on Windows only. On Linux, HeapScope opens dumps taken with
+Capturing a snapshot of a running process works on Windows and Linux. On macOS, HeapScope opens dumps taken with
 `dotnet-dump` (see [Your first snapshot](#your-first-snapshot)).
 
 ## Check the download
@@ -70,7 +70,7 @@ refuse to open them. The steps below are what should work; nobody has confirmed 
    does the analysis.
 3. Run `./HeapScope` from that folder, or `./heapscope-cli` for the CLI.
 
-Capturing needs Windows, so take a dump with `dotnet-dump` and open the file in the app or the CLI (see
+On macOS capturing is not built yet, so take a dump with `dotnet-dump` and open the file in the app or the CLI (see
 [Your first snapshot](#your-first-snapshot)).
 
 ### If macOS refuses it
@@ -103,7 +103,7 @@ dotnet tool install --global HeapScope.Cli
 
 Its page, https://www.nuget.org/packages/HeapScope.Cli, links back to this repository. To update: `dotnet tool update
 --global HeapScope.Cli`. To remove it: `dotnet tool uninstall --global HeapScope.Cli`. The tool works like the CLI in
-the archives (capture on Windows only); it is not tested on macOS.
+the archives (capture on Windows and Linux); it is not tested on macOS.
 
 Or install it from the release's file, without nuget.org:
 
@@ -139,10 +139,11 @@ To update, put the new version's file in that folder and run `dotnet tool update
   or a gcdump. The CLI does the same: `heapscope-cli list`, then `heapscope-cli capture --pid <pid> --out app.dmp`.
   Then `heapscope-cli summary app.dmp` shows what is on its heap. Capturing a process that runs as administrator needs
   HeapScope run as administrator too.
-- Linux: take a dump with `dotnet-dump collect --process-id <pid> --type Full`, then open the file in the app or run
-  `heapscope-cli summary <dump>`. Without .NET, use dotnet-dump's standalone download
-  (https://aka.ms/dotnet-dump/linux-x64; make it executable with `chmod +x`); with the .NET SDK, `dotnet tool install
-  --global dotnet-dump` installs it.
+- Linux: the same, in the app or with `heapscope-cli`. HeapScope captures the processes that run as your user; another
+  user's process needs HeapScope run as that user, or as root (`sudo`). Some systems stop one process from examining
+  another (`kernel.yama.ptrace_scope` of 2 or 3, or a container without `SYS_PTRACE`); HeapScope then says what to
+  change, and changes nothing itself. A process that keeps its diagnostics socket in another temp folder (its `TMPDIR`)
+  is found when HeapScope runs with the same `TMPDIR`.
 - macOS (untested): the same `dotnet-dump collect` command, with `dotnet-dump` from `dotnet tool install --global dotnet-dump`.
 
 To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version

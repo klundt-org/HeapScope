@@ -5,7 +5,7 @@ Status: living document. Every sprint updates it to match what was actually buil
 ## 1. Purpose, scope, non-goals
 
 **Purpose.** HeapScope is a desktop memory profiler for .NET applications (.NET 5 and later, ADR-002) on Windows,
-Linux and macOS (ADR-025; capture is Windows only). It replaces the core of JetBrains dotMemory for one primary
+Linux and macOS (ADR-025; capture on Windows and, since sprint 4.1, Linux). It replaces the core of JetBrains dotMemory for one primary
 workflow: a memory leak is suspected in an ASP.NET Core API, the developer runs the API locally, replays representative
 traffic, takes snapshots over time, and uses HeapScope to find what is growing and why it is retained.
 

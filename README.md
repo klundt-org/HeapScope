@@ -129,9 +129,9 @@ test suite checks results against fixture dumps whose answers are known.
 
 HeapScope is in pre-release. Plainly:
 
-- **Windows: everything.** Capture dumps, record allocations, watch the Live page and analyze the results.
-- **Linux: dump analysis.** Take a dump with `dotnet-dump` and open it in the app or the CLI. Capturing from HeapScope,
-  recording allocations and the Live page need Windows.
+- **Windows and Linux: everything.** Capture dumps, record allocations, watch the Live page and analyze the results.
+  On Linux, HeapScope captures the processes that run as your user; another user's process needs HeapScope run as that
+  user or as root.
 - **macOS: untested.** Each release has macOS packages, but they are built on Linux, not on a Mac, and have not been run.
   They are not signed or notarized, so macOS may refuse them. You can also build one on your Mac with `build/publish.sh`,
   which is untested too.

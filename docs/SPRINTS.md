@@ -178,9 +178,12 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    whom (decided autonomously: a note rather than a lesson; drafted for the owner). Tests: `ShellViewModelTests` (the
    note per system); the lesson catalog and the sample launch path run on Linux in CI (`LessonCatalogTests`,
    `SampleServiceTests`), and `build/linux-capture-check.sh` starts the sample there.
-9. [ ] Docs: ADR-025 amended (Linux capture), ARCHITECTURE and its capture pages, DEVELOPER.md (Linux capture, the CI
+9. [x] Docs: ADR-025 amended (Linux capture), ARCHITECTURE and its capture pages, DEVELOPER.md (Linux capture, the CI
    steps), README's platform table, info text for the changed screens (owner approves), Backlog (the macOS work and what
    stays out).
+   Done: ADR-025 amended; ARCHITECTURE.md, the code map and logging.md; DEVELOPER.md (the CI steps, the platforms);
+   README's "What to expect", INSTALL.md, the CLI's README and USER-GUIDE.md (user-facing: with the owner, as the info
+   texts); the Backlog's Linux item (what 4.1 left out).
 
 **Decisions**
 - Order, size and the macOS plan: the owner, 2026-11-18 (Phase 4 above).
