@@ -69,9 +69,11 @@ Capture and sessions (sprint 1.1):
   `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5].
 - `DumpCapturer`: checks elevation and free space before asking the runtime for a full dump (`DumpType.Full`: module
   images are in the dump, so it never depends on finding the exact module files). The estimate is measured, not
-  guessed: the target's committed readable pages from a `VirtualQueryEx` walk plus 16 MB of streams; when the walk is
-  denied, private bytes x 1.1 + 384 MB for images and mapped files + 16 MB. Free space comes from
-  `GetDiskFreeSpaceEx` on the folder itself (UNC paths and mount points), and 1 GB is always left free. The dump is
+  guessed: the target's committed readable pages from a `VirtualQueryEx` walk (on Linux, since 4.1, the readable
+  mappings in `/proc/<pid>/maps`) plus 16 MB of streams; when the walk is denied, private bytes x 1.1 + 384 MB for images
+  and mapped files + 16 MB. Free space comes from `GetDiskFreeSpaceEx` on the folder itself (UNC paths and mount points;
+  elsewhere `DriveInfo` on the folder, which asks its file system), and 1 GB is always left free. The capture's log line
+  names the estimate beside the size written, so each system's margin shows in the logs. The dump is
   written to `<name>.dmp.partial` and renamed only on success; an existing file is never overwritten. The runtime's
   createdump runs inside the target under the target's account and cannot be stopped safely, so a cancel waits until
   it has written the file and then deletes it (measured: a 200 ms cancel used to leave a complete 203 MB dump). The

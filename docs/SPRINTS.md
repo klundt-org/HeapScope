@@ -137,9 +137,11 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    Done: `ProcFactsTests` (11; the one on the test process itself runs once the capture tests run on Linux, task 6).
    On Linux the runtime's version is the shared framework folder's name (`10.0.1`), where Windows gives coreclr.dll's
    file version (`10.0.125.57005`); a self-contained app's is unknown.
-3. [ ] The dump size estimate on Linux from the readable mappings, erring high like Windows'; free disk space through the
+3. [x] The dump size estimate on Linux from the readable mappings, erring high like Windows'; free disk space through the
    file system's own figure (`DriveInfo` on the folder). Tests: the estimate on sample `maps` text; free space of the
    temp folder is positive on every system; the estimate is logged beside the written size so CI shows the margin.
+   Done: `ProcFactsTests` (the readable mappings, free space); a Windows capture logs, for example, 146,213,206 bytes
+   written against 162,721,792 estimated (90%).
 4. [ ] Elevation on Linux: another user's process needs HeapScope to run as root or as that user (its diagnostics socket
    is that user's); the same user's process is not elevated; root reaches all. Tests: the rule on uid pairs; the probe
    on the test process.

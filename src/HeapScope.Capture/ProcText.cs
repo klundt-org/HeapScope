@@ -138,6 +138,36 @@ internal static class ProcText
     }
 
     /// <summary>
+    /// The bytes of every readable mapping in <c>maps</c> (permissions starting with <c>r</c>), the pages a full dump
+    /// written by the runtime's createdump holds: private memory, loaded libraries and mapped files. Reserved but
+    /// uncommitted address space is mapped with no access (<c>---p</c>) and is left out. Errs high: a mapped file's pages
+    /// count whole, read or not.
+    /// </summary>
+    public static long ReadableBytes(string maps)
+    {
+        ArgumentNullException.ThrowIfNull(maps);
+        long total = 0;
+        foreach (var line in maps.Split('\n'))
+        {
+            var dash = line.IndexOf('-', StringComparison.Ordinal);
+            var space = line.IndexOf(' ', StringComparison.Ordinal);
+            if (dash <= 0 || space <= dash || space + 1 >= line.Length || line[space + 1] != 'r')
+            {
+                continue;
+            }
+
+            if (ulong.TryParse(line.AsSpan(0, dash), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var start)
+                && ulong.TryParse(line.AsSpan(dash + 1, space - dash - 1), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var end)
+                && end > start)
+            {
+                total += (long)(end - start);
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>
     /// The path of one <c>maps</c> line (<c>address perms offset dev inode path</c>), or null for an anonymous mapping. The
     /// path is everything after the fifth field, so a path holding spaces stays whole.
     /// </summary>

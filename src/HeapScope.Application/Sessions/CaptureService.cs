@@ -162,6 +162,7 @@ public sealed class CaptureService : ICaptureService
             string? path = null;
             string? sessionFolder = null;
             var createdSession = false;
+            var reports = new CaptureProgressAdapter(progress);
 
             // The session is written into until the capture is recorded: it cannot be deleted meanwhile (review H1 of 3.4).
             using var inUse = new Claim();
@@ -187,7 +188,7 @@ public sealed class CaptureService : ICaptureService
                 }
 
                 _logger.LogInformation("Capturing a {Kind} of {Name} (pid {Pid}) to {Path}", profile.Noun, process.Name, process.ProcessId, path);
-                await profile.Capture(process, path, new CaptureProgressAdapter(progress), ct).ConfigureAwait(false);
+                await profile.Capture(process, path, reports, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (Translate(ex) is { } failure)
             {
@@ -222,7 +223,16 @@ public sealed class CaptureService : ICaptureService
 
             // Assigned in both branches of the try above, which returned or threw otherwise.
             var size = new FileInfo(path!).Length;
-            _logger.LogInformation("Captured {Name} (pid {Pid}): {Bytes} bytes in {Seconds:N1} s", process.Name, process.ProcessId, size, stopwatch.Elapsed.TotalSeconds);
+            // Sprint 4.1: the estimate beside the size, so a log (and CI's) shows the preflight's margin on each system.
+            _logger.LogInformation(
+                "Captured {Name} (pid {Pid}): {Bytes} bytes in {Seconds:N1} s; estimated {Estimate}",
+                process.Name,
+                process.ProcessId,
+                size,
+                stopwatch.Elapsed.TotalSeconds,
+                reports.EstimatedBytes is { } estimated && estimated > 0
+                    ? string.Create(CultureInfo.InvariantCulture, $"{estimated} bytes ({100.0 * size / estimated:N0}% of it written)")
+                    : "nothing (no estimate for this kind)");
             if (profile.CopiesDac)
             {
                 CopyDac(process, Path.GetDirectoryName(path!)!);
@@ -512,6 +522,13 @@ public sealed class CaptureService : ICaptureService
 
     private sealed class CaptureProgressAdapter(IProgress<JobProgress> target) : IProgress<CaptureProgress>
     {
-        public void Report(CaptureProgress value) => target.Report(new JobProgress(value.Phase, 0, null, value.Message));
+        /// <summary>The last size estimate the capturer reported, for the log line after the capture.</summary>
+        public long? EstimatedBytes { get; private set; }
+
+        public void Report(CaptureProgress value)
+        {
+            EstimatedBytes = value.EstimatedBytes ?? EstimatedBytes;
+            target.Report(new JobProgress(value.Phase, 0, null, value.Message));
+        }
     }
 }

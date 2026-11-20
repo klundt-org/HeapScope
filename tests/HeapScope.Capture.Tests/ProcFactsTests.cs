@@ -108,6 +108,22 @@ public sealed class ProcFactsTests
     }
 
     [Fact]
+    public void The_dump_size_estimate_sums_the_readable_mappings_and_leaves_reserved_space_out()
+    {
+        // Sprint 4.1 task 3: 0x8000 + 0xb000 + 0xa1000 + 0x412000 + 0x21000 + 0x21000 readable; the GC's reserved range is not.
+        var maps = SharedFrameworkMaps + "\n7f2c50000000-7f2d50000000 ---p 00000000 00:00 0\nnot a mapping line\n";
+
+        ProcText.ReadableBytes(maps).ShouldBe(5_275_648);
+        ProcText.ReadableBytes(string.Empty).ShouldBe(0);
+    }
+
+    [Fact]
+    public void Free_space_of_the_temp_folder_is_known_on_every_system()
+    {
+        VolumeDiskSpace.Instance.AvailableBytes(Path.GetTempPath()).ShouldNotBeNull().ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
     public void The_owner_is_the_effective_user_id()
     {
         const string Status = "Name:\tdotnet\nUmask:\t0022\nState:\tS (sleeping)\nUid:\t1000\t0\t0\t0\nGid:\t1000\t1000\t1000\t1000\n";
