@@ -64,9 +64,13 @@ Capture and sessions (sprint 1.1):
   installation's `sample/` folder, is the exception, since it is there to be captured (sprint 3.13, ADR-042). A detail that cannot be read stays
   empty. `WindowsElevationProbe` reads token elevation for targets and for HeapScope itself (one rule): a token that
   cannot be opened for query (elevated, or another user's, such as services running as SYSTEM) or that reports
-  elevation means only an elevated HeapScope can dump it. Capture is Windows only (ADR-025): off Windows,
-  `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump`, and
-  `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5].
+  elevation means only an elevated HeapScope can dump it. Capture runs on Windows and, since sprint 4.1, Linux (ADR-025):
+  on macOS `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump` (until 4.2).
+  Off Windows `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5],
+  which on Linux compares effective user ids: another user's process needs HeapScope run as that user or as root, since
+  its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` there (`LinuxProcessFacts`), and a
+  refusal names its Linux cause (`LinuxCaptureRules`: `ptrace_scope`, a container without `SYS_PTRACE`, another
+  `TMPDIR`, diagnostics turned off).
 - `DumpCapturer`: checks elevation and free space before asking the runtime for a full dump (`DumpType.Full`: module
   images are in the dump, so it never depends on finding the exact module files). The estimate is measured, not
   guessed: the target's committed readable pages from a `VirtualQueryEx` walk (on Linux, since 4.1, the readable

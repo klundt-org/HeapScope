@@ -23,8 +23,8 @@ dotnet test --solution HeapScope.sln
 ```
 - Full gate (sprint 1.9; bash since 3.6, the same steps as CI, section 7): `bash build/gate.sh` builds Debug and Release
   (zero warnings), runs the fast and the integration tiers, then CI's fixture check (a LeakyConsole dump, captured by
-  the CLI on Windows and by `dotnet-dump` elsewhere, checked against the known answers, which needs `jq`; without
-  `jq` or `dotnet-dump` the check is reported as skipped) and appends a line to `artifacts/gate/history.csv`
+  the CLI on Windows and Linux and by `dotnet-dump` on macOS, checked against the known answers, which needs `jq`; without
+  `jq`, or `dotnet-dump` on macOS, the check is reported as skipped) and appends a line to `artifacts/gate/history.csv`
   (git-ignored): time, commit, outcome, durations, test counts and failed test names; a test that failed in an earlier run
   is named again. Its log and TRX results are kept under `artifacts/test-results/<time>`. Run it before closing a sprint.
   A tier or the fixture check whose inputs already passed is skipped and the log says so (2026-11-19, to spare the
@@ -619,9 +619,13 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     at a time) beside it (`test.sh integration-heavy`; the first job runs `integration-light`), which halves the wait
     for a PR. The local gate still runs the whole `integration` tier.
   - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests (the view model and headless UI
-    tests included), dumps the fixture with `dotnet-dump` (pinned), checks the CLI's JSON against the known answers with
-    `jq` (counts, sizes, retained sizes, the path root, a complete graph, a named runtime version) and opens the dump in
-    the app without a display (`--headless --smoke-open`).
+    tests included, and since sprint 4.1 the capture tests), captures the fixture with the CLI (`dotnet-dump` before
+    capture ran on Linux), checks the CLI's JSON against the known answers with `jq` (counts, sizes, retained sizes, the
+    path root, a complete graph, a named runtime version) and opens the dump in the app without a display
+    (`--headless --smoke-open`). Then `build/linux-capture-check.sh` starts the tutorial's sample with `sample start`,
+    finds it with `list`, captures a full dump and a gcdump and opens both with `summary` (2,000 `StaticCacheEntry`
+    objects each), its capture log line naming the size estimate beside the size written, and the app runs its live
+    smoke run headless (`--smoke-live 1800`). The Linux package is captured by its own unpacked CLI too.
   - No macOS runners since 2026-10-31 (owner: their minutes cost about ten times Linux's). Until then a macOS job did
     what Linux does, informational (an arm64 runner; ADR-025). Nothing in CI tests on macOS now.
   - Beside the tests (since 2026-10-31; before, after them), a package job publishes the self-contained builds per

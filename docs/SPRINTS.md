@@ -163,9 +163,14 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
    the DAC copied beside a dump has its Linux name (`libmscordaccore.so`), and the runtime version on Linux is the file
    version embedded in `libcoreclr.so` (as ClrMD reads it from a dump), so `dac/<version>` matches. Wording drafted
    (info-text.md, Sprint 4.1 additions).
-7. [ ] End to end on Linux in CI: an integration test starts the sample, finds it in the list, captures a full dump and a
+7. [x] End to end on Linux in CI: an integration test starts the sample, finds it in the list, captures a full dump and a
    gcdump through the application layer and opens both; CI's fixture dump is taken with HeapScope's own CLI instead of
    `dotnet-dump`, and the app's `--smoke-live` runs headless on Linux. Tests: those runs.
+   Done (decided autonomously: a script, not an integration test, since the Integration project targets Windows):
+   `build/linux-capture-check.sh` drives the CLI (the application layer a user's command runs) through `sample start`,
+   `list`, a full dump and a gcdump, and `summary` of both; it passes on Windows here, and CI's Linux job runs it with
+   the fixture capture by the CLI and the live smoke run. The Linux package job captures with its own CLI too. Proven on
+   Linux by the PR's first CI run.
 8. [ ] The tutorial on Linux: the sample starts from the Learn page and every lesson that captures runs there; this
    sprint's lesson is the Linux rules (who can capture whom, ptrace) as a short lesson or a lesson note, drafted for the
    owner. Tests: the lesson catalog on Linux; the sample launch path per system.
