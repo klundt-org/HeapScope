@@ -27,10 +27,16 @@ dotnet test --solution HeapScope.sln
   `jq` or `dotnet-dump` the check is reported as skipped) and appends a line to `artifacts/gate/history.csv`
   (git-ignored): time, commit, outcome, durations, test counts and failed test names; a test that failed in an earlier run
   is named again. Its log and TRX results are kept under `artifacts/test-results/<time>`. Run it before closing a sprint.
+  A tier or the fixture check whose inputs already passed is skipped and the log says so (2026-11-19, to spare the
+  machine): the key is a hash of every file git would commit, untracked ones included, with the SDK, runtimes and system;
+  the integration tier and the fixture check leave Markdown out of it, so a docs-only change reruns only the fast tier.
+  The builds always run; `bash build/gate.sh --force` runs everything. CI runs everything on every PR.
 - One tier (sprint 3.6): `bash build/test.sh fast|integration [Release|Debug] [results folder]`. `fast` runs every test
   project that runs on this system but the Integration project, found rather than listed, without the Integration and
   Slow traits; a project left with no tests fails. `integration` runs the Integration project (Windows). Integration and
-  Slow tests belong in that project only; the script fails when one is elsewhere. Results are TRX files.
+  Slow tests belong in that project only; the script fails when one is elsewhere. Results are TRX files. Off CI it runs
+  tests on half the CPU threads at once (xunit's default, one per thread, pinned a 24-thread machine and made timed tests
+  fail); `HEAPSCOPE_TEST_THREADS` sets it (a number, `0.5x`, `default`), and CI keeps xunit's default.
 - Fast tests by hand: `dotnet test --solution HeapScope.sln --filter-not-trait "Category=Integration" --filter-not-trait "Category=Slow" --ignore-exit-code 8`.
 - Test fakes (sprint 3.8): `FakeWorkerService` (UI tests) is split into a partial per worker contract under
   `tests/HeapScope.UI.ViewModels.Tests/Fakes/`; a test that needs one area only builds an `IWorkerService` from the
