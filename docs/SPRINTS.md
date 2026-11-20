@@ -160,7 +160,8 @@ disk space calls `GetDiskFreeSpaceEx`; `UnixElevationProbe` cannot tell another 
 - Discovery looks only where the runtime publishes (this user's `TMPDIR`); a target with another `TMPDIR` is a refusal
   with a next step, not a search. Decided autonomously.
 - No new sample scenario: the existing ones run on Linux, and the lesson covers the Linux rules. Decided autonomously.
-- Local Linux runs are not available (no WSL on the development machine); Linux is proven in CI's Linux job. Decided
-  autonomously.
+- Local Linux runs are not available on the development machine; Linux is proven in CI's Linux job. Decided
+  autonomously. Once the owner's planned native Ubuntu laptop (claude-dev-3) exists, Linux checks may also run there, as a
+  convenience only (owner, 2026-11-19: work must not depend on the extra laptops).
 
 **Review summary:** to be filled by /wrap-sprint.
