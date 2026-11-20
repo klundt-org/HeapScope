@@ -286,8 +286,11 @@ public static class CounterMonitor
             return new TargetUnavailableException($"No running process has id {processId}.", ex);
         }
 
+        // Sprint 4.1 review M2: on Linux the same reasons as a capture's (another user's, diagnostics off, another /tmp).
         return ex is UnauthorizedAccessException
             ? ElevationRequiredException.ForMonitoring(processId, processName, ex)
+            : OperatingSystem.IsLinux() && LinuxCaptureRules.WhyNoDiagnostics(LinuxCaptureRules.Read(processId)) is { } why
+            ? new TargetUnavailableException(why, ex)
             : new TargetUnavailableException($"{processName} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
     }
 }

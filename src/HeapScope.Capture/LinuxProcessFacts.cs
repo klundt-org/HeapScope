@@ -50,6 +50,12 @@ internal sealed class LinuxProcessFacts : IProcessFacts
     /// <summary>A runtime library's embedded file version, read once per file and write time (a list reads every process's).</summary>
     internal static string? FileVersion(string library)
     {
+        // Review H5: the path comes from the target's maps; as root HeapScope reads only a regular file of a sane size.
+        if (!TargetFiles.IsReadable(library))
+        {
+            return null;
+        }
+
         try
         {
             var key = (library, File.GetLastWriteTimeUtc(library));

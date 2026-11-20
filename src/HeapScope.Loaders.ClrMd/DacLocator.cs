@@ -136,7 +136,11 @@ public static class DacLocator
         ArgumentNullException.ThrowIfNull(request);
         var result = new List<string>();
         var dumpFolder = Path.GetDirectoryName(Path.GetFullPath(dumpPath));
-        foreach (var directory in new[] { dumpFolder, dumpFolder is null ? null : Path.Combine(dumpFolder, "dac", request.RuntimeVersion) })
+        // Sprint 4.1 review H4: the folder named by the version first, then every other dac/ folder. The capture names it by
+        // the runtime library's file version, which ClrMD does not always read from a Linux core file (0.0, so the request
+        // names the runtime's folder instead); the identity checks pick the right file wherever it is.
+        var dacRoot = dumpFolder is null ? null : Path.Combine(dumpFolder, "dac");
+        foreach (var directory in new[] { dumpFolder, dacRoot is null ? null : Path.Combine(dacRoot, request.RuntimeVersion) }.Concat(OtherDacFolders(dacRoot)))
         {
             if (!string.IsNullOrEmpty(directory) && IsLocalFixedPath(directory) && !result.Contains(directory, PathComparer))
             {
@@ -145,6 +149,24 @@ public static class DacLocator
         }
 
         return result;
+    }
+
+    /// <summary>The folders under a dump's <c>dac/</c> folder, in name order; none when it is missing or cannot be read.</summary>
+    private static IEnumerable<string> OtherDacFolders(string? dacRoot)
+    {
+        if (dacRoot is null || !Directory.Exists(dacRoot))
+        {
+            return [];
+        }
+
+        try
+        {
+            return Directory.GetDirectories(dacRoot).Order(StringComparer.Ordinal).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     /// <summary>

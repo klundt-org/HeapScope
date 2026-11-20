@@ -42,9 +42,10 @@ public interface IProcessDiscovery
 
     /// <summary>
     /// Why a process that was asked for by pid is not found, with what to do, where the system can tell (sprint 4.1: on
-    /// Linux, another user's process, diagnostics turned off, or a socket in another temp folder); null otherwise.
+    /// Linux, another user's process, diagnostics turned off, its own /tmp, or a socket in another temp folder), and what
+    /// that rests on, for the log (review H6).
     /// </summary>
-    string? WhyNotFound(int processId) => null;
+    NotFoundExplanation WhyNotFound(int processId) => NotFoundExplanation.None;
 }
 
 /// <summary>
@@ -102,7 +103,16 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
         return FindOnThisSystem(processId);
     }
 
-    public string? WhyNotFound(int processId) => OperatingSystem.IsLinux() ? LinuxCaptureRules.WhyNoDiagnostics(processId) : null;
+    public NotFoundExplanation WhyNotFound(int processId)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return NotFoundExplanation.None;
+        }
+
+        var target = LinuxCaptureRules.Read(processId);
+        return new NotFoundExplanation(LinuxCaptureRules.WhyNoDiagnostics(target), LinuxCaptureRules.Evidence(target));
+    }
 
     private DotNetProcess? FindOnThisSystem(int processId) =>
         !IsOwn(processId) && DiagnosticsClient.GetPublishedProcesses().Contains(processId) ? Describe(processId) : null;
