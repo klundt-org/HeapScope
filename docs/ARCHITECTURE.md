@@ -114,9 +114,10 @@ Capture and sessions (sprint 1.1):
   The current session is created when the first capture passes its checks (a refused capture leaves no folder), or
   chosen with `Open` (Home's Open, CLI `--session`). `CaptureService` (behind `ICaptureService`) lists processes off
   the calling thread, runs captures as tracked jobs with collision-free file names into the session that was current
-  when the capture started, copies the target's DAC (`mscordaccore.dll`; on Linux `libmscordaccore.so` with `libcoreclr.so`, sprint 4.1) to
-  `dac\<file version>\` next to the dump (the loader searches every `dac` folder there; the dump stays readable after the runtime on this machine is updated, for self-contained apps,
-  and with several runtimes in one session) and, since 3.6, trusts that copy by its SHA-256 (`TrustedDacs`, ADR-035),
+  when the capture started, copies the target's DAC (`mscordaccore.dll`; on Linux `libmscordaccore.so` with
+  `libcoreclr.so`, sprint 4.1) to `dac\<file version>\` next to the dump (the loader searches every `dac` folder
+  there; the dump stays readable after the runtime on this machine is updated, for self-contained apps, and with several
+  runtimes in one session) and, since 3.6, trusts that copy by its SHA-256 (`TrustedDacs`, ADR-035),
   records the snapshot, and logs start, end and failures. Every capture states that the dump
   contains secrets and where it was written. Front ends see only Application types: `ICaptureService`, `ProcessEntry`
   (with `ProcessElevation` and `NeedsAdministrator`) and `CaptureFailedException` with a `CaptureFailure` reason (the

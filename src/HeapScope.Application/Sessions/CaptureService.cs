@@ -219,6 +219,12 @@ public sealed class CaptureService : ICaptureService
                     _logger.LogInformation("The write failure of pid {Pid} was judged by: {Evidence}", processId, evidence);
                 }
 
+                if (OperatingSystem.IsLinux() && ex is ElevationRequiredException)
+                {
+                    // Sprint 4.1 review H6: the ids the refusal rests on, also where no process list was logged (the CLI).
+                    _logger.LogInformation("Pid {Pid} was refused as another user's: effective user {Target}, HeapScope's {Own}", processId, UserId(processId), UserId(Environment.ProcessId));
+                }
+
                 if (createdSession && sessionFolder is not null)
                 {
                     RemoveIfEmpty(sessionFolder);
@@ -408,8 +414,10 @@ public sealed class CaptureService : ICaptureService
             return string.Empty;
         }
 
-        var marked = processes.Where(p => p.Elevation == ElevationState.Elevated).Take(200).Select(p => $"{p.ProcessId} (user {UserId(p.ProcessId)})").ToList();
-        return $"; HeapScope's effective user {UserId(Environment.ProcessId)}; another user's: {(marked.Count == 0 ? "none" : string.Join(", ", marked))}";
+        var all = processes.Where(p => p.Elevation == ElevationState.Elevated).ToList();
+        var marked = all.Take(200).Select(p => $"{p.ProcessId} (user {UserId(p.ProcessId)})").ToList();
+        var more = all.Count > 200 ? $" and {all.Count - 200} more" : string.Empty;
+        return $"; HeapScope's effective user {UserId(Environment.ProcessId)}; another user's: {(marked.Count == 0 ? "none" : string.Join(", ", marked) + more)}";
     }
 
     private static string UserId(int processId) =>

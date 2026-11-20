@@ -98,7 +98,11 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   JIT, inside a single-file executable, or none). A dump the runtime could not write logs "The write failure of pid {pid}
   was judged by: ptrace_scope {n}; container yes/no; rule: ...", the rule that named the cause (no space left, a folder the
   target's account cannot write, ptrace refused, scope 3, or none). A full dump refused because HeapScope runs as root and
-  the process as another user says so. The refusal itself lands on the job's failed line under its trace id. `/proc`
+  the process as another user says so, with both effective user ids. Live and recording log the same evidence when a
+  process does not answer ("Pid {pid} could not be monitored: ..." and "could not be traced: ..."), and a refusal of
+  another user's process logs both effective user ids in a capture, Live and a recording ("was refused as another
+  user's"); the process list adds HeapScope's effective user id and each marked process's. The refusal itself lands on
+  the job's failed line under its trace id. `/proc`
   command lines and environments are never logged: of the environment only `TMPDIR` and the name of a setting that is 0.
 - **What a log may hold (sprint 2.3.7 review M6)**: paths, file and process names, type, module and field names, counts,
   sizes, addresses, ids, versions, flags and HeapScope's own notes. Never field values or string contents from a dump:

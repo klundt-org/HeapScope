@@ -87,6 +87,16 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   turned on only after the user confirms (the command line: `--dump-values-in-logs on --yes`); every log says whether it
   holds them (logging.md).
 - Elevated targets require HeapScope to run elevated (ADR-014). HeapScope never tries to elevate silently.
+- Capture on Linux (sprint 4.1 and its review): another user's process needs HeapScope run as that user or as root;
+  HeapScope never changes system settings (`ptrace_scope`, a container's capabilities) and only says what to change. As
+  root it writes no other user's full dump into its own 0700 folders (the runtime writes a dump as the target's user;
+  `--out` names a folder that user can write). It reads `/proc/<pid>`: `status` for the effective user id, `maps` for
+  the runtime and the size estimate, `exe` and `cmdline` for the list, and, only to explain a pid that is not found,
+  `environ`, of which it uses the diagnostics settings and `TMPDIR` and logs only `TMPDIR` and a setting's name. Paths a
+  target names (its runtime folder) are untrusted: a file there is read or copied only when it is a regular file of 64
+  bytes to 64 MB (`TargetFiles`), so a pipe or device cannot stall or exhaust a root HeapScope, and a DAC copied from
+  there is not trusted automatically while HeapScope runs elevated (ADR-035). Other users' command lines are readable on
+  Linux and shown in the list; an export leaves them out unless the user opts in (ADR-026).
 - Traces (`trace`, `--smoke-trace`, sprint 1.5) hold method and type names and event data such as exception messages,
   not heap contents; the CLI says so after each one, and they are written where the user asks (never uploaded).
 - Inspecting an object reads its field values and string text from the dump on demand (sprint 1.5); they are shown,
