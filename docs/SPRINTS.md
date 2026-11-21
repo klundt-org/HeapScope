@@ -49,7 +49,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
 | 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
-| 4.1.1 | Hide processes HeapScope cannot capture | Planned | | |
+| 4.1.1 | Hide processes HeapScope cannot capture | In Progress | | |
 | 4.2 | Capture on macOS | Planned | | |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
@@ -117,7 +117,29 @@ Owner decisions, 2026-11-18:
 that need more rights than HeapScope has are hidden, with a check box to show them; when HeapScope runs elevated (as
 root on Linux) it can capture them all, so all are shown. Elevated processes stay marked as such.
 
-**Tasks:** to be filled by /start-sprint.
+**Tasks**
+1. [ ] The texts, per system, in Core's `ElevationTexts` (passed on by Application's `RightsTexts`): the check box's label
+   and tooltip, and the note that says how many processes are hidden and why; drafts for the owner in info-text.md.
+   Tests: each text on each system (one and several processes), and the info text tests.
+2. [ ] One rule for both lists (`ProcessListFilter` in the view models): a row that needs more rights than HeapScope has
+   (`NeedsAdministrator`, false for every row when HeapScope runs elevated or as root) is hidden unless shown; it counts
+   what it hides. Tests: hidden by default, shown with the box, nothing hidden when HeapScope is elevated, the count.
+3. [ ] The Processes page: the check box, shown only when a process needs more rights; while they are hidden the note
+   replaces the banner, and the banner comes back once they are shown; a selected row that becomes hidden is unselected;
+   "No running .NET processes" only when there are none at all; the log names the pids it hid. Tests: ProcessesViewModelTests.
+4. [ ] The Live page's process chooser: the same rule and check box. Tests: LiveViewModelTests.
+5. [ ] Docs: ADR-014 amended (hidden by default, marked when shown), the user guide, the code map; the Backlog.
+
+**Decisions** (each decided autonomously, with the defaults told to the owner on 2026-11-20)
+- Both lists that pick a process to capture or watch hide them: the Processes page and the Live page. `heapscope-cli
+  list` is unchanged (it lists everything with its mark), so scripts keep working.
+- Hidden only while HeapScope lacks the rights: run as administrator (or root), it can capture them all, so all are shown
+  and the check box is not.
+- The check box is off at each start and kept while the app runs (not a setting), so hidden is always the default.
+- A note says how many are hidden and why, in place of the banner; the Elevation column stays and marks what is shown
+  ("Needs administrator" or "Needs root or its user", "Elevated" or "Another user's").
+- The label names what it shows on each system: "Show elevated processes" (Windows), "Show other users' processes"
+  (Linux, where those are the ones it hides).
 
 ---
 
