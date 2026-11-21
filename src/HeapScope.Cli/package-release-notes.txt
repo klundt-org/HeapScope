@@ -1,4 +1,4 @@
-4.1.0: capture on Linux.
+4.1.1: capture on Linux.
 
 - heapscope-cli list, capture (full dumps and gcdumps), monitor and trace now run on Linux, as on Windows. Another user's
   process needs heapscope-cli run as that user, or with sudo; as root, a full dump of another user's process goes to a
@@ -6,5 +6,6 @@
 - When Linux stops a capture (kernel.yama.ptrace_scope, a container without SYS_PTRACE, diagnostics turned off, another
   TMPDIR, a service's own /tmp), the error says why and what to change. heapscope-cli never changes system settings.
 - On macOS, capture is not built yet: take a dump with dotnet-dump and open it with heapscope-cli.
+- 4.1.1 changes nothing in heapscope-cli: its list still shows every process with its mark.
 
 All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md
