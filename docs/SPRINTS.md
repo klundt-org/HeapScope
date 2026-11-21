@@ -49,7 +49,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
 | 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
-| 4.1.1 | Hide processes HeapScope cannot capture | In Progress | | |
+| 4.1.1 | Hide processes HeapScope cannot capture | Wrapping | | |
 | 4.2 | Capture on macOS | Planned | | |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
@@ -140,6 +140,13 @@ root on Linux) it can capture them all, so all are shown. Elevated processes sta
   ("Needs administrator" or "Needs root or its user", "Elevated" or "Another user's").
 - The label names what it shows on each system: "Show elevated processes" (Windows), "Show other users' processes"
   (Linux, where those are the ones it hides).
+
+**Review summary:** 1 High, 5 Moderate, 25 Low ([docs/reviews/sprint-4.1.1.md](reviews/sprint-4.1.1.md)); every High and
+Moderate fixed and confirmed (decided autonomously). Fixed: both pages log what they hide, through one method on the
+shared rule, after a listing when it changed and at every toggle, and the Windows list line says whether HeapScope runs
+elevated; a process whose rights are unknown is never hidden (tested through the real mapping); the sample's mark survives
+a toggle; the Windows note names the set the banner names. Deferred: the review's Lows (among them the Live wording
+"cannot capture", the info icons, the screenshot run's made-up rows).
 
 ---
 

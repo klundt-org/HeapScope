@@ -287,7 +287,8 @@ row above gives.
 ## Sprint 4.1.1 additions
 
 Drafts for the owner (sprint 4.1.1, hide processes HeapScope cannot capture). `HeapScope.Core.ElevationTexts` holds them
-and `LinuxCaptureRulesTests` checks them word for word; the Processes page and the Live page show them.
+and `LinuxCaptureRulesTests` checks the labels and notes (the tooltips in part); the Processes page and the Live page
+show them.
 
 | Page | Where | Text | Status |
 |---|---|---|---|
