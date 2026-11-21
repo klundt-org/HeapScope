@@ -19,6 +19,14 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.1.1: Hide processes HeapScope cannot capture (sprint 4.1.1)
+
+- **The process lists show what you can capture**: the Processes page and the Live page hide the processes HeapScope
+  cannot capture as it runs now (those that run elevated or as another user; on Linux, other users' processes), and a
+  note says how many. Check "Show elevated processes" (on Linux, "Show other users' processes") to list them, marked with
+  what they need. Run HeapScope as administrator (or as root) and every process is listed.
+- **Unchanged**: `heapscope-cli list` lists every process with its mark, so scripts keep working.
+
 ## 4.1.0: Capture on Linux (sprint 4.1)
 
 - **Capture on Linux**: the Processes page and `heapscope-cli` list the .NET processes you can capture, take full dumps

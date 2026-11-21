@@ -18,7 +18,7 @@ section 13 links here).
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene
 - [ADR-012](ADR-012-git.md) Git
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth
-- [ADR-014](ADR-014-elevation.md) Elevation
+- [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1 and 4.1.1: the Linux meaning; hidden by default)
 - [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment)
 - [ADR-016](ADR-016-contracts-owns-the-wire-vocabulary.md) Contracts owns the wire vocabulary (added in sprint 0.1)
 - [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035)

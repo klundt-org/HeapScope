@@ -123,6 +123,22 @@ public sealed class CaptureExplanationTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_process_whose_rights_are_unknown_never_needs_more_so_no_list_hides_it(bool heapScopeElevated)
+    {
+        // Sprint 4.1.1 review M3: the lists hide only what is known to need more rights than HeapScope has.
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Listing refuses first where capture is not built (ADR-025).");
+        var gone = new DotNetProcess(77, "gone", null, "10.0.1", ElevationState.Unknown, null, null, null);
+        var service = Service(new Discovery(gone, NotFoundExplanation.None), elevated: heapScopeElevated);
+
+        var entry = (await service.ListProcessesAsync(Ct)).ShouldHaveSingleItem();
+
+        entry.Elevation.ShouldBe(ProcessElevation.Unknown);
+        entry.NeedsAdministrator.ShouldBeFalse();
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     private CaptureService Service(IProcessDiscovery discovery, bool elevated = false)

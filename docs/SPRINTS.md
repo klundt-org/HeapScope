@@ -49,7 +49,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
 | 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
-| 4.1.1 | Hide processes HeapScope cannot capture | Planned | | |
+| 4.1.1 | Hide processes HeapScope cannot capture | Closed | 2026-11-21 | sprint-4.1.1 |
 | 4.2 | Capture on macOS | Planned | | |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
@@ -113,11 +113,8 @@ Owner decisions, 2026-11-18:
 
 ## Sprint 4.1.1: Hide processes HeapScope cannot capture
 
-**Goal** (owner, 2026-11-20): the Processes list shows by default only the processes HeapScope can capture. Processes
-that need more rights than HeapScope has are hidden, with a check box to show them; when HeapScope runs elevated (as
-root on Linux) it can capture them all, so all are shown. Elevated processes stay marked as such.
-
-**Tasks:** to be filled by /start-sprint.
+Closed 2026-11-21; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.1.1.md](reviews/sprint-4.1.1.md). ADR-014 is amended for it.
 
 ---
 

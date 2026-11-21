@@ -47,6 +47,12 @@ public static class PlatformHints
     /// <summary>The Processes page's Elevation column tooltip, per system (sprint 4.1).</summary>
     public static string ElevationColumnTip => HeapScope.Application.Sessions.RightsTexts.ColumnTip;
 
+    /// <summary>The label of the check box that lists the processes hidden because they need more rights (sprint 4.1.1).</summary>
+    public static string ShowHidden => HeapScope.Application.Sessions.RightsTexts.ShowHidden;
+
+    /// <summary>The tooltip of <see cref="ShowHidden"/>.</summary>
+    public static string ShowHiddenTip => HeapScope.Application.Sessions.RightsTexts.ShowHiddenTip;
+
     public static string SnapshotEmpty { get; } = SnapshotEmptyOn(CanCapture);
 
     public static string LiveEmpty { get; } = LiveEmptyOn(CanCapture);

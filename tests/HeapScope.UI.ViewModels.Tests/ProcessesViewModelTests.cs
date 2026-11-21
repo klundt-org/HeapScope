@@ -55,15 +55,75 @@ public sealed class ProcessesViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Refresh_lists_processes_and_shows_the_elevation_hint()
+    public async Task Refresh_hides_the_processes_that_need_more_rights_and_says_how_many()
+    {
+        // Sprint 4.1.1 (owner, 2026-11-20): what HeapScope cannot capture as it runs now is hidden by default.
+        await _processes.RefreshCommand.ExecuteAsync(null);
+
+        _processes.Processes.Select(p => p.Name).ShouldBe(["Api"]);
+        _processes.Processes[0].Elevation.ShouldBeEmpty();
+        _processes.ShowHiddenProcesses.ShouldBeFalse("off at each start");
+        _processes.CanShowHiddenProcesses.ShouldBeTrue();
+        _processes.HiddenNote.ShouldBe(HeapScope.Application.Sessions.RightsTexts.HiddenNote(1));
+        _processes.ShowElevationHint.ShouldBeFalse("the note says it while they are hidden");
+        _processes.Status.ShouldBeNull();
+        _processes.CaptureCommand.CanExecute(null).ShouldBeFalse("nothing selected");
+    }
+
+    [Fact]
+    public async Task The_check_box_lists_them_marked_with_the_banner_and_unchecking_hides_them_again()
     {
         await _processes.RefreshCommand.ExecuteAsync(null);
 
+        _processes.ShowHiddenProcesses = true;
+
         _processes.Processes.Select(p => p.Name).ShouldBe(["Api", "Service"]);
         _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Needs root or its user" : "Needs administrator");
-        _processes.Processes[0].Elevation.ShouldBeEmpty();
+        _processes.HiddenNote.ShouldBeNull();
         _processes.ShowElevationHint.ShouldBeTrue();
-        _processes.CaptureCommand.CanExecute(null).ShouldBeFalse("nothing selected");
+
+        _processes.Selected = _processes.Processes[1];
+        await _processes.RefreshCommand.ExecuteAsync(null);
+        _processes.Selected.ShouldNotBeNull().Name.ShouldBe("Service", "the box stays checked across a refresh");
+
+        _processes.ShowHiddenProcesses = false;
+
+        _processes.Processes.Select(p => p.Name).ShouldBe(["Api"]);
+        _processes.Selected.ShouldBeNull("a hidden row is not selected");
+        _processes.HiddenNote.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task The_page_logs_the_pids_it_hides_and_each_toggle()
+    {
+        // Review M5 of 4.1.1: the page's line, through the shared rule.
+        var logger = new HeapScope.Application.Tests.RecordingLogger<ProcessesViewModel>();
+        var processes = new ProcessesViewModel(_capture, _snapshots, _interaction, logger: logger);
+
+        await processes.RefreshCommand.ExecuteAsync(null);
+        processes.ShowHiddenProcesses = true;
+
+        logger.Lines.Count(l => l.StartsWith("The Processes page lists", StringComparison.Ordinal)).ShouldBe(2);
+        logger.Lines.ShouldContain(l => l.StartsWith("The Processes page lists 1 of 2 processes;", StringComparison.Ordinal) && l.EndsWith(": 20", StringComparison.Ordinal));
+        logger.Lines[^1].ShouldContain("is checked (just changed)");
+    }
+
+    [Fact]
+    public async Task When_every_process_is_hidden_the_page_says_so_rather_than_that_there_are_none()
+    {
+        _capture.Processes.RemoveAt(0);
+
+        await _processes.RefreshCommand.ExecuteAsync(null);
+
+        _processes.Processes.ShouldBeEmpty();
+        _processes.Status.ShouldBeNull();
+        _processes.HiddenNote.ShouldBe(HeapScope.Application.Sessions.RightsTexts.HiddenNote(1));
+
+        _capture.Processes.Clear();
+        await _processes.RefreshCommand.ExecuteAsync(null);
+        _processes.Status.ShouldBe("No running .NET processes were found.");
+        _processes.HiddenNote.ShouldBeNull();
+        _processes.CanShowHiddenProcesses.ShouldBeFalse();
     }
 
     [Fact]
@@ -88,8 +148,11 @@ public sealed class ProcessesViewModelTests : IDisposable
 
         await _processes.RefreshCommand.ExecuteAsync(null);
 
+        // Sprint 4.1.1: elevated (or root), HeapScope can capture them all, so all are shown, still marked, with no box.
         _processes.ShowElevationHint.ShouldBeFalse();
         _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Another user's" : "Elevated");
+        _processes.CanShowHiddenProcesses.ShouldBeFalse();
+        _processes.HiddenNote.ShouldBeNull();
     }
 
     [Fact]
@@ -128,6 +191,7 @@ public sealed class ProcessesViewModelTests : IDisposable
     public async Task Capturing_an_elevated_process_explains_how_to_run_as_administrator()
     {
         await _processes.RefreshCommand.ExecuteAsync(null);
+        _processes.ShowHiddenProcesses = true;
         _processes.Selected = _processes.Processes[1];
 
         await _processes.CaptureCommand.ExecuteAsync(null);
