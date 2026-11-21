@@ -34,6 +34,9 @@ namespace HeapScope.UI.ViewModels;
 /// <summary>One row of the process list. Numbers stay numeric so the grid sorts them.</summary>
 public sealed record ProcessRow(int ProcessId, string Name, string Runtime, string Elevation, long WorkingSetBytes, string CommandLine, bool NeedsAdministrator, bool IsSample = false)
 {
+    /// <summary>The mark after a process's name where a list has no Elevation column (the Live page's chooser, sprint 4.1.1).</summary>
+    public string ElevationSuffix => Elevation.Length == 0 ? string.Empty : ", " + Elevation;
+
     /// <summary>"Sample" for the tutorial's sample this HeapScope started (sprint 3.13), else empty.</summary>
     public string Kind => IsSample ? "Sample" : string.Empty;
 

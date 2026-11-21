@@ -39,16 +39,23 @@
       <Border Classes="info" IsVisible="{Binding Unavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <SelectableTextBlock TextWrapping="Wrap" Text="{Binding Unavailable}" />
       </Border>
+      <Border Classes="info" Margin="0,0,0,6" IsVisible="{Binding HiddenNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding HiddenNote}" />
+      </Border>
       <WrapPanel Margin="0,0,0,6">
         <TextBlock Text="Process" VerticalAlignment="Center" Margin="0,0,6,0" />
         <ComboBox Width="320" PlaceholderText="Choose a process" ItemsSource="{Binding Processes}" SelectedItem="{Binding SelectedProcess, Mode=TwoWay}" VerticalAlignment="Center">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="vm:ProcessRow">
-              <TextBlock><Run Text="{Binding Name}" /><Run Text=" (pid " /><Run Text="{Binding ProcessId}" /><Run Text=")" /></TextBlock>
+              <TextBlock><Run Text="{Binding Name}" /><Run Text=" (pid " /><Run Text="{Binding ProcessId}" /><Run Text=")" /><Run Text="{Binding ElevationSuffix}" /></TextBlock>
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
         <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="8,0,0,0" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+        <!-- Sprint 4.1.1: the processes HeapScope cannot watch as it runs now are hidden unless this is checked. -->
+        <CheckBox Content="{x:Static vm:PlatformHints.ShowHidden}" Margin="12,0,0,0" VerticalAlignment="Center"
+                  IsChecked="{Binding ShowHiddenProcesses}" IsVisible="{Binding CanShowHiddenProcesses}"
+                  ToolTip.Tip="{x:Static vm:PlatformHints.ShowHiddenTip}" />
         <TextBlock Text="Sample every (s)" VerticalAlignment="Center" Margin="16,0,6,0" />
         <TextBox Width="50" Text="{Binding IntervalSeconds, Mode=TwoWay}" VerticalAlignment="Center"
                  ToolTip.Tip="How often HeapScope reads the process's heap counters, in whole seconds, at least 1, and the chart keeps the last 1,800 samples. It applies at the next Start, and rules are checked at each sample." />
