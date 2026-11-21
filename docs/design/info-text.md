@@ -286,18 +286,18 @@ row above gives.
 
 ## Sprint 4.1.1 additions
 
-Drafts for the owner (sprint 4.1.1, hide processes HeapScope cannot capture). `HeapScope.Core.ElevationTexts` holds them
+Approved by the owner on 2026-11-21 (sprint 4.1.1, hide processes HeapScope cannot capture). `HeapScope.Core.ElevationTexts` holds them
 and `LinuxCaptureRulesTests` checks the labels and notes (the tooltips in part); the Processes page and the Live page
 show them.
 
 | Page | Where | Text | Status |
 |---|---|---|---|
-| Processes, Live | Check box that lists the hidden processes (Windows) | Show elevated processes | draft 2026-11-20 |
-| Processes, Live | Its tooltip (Windows) | Also lists the processes that run elevated or as another user. HeapScope can capture them only when it runs as administrator. | draft 2026-11-20 |
-| Processes, Live | Check box (Linux) | Show other users' processes | draft 2026-11-20 |
-| Processes, Live | Its tooltip (Linux) | Also lists the processes of other users. HeapScope can capture them only when it runs as that user or as root (sudo). | draft 2026-11-20 |
-| Processes, Live | Note while processes are hidden (Windows), in place of the banner | {N} processes that run elevated or as another user are hidden: HeapScope cannot capture them unless it runs as administrator. Check 'Show elevated processes' to list them. (One: "1 process that runs elevated or as another user is hidden: ... capture it ... list it.") | draft 2026-11-20 (review: the set the banner names) |
-| Processes, Live | The same (Linux) | {N} processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them. (One: "1 process of another user is hidden: ...") | draft 2026-11-20 |
+| Processes, Live | Check box that lists the hidden processes (Windows) | Show elevated processes | approved 2026-11-21 |
+| Processes, Live | Its tooltip (Windows) | Also lists the processes that run elevated or as another user. HeapScope can capture them only when it runs as administrator. | approved 2026-11-21 |
+| Processes, Live | Check box (Linux) | Show other users' processes | approved 2026-11-21 |
+| Processes, Live | Its tooltip (Linux) | Also lists the processes of other users. HeapScope can capture them only when it runs as that user or as root (sudo). | approved 2026-11-21 |
+| Processes, Live | Note while processes are hidden (Windows), in place of the banner | {N} processes that run elevated or as another user are hidden: HeapScope cannot capture them unless it runs as administrator. Check 'Show elevated processes' to list them. (One: "1 process that runs elevated or as another user is hidden: ... capture it ... list it.") | approved 2026-11-21 (the review's wording: the set the banner names) |
+| Processes, Live | The same (Linux) | {N} processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them. (One: "1 process of another user is hidden: ...") | approved 2026-11-21 |
 
 ## Evidence: the per-setting drafts
 
