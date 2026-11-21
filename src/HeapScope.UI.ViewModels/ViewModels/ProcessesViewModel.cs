@@ -108,6 +108,21 @@ public sealed partial class ProcessesViewModel : ObservableObject
     [ObservableProperty]
     private bool _showElevationHint;
 
+    // Sprint 4.1.1: the processes HeapScope cannot capture as it runs now are hidden unless the box is checked.
+    private readonly ProcessListFilter _filter = new();
+
+    /// <summary>The check box: list the processes hidden because they need more rights (off at each start).</summary>
+    [ObservableProperty]
+    private bool _showHiddenProcesses;
+
+    /// <summary>Whether a process needs more rights than HeapScope has, so the check box is offered.</summary>
+    [ObservableProperty]
+    private bool _canShowHiddenProcesses;
+
+    /// <summary>How many processes are hidden and why, while they are; null otherwise (the banner shows once they are listed).</summary>
+    [ObservableProperty]
+    private string? _hiddenNote;
+
     /// <summary>Capture a gcdump instead of a full dump (sprint 1.8): the object graph only, smaller, no field values.</summary>
     [ObservableProperty]
     private bool _captureGcDump;
@@ -149,16 +164,19 @@ public sealed partial class ProcessesViewModel : ObservableObject
         try
         {
             var processes = await _capture.ListProcessesAsync(CancellationToken.None);
-            var selectedId = Selected?.ProcessId;
-            Processes.Clear();
-            foreach (var process in processes)
+            _filter.Replace(processes.Select(process => ProcessRow.From(process) with { IsSample = _samples?.IsSample(process.ProcessId) == true }));
+            ShowRows();
+            Status = _filter.All.Count == 0 ? "No running .NET processes were found." : null;
+            if (_filter.Hidden is { Count: > 0 } hidden)
             {
-                Processes.Add(ProcessRow.From(process) with { IsSample = _samples?.IsSample(process.ProcessId) == true });
+                // Sprint 4.1.1: why a process the user expects is not on the page.
+                Microsoft.Extensions.Logging.LoggerExtensions.LogInformation(
+                    _logger,
+                    "The Processes page hides {Count} processes that need more rights than HeapScope has ({Pids}); '{Box}' lists them",
+                    hidden.Count,
+                    string.Join(", ", hidden.Take(200)) + (hidden.Count > 200 ? $" and {hidden.Count - 200} more" : string.Empty),
+                    HeapScope.Application.Sessions.RightsTexts.ShowHidden);
             }
-
-            Selected = Processes.FirstOrDefault(p => p.ProcessId == selectedId);
-            ShowElevationHint = Processes.Any(p => p.NeedsAdministrator);
-            Status = Processes.Count == 0 ? "No running .NET processes were found." : null;
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException or UnauthorizedAccessException)
         {
@@ -253,6 +271,31 @@ public sealed partial class ProcessesViewModel : ObservableObject
         Status = stopped ? $"Sample {row.ProcessId} stopped." : $"Sample {row.ProcessId} had already exited.";
     }
 
+    partial void OnShowHiddenProcessesChanged(bool value)
+    {
+        _filter.ShowHidden = value;
+        ShowRows();
+    }
+
+    /// <summary>
+    /// Shows the rows the filter lets through, keeps the selection while its row is shown, and says what is hidden: the
+    /// note while processes are hidden, the banner once they are listed (sprint 4.1.1).
+    /// </summary>
+    private void ShowRows()
+    {
+        var selectedId = Selected?.ProcessId;
+        Processes.Clear();
+        foreach (var row in _filter.Visible)
+        {
+            Processes.Add(row);
+        }
+
+        Selected = Processes.FirstOrDefault(p => p.ProcessId == selectedId);
+        CanShowHiddenProcesses = _filter.AnyNeedMoreRights;
+        HiddenNote = _filter.Hidden.Count > 0 ? HeapScope.Application.Sessions.RightsTexts.HiddenNote(_filter.Hidden.Count) : null;
+        ShowElevationHint = Processes.Any(p => p.NeedsAdministrator);
+    }
+
     // Review H3: a sample stopped elsewhere, or exited, loses its Sample mark without waiting for a refresh.
     private void MarkSamples()
     {
@@ -263,6 +306,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
             {
                 var wasSelected = Selected == Processes[i];
                 Processes[i] = Processes[i] with { IsSample = isSample };
+                _filter.Update(Processes[i]);
                 if (wasSelected)
                 {
                     Selected = Processes[i];

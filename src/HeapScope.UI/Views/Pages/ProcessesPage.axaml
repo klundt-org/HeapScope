@@ -35,6 +35,10 @@
         <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Processes}" />
       </StackPanel>
       <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="16,0,0,0" Command="{Binding RefreshCommand}" />
+      <!-- Sprint 4.1.1: the processes HeapScope cannot capture as it runs now are hidden unless this is checked. -->
+      <CheckBox Content="{x:Static vm:PlatformHints.ShowHidden}" Margin="12,0,0,0" VerticalAlignment="Center"
+                IsChecked="{Binding ShowHiddenProcesses}" IsVisible="{Binding CanShowHiddenProcesses}"
+                ToolTip.Tip="{x:Static vm:PlatformHints.ShowHiddenTip}" />
       <Button ctl:ButtonIcon.Icon="Capture" Classes="primary" Content="Capture dump" Margin="8,0,0,0" Command="{Binding CaptureCommand}" />
       <CheckBox Content="As gcdump" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CaptureGcDump}" />
       <ctl:InfoIcon Text="{x:Static vm:InfoTexts.CaptureOptions}" Margin="4,0,0,0" VerticalAlignment="Center" />
@@ -47,6 +51,10 @@
     <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8"
             IsVisible="{Binding Unavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <SelectableTextBlock TextWrapping="Wrap" Text="{Binding Unavailable}" />
+    </Border>
+    <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8"
+            IsVisible="{Binding HiddenNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding HiddenNote}" />
     </Border>
     <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8" IsVisible="{Binding ShowElevationHint}">
       <TextBlock TextWrapping="Wrap"
