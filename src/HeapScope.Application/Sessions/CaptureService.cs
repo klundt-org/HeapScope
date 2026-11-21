@@ -124,7 +124,10 @@ public sealed class CaptureService : ICaptureService
                 omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed),
                 // Sprint 4.1: off Windows a process is found by its socket in this temp folder; one using another is not seen.
                 // On Linux the ids behind each "needs more rights" mark too (review H6).
-                OperatingSystem.IsWindows() ? string.Empty : $"; diagnostics sockets looked for in {Path.GetTempPath()} only{UserIds(processes)}");
+                // On Windows whether HeapScope runs elevated, which decides the marks (sprint 4.1.1 review M1).
+                OperatingSystem.IsWindows()
+                    ? $"; HeapScope elevated: {(IsHeapScopeElevated ? "yes" : "no")}"
+                    : $"; diagnostics sockets looked for in {Path.GetTempPath()} only{UserIds(processes)}");
             return [.. processes.Select(ToEntry)];
         }
         catch (PlatformNotSupportedException ex)

@@ -89,6 +89,11 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   diagnostics sockets, so a process using another one is explained), and the Processes page logs a sample it started that
   the list does not show, so "the sample is not in the list" can be backed up. All of these are names,
   pids and counts: the sample's messages are its own, never a dump's contents.
+- **Hidden processes (sprint 4.1.1 and its review H1, M1)**: the Processes page and the Live page hide the processes that
+  need more rights than HeapScope has; each logs "The {page} page lists {shown} of {count} processes; '{box}' is
+  checked|unchecked; hidden as needing more rights than HeapScope has: {pids}" (200 at most, then "and N more") after a
+  listing when that changed since its last line, and on every toggle of the box ("(just changed)"). The "Listed" line
+  says on Windows whether HeapScope runs elevated, and on Linux gives the effective user ids, which decide the marks.
 - **Capture on Linux (sprint 4.1 and its review H6, M4)**: each capture logs "Captured {name} (pid): {bytes} bytes in {s} s;
   estimated {bytes} ({n}% of it written)", so the disk check's margin is known on each system (CI flags a Linux dump larger
   than its estimate; the first runs wrote 94 to 95%). A pid that is not found logs "Pid {pid} was not found: Linux check

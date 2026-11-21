@@ -94,6 +94,21 @@ public sealed class ProcessesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task The_page_logs_the_pids_it_hides_and_each_toggle()
+    {
+        // Review M5 of 4.1.1: the page's line, through the shared rule.
+        var logger = new HeapScope.Application.Tests.RecordingLogger<ProcessesViewModel>();
+        var processes = new ProcessesViewModel(_capture, _snapshots, _interaction, logger: logger);
+
+        await processes.RefreshCommand.ExecuteAsync(null);
+        processes.ShowHiddenProcesses = true;
+
+        logger.Lines.Count(l => l.StartsWith("The Processes page lists", StringComparison.Ordinal)).ShouldBe(2);
+        logger.Lines.ShouldContain(l => l.StartsWith("The Processes page lists 1 of 2 processes;", StringComparison.Ordinal) && l.EndsWith(": 20", StringComparison.Ordinal));
+        logger.Lines[^1].ShouldContain("is checked (just changed)");
+    }
+
+    [Fact]
     public async Task When_every_process_is_hidden_the_page_says_so_rather_than_that_there_are_none()
     {
         _capture.Processes.RemoveAt(0);

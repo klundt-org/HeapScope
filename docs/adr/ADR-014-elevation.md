@@ -1,4 +1,4 @@
-# ADR-014 Elevation
+# ADR-014 Elevation (amended in sprints 4.1 and 4.1.1)
 
 - Decision: dumping or attaching to elevated processes requires HeapScope to run elevated. Detect this and
   explain it clearly; never fail silently.

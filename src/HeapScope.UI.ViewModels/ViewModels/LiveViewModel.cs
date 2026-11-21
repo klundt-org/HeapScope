@@ -252,6 +252,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             var processes = await _capture.ListProcessesAsync(CancellationToken.None);
             _filter.Replace(processes.Select(ProcessRow.From));
             ShowRows();
+            _filter.Log(_logger, "Live", toggled: false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
@@ -263,6 +264,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     {
         _filter.ShowHidden = value;
         ShowRows();
+        _filter.Log(_logger, "Live", toggled: true);
     }
 
     /// <summary>Shows the rows the filter lets through and keeps the choice while its row is shown (sprint 4.1.1).</summary>

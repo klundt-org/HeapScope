@@ -170,16 +170,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
             _filter.Replace(processes.Select(process => ProcessRow.From(process) with { IsSample = _samples?.IsSample(process.ProcessId) == true }));
             ShowRows();
             Status = _filter.All.Count == 0 ? "No running .NET processes were found." : null;
-            if (_filter.Hidden is { Count: > 0 } hidden)
-            {
-                // Sprint 4.1.1: why a process the user expects is not on the page.
-                Microsoft.Extensions.Logging.LoggerExtensions.LogInformation(
-                    _logger,
-                    "The Processes page hides {Count} processes that need more rights than HeapScope has ({Pids}); '{Box}' lists them",
-                    hidden.Count,
-                    string.Join(", ", hidden.Take(200)) + (hidden.Count > 200 ? $" and {hidden.Count - 200} more" : string.Empty),
-                    HeapScope.Application.Sessions.RightsTexts.ShowHidden);
-            }
+            _filter.Log(_logger, "Processes", toggled: false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException or UnauthorizedAccessException)
         {
@@ -278,6 +269,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
     {
         _filter.ShowHidden = value;
         ShowRows();
+        _filter.Log(_logger, "Processes", toggled: true);
     }
 
     /// <summary>
@@ -300,21 +292,23 @@ public sealed partial class ProcessesViewModel : ObservableObject
     }
 
     // Review H3: a sample stopped elsewhere, or exited, loses its Sample mark without waiting for a refresh.
+    // Every listed row, hidden or not, so a row shown later never brings back a stale mark (review M4).
     private void MarkSamples()
     {
-        for (var i = 0; i < Processes.Count; i++)
+        var changed = false;
+        foreach (var row in _filter.All.ToList())
         {
-            var isSample = _samples?.IsSample(Processes[i].ProcessId) == true;
-            if (Processes[i].IsSample != isSample)
+            var isSample = _samples?.IsSample(row.ProcessId) == true;
+            if (row.IsSample != isSample)
             {
-                var wasSelected = Selected == Processes[i];
-                Processes[i] = Processes[i] with { IsSample = isSample };
-                _filter.Update(Processes[i]);
-                if (wasSelected)
-                {
-                    Selected = Processes[i];
-                }
+                _filter.Update(row with { IsSample = isSample });
+                changed = true;
             }
+        }
+
+        if (changed)
+        {
+            ShowRows();
         }
     }
 

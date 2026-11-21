@@ -253,8 +253,8 @@ public sealed class LinuxCaptureRulesTests
         ElevationTexts.ShowHiddenOn(linux: false).ShouldBe("Show elevated processes");
         ElevationTexts.ShowHiddenOn(linux: true).ShouldBe("Show other users' processes");
         ElevationTexts.HiddenNoteOn(1, linux: false).ShouldBe(
-            "1 elevated process is hidden: HeapScope cannot capture it unless it runs as administrator. Check 'Show elevated processes' to list it.");
-        ElevationTexts.HiddenNoteOn(1200, linux: false).ShouldStartWith("1,200 elevated processes are hidden: ");
+            "1 process that runs elevated or as another user is hidden: HeapScope cannot capture it unless it runs as administrator. Check 'Show elevated processes' to list it.");
+        ElevationTexts.HiddenNoteOn(1200, linux: false).ShouldStartWith("1,200 processes that run elevated or as another user are hidden: ");
         ElevationTexts.HiddenNoteOn(3, linux: true).ShouldBe(
             "3 processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them.");
         ElevationTexts.HiddenNoteOn(1, linux: true).ShouldStartWith("1 process of another user is hidden: ");

@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using Microsoft.Extensions.Logging;
+
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
@@ -32,6 +34,8 @@ namespace HeapScope.UI.ViewModels;
 public sealed class ProcessListFilter
 {
     private List<ProcessRow> _all = [];
+
+    private string? _lastLogged;
 
     /// <summary>Whether the hidden processes are listed too (the page's check box; off at each start).</summary>
     public bool ShowHidden { get; set; }
@@ -53,6 +57,34 @@ public sealed class ProcessListFilter
     {
         ArgumentNullException.ThrowIfNull(rows);
         _all = [.. rows];
+    }
+
+    /// <summary>
+    /// Logs what <paramref name="page"/> lists and hides, so "my process is not in the list" can be backed up (review H1, M1):
+    /// after a listing only when that changed since the last line (a page is listed each time it is shown), and on every
+    /// toggle of the check box. Pids only, 200 at most.
+    /// </summary>
+    public void Log(ILogger logger, string page, bool toggled)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        var hidden = Hidden;
+        var key = string.Join(",", hidden) + (ShowHidden ? "|shown" : "|hidden") + "|" + _all.Count;
+        if (!toggled && (key == _lastLogged || (!AnyNeedMoreRights && _lastLogged is null)))
+        {
+            _lastLogged = key;
+            return;
+        }
+
+        _lastLogged = key;
+        logger.LogInformation(
+            "The {Page} page lists {Shown} of {Count} processes; '{Box}' is {State}{Toggled}; hidden as needing more rights than HeapScope has: {Hidden}",
+            page,
+            _all.Count - hidden.Count,
+            _all.Count,
+            HeapScope.Application.Sessions.RightsTexts.ShowHidden,
+            ShowHidden ? "checked" : "unchecked",
+            toggled ? " (just changed)" : string.Empty,
+            hidden.Count == 0 ? "none" : string.Join(", ", hidden.Take(200)) + (hidden.Count > 200 ? $" and {hidden.Count - 200} more" : string.Empty));
     }
 
     /// <summary>Replaces one row (the sample's mark changed), keeping its place.</summary>

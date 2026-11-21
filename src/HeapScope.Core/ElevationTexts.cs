@@ -89,11 +89,13 @@ public static class ElevationTexts
     {
         var n = count.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
         var them = count == 1 ? "it" : "them";
+        // The box's own label, so the two cannot drift; on Windows the set the banner names (review: elevated or another user's).
+        var box = ShowHiddenOn(linux);
         return linux
             ? (count == 1 ? "1 process of another user is hidden" : $"{n} processes of other users are hidden")
-                + $": HeapScope cannot capture {them} unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list {them}."
-            : (count == 1 ? "1 elevated process is hidden" : $"{n} elevated processes are hidden")
-                + $": HeapScope cannot capture {them} unless it runs as administrator. Check 'Show elevated processes' to list {them}.";
+                + $": HeapScope cannot capture {them} unless it runs as that user or as root (sudo). Check '{box}' to list {them}."
+            : (count == 1 ? "1 process that runs elevated or as another user is hidden" : $"{n} processes that run elevated or as another user are hidden")
+                + $": HeapScope cannot capture {them} unless it runs as administrator. Check '{box}' to list {them}.";
     }
 
     /// <summary>The refusal to reach a process that needs more rights: what HeapScope cannot do, and what to do instead.</summary>
