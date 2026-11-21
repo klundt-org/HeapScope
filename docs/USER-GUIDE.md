@@ -46,6 +46,11 @@ notes who can capture whom.
 
 ## Finding your way
 
+- **Processes you cannot capture.** The Processes page and the Live page list only the processes HeapScope can capture as
+  it runs now. Those that run elevated or as another user (on Linux, another user's) are hidden, and a note says how many;
+  check "Show elevated processes" (on Linux, "Show other users' processes") to list them, marked with what they need. Run
+  HeapScope as administrator (or as root) and they are all listed. `heapscope-cli list` always lists every process, with
+  its mark.
 - **Info icons.** The (i) beside a page or tab title says what it is for, when to use it and how to start. One beside a group
   of settings says what each of them does, a line each, so it helps even when a setting is turned off. Hover over the icon,
   click it, or reach it with Tab and press Enter; Escape closes it. A tooltip shows even on a button, menu item or input that

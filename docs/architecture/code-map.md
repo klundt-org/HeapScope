@@ -245,7 +245,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   running query and the pending filter, and the replaced row list stops its page requests) [1.3]; `CompareViewModel`
   (two pickers, the earlier capture as default baseline, open order when a capture time is only a file's time, swap)
   [1.4, 2.3.6]; `ProcessesViewModel` and `LiveViewModel` show `ICaptureService.UnavailableReason` instead of a list
-  where capture is not available [2.3.6]; `InstancesViewModel`, `ObjectViewModel` (field tree
+  where capture is not available [2.3.6], and list through `ProcessListFilter`, which hides the processes HeapScope cannot
+  capture as it runs now unless a check box shows them, with a note of how many [4.1.1]; `InstancesViewModel`, `ObjectViewModel` (field tree
   and references) and `NavigatorViewModel` (types, instances, object; back and forward, mouse buttons and Alt+arrows;
   the views are built once with the window and the navigator swaps their data) [1.5]; the object's references as
   Outgoing and Incoming tabs (incoming loaded when its tab is first shown), the instances view's Referenced by, and

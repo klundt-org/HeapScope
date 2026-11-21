@@ -118,17 +118,17 @@ that need more rights than HeapScope has are hidden, with a check box to show th
 root on Linux) it can capture them all, so all are shown. Elevated processes stay marked as such.
 
 **Tasks**
-1. [ ] The texts, per system, in Core's `ElevationTexts` (passed on by Application's `RightsTexts`): the check box's label
+1. [x] The texts, per system, in Core's `ElevationTexts` (passed on by Application's `RightsTexts`): the check box's label
    and tooltip, and the note that says how many processes are hidden and why; drafts for the owner in info-text.md.
    Tests: each text on each system (one and several processes), and the info text tests.
-2. [ ] One rule for both lists (`ProcessListFilter` in the view models): a row that needs more rights than HeapScope has
+2. [x] One rule for both lists (`ProcessListFilter` in the view models): a row that needs more rights than HeapScope has
    (`NeedsAdministrator`, false for every row when HeapScope runs elevated or as root) is hidden unless shown; it counts
    what it hides. Tests: hidden by default, shown with the box, nothing hidden when HeapScope is elevated, the count.
-3. [ ] The Processes page: the check box, shown only when a process needs more rights; while they are hidden the note
+3. [x] The Processes page: the check box, shown only when a process needs more rights; while they are hidden the note
    replaces the banner, and the banner comes back once they are shown; a selected row that becomes hidden is unselected;
    "No running .NET processes" only when there are none at all; the log names the pids it hid. Tests: ProcessesViewModelTests.
-4. [ ] The Live page's process chooser: the same rule and check box. Tests: LiveViewModelTests.
-5. [ ] Docs: ADR-014 amended (hidden by default, marked when shown), the user guide, the code map; the Backlog.
+4. [x] The Live page's process chooser: the same rule and check box. Tests: LiveViewModelTests.
+5. [x] Docs: ADR-014 amended (hidden by default, marked when shown), the user guide, the code map. Done (no Backlog item was needed).
 
 **Decisions** (each decided autonomously, with the defaults told to the owner on 2026-11-20)
 - Both lists that pick a process to capture or watch hide them: the Processes page and the Live page. `heapscope-cli
