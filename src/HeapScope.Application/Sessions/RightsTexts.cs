@@ -43,4 +43,13 @@ public static class RightsTexts
 
     /// <summary>The command line's note under its process list when a process is marked elevated.</summary>
     public static string CliNote => HeapScope.Core.ElevationTexts.CliNote;
+
+    /// <summary>The label of the check box that lists the processes hidden because they need more rights (sprint 4.1.1).</summary>
+    public static string ShowHidden => HeapScope.Core.ElevationTexts.ShowHidden;
+
+    /// <summary>The tooltip of <see cref="ShowHidden"/>.</summary>
+    public static string ShowHiddenTip => HeapScope.Core.ElevationTexts.ShowHiddenTip;
+
+    /// <summary>The note that says how many processes are hidden, and why.</summary>
+    public static string HiddenNote(int count) => HeapScope.Core.ElevationTexts.HiddenNote(count);
 }

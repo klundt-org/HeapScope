@@ -247,6 +247,23 @@ public sealed class LinuxCaptureRulesTests
     }
 
     [Fact]
+    public void Each_system_says_which_processes_it_hides_and_how_to_show_them()
+    {
+        // Sprint 4.1.1: the processes HeapScope cannot capture as it runs now are hidden unless the box is checked.
+        ElevationTexts.ShowHiddenOn(linux: false).ShouldBe("Show elevated processes");
+        ElevationTexts.ShowHiddenOn(linux: true).ShouldBe("Show other users' processes");
+        ElevationTexts.HiddenNoteOn(1, linux: false).ShouldBe(
+            "1 elevated process is hidden: HeapScope cannot capture it unless it runs as administrator. Check 'Show elevated processes' to list it.");
+        ElevationTexts.HiddenNoteOn(1200, linux: false).ShouldStartWith("1,200 elevated processes are hidden: ");
+        ElevationTexts.HiddenNoteOn(3, linux: true).ShouldBe(
+            "3 processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them.");
+        ElevationTexts.HiddenNoteOn(1, linux: true).ShouldStartWith("1 process of another user is hidden: ");
+        ElevationTexts.HiddenNoteOn(1, linux: true).ShouldContain(ElevationTexts.ShowHiddenOn(linux: true));
+        ElevationTexts.ShowHiddenTipOn(linux: false).ShouldContain("only when it runs as administrator");
+        ElevationTexts.ShowHidden.ShouldBe(ElevationTexts.ShowHiddenOn(OperatingSystem.IsLinux()));
+    }
+
+    [Fact]
     public void Each_system_names_the_rights_it_needs()
     {
         ElevationTexts.NeedsMoreOn(linux: false).ShouldBe("Needs administrator");

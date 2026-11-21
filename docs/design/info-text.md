@@ -284,6 +284,20 @@ row above gives.
 | Capture (Linux) | A full dump of another user's process into HeapScope's folders while HeapScope runs as root (review H1) | {name} (pid {pid}) runs as another user, and the runtime writes its full dump as that user, who cannot write to HeapScope's folders while HeapScope runs as root. Run HeapScope as that user to capture a full dump, or capture a gcdump; on the command line, --out can name a folder that user can write. | approved 2026-11-20 |
 | Processes | Record allocations tooltip (review M3): "on Windows" | Needs a selected process, on Windows or Linux, with no recording running. | approved 2026-11-20 |
 
+## Sprint 4.1.1 additions
+
+Drafts for the owner (sprint 4.1.1, hide processes HeapScope cannot capture). `HeapScope.Core.ElevationTexts` holds them
+and `LinuxCaptureRulesTests` checks them word for word; the Processes page and the Live page show them.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Processes, Live | Check box that lists the hidden processes (Windows) | Show elevated processes | draft 2026-11-20 |
+| Processes, Live | Its tooltip (Windows) | Also lists the processes that run elevated or as another user. HeapScope can capture them only when it runs as administrator. | draft 2026-11-20 |
+| Processes, Live | Check box (Linux) | Show other users' processes | draft 2026-11-20 |
+| Processes, Live | Its tooltip (Linux) | Also lists the processes of other users. HeapScope can capture them only when it runs as that user or as root (sudo). | draft 2026-11-20 |
+| Processes, Live | Note while processes are hidden (Windows), in place of the banner | {N} elevated processes are hidden: HeapScope cannot capture them unless it runs as administrator. Check 'Show elevated processes' to list them. (One: "1 elevated process is hidden: ... capture it ... list it.") | draft 2026-11-20 |
+| Processes, Live | The same (Linux) | {N} processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them. (One: "1 process of another user is hidden: ...") | draft 2026-11-20 |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts
