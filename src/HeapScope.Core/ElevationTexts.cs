@@ -70,6 +70,34 @@ public static class ElevationTexts
         ? "HeapScope runs as root, so the sample would too. Start HeapScope as your own user to run it."
         : "HeapScope runs as administrator, so the sample would too. Start HeapScope without administrator rights to run it.";
 
+    /// <summary>The label of the check box that lists the processes hidden because they need more rights (sprint 4.1.1).</summary>
+    public static string ShowHidden => ShowHiddenOn(s_linux);
+
+    /// <summary>The tooltip of <see cref="ShowHidden"/>.</summary>
+    public static string ShowHiddenTip => ShowHiddenTipOn(s_linux);
+
+    public static string ShowHiddenOn(bool linux) => linux ? "Show other users' processes" : "Show elevated processes";
+
+    public static string ShowHiddenTipOn(bool linux) => linux
+        ? "Also lists the processes of other users. HeapScope can capture them only when it runs as that user or as root (sudo)."
+        : "Also lists the processes that run elevated or as another user. HeapScope can capture them only when it runs as administrator.";
+
+    /// <summary>The note in place of <see cref="Hint"/> while <paramref name="count"/> processes are hidden (sprint 4.1.1).</summary>
+    public static string HiddenNote(int count) => HiddenNoteOn(count, s_linux);
+
+    public static string HiddenNoteOn(int count, bool linux)
+    {
+        var n = count.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        var them = count == 1 ? "it" : "them";
+        // The box's own label, so the two cannot drift; on Windows the set the banner names (review: elevated or another user's).
+        var box = ShowHiddenOn(linux);
+        return linux
+            ? (count == 1 ? "1 process of another user is hidden" : $"{n} processes of other users are hidden")
+                + $": HeapScope cannot capture {them} unless it runs as that user or as root (sudo). Check '{box}' to list {them}."
+            : (count == 1 ? "1 process that runs elevated or as another user is hidden" : $"{n} processes that run elevated or as another user are hidden")
+                + $": HeapScope cannot capture {them} unless it runs as administrator. Check '{box}' to list {them}.";
+    }
+
     /// <summary>The refusal to reach a process that needs more rights: what HeapScope cannot do, and what to do instead.</summary>
     public static string Refusal(string? name, int processId, string cannot, string again, bool linux) => linux
         ? $"{name ?? "The process"} (pid {processId}) runs as another user, so HeapScope cannot {cannot}. Run HeapScope as that user, or as root (sudo), and {again}."

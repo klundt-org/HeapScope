@@ -103,6 +103,13 @@ public sealed class ProcessesSampleTests : IDisposable
         _processes.Processes.Single(p => p.ProcessId == pid).IsSample.ShouldBeFalse();
         _processes.Selected.ShouldNotBeNull().IsSample.ShouldBeFalse("the selection follows its row");
         _processes.StopSampleCommand.CanExecute(null).ShouldBeFalse();
+
+        // Review M4 of 4.1.1: the hidden rows' rule keeps its own copy of the list; a toggle rebuilds from it.
+        _processes.ShowHiddenProcesses = true;
+        _processes.ShowHiddenProcesses = false;
+        _processes.Processes.Single(p => p.ProcessId == pid).IsSample.ShouldBeFalse("the mark does not come back");
+        _processes.Selected.ShouldNotBeNull().ProcessId.ShouldBe(pid);
+        _processes.StopSampleCommand.CanExecute(null).ShouldBeFalse();
     }
 
     [Fact]
