@@ -131,7 +131,7 @@ public sealed class ElevationRequiredException : Exception
 
     private static ElevationRequiredException Refusal(int processId, string? name, string cannot, string again, Exception? inner)
     {
-        var message = HeapScope.Core.ElevationTexts.Refusal(name, processId, cannot, again, OperatingSystem.IsLinux());
+        var message = HeapScope.Core.ElevationTexts.Refusal(name, processId, cannot, again, HeapScope.Core.HostSystems.Current);
         return inner is null ? new ElevationRequiredException(message) : new ElevationRequiredException(message, inner);
     }
 }

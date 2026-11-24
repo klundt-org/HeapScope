@@ -35,9 +35,7 @@ internal static class ProcText
 {
     private const string Deleted = " (deleted)";
 
-    private const string RuntimeLibrary = "/libcoreclr.so";
-
-    private const string SharedFramework = "/shared/Microsoft.NETCore.App";
+    internal const string RuntimeLibraryFile = "/libcoreclr.so";
 
     /// <summary>
     /// The command line from <c>cmdline</c>: its arguments end in NUL; they are joined with spaces, and one that is empty or
@@ -102,16 +100,10 @@ internal static class ProcText
                 continue;
             }
 
-            path = ExecutablePath(path)!;
-            if (!path.EndsWith(RuntimeLibrary, StringComparison.Ordinal))
+            if (RuntimeLibrary.FromPath(ExecutablePath(path)!, RuntimeLibraryFile) is { } runtime)
             {
-                continue;
+                return runtime;
             }
-
-            var folder = path[..^RuntimeLibrary.Length];
-            var cut = folder.LastIndexOf('/');
-            var version = cut > 0 && folder[..cut].EndsWith(SharedFramework, StringComparison.Ordinal) ? folder[(cut + 1)..] : null;
-            return new RuntimeFacts(string.IsNullOrEmpty(version) ? null : version, folder.Length == 0 ? "/" : folder);
         }
 
         return null;

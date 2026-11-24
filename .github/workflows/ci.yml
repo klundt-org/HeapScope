@@ -4,7 +4,7 @@
 # - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests, captures the fixture with the CLI
 #   (sprint 4.1: capture runs on Linux), checks the CLI's known answers and opens the dump in the app without a display,
 #   captures the tutorial's sample as a full dump and a gcdump and opens both, monitors it and reads an allocations trace
-#   of it (build/linux-capture-check.sh), and runs the app's live smoke run.
+#   of it (build/capture-check.sh), and runs the app's live smoke run.
 # - Packages: self-contained builds per runtime identifier with their license files (checked), in their release archives,
 #   built beside the tests and uploaded as artifacts on manual runs. The Windows and Linux ones are unpacked
 #   and run as a user gets them, without .NET (Linux in a plain Ubuntu container), on a fixture dump, and the CLI's
@@ -216,7 +216,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.changes.outputs.code == 'true' }}
         timeout-minutes: 10
         run: |
-          bash build/linux-capture-check.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$RUNNER_TEMP/linux-capture"
+          bash build/capture-check.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$RUNNER_TEMP/linux-capture"
           grep -h "Captured .*; estimated" "$Logging__File__Directory"/*.log | cut -c1-300 || true
           # Review M11: the disk check relies on the estimate erring high; a dump larger than it is flagged (sprint 4.1: 94 to 95%).
           over=$(grep -h "Captured .*% of it written" "$Logging__File__Directory"/*.log | sed -n 's/.*(\([0-9,]*\)% of it written).*/\1/p' | tr -d ',' | awk '$1 > 100' | head -1)

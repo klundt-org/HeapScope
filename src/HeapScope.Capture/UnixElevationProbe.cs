@@ -21,26 +21,31 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-
 namespace HeapScope.Capture;
 
 /// <summary>
 /// Elevation off Windows (sprint 2.3.5): whether this process runs as root, from .NET's own cross-platform check. On Linux
 /// (sprint 4.1) another process's state follows the user it acts as: a .NET process creates its diagnostics socket as its
 /// effective user, so HeapScope reaches it as that user or as root. Another user's process is
-/// <see cref="ElevationState.Elevated"/> (it needs root, or HeapScope run as that user), the same user's is not. On macOS
-/// it is not looked up yet (sprint 4.2), so it is <see cref="ElevationState.Unknown"/>.
+/// <see cref="ElevationState.Elevated"/> (it needs root, or HeapScope run as that user), the same user's is not. macOS
+/// (sprint 4.2) follows the same rule; the ids come from each system's <see cref="IProcessFacts"/>.
 /// </summary>
 public sealed class UnixElevationProbe : IElevationProbe
 {
-    private readonly Lazy<int?> _ownUser = new(static () => OperatingSystem.IsLinux() ? LinuxProcessFacts.EffectiveUserId(Environment.ProcessId) : null);
+    private readonly IProcessFacts _facts;
+    private readonly Lazy<int?> _ownUser;
 
-    public static UnixElevationProbe Instance { get; } = new();
+    internal UnixElevationProbe(IProcessFacts facts)
+    {
+        _facts = facts;
+        _ownUser = new(() => facts.EffectiveUserId(Environment.ProcessId));
+    }
+
+    public static UnixElevationProbe Instance { get; } = new(CapturePlatform.ProcessFacts());
 
     public bool IsCurrentProcessElevated => Environment.IsPrivilegedProcess;
 
-    public ElevationState GetState(int processId) =>
-        OperatingSystem.IsLinux() ? StateOf(LinuxProcessFacts.EffectiveUserId(processId), _ownUser.Value) : ElevationState.Unknown;
+    public ElevationState GetState(int processId) => StateOf(_facts.EffectiveUserId(processId), _ownUser.Value);
 
     /// <summary>
     /// The rule on two effective user ids: the same user's process is not elevated, another user's is (root's included);

@@ -24,6 +24,7 @@
 using HeapScope.Application.Jobs;
 using HeapScope.Application.Sessions;
 using HeapScope.Capture;
+using HeapScope.Core;
 
 namespace HeapScope.Application.Tests;
 
@@ -80,7 +81,7 @@ public sealed class CaptureExplanationTests : IDisposable
     [Fact]
     public async Task As_root_on_linux_another_users_full_dump_is_refused_for_the_library_before_anything_is_written()
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux(), "The runtime writes the dump as the target's user on Linux.");
+        Assert.SkipUnless(HostSystems.RightsGoByUser(HostSystems.Current), "The runtime writes the dump as the target's user on Linux and macOS.");
         var other = new DotNetProcess(77, "app", null, "10.0.1", ElevationState.Elevated, 1 << 20, 1 << 20, null);
         var service = Service(new Discovery(other, NotFoundExplanation.None), elevated: true);
 
@@ -105,7 +106,7 @@ public sealed class CaptureExplanationTests : IDisposable
 
         await service.ListProcessesAsync(Ct);
 
-        var line = _logger.Lines.ShouldHaveSingleItem();
+        var line = _logger.Lines.Single(l => l.StartsWith("Listed", StringComparison.Ordinal));
         line.ShouldStartWith("Listed 0 .NET processes");
         if (OperatingSystem.IsWindows())
         {
@@ -114,11 +115,11 @@ public sealed class CaptureExplanationTests : IDisposable
         else
         {
             line.ShouldContain($"; diagnostics sockets looked for in {Path.GetTempPath()} only");
-            if (OperatingSystem.IsLinux())
+            if (HostSystems.RightsGoByUser(HostSystems.Current))
             {
                 // Review H6: the ids behind the marks.
                 line.ShouldContain("; HeapScope's effective user ");
-                line.ShouldEndWith("; another user's: none");
+                line.ShouldEndWith("; another user's: none; not known: the user of 0, the command line of 0, the runtime folder of 0");
             }
         }
     }
@@ -137,6 +138,45 @@ public sealed class CaptureExplanationTests : IDisposable
 
         entry.Elevation.ShouldBe(ProcessElevation.Unknown);
         entry.NeedsAdministrator.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_dac_and_the_runtime_library_kept_beside_a_dump_have_each_systems_names()
+    {
+        CaptureService.DacFileName(HostSystem.Windows).ShouldBe("mscordaccore.dll");
+        CaptureService.DacFileName(HostSystem.Linux).ShouldBe("libmscordaccore.so");
+        CaptureService.DacFileName(HostSystem.MacOS).ShouldBe("libmscordaccore.dylib");
+        CaptureService.RuntimeFileName(HostSystem.Windows).ShouldBeNull();
+        CaptureService.RuntimeFileName(HostSystem.Linux).ShouldBe("libcoreclr.so");
+        CaptureService.RuntimeFileName(HostSystem.MacOS).ShouldBe("libcoreclr.dylib");
+    }
+
+    [Fact]
+    public void Whether_this_system_captures_is_the_capture_layers_answer() =>
+        RightsTexts.CanCapture.ShouldBe(CapturePlatform.IsSupported);
+
+    [Fact]
+    public async Task A_full_dump_logs_what_its_estimate_rests_on_once_and_that_no_dac_is_copied()
+    {
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture refuses first where it is not built (ADR-025).");
+        var process = new DotNetProcess(4321, "orders", null, null, ElevationState.NotElevated, null, 2048, null);
+
+        await Service(new Discovery(process, NotFoundExplanation.None)).StartCapture(4321).Result;
+
+        var lines = _logger.Lines;
+        lines.Count(l => l.StartsWith("The full dump of pid 4321 is estimated at 1024 bytes, from the private bytes (walk not readable, private bytes 2048, not in the walk 0); free in its folder: 1099511627776", StringComparison.Ordinal)).ShouldBe(1);
+        lines.ShouldContain(l => l.StartsWith("No DAC is copied next to the dump: the runtime folder of pid 4321 is not known", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Where_rights_go_by_user_the_list_says_of_how_many_processes_a_fact_is_not_known()
+    {
+        Assert.SkipUnless(CapturePlatform.IsSupported && HostSystems.RightsGoByUser(HostSystems.Current), "Windows' line has no user ids.");
+        var process = new DotNetProcess(4321, "orders", null, null, ElevationState.Unknown, null, null, null);
+
+        await Service(new Discovery(process, NotFoundExplanation.None)).ListProcessesAsync(CancellationToken.None);
+
+        _logger.Lines.Single(l => l.StartsWith("Listed", StringComparison.Ordinal)).ShouldEndWith("; not known: the user of 1, the command line of 1, the runtime folder of 1");
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

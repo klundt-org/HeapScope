@@ -176,13 +176,9 @@ public static class CounterMonitor
                 // Sprint 4.1 review H6: what the reason given rests on.
                 logger?.LogInformation("Pid {Pid} could not be monitored: {Evidence}", processId, evidence);
             }
-            else if (failure is ElevationRequiredException && OperatingSystem.IsLinux())
+            else if (failure is ElevationRequiredException && CapturePlatform.UserIdsOf(processId) is { } ids)
             {
-                logger?.LogInformation(
-                    "Pid {Pid} was refused as another user's: effective user {Target}, HeapScope's {Own}",
-                    processId,
-                    CapturePlatform.EffectiveUserId(processId),
-                    CapturePlatform.EffectiveUserId(Environment.ProcessId));
+                logger?.LogInformation("Pid {Pid} was refused as another user's: {Ids}", processId, ids);
             }
 
             throw failure;
@@ -301,9 +297,9 @@ public static class CounterMonitor
             return new TargetUnavailableException($"No running process has id {processId}.", ex);
         }
 
-        // Sprint 4.1 review M2: on Linux the same reasons as a capture's (another user's, diagnostics off, another /tmp).
+        // Sprint 4.1 review M2: the same reasons as a capture's (another user's, diagnostics off, another /tmp).
         return ex is UnauthorizedAccessException
             ? ElevationRequiredException.ForMonitoring(processId, processName, ex)
-            : LinuxCaptureRules.NotAnswering(processId, $"{processName} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
+            : CapturePlatform.Rules().NotAnswering(processId, $"{processName} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
     }
 }

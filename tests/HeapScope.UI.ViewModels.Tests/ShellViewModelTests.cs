@@ -112,12 +112,12 @@ public sealed class ShellViewModelTests : IDisposable
     }
 
     [Fact]
-    public void The_learn_page_explains_who_can_capture_whom_on_linux_only()
+    public void The_learn_page_explains_who_can_capture_whom_where_that_goes_by_user()
     {
         // Sprint 4.1 task 8 (a draft in info-text.md's Sprint 4.1 additions).
-        PlatformHints.LearnNoteOn(linux: true).ShouldBe("On Linux, HeapScope reaches a process that runs as your own user, as the sample does. Another user's process needs HeapScope run as that user or as root, and some systems block it altogether (kernel.yama.ptrace_scope); when a capture is refused, HeapScope says what to change.");
-        PlatformHints.LearnNoteOn(linux: false).ShouldBeNull();
-        PlatformHints.LearnNote.ShouldBe(PlatformHints.LearnNoteOn(OperatingSystem.IsLinux()));
+        HeapScope.Core.ElevationTexts.LearnNoteOn(HeapScope.Core.HostSystem.Linux).ShouldBe("On Linux, HeapScope reaches a process that runs as your own user, as the sample does. Another user's process needs HeapScope run as that user or as root, and some systems block it altogether (kernel.yama.ptrace_scope); when a capture is refused, HeapScope says what to change.");
+        HeapScope.Core.ElevationTexts.LearnNoteOn(HeapScope.Core.HostSystem.Windows).ShouldBeNull();
+        PlatformHints.LearnNote.ShouldBe(HeapScope.Core.ElevationTexts.LearnNoteOn(HeapScope.Core.HostSystems.Current));
     }
 
     [Fact]

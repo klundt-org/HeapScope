@@ -41,15 +41,15 @@ The lessons, scenario by scenario, and where each one's answer shows:
 The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once from one
 HeapScope window or command, and stops when HeapScope closes. A growing sample stops growing when its heap reaches 512 MB;
 stop it when you are done. Two scenarios that both block the finalizer thread (FinalizerBacklog and Waste) cannot run
-together. The lessons start with a capture, which runs on Windows and Linux: on macOS the Learn page says so. On Linux it also
+together. The lessons start with a capture, which runs on Windows and Linux and is untested on macOS. On Linux and macOS the Learn page
 notes who can capture whom.
 
 ## Finding your way
 
 - **Processes you cannot capture.** The Processes page and the Live page list only the processes HeapScope can capture as
-  it runs now. Those that run elevated or as another user (on Linux, another user's) are hidden, and a note says how many;
-  check "Show elevated processes" (on Linux, "Show other users' processes") to list them, marked with what they need. Run
-  HeapScope as administrator (or as root) and they are all listed. `heapscope-cli list` always lists every process, with
+  it runs now. Those that run elevated or as another user (on Linux and macOS, another user's) are hidden, and a note says how many;
+  check "Show elevated processes" (on Linux and macOS, "Show other users' processes") to list them, marked with what they need. Run
+  HeapScope as administrator (on Linux, as root) and they are all listed. `heapscope-cli list` always lists every process, with
   its mark.
 - **Info icons.** The (i) beside a page or tab title says what it is for, when to use it and how to start. One beside a group
   of settings says what each of them does, a line each, so it helps even when a setting is turned off. Hover over the icon,

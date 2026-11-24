@@ -42,7 +42,7 @@ public interface IProcessDiscovery
 
     /// <summary>
     /// Why a process that was asked for by pid is not found, with what to do, where the system can tell (sprint 4.1: on
-    /// Linux, another user's process, diagnostics turned off, its own /tmp, or a socket in another temp folder), and what
+    /// Linux and macOS, another user's process, diagnostics turned off, its own /tmp, or a socket in another temp folder), and what
     /// that rests on, for the log (review H6).
     /// </summary>
     NotFoundExplanation WhyNotFound(int processId) => NotFoundExplanation.None;
@@ -59,7 +59,7 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
 
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
 
-    // Sprint 4.1: the image path, command line and runtime per system (Windows asks the kernel, Linux reads /proc).
+    // Sprint 4.1: the image path, command line and runtime per system (IProcessFacts).
     private readonly IProcessFacts _facts = CapturePlatform.ProcessFacts();
 
     public DiscoveryOmissions LastOmitted { get; private set; } = DiscoveryOmissions.None;
@@ -103,16 +103,7 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
         return FindOnThisSystem(processId);
     }
 
-    public NotFoundExplanation WhyNotFound(int processId)
-    {
-        if (!OperatingSystem.IsLinux())
-        {
-            return NotFoundExplanation.None;
-        }
-
-        var target = LinuxCaptureRules.Read(processId);
-        return new NotFoundExplanation(LinuxCaptureRules.WhyNoDiagnostics(target), LinuxCaptureRules.Evidence(target));
-    }
+    public NotFoundExplanation WhyNotFound(int processId) => CapturePlatform.Rules().WhyNotFound(processId);
 
     private DotNetProcess? FindOnThisSystem(int processId) =>
         !IsOwn(processId) && DiagnosticsClient.GetPublishedProcesses().Contains(processId) ? Describe(processId) : null;
@@ -165,7 +156,7 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
                 runtime?.Version,
                 elevation,
                 TryValue(() => process.WorkingSet64),
-                TryValue(() => process.PrivateMemorySize64),
+                _facts.PrivateBytes(process),
                 TryValue(() => new DateTimeOffset(process.StartTime)),
                 runtime?.Directory);
         }

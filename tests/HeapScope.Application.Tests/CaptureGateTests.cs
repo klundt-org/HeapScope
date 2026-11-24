@@ -54,13 +54,13 @@ public sealed class CaptureGateTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    // Capture runs on Windows and Linux (ADR-025, sprint 4.1): elsewhere `DumpCapturer` refuses before its writer starts, so
+    // Capture runs on Windows, Linux and macOS (ADR-025, sprint 4.1): elsewhere `DumpCapturer` refuses before its writer starts, so
     // the gate these tests hold the writer for is never reached. The gate itself is the same code on every system.
     private static void CaptureSupported()
     {
         if (!HeapScope.Capture.CapturePlatform.IsSupported)
         {
-            Assert.Skip("Capture runs on Windows and Linux (ADR-025); the capturer refuses before the gate is reached.");
+            Assert.Skip("Capture runs on Windows, Linux and macOS (ADR-025); the capturer refuses before the gate is reached.");
         }
     }
 

@@ -157,12 +157,12 @@ public sealed class ProcFactsTests
         // The file version embedded in libcoreclr.so, as on Windows: 10.0.125.57005 for the 10.0.1 runtime.
         runtime.Version.ShouldNotBeNull().ShouldStartWith($"{Environment.Version.Major}.{Environment.Version.Minor}.");
         Version.Parse(runtime.Version).Revision.ShouldBeGreaterThanOrEqualTo(0);
-        LinuxProcessFacts.EffectiveUserId(Environment.ProcessId).ShouldNotBeNull();
+        LinuxProcessFacts.Instance.EffectiveUserId(Environment.ProcessId).ShouldNotBeNull();
     }
 
     [Fact]
     public void The_facts_are_chosen_for_this_system()
     {
-        CapturePlatform.ProcessFacts().ShouldBeOfType(OperatingSystem.IsLinux() ? typeof(LinuxProcessFacts) : typeof(WindowsProcessFacts));
+        CapturePlatform.ProcessFacts().ShouldBeOfType(OperatingSystem.IsLinux() ? typeof(LinuxProcessFacts) : OperatingSystem.IsMacOS() ? typeof(MacProcessFacts) : typeof(WindowsProcessFacts));
     }
 }

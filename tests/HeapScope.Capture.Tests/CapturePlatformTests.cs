@@ -21,19 +21,21 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Core;
+
 namespace HeapScope.Capture.Tests;
 
 /// <summary>Sprint 2.3.5: capture on each system, and elevation off Windows.</summary>
 public sealed class CapturePlatformTests
 {
     [Fact]
-    public void Capture_is_refused_off_windows_with_the_way_to_take_a_dump_there()
+    public void Capture_is_refused_where_it_is_not_built_with_the_way_to_take_a_dump_there()
     {
         var refused = Should.Throw<PlatformNotSupportedException>(() => CapturePlatform.EnsureSupported(supported: false));
 
         refused.Message.ShouldContain("dotnet-dump collect");
-        refused.Message.ShouldStartWith("Capturing from HeapScope runs on Windows and Linux for now. On macOS,");
-        CapturePlatform.IsSupported.ShouldBe(OperatingSystem.IsWindows() || OperatingSystem.IsLinux());
+        refused.Message.ShouldStartWith("Capturing from HeapScope runs on Windows, Linux and macOS. Here,");
+        CapturePlatform.IsSupported.ShouldBe(OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS());
         Should.NotThrow(() => CapturePlatform.EnsureSupported(supported: true));
     }
 
@@ -42,7 +44,7 @@ public sealed class CapturePlatformTests
     {
         CapturePlatform.ElevationProbe().ShouldBeOfType(OperatingSystem.IsWindows() ? typeof(WindowsElevationProbe) : typeof(UnixElevationProbe));
         UnixElevationProbe.Instance.IsCurrentProcessElevated.ShouldBe(Environment.IsPrivilegedProcess);
-        UnixElevationProbe.Instance.GetState(Environment.ProcessId).ShouldBe(OperatingSystem.IsLinux() ? ElevationState.NotElevated : ElevationState.Unknown);
+        UnixElevationProbe.Instance.GetState(Environment.ProcessId).ShouldBe(HostSystems.RightsGoByUser(HostSystems.Current) ? ElevationState.NotElevated : ElevationState.Unknown);
     }
 
     [Fact]
@@ -56,4 +58,32 @@ public sealed class CapturePlatformTests
         UnixElevationProbe.StateOf(target: null, own: 1000).ShouldBe(ElevationState.Unknown);
         UnixElevationProbe.StateOf(target: 1000, own: null).ShouldBe(ElevationState.Unknown);
     }
+
+    [Fact]
+    public void Each_system_has_its_own_facts_and_rules_and_one_without_a_reader_gets_none()
+    {
+        CapturePlatform.ProcessFacts(HostSystem.Windows).ShouldBeOfType<WindowsProcessFacts>();
+        CapturePlatform.ProcessFacts(HostSystem.Linux).ShouldBeOfType<LinuxProcessFacts>();
+        CapturePlatform.ProcessFacts(HostSystem.Other).ShouldBeOfType<NoProcessFacts>();
+        CapturePlatform.Rules(HostSystem.Windows).ShouldBeOfType<WindowsCaptureRules>();
+        CapturePlatform.Rules(HostSystem.Linux).ShouldBeOfType<LinuxCaptureRules>();
+        CapturePlatform.Rules(HostSystem.Other).ShouldBeOfType<NoCaptureRules>();
+        if (OperatingSystem.IsWindows())
+        {
+            // Its constructor reads the token through kernel32, which other systems do not have.
+            CapturePlatform.ElevationProbe(HostSystem.Windows).ShouldBeOfType<WindowsElevationProbe>();
+        }
+
+        CapturePlatform.ElevationProbe(HostSystem.Linux).ShouldBeOfType<UnixElevationProbe>();
+        CapturePlatform.IsSupportedOn(HostSystem.Other).ShouldBeFalse();
+        NoProcessFacts.Instance.EffectiveUserId(Environment.ProcessId).ShouldBeNull();
+        NoProcessFacts.Instance.ReadableBytes(Environment.ProcessId).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("createdump failed 0x80070070", "the disk is full")]
+    [InlineData("createdump failed 0x80070005", "the account orders runs as cannot write to D:\\dumps")]
+    [InlineData("createdump failed 0x80004005", null)]
+    public void On_windows_the_result_code_explains_a_dump_that_was_not_written(string message, string? reason) =>
+        WindowsCaptureRules.Instance.WhyNotWritten(message, "orders", @"D:\dumps").Reason.ShouldBe(reason);
 }

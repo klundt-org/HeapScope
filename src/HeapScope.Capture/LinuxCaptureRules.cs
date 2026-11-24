@@ -55,14 +55,26 @@ internal sealed record LinuxTarget(
 /// tested on every system; the readers below read <c>/proc</c>. Each decision comes with the evidence it rests on, which
 /// the log keeps (review H6), and never with a variable's value other than <c>TMPDIR</c>.
 /// </summary>
-internal static class LinuxCaptureRules
+internal sealed class LinuxCaptureRules : ICaptureRules
 {
-    /// <summary>The variables that turn a process's diagnostics port off (DOTNET_ and the older COMPlus_ spellings).</summary>
-    private static readonly string[] s_diagnosticsOff =
-        ["DOTNET_EnableDiagnostics", "COMPlus_EnableDiagnostics", "DOTNET_EnableDiagnostics_IPC", "COMPlus_EnableDiagnostics_IPC"];
+    public static LinuxCaptureRules Instance { get; } = new();
 
-    /// <summary>A runtime library's version string, also in a single-file app's executable, which links the runtime in.</summary>
-    private static readonly byte[] s_runtimeMarker = "@(#)Version "u8.ToArray();
+    public NotFoundExplanation WhyNotFound(int processId)
+    {
+        var target = Read(processId);
+        return new NotFoundExplanation(WhyNoDiagnostics(target), Evidence(target));
+    }
+
+    /// <summary>Review H2: what createdump reported decides first; the ptrace rule and the container only explain a ptrace failure.</summary>
+    public WriteFailureExplanation WhyNotWritten(string message, string account, string directory)
+    {
+        var scope = PtraceScope();
+        var inContainer = InContainer();
+        var reason = WriteFailure(message, scope, inContainer, account, directory, out var rule);
+        return new WriteFailureExplanation(reason, WriteEvidence(scope, inContainer, rule));
+    }
+
+    public string? LibraryRefusal(string name, int processId) => RootLibraryRefusal(name, processId);
 
     /// <summary>
     /// Why the runtime could not write a dump, from the system's ptrace rule (<c>kernel.yama.ptrace_scope</c>) and whether
@@ -95,8 +107,9 @@ internal static class LinuxCaptureRules
             return "the disk is full";
         }
 
-        var ptrace = Has(message, "ptrace") || Has(message, "Operation not permitted");
-        if (Has(message, "0x80070005") || (!ptrace && (Has(message, "Permission denied") || Has(message, "Could not open"))))
+        var file = Has(message, "Could not create output file") || Has(message, "Could not open");
+        var ptrace = Has(message, "ptrace") || (!file && Has(message, "Operation not permitted"));
+        if (Has(message, "0x80070005") || (!ptrace && (file || Has(message, "Permission denied"))))
         {
             rule = "the folder is not writable by the target's account";
             return $"the account {account} runs as cannot write to {directory}";
@@ -151,8 +164,8 @@ internal static class LinuxCaptureRules
             return null;
         }
 
-        var variables = Variables(environ);
-        if (DiagnosticsOff(variables) is { } off)
+        var variables = new TargetEnvironment(environ.Split('\0'));
+        if (variables.DiagnosticsOff is { } off)
         {
             return $"Process {pid} turned its diagnostics off ({off}=0), so no tool can capture it. Start it without that "
                 + "setting, then capture it again.";
@@ -165,11 +178,11 @@ internal static class LinuxCaptureRules
                 + "then capture it again.";
         }
 
-        var theirs = TheirTempFolder(variables);
-        if (!string.Equals(theirs, Folder(target.OwnTempFolder), StringComparison.Ordinal))
+        var theirs = variables.TempFolder;
+        if (!string.Equals(theirs, TargetEnvironment.Folder(target.OwnTempFolder), StringComparison.Ordinal))
         {
             return $"Process {pid} keeps its diagnostics socket in {theirs} (its TMPDIR), and HeapScope looks in "
-                + $"{Folder(target.OwnTempFolder)}. Start HeapScope with TMPDIR={theirs}, then capture it again.";
+                + $"{TargetEnvironment.Folder(target.OwnTempFolder)}. Start HeapScope with TMPDIR={theirs}, then capture it again.";
         }
 
         if (target.Maps is { } maps && !LoadsRuntime(maps) && target.ExecutableCarriesRuntime == false)
@@ -184,7 +197,7 @@ internal static class LinuxCaptureRules
     public static string Evidence(LinuxTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
-        var variables = target.Environ is { } environ ? Variables(environ) : null;
+        var variables = target.Environ is { } environ ? new TargetEnvironment(environ.Split('\0')) : null;
         var runtime = target.Maps is not { } maps ? "maps not readable"
             : ProcText.Runtime(maps) is { } found ? "libcoreclr.so in " + found.Directory
             : maps.Contains("libclrjit.so", StringComparison.Ordinal) ? "libclrjit.so"
@@ -195,26 +208,11 @@ internal static class LinuxCaptureRules
         line.Append(CultureInfo.InvariantCulture, $"Linux check of pid {target.ProcessId}: running {(target.Running ? "yes" : "no")}; ");
         line.Append(CultureInfo.InvariantCulture, $"effective user {Id(target.UserId)}, HeapScope's {Id(target.OwnUserId)}; ");
         line.Append(CultureInfo.InvariantCulture, $"environ {(variables is null ? "not readable" : "readable")}; ");
-        line.Append(CultureInfo.InvariantCulture, $"diagnostics off: {(variables is null ? "unknown" : DiagnosticsOff(variables) is { } off ? off + "=0" : "none")}; ");
-        line.Append(CultureInfo.InvariantCulture, $"TMPDIR {(variables is null ? "unknown" : TheirTempFolder(variables))}, HeapScope's {Folder(target.OwnTempFolder)}; ");
+        line.Append(CultureInfo.InvariantCulture, $"diagnostics off: {(variables is null ? "unknown" : variables.DiagnosticsOff is { } off ? off + "=0" : "none")}; ");
+        line.Append(CultureInfo.InvariantCulture, $"TMPDIR {(variables is null ? "unknown" : variables.TempFolder)}, HeapScope's {TargetEnvironment.Folder(target.OwnTempFolder)}; ");
         line.Append(CultureInfo.InvariantCulture, $"mount namespace {(target.SameMountNamespace switch { true => "same", false => "another", null => "unknown" })}; ");
         line.Append(CultureInfo.InvariantCulture, $"runtime {runtime}");
         return line.ToString();
-    }
-
-    /// <summary>
-    /// The failure for a process that did not answer on its diagnostics port (Live and recording, review M2 and H6): on
-    /// Linux the reason a capture would give, with its evidence for the log; <paramref name="otherwise"/> when none applies.
-    /// </summary>
-    public static TargetUnavailableException NotAnswering(int processId, string otherwise, Exception inner)
-    {
-        if (!OperatingSystem.IsLinux())
-        {
-            return new TargetUnavailableException(otherwise, inner);
-        }
-
-        var target = Read(processId);
-        return new TargetUnavailableException(WhyNoDiagnostics(target) ?? otherwise, inner) { Evidence = Evidence(target) };
     }
 
     /// <summary>The value of <c>kernel.yama.ptrace_scope</c>, or null where Yama is not built in.</summary>
@@ -230,54 +228,19 @@ internal static class LinuxCaptureRules
     public static LinuxTarget Read(int processId)
     {
         var folder = string.Create(CultureInfo.InvariantCulture, $"/proc/{processId}");
-        var user = Directory.Exists(folder) ? LinuxProcessFacts.EffectiveUserId(processId) : null;
+        var user = Directory.Exists(folder) ? LinuxProcessFacts.Instance.EffectiveUserId(processId) : null;
         var maps = user is null ? null : Read(folder + "/maps");
         return new LinuxTarget(
             processId,
             Running: user is not null,
             user,
-            LinuxProcessFacts.EffectiveUserId(Environment.ProcessId),
+            LinuxProcessFacts.Instance.EffectiveUserId(Environment.ProcessId),
             user is null ? null : Read(folder + "/environ"),
             maps,
             SameMountNamespace(folder),
             // Only read when the mappings hold no runtime: it decides "not .NET" against a single-file app.
-            maps is not null && !LoadsRuntime(maps) ? CarriesRuntime(folder + "/exe") : null,
+            maps is not null && !LoadsRuntime(maps) ? RuntimeLibrary.IsCarriedBy(folder + "/exe") : null,
             Path.GetTempPath());
-    }
-
-    /// <summary>Whether <paramref name="executable"/> holds the runtime's version string, read in pieces (it can be large).</summary>
-    internal static bool? CarriesRuntime(string executable)
-    {
-        try
-        {
-            using var stream = new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, bufferSize: 1, FileOptions.SequentialScan);
-            return Contains(stream, s_runtimeMarker);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>Whether <paramref name="stream"/> holds <paramref name="marker"/>, searched in 64 KB pieces that overlap by its length.</summary>
-    internal static bool Contains(Stream stream, ReadOnlySpan<byte> marker)
-    {
-        var buffer = new byte[(64 * 1024) + marker.Length];
-        var kept = 0;
-        int read;
-        while ((read = stream.Read(buffer, kept, buffer.Length - kept)) > 0)
-        {
-            var filled = kept + read;
-            if (buffer.AsSpan(0, filled).IndexOf(marker) >= 0)
-            {
-                return true;
-            }
-
-            kept = Math.Min(marker.Length - 1, filled);
-            buffer.AsSpan(filled - kept, kept).CopyTo(buffer);
-        }
-
-        return false;
     }
 
     private static bool LoadsRuntime(string maps) => ProcText.Runtime(maps) is not null || maps.Contains("libclrjit.so", StringComparison.Ordinal);
@@ -296,42 +259,9 @@ internal static class LinuxCaptureRules
         }
     }
 
-    private static string? DiagnosticsOff(Dictionary<string, string> variables)
-    {
-        foreach (var name in s_diagnosticsOff)
-        {
-            if (variables.TryGetValue(name, out var value) && value.Trim() == "0")
-            {
-                return name;
-            }
-        }
-
-        return null;
-    }
-
-    private static string TheirTempFolder(Dictionary<string, string> variables) =>
-        Folder(variables.TryGetValue("TMPDIR", out var tmp) && tmp.Length > 0 ? tmp : "/tmp");
-
-    private static Dictionary<string, string> Variables(string environ)
-    {
-        var variables = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var entry in environ.Split('\0'))
-        {
-            var equals = entry.IndexOf('=', StringComparison.Ordinal);
-            if (equals > 0)
-            {
-                variables.TryAdd(entry[..equals], entry[(equals + 1)..]);
-            }
-        }
-
-        return variables;
-    }
-
     private static bool Has(string message, string text) => message.Contains(text, StringComparison.OrdinalIgnoreCase);
 
     private static string Id(int? id) => id is { } value ? value.ToString(CultureInfo.InvariantCulture) : "unknown";
-
-    private static string Folder(string path) => path.Length > 1 ? path.TrimEnd('/') : path;
 
     private static string? Read(string path)
     {

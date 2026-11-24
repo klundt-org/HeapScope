@@ -51,7 +51,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
 
 **High**
 - The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
-  lesson runs without starting the sample, and where capture is not available: Linux, macOS); a lesson on reading an object's
+  lesson runs without starting the sample, and where capture is not available); a lesson on reading an object's
   fields (the Inspection scenario has none yet); a per-lesson platform or capability requirement, with the first lesson that
   needs one (a WPF scenario on Windows only); a capture of a sample tagged with its scenarios and catalog version in the
   session; answers that name a method or call site, not only a type (sprint 3.13 review L7).
@@ -70,7 +70,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   release PR #66, the push run only: its wait ended 64 ms past its deadline; the rerun passed),
   `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
   beside four reviewers and a build; both passed alone), `AllocationTraceTests` (2026-11-15, the 3.13 wrap's full Debug run:
-  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
+  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `AllocationTraceTests` in CI (2026-11-21, PR #78: its recording's session did not start within 60 s; the rerun passed. Diagnose it if it comes back), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
   3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
   little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
   most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has
@@ -106,6 +106,11 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   macOS packages are built on Linux and never run, and the macOS core dump checks (known answers, DAC trust) no longer
   run. Since 3.10 releases attach them marked untested (ADR-039). Before that mark comes off, the product owner picks a way
   to test them: a Mac of their own, or macOS runners for a release only.
+  Sprint 4.2 built capture for macOS without one. Unconfirmed there, to check first: the libproc struct sizes
+  (`MacProcData`; the log's self-check line shows them), how a region walk ends, which memory a full dump holds (the estimate
+  beside the size written; the shared cache is added), the DAC found beside a macOS dump, the not-found reasons, and how
+  long a list takes (a region walk per process). `build/capture-check.sh` runs the captures; a Mac owner's `dotnet test` runs
+  the reads (`MacFactsTests`).
   Standard hosted runners are free in public repositories, and HeapScope is public; the owner checks the billing
   report before macOS runners come back (2026-10-31).
 - Objects finalized between two snapshots: the baseline's finalizable objects whose finalizer has not run, matched by
@@ -159,10 +164,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   another temp folder (discovery looks only in this user's `TMPDIR`; the refusal says which `TMPDIR` to start HeapScope
   with); a run on a real Linux machine besides CI (none on the development machine; the owner's planned Ubuntu laptop
   could take it); capturing as root another user's process whose `TMPDIR` differs from root's; and the Linux texts' own
-  screenshots. macOS capture is sprint 4.2. From the 4.1 review (decided autonomously): to start 4.2 with, the per-system
-  split made whole (M6): the effective user id and the readable-bytes estimate behind `IProcessFacts`, a system enum in
-  place of `bool linux` in `ElevationTexts`, facts that refuse on systems without a reader, and `PlatformHints.CanCapture`
-  taken from Application rather than repeated. Later: a full dump as root of another user's process into HeapScope's
+  screenshots. The per-system split (4.1 review M6) was made whole in 4.2. Later: a full dump as root of another user's process into HeapScope's
   folders (stage it in a folder owned by that user, then move it; 4.1 refuses it and says how), a socket removed by a
   temp cleaner (systemd-tmpfiles), a target in another pid namespace, and the review's Low findings.
 - Learning from use, without telemetry (product owner, 2026-11-15): a closed loop that shows where users wait, get stuck or

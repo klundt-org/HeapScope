@@ -145,3 +145,75 @@ shared rule, after a listing when it changed and at every toggle, and the Window
 elevated; a process whose rights are unknown is never hidden (tested through the real mapping); the sample's mark survives
 a toggle; the Windows note names the set the banner names. Deferred: the review's Lows (among them the Live wording
 "cannot capture", the info icons, the screenshot run's made-up rows).
+
+## Sprint 4.2: Capture on macOS
+
+**Goal:** what HeapScope captures on Windows and Linux (the process list, full dumps, gcdumps, live counters, allocation
+recording, the tutorial's sample) is built for macOS, with refusals that say what to change. It is built and checked as
+far as Windows and Linux allow, and marked untested: nobody has run it on a Mac.
+
+**Starting point.** The diagnostics channel is the runtime's own on macOS too. What is missing: the facts about a process
+(macOS has no `/proc`; `Process.Modules` gives the main executable only), the size estimate, another user's mark, the
+rules that explain a failure, and the texts. The per-system split of 4.1 is partial (4.1 review M6, 4.1.1 review L18).
+
+**Tasks**
+1. [x] The split made whole (M6, L18): `HostSystem` in Core in place of `bool linux` in `ElevationTexts` and
+   `PlatformHints`; the effective user id and the readable bytes behind `IProcessFacts`; the rules that explain a failure
+   behind one interface per system (`ICaptureRules`); a system without a reader gets none instead of Windows' facts;
+   `PlatformHints.CanCapture` taken from Application. No behavior changes on Windows or Linux. Tests: the facts and rules
+   chosen per system, every text per system, `CanCapture` equal to the capture layer's answer.
+   Done: `HostSystem` and `HostSystems` in Core, `ICaptureRules` (Windows, Linux), `RuntimeLibrary` and `TargetEnvironment`
+   shared; a system without a reader has `NoProcessFacts`, and capture refuses there before any is asked for; `CanCapture`
+   through `RightsTexts`. Tests: `CapturePlatformTests`, `CaptureExplanationTests`, the text tests.
+2. [x] macOS facts (`MacProcessFacts`): the image path, effective user id and mapped regions through libproc, the command
+   line and environment through `sysctl` (`KERN_PROCARGS2`); the runtime's folder from the mapped `libcoreclr.dylib`; the
+   readable regions for the size estimate. The buffers are parsed by pure functions (`MacProcData`) over bytes. Tests: the
+   parsers on built buffers (short, cut, padded, hostile counts) on every system; on macOS, the test process itself.
+   Done: `MacProcessFacts`, `MacProcData`, `MacRegion`; off macOS every read is empty. Tests: `MacFactsTests`. The estimate
+   takes the larger of the walk and the fallback, plus the shared cache (`DumpSizeEstimator.Choose`).
+3. [x] Elevation on macOS: the rule on effective user ids of 4.1, with the ids from task 2. Tests: the rule and the probe's
+   source per system.
+   Done: `UnixElevationProbe` over `IProcessFacts`. Tests: `MacFactsTests`, `CapturePlatformTests`.
+4. [x] Refusals on macOS (`MacCaptureRules`): createdump's `task_for_pid` failure (signing and entitlements), a folder the
+   target's account cannot write, a full disk, diagnostics turned off, another `TMPDIR` (each macOS user has their own),
+   another user's process; each with its evidence for the log. Wording drafted for the owner. Tests: each rule on text.
+   Done: `MacCaptureRules` (drafts in info-text.md, Sprint 4.2 additions). Tests: `MacFactsTests`.
+5. [x] The DAC beside a dump on macOS: `libcoreclr.dylib` copied with `libmscordaccore.dylib`, sizes allowed for. Tests: the
+   copied names per system.
+   Done: `CaptureService.DacFileName` and `RuntimeFileName`. Tests: `CaptureExplanationTests`.
+6. [x] Capture turned on for macOS: `IsSupported`, the empty pages, tips and the Learn page, marked untested where a user
+   reads it before relying on it. Drafts for the owner. Tests: the texts per system.
+   Done: the texts are drafts. Tests: `MacFactsTests`, `InfoIconTests`.
+7. [x] A check a Mac owner can run: `build/linux-capture-check.sh` becomes `build/capture-check.sh` (its name and messages say "capture
+   check"); INSTALL.md and the issue link say how to report it. CI's Linux job keeps running it.
+   Done: `build/capture-check.sh`; run on Windows here. INSTALL.md says how to run it on a Mac and report.
+8. [x] Docs: ADR-025 amended, ARCHITECTURE and its pages, logging, security-privacy, DEVELOPER, README, INSTALL, USER-GUIDE,
+   the CLI's README, info-text.md (drafts), Backlog (what stays unconfirmed, and the AllocationTraceTests CI failure of
+   2026-11-21).
+   Done: as listed; the user-facing passages are drafts for the owner.
+
+**Decisions**
+- No Mac and no macOS runners: built and checked on Linux, marked untested (owner, 2026-11-18 and 2026-10-31).
+- The structs and constants come from Apple's published headers (XNU `proc_info.h`), read 2026-11-23. Every read whose size the
+  system returns is checked and gives nothing on a mismatch, so a wrong layout loses a detail and never a listing. Decided
+  autonomously.
+- Where a source could not be read (how a region walk ends), the code assumes the least: a walk stops at the first failed
+  or non-advancing read, and nothing is concluded from what it did not hold. The dump writer's messages come from the
+  macOS createdump in the runtime pack (the review read them); an unknown one gets the generic text. Decided autonomously.
+- Another user's process follows 4.1's rule on user ids, but the texts on macOS say to run as that user only: each user's
+  temp folder differs there and sudo does not keep it (the review). No search of other users' folders. Decided
+  autonomously.
+- HeapScope never signs or re-signs a target or changes its entitlements; a refusal says what the runtime reported. Decided
+  autonomously.
+- No new sample scenario or lesson: 4.1's lesson note gains macOS wording (a draft for the owner). Decided autonomously.
+
+**Review summary:** 8 High, 15 Moderate, 47 Low ([docs/reviews/sprint-4.2.md](../reviews/sprint-4.2.md)); every High fixed and
+confirmed, every Moderate decided autonomously and its fix confirmed. Fixed: the size estimate counts the shared cache and has
+a real fallback on macOS; every macOS read keeps its outcome and one self-check line shows them; a failed read is never
+called an exited process; no rule calls a process not .NET; the write rules use createdump's own texts (Linux too); a huge
+estimate no longer passes the free-space check; no environment value reaches the process list; macOS texts never offer sudo;
+the check script runs every step, shows no other process and keeps its log; the tests ask each system's own answer; every
+system logs what a dump's estimate rests on. Deferred: the Lows, and everything only a Mac can confirm (Backlog, "Testing on
+macOS").
+
+The owner approved the texts on 2026-11-23, with their own wording for the Processes and Live page texts.

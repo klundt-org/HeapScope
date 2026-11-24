@@ -78,7 +78,7 @@ public sealed class ProcessesViewModelTests : IDisposable
         _processes.ShowHiddenProcesses = true;
 
         _processes.Processes.Select(p => p.Name).ShouldBe(["Api", "Service"]);
-        _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Needs root or its user" : "Needs administrator");
+        _processes.Processes[1].Elevation.ShouldBe(HeapScope.Application.Sessions.RightsTexts.NeedsMore);
         _processes.HiddenNote.ShouldBeNull();
         _processes.ShowElevationHint.ShouldBeTrue();
 
@@ -150,7 +150,7 @@ public sealed class ProcessesViewModelTests : IDisposable
 
         // Sprint 4.1.1: elevated (or root), HeapScope can capture them all, so all are shown, still marked, with no box.
         _processes.ShowElevationHint.ShouldBeFalse();
-        _processes.Processes[1].Elevation.ShouldBe(OperatingSystem.IsLinux() ? "Another user's" : "Elevated");
+        _processes.Processes[1].Elevation.ShouldBe(HeapScope.Application.Sessions.RightsTexts.Reachable);
         _processes.CanShowHiddenProcesses.ShouldBeFalse();
         _processes.HiddenNote.ShouldBeNull();
     }

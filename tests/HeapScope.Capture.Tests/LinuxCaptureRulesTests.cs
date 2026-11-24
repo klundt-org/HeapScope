@@ -156,14 +156,14 @@ public sealed class LinuxCaptureRulesTests
     }
 
     [Fact]
-    public void As_root_another_users_full_dump_is_refused_for_the_library_only_on_linux()
+    public void As_root_another_users_full_dump_is_refused_for_the_library_where_rights_go_by_user()
     {
         // Review H1: the runtime writes the dump as the process's user, who cannot write root's folders.
         var process = new DotNetProcess(4321, "app", null, "10.0.1", ElevationState.Elevated, null, null, null);
 
         var refusal = DumpCapturer.LibraryRefusal(process, heapScopeElevated: true);
 
-        if (OperatingSystem.IsLinux())
+        if (HostSystems.RightsGoByUser(HostSystems.Current))
         {
             refusal.ShouldBe(LinuxCaptureRules.RootLibraryRefusal("app", 4321));
             refusal.ShouldStartWith("app (pid 4321) runs as another user, and the runtime writes its full dump as that user");
@@ -184,9 +184,9 @@ public sealed class LinuxCaptureRulesTests
         var file = new byte[(64 * 1024 * 3) + 100];
         marker.CopyTo(file, (64 * 1024) + marker.Length - 3); // straddles the first piece's end
 
-        LinuxCaptureRules.Contains(new MemoryStream(file), marker).ShouldBeTrue();
-        LinuxCaptureRules.Contains(new MemoryStream(new byte[200_000]), marker).ShouldBeFalse();
-        LinuxCaptureRules.Contains(new MemoryStream(marker), marker).ShouldBeTrue();
+        RuntimeLibrary.Contains(new MemoryStream(file), marker).ShouldBeTrue();
+        RuntimeLibrary.Contains(new MemoryStream(new byte[200_000]), marker).ShouldBeFalse();
+        RuntimeLibrary.Contains(new MemoryStream(marker), marker).ShouldBeTrue();
     }
 
     [Fact]
@@ -243,37 +243,37 @@ public sealed class LinuxCaptureRulesTests
 
         LinuxCaptureRules.WhyNoDiagnostics(LinuxCaptureRules.Read(pid)).ShouldBeNull();
         LinuxProcessFacts.Instance.ImagePath(pid).ShouldBeNull();
-        LinuxProcessFacts.EffectiveUserId(pid).ShouldBeNull();
+        LinuxProcessFacts.Instance.EffectiveUserId(pid).ShouldBeNull();
     }
 
     [Fact]
     public void Each_system_says_which_processes_it_hides_and_how_to_show_them()
     {
         // Sprint 4.1.1: the processes HeapScope cannot capture as it runs now are hidden unless the box is checked.
-        ElevationTexts.ShowHiddenOn(linux: false).ShouldBe("Show elevated processes");
-        ElevationTexts.ShowHiddenOn(linux: true).ShouldBe("Show other users' processes");
-        ElevationTexts.HiddenNoteOn(1, linux: false).ShouldBe(
+        ElevationTexts.ShowHiddenOn(HostSystem.Windows).ShouldBe("Show elevated processes");
+        ElevationTexts.ShowHiddenOn(HostSystem.Linux).ShouldBe("Show other users' processes");
+        ElevationTexts.HiddenNoteOn(1, HostSystem.Windows).ShouldBe(
             "1 process that runs elevated or as another user is hidden: HeapScope cannot capture it unless it runs as administrator. Check 'Show elevated processes' to list it.");
-        ElevationTexts.HiddenNoteOn(1200, linux: false).ShouldStartWith("1,200 processes that run elevated or as another user are hidden: ");
-        ElevationTexts.HiddenNoteOn(3, linux: true).ShouldBe(
+        ElevationTexts.HiddenNoteOn(1200, HostSystem.Windows).ShouldStartWith("1,200 processes that run elevated or as another user are hidden: ");
+        ElevationTexts.HiddenNoteOn(3, HostSystem.Linux).ShouldBe(
             "3 processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them.");
-        ElevationTexts.HiddenNoteOn(1, linux: true).ShouldStartWith("1 process of another user is hidden: ");
-        ElevationTexts.HiddenNoteOn(1, linux: true).ShouldContain(ElevationTexts.ShowHiddenOn(linux: true));
-        ElevationTexts.ShowHiddenTipOn(linux: false).ShouldContain("only when it runs as administrator");
-        ElevationTexts.ShowHidden.ShouldBe(ElevationTexts.ShowHiddenOn(OperatingSystem.IsLinux()));
+        ElevationTexts.HiddenNoteOn(1, HostSystem.Linux).ShouldStartWith("1 process of another user is hidden: ");
+        ElevationTexts.HiddenNoteOn(1, HostSystem.Linux).ShouldContain(ElevationTexts.ShowHiddenOn(HostSystem.Linux));
+        ElevationTexts.ShowHiddenTipOn(HostSystem.Windows).ShouldContain("only when it runs as administrator");
+        ElevationTexts.ShowHidden.ShouldBe(ElevationTexts.ShowHiddenOn(HostSystems.Current));
     }
 
     [Fact]
     public void Each_system_names_the_rights_it_needs()
     {
-        ElevationTexts.NeedsMoreOn(linux: false).ShouldBe("Needs administrator");
-        ElevationTexts.NeedsMoreOn(linux: true).ShouldBe("Needs root or its user");
-        ElevationTexts.HintOn(linux: true).ShouldContain("'Needs root or its user'");
-        ElevationTexts.HintOn(linux: false).ShouldContain("'Needs administrator'");
-        ElevationTexts.Refusal("app", 7, "dump it", "capture again", linux: true).ShouldBe(
+        ElevationTexts.NeedsMoreOn(HostSystem.Windows).ShouldBe("Needs administrator");
+        ElevationTexts.NeedsMoreOn(HostSystem.Linux).ShouldBe("Needs root or its user");
+        ElevationTexts.HintOn(HostSystem.Linux).ShouldContain("'Needs root or its user'");
+        ElevationTexts.HintOn(HostSystem.Windows).ShouldContain("'Needs administrator'");
+        ElevationTexts.Refusal("app", 7, "dump it", "capture again", HostSystem.Linux).ShouldBe(
             "app (pid 7) runs as another user, so HeapScope cannot dump it. Run HeapScope as that user, or as root (sudo), and capture again.");
-        ElevationTexts.Refusal(null, 7, "dump it", "capture again", linux: false).ShouldBe(
+        ElevationTexts.Refusal(null, 7, "dump it", "capture again", HostSystem.Windows).ShouldBe(
             "The process (pid 7) runs elevated or as another user, so HeapScope cannot dump it. Run HeapScope as administrator (right-click, Run as administrator) and capture again.");
-        ElevationTexts.NeedsMore.ShouldBe(ElevationTexts.NeedsMoreOn(OperatingSystem.IsLinux()));
+        ElevationTexts.NeedsMore.ShouldBe(ElevationTexts.NeedsMoreOn(HostSystems.Current));
     }
 }
