@@ -252,7 +252,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   descriptions, fields"), and "Refused allocation trace ..." gives the same identity and versions with the rule and the byte,
   or, for a file TraceEvent failed on, the exception's type and the method that threw it ("X at assembly, type.method"), the
   check and TraceEvent's own problem lines. That method decides whether the file or HeapScope is at fault (the first that is
-  not the runtime's); its stack is logged at Debug.
+  not the runtime's); its stack is logged at Debug. Too little memory, an amount no process
+  allocates and no samples are refused with the same identity.
 - Hardening (sprint 3.7): the worker logs where its index cache key came from (`Index cache key {Path}: Loaded`,
   `Created`, `ReplacedDamaged`) or, when the key file can be neither read nor created, a Warning naming the path, the
   error and the next step (this run signs with a key of its own; ADR-036). A cache not used logs its reason with the

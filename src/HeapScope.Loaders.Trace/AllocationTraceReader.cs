@@ -43,9 +43,10 @@ public static class AllocationTraceReader
 {
     /// <summary>
     /// Changes when how stacks, frames or samples are built changes (the worker's versions line, ARCHITECTURE.md 11), so a
-    /// log line can be matched to the rules that produced it. 1: sprint 2.5.
+    /// log line can be matched to the rules that produced it. 1: sprint 2.5. 2: 4.2.1 (amounts no process
+    /// allocates are refused, and running out of memory is).
     /// </summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
     /// <summary>TraceEvent's version, for the worker's versions line.</summary>
     public static string LibraryVersion { get; } = typeof(TraceLog).Assembly.GetName().Version?.ToString() ?? "unknown";
@@ -90,7 +91,7 @@ public static class AllocationTraceReader
             var conversion = new IssueWriter(KeptIssues);
             try
             {
-                TraceLog.CreateFromEventPipeDataFile(fullPath, etlx, new TraceLogOptions { ContinueOnError = true, ConversionLog = conversion });
+                TraceReads.Convert(fullPath, etlx, new TraceLogOptions { ContinueOnError = true, ConversionLog = conversion });
             }
             catch (Exception ex) when (TraceReads.IsFileError(ex))
             {
@@ -102,7 +103,7 @@ public static class AllocationTraceReader
             if (conversion.RanOutOfMemory)
             {
                 // TraceEvent takes any failure as the trace's end: too little memory must not pass for a short trace (4.2.1 review).
-                throw new InsufficientMemoryException(MemoryMessage(fullPath));
+                throw WithDetail(new InsufficientMemoryException(MemoryMessage(fullPath)), $"TraceEvent's conversion ran out of memory; {check}", conversion);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -110,7 +111,7 @@ public static class AllocationTraceReader
             try
             {
                 using var log = TraceReads.Open(etlx);
-                return new Builder(log, conversion.Count, conversion.First, check, cancellationToken).Build();
+                return new Builder(log, fullPath, conversion, check, cancellationToken).Build();
             }
             catch (Exception ex) when (TraceReads.IsFileError(ex))
             {
@@ -120,7 +121,7 @@ public static class AllocationTraceReader
         }
         catch (OutOfMemoryException ex) when (ex is not InsufficientMemoryException)
         {
-            throw new InsufficientMemoryException(MemoryMessage(fullPath), ex);
+            throw WithDetail(new InsufficientMemoryException(MemoryMessage(fullPath), ex), $"{TraceReads.Origin(ex)}; {check}", conversion: null);
         }
         finally
         {
@@ -174,7 +175,7 @@ public static class AllocationTraceReader
     /// TraceEvent's conversion log, keeping only what reports a problem: how many lines, and the first few (its own words;
     /// it writes no event payloads). Nothing else is held, however long a damaged trace's log grows (the 2.5 re-review).
     /// </summary>
-    private sealed class IssueWriter(int kept) : TextWriter
+    internal sealed class IssueWriter(int kept) : TextWriter
     {
         private readonly StringBuilder _line = new();
 
@@ -209,7 +210,7 @@ public static class AllocationTraceReader
                 || line.Contains("exception", StringComparison.OrdinalIgnoreCase))
             {
                 Count++;
-                RanOutOfMemory |= line.Contains(nameof(OutOfMemoryException), StringComparison.Ordinal);
+                RanOutOfMemory |= line.StartsWith("System.OutOfMemoryException", StringComparison.Ordinal);
                 if (First.Count < kept)
                 {
                     First.Add(line);
@@ -224,14 +225,38 @@ public static class AllocationTraceReader
     /// <summary>What a refusal rests on, for the log (types, counts and TraceEvent's own problem lines), or null.</summary>
     public static string? RefusalDetail(Exception refusal) => refusal.Data[DetailKey] as string;
 
+    /// <summary>1 TB: no object is that large, and a tick stands for about 100 KB or for one large object.</summary>
+    private const long LargestSample = 1L << 40;
+
+    /// <summary>Why an amount is refused, or null: the totals would be wrong, or overflow.</summary>
+    internal static string? RefusedAmount(long bytes, ref long total)
+    {
+        if (bytes is < 0 or > LargestSample)
+        {
+            return $"states an allocation of {bytes:N0} bytes, which no process makes";
+        }
+
+        total += bytes;
+        return total > long.MaxValue / 2 ? $"states allocations of {total:N0} bytes together, which no process makes" : null;
+    }
+
     /// <summary>The check's version, for the worker's versions line.</summary>
     public static int CheckVersion => TraceFileCheck.Version;
 
-    /// <summary>A file TraceEvent failed on. Its text stays out of the message: it is not HeapScope's, and may quote the file.</summary>
+    /// <summary>A file TraceEvent failed on. Its text stays out of the message (it is not
+    /// HeapScope's, and may quote the file); the log has its problem lines, as for an opened trace.</summary>
     private static SnapshotFormatException Refuse(string path, Exception ex, TraceCheckResult check, IssueWriter conversion)
     {
-        var refusal = new SnapshotFormatException($"{path} could not be read as an EventPipe trace ({ex.GetType().Name}): the file may be damaged. If it was copied or downloaded, copy it again and compare its size with the original; otherwise record the trace again.", ex);
-        refusal.Data[DetailKey] = $"{TraceReads.Origin(ex)}; {check}; {conversion.Count} conversion problems {string.Join(" | ", conversion.First)}";
+        var refusal = new SnapshotFormatException($"{path} could not be read as an EventPipe trace ({ex.GetType().Name}): the file may be damaged. {NextStep}", ex);
+        return WithDetail(refusal, $"{TraceReads.Origin(ex)}; {check}", conversion);
+    }
+
+    private const string NextStep = "If it was copied or downloaded, copy it again and compare its size with the original; otherwise record the trace again.";
+
+    private static T WithDetail<T>(T refusal, string detail, IssueWriter? conversion)
+        where T : Exception
+    {
+        refusal.Data[DetailKey] = conversion is null ? detail : $"{detail}; {conversion.Count} conversion problems {string.Join(" | ", conversion.First)}";
         return refusal;
     }
 
@@ -289,7 +314,7 @@ public static class AllocationTraceReader
         }
     }
 
-    private sealed class Builder(TraceLog log, int issues, List<string> firstIssues, TraceCheckResult check, CancellationToken cancellationToken)
+    private sealed class Builder(TraceLog log, string path, IssueWriter conversion, TraceCheckResult check, CancellationToken cancellationToken)
     {
         private readonly List<string> _frames = [];
         private readonly Dictionary<string, int> _frameIds = new(StringComparer.Ordinal);
@@ -314,9 +339,6 @@ public static class AllocationTraceReader
         private int _processId;
         private long _total;
         private string? _processName;
-
-        /// <summary>1 TB: no object is that large.</summary>
-        private const long LargestSample = 1L << 40;
 
         public AllocationTrace Build()
         {
@@ -370,8 +392,8 @@ public static class AllocationTraceReader
                 _withoutStack,
                 _unresolvedSamples,
                 _rundownEvents > 0,
-                issues,
-                firstIssues)
+                conversion.Count,
+                conversion.First)
             {
                 Checked = check.ToString(),
             };
@@ -403,10 +425,10 @@ public static class AllocationTraceReader
             }
 
             var sample = TraceReads.Sample(data);
-            if (sample.Bytes is < 0 or > LargestSample || (_total += sample.Bytes) > long.MaxValue / 2)
+            if (RefusedAmount(sample.Bytes, ref _total) is { } amount)
             {
-                // A tick stands for about 100 KB, or for one large object: the totals would be wrong, or overflow.
-                throw new SnapshotFormatException($"The trace states an allocation of {sample.Bytes:N0} bytes, which no process makes. The file may be damaged; if it was copied or downloaded, copy it again, otherwise record the trace again.");
+                var refusal = new SnapshotFormatException($"{path} {amount}: the file may be damaged. {NextStep}");
+                throw WithDetail(refusal, $"amount of sample {_count + 1} at {sample.TimeMs:F1} ms; {check}", conversion);
             }
 
             var typeName = string.IsNullOrEmpty(sample.TypeName) ? "?" : sample.TypeName;

@@ -33,7 +33,9 @@ namespace HeapScope.Loaders.Trace;
 /// fields each event description states. Walks the block headers and reads only the description blocks, so a long trace
 /// costs little. It follows TraceEvent's own reading of nettrace version 4, the one the .NET runtime writes, tag by tag:
 /// where TraceEvent stops (a file cut short, another tag) the walk stops, and what it accepts here it has been shown to fit.
-/// Any other version is refused, since nothing checks it. Look at it again when TraceEvent or the runtime's format changes.
+/// Descriptions are read from their own blocks only: in version 4 TraceEvent 4.0 takes none from a block of events (an event
+/// whose description is not known, 0 included, is an error there). Any other version is refused, since nothing checks it.
+/// Look at it again when TraceEvent or the runtime's format changes.
 /// </summary>
 internal static class TraceFileCheck
 {
@@ -61,6 +63,10 @@ internal static class TraceFileCheck
 
     private const int StructType = 1;
     private const int ArrayType = 19;
+
+    /// <summary>Bool to a string.</summary>
+    private const int FirstPlainType = 3;
+    private const int LastPlainType = 18;
     private const byte FieldsTag = 2;
 
     /// <param name="stream">The trace, at its start.</param>
@@ -71,7 +77,11 @@ internal static class TraceFileCheck
         Span<byte> head = stackalloc byte[8 + 4 + 20];
         if (!TryRead(stream, head) || BinaryPrimitives.ReadInt32LittleEndian(head[8..]) != 20 || !head[12..].SequenceEqual("!FastSerialization.1"u8))
         {
-            throw new SnapshotFormatException($"{path} is in a version of the trace format HeapScope does not read. Record the trace with HeapScope, or with dotnet-trace's nettrace format.");
+            // Version 6 and later: a reserved 0, then the version. Anything else is damage.
+            var newer = BinaryPrimitives.ReadInt32LittleEndian(head[12..]);
+            throw BinaryPrimitives.ReadInt32LittleEndian(head[8..]) == 0 && newer is > TraceVersion and < 100
+                ? OtherVersion(path, newer)
+                : Refuse(path, 8, "head", "it does not start as a trace");
         }
 
         Span<byte> word = stackalloc byte[4];
@@ -122,9 +132,14 @@ internal static class TraceFileCheck
                 return Stopped(TraceCheckResult.OtherTag);
             }
 
-            if (first != type.SequenceEqual("Trace"u8) || (first && version != TraceVersion))
+            if (first != type.SequenceEqual("Trace"u8))
             {
-                throw Refuse(path, at, "version", first ? $"it does not start as a trace of version {TraceVersion} (version {version:N0})" : "it has a second start");
+                throw Refuse(path, at, "start", first ? "it does not start as a trace" : "it has a second start");
+            }
+
+            if (first && version != TraceVersion)
+            {
+                throw version is > 0 and < 100 ? OtherVersion(path, version) : Refuse(path, at, "version", $"its version is stated to be {version:N0}");
             }
 
             if (first)
@@ -303,9 +318,7 @@ internal static class TraceFileCheck
             return;
         }
 
-        // TraceEvent gives up a list at a type it does not know and reads the tags from where it stopped: so does this, or a
-        // later list could be read there unchecked.
-        Understood(ref reader, sized: false, depth: 0, ref budget);
+        CheckFields(ref reader, sized: false, depth: 0, ref budget);
         while (reader.Left > 0)
         {
             var tagLength = reader.Int32("tag");
@@ -313,16 +326,13 @@ internal static class TraceFileCheck
             var body = reader.Part(tagLength, "tag");
             if (tag == FieldsTag)
             {
-                Understood(ref body, sized: true, depth: 0, ref budget);
+                CheckFields(ref body, sized: true, depth: 0, ref budget);
             }
         }
     }
 
-    /// <summary>
-    /// A list of fields; false when it holds a type this version of the format does not have, and the rest of the list was
-    /// not read. Sized fields (an optional later list) state their length and come name first.
-    /// </summary>
-    private static bool Understood(ref Reader reader, bool sized, int depth, ref int budget)
+    /// <summary>A list of fields. Sized fields (an optional later list) state their length and come name first.</summary>
+    private static void CheckFields(ref Reader reader, bool sized, int depth, ref int budget)
     {
         if (depth > DeepestType)
         {
@@ -343,45 +353,50 @@ internal static class TraceFileCheck
                 var stated = reader.Int32("field size");
                 var field = reader.Part(stated >= 4 ? stated - 4 : -1, "field size");
                 field.Text("field name");
-                if (!UnderstoodType(ref field, sized, depth, ref budget))
-                {
-                    return false;
-                }
+                CheckType(ref field, sized, depth, ref budget);
             }
             else
             {
-                if (!UnderstoodType(ref reader, sized, depth, ref budget))
-                {
-                    return false;
-                }
-
+                CheckType(ref reader, sized, depth, ref budget);
                 reader.Text("field name");
             }
         }
-
-        return true;
     }
 
-    private static bool UnderstoodType(ref Reader reader, bool sized, int depth, ref int budget)
+    /// <summary>
+    /// The types version 4 has, and no other: what TraceEvent does at one it does not know, or at one of a later version, decides
+    /// where it reads next, so such a description is refused (the runtime writes none; 4.2.1 review).
+    /// </summary>
+    private static void CheckType(ref Reader reader, bool sized, int depth, ref int budget)
     {
+        var at = reader.Offset;
         var type = reader.Int32("field type");
         if (type == StructType)
         {
-            return Understood(ref reader, sized, depth + 1, ref budget);
+            CheckFields(ref reader, sized, depth + 1, ref budget);
         }
-
-        if (type == ArrayType && sized)
+        else if (type == ArrayType && sized)
         {
             // The type of its elements follows.
-            return depth < DeepestType ? UnderstoodType(ref reader, sized, depth + 1, ref budget) : throw TooDeep(reader);
-        }
+            if (depth >= DeepestType)
+            {
+                throw TooDeep(reader);
+            }
 
-        // Bool (3) to a string (18).
-        return type is >= 3 and <= 18;
+            CheckType(ref reader, sized, depth + 1, ref budget);
+        }
+        else if (type is < FirstPlainType or > LastPlainType)
+        {
+            throw Refuse(reader.Path, at, "field type", $"a field has type {type:N0}, which version {TraceVersion} does not have");
+        }
     }
 
     private static SnapshotFormatException TooDeep(Reader reader) =>
         Refuse(reader.Path, reader.Offset, "nesting", $"an event is described with types nested deeper than HeapScope reads ({DeepestType} levels)");
+
+    /// <summary>A sound file may be of another version: no advice to copy it again.</summary>
+    private static SnapshotFormatException OtherVersion(string path, int version) =>
+        new($"{path} is a trace of format version {version} (version); HeapScope reads version {TraceVersion}, which the .NET runtime writes. Record it with HeapScope, or with dotnet-trace collect.");
 
     private static SnapshotFormatException Refuse(string path, long offset, string rule, string what) =>
         new(string.Create(CultureInfo.CurrentCulture, $"{path} does not match the trace format at byte {offset:N0} ({rule}): {what}. If it was copied or downloaded, copy it again and compare its size with the original; otherwise record the trace again."));

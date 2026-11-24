@@ -426,7 +426,8 @@ public sealed class GcDumpLoader : ISnapshotLoader
 
         if (!source.IsDefined(root) || source.GetAddress(root) != 0)
         {
-            throw new SnapshotFormatException($"{path} starts its roots at node {(long)root}, which is not the start of a root tree. The file is damaged; if it was copied or downloaded, copy it again, otherwise capture another gcdump.");
+            var what = source.IsDefined(root) ? "an object" : "not described";
+            throw new SnapshotFormatException($"{path} starts its roots at node {(long)root}, which is {what} and not the start of a root tree. The file is damaged; if it was copied or downloaded, copy it again, otherwise capture another gcdump.");
         }
     }
 

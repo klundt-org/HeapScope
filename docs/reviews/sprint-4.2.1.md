@@ -36,9 +36,7 @@ otherwise, marked "decided autonomously".
 
 - M1 (solution-architect, senior-dev) `size + 1` was int arithmetic. Fixed: sizes are added as long, and the limit above.
 - M2 (solution-architect, senior-dev, gc-specialist, support-engineer) A type the format does not have, in the first list, was
-  said to be left to the reader and was not. Kept, and said: TraceEvent reads the tags from where it gave up the list, so the
-  check does too, or a later list would go unchecked; returning there, as proposed, would open a way around it. In the later
-  list, which is a record of its own, it is left to the reader. Both are tested.
+  said to be left to the reader and was not. Fixed in the confirmations (C1): such a type is refused in either list.
 - M3 (solution-architect, senior-dev, gc-specialist) Only the conversion ran on the deep stack. Fixed: the thread is gone, since
   every trace that is read is now bounded at 64 levels.
 - M4 (solution-architect, senior-dev, gc-specialist) The disk, access and too little memory could read as a damaged file. Fixed:
@@ -56,8 +54,8 @@ otherwise, marked "decided autonomously".
   the conversion log's line is recognized and reported as too little memory, with a next step.
 - M11 (gc-specialist) The gcdump's root index was checked for range only. Fixed: it must be a described pseudo node, -1
   included; checked before anything is loaded.
-- M12 (support-engineer) TraceEvent's text went into the message. Fixed: the exception's type and HeapScope's words; its text
-  stays at Debug.
+- M12 (support-engineer) TraceEvent's text went into the message. Fixed: the exception's type and HeapScope's words; the log has
+  its problem lines, as for an opened trace, and its message at Debug.
 - M13 (support-engineer) The only next step was to record again. Fixed: copy it again and compare its size first. "Crafted" is
   gone from the traces' texts. Drafts for the owner.
 - M14 (solution-architect, support-engineer) Docs. Fixed: ADR-028, logging.md, security-privacy.md, code map, ARCHITECTURE.
@@ -71,3 +69,20 @@ Fixed on the way: cancellation per description; named constants; a phase ("Check
 every flag of a compressed header tested; fuzz.yml's comment. Not fixed: the file is opened twice (Backlog); the mutation job's
 duration is not recorded; the benchmark was not run; the other gcdump refusals name no file; `IsFileError` walks the stack in a
 filter; a zero-filled tail inside a block of descriptions is refused; the read left running after a test's timeout.
+
+## Confirmations
+
+Each reviewer read the fixes (2026-11-24) and confirmed its findings, but for these, fixed:
+
+- C1 (gc-specialist, High) Where the check gives up a list and TraceEvent does not, the rest would go unchecked. Looked up in
+  TraceEvent 4.0.0's source: it accepts a type of a later version in version 4. Fixed: version 4's types and no other.
+- C2 (solution-architect, gc-specialist: to be answered) Does TraceEvent take a description from a block of events? Looked up in
+  the same source: not in version 4; only its version 3 path does, and version 3 is refused. Said in the class.
+- C3 (solution-architect, senior-dev, High) `CraftedTraceTests` joined the heavy collection without its trait, which
+  `build/test.sh` refuses. Fixed.
+- C4 (support-engineer, Moderate; senior-dev, Low) The refusals for no samples, an amount and too little memory were logged
+  without the file's identity and the check's result. Fixed.
+- C5 (support-engineer, Moderate; senior-dev, Low) A sound trace of another version and a damaged head got one text. Fixed: the
+  version is named, and only a damaged file is told to be copied again.
+- Low, fixed: the type rule of `IsFileError` tested by itself; the conversion called through `TraceReads`; the memory line
+  matched at its start; the event source test counts every field; ADR-037 points to ADR-028; the reader's version is 2.

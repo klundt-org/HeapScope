@@ -617,7 +617,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   (`test-results-<system>`), which is where a test that fails now and then shows up:
   - Windows builds the solution, runs the fast and the integration tiers (since 3.6), captures the LeakyConsole fixture
     with the CLI and checks the known answers (`build/check-known-answers.sh`). Since 2026-10-31 a second Windows job
-    runs the heavy collection (classes with the `Run=Heavy` trait: gigabyte heaps and dumps, the Ctrl+C capture, run one
+    runs the heavy collection (classes with the `Run=Heavy` trait: gigabyte heaps and dumps, the Ctrl+C capture, what counts the process's memory, run one
     at a time) beside it (`test.sh integration-heavy`; the first job runs `integration-light`), which halves the wait
     for a PR. The local gate still runs the whole `integration` tier.
   - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests (the view model and headless UI

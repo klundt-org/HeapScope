@@ -99,11 +99,23 @@ public sealed class TraceFileCheckTests
         Refused(Trace(Block(false, Description([.. Fields(), .. Tagged(2, SizedFields(Sized("deep", types)))])))).ShouldContain("(nesting)");
     }
 
-    [Fact]
-    public void A_type_this_format_does_not_have_is_left_to_the_reader()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(19)]
+    [InlineData(20)]
+    [InlineData(26)]
+    [InlineData(99)]
+    [InlineData(-1)]
+    public void A_type_version_4_does_not_have_is_refused_in_either_list(int type)
     {
-        // As TraceEvent: it ignores the fields of a description it cannot read, so a newer runtime's trace still opens.
-        Check(Trace(Block(false, Description([.. Fields(), .. Tagged(2, SizedFields(Sized("later", 99)))]))));
+        // What the reader does there decides where it reads next, so nothing after it could be checked.
+        Refused(Trace(Block(false, Description([.. Int(1), .. Plain(type, "later")])))).ShouldContain("(field type)");
+        if (type != 19)
+        {
+            // An array, which the later list has.
+            Refused(Trace(Block(false, Description([.. Fields(), .. Tagged(2, SizedFields(Sized("later", type)))])))).ShouldContain("(field type)");
+        }
     }
 
     [Theory]
@@ -125,13 +137,6 @@ public sealed class TraceFileCheckTests
     }
 
     [Fact]
-    public void A_type_this_format_does_not_have_in_the_first_list_ends_at_the_tags_the_reader_would_read()
-    {
-        // TraceEvent reads the tags from where it gave up the list, so what follows is checked as tags: here they are not.
-        Refused(Trace(Block(false, Description([.. Int(1), .. Plain(99, "later")])))).ShouldContain("(tag)");
-    }
-
-    [Fact]
     public void Lists_that_fit_alone_but_not_together_are_refused()
     {
         // A description's lists share one budget: the reader keeps room for all of them at once. The later list here states what
@@ -148,20 +153,24 @@ public sealed class TraceFileCheckTests
     [InlineData(0)]
     public void Another_version_of_the_format_is_refused(int version)
     {
-        // Nothing checks it, so it does not reach the reader.
-        Refused(Trace(version, Block(false, Description(Fields())))).ShouldContain("(version)");
+        // Nothing checks it, so it does not reach the reader. A sound file of another version is not told to be copied again.
+        var message = Should.Throw<SnapshotFormatException>(() => Check(Trace(version, Block(false, Description(Fields()))))).Message;
+
+        message.ShouldContain(version == 0 ? "(version): its version is stated to be 0" : $"is a trace of format version {version} (version); HeapScope reads version 4");
+        message.Contains("copy it again", StringComparison.Ordinal).ShouldBe(version == 0);
     }
 
     [Fact]
     public void A_head_of_another_format_is_refused()
     {
-        Should.Throw<SnapshotFormatException>(() => Check([.. "Nettrace"u8, .. Int(0), .. Int(6), .. new byte[40]])).Message.ShouldContain("version of the trace format HeapScope does not read");
+        Should.Throw<SnapshotFormatException>(() => Check([.. "Nettrace"u8, .. Int(0), .. Int(6), .. new byte[40]])).Message.ShouldContain("is a trace of format version 6 (version); HeapScope reads version 4");
+        Refused([.. "Nettrace"u8, .. Int(21), .. new byte[44]]).ShouldContain("(head)");
     }
 
     [Fact]
     public void A_second_start_is_refused()
     {
-        Refused(Trace(new Placed("Trace", new byte[48], 48))).ShouldContain("(version)");
+        Refused(Trace(new Placed("Trace", new byte[48], 48))).ShouldContain("(start)");
     }
 
     [Fact]

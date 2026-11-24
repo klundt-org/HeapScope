@@ -58,4 +58,6 @@
     already in Loaders.Trace). The session folder holds the live trace while it is read, so a run's allocations survive
     a worker restart. Building the live allocations view is Phase 4 work; this ADR fixes where it runs. The spike is
     measurement code only and does not ship.
+  - What the worker checks of a trace before it reads it, and what a trace that grows needs of that check: ADR-028, amended in
+    4.2.1.
   - gcdump capture stays in the front end (ADR-023 amended).

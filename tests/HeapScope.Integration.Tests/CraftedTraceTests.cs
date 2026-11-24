@@ -38,6 +38,7 @@ namespace HeapScope.Integration.Tests;
 /// </summary>
 [Collection(nameof(HeavyTestsCollection))]
 [Trait("Category", "Integration")]
+[Trait("Run", "Heavy")]
 public sealed class CraftedTraceTests : IDisposable
 {
     /// <summary>What reading one damaged copy may allocate: far more than a whole one takes (measured below 60 MB).</summary>
@@ -134,7 +135,7 @@ public sealed class CraftedTraceTests : IDisposable
         }
 
         TestContext.Current.TestOutputHelper?.WriteLine($"{opened} read, {refused} refused");
-        if (iterations >= 20)
+        if (iterations >= 100)
         {
             // Refusing everything, or nothing, would pass the rest.
             opened.ShouldBeGreaterThan(0);

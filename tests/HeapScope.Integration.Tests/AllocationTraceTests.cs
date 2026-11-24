@@ -169,7 +169,7 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, bytes[..(int)(bytes.Length * part)]);
 
-        var cut = AllocationTraceReader.Read(path, null, TestContext.Current.CancellationToken);
+        var cut = AllocationTraceReader.Read(path, null, _scratch.File("etlx"), TestContext.Current.CancellationToken);
 
         cut.SampleCount.ShouldBeGreaterThan(0);
         cut.Info.IsIncomplete.ShouldBeTrue();
@@ -207,7 +207,8 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
 
         result.End.ShouldBe(TraceCheckResult.Whole);
         result.Descriptions.ShouldBeGreaterThanOrEqualTo(3);
-        result.Fields.ShouldBeGreaterThan(4);
+        // Rich: 5, its struct 2, the struct in it 1, the array's struct 1; Plain: 4. A list given up early would count fewer.
+        result.Fields.ShouldBeGreaterThanOrEqualTo(13);
     }
 
     [System.Diagnostics.Tracing.EventSource(Name = "HeapScope-Check-Manifest")]

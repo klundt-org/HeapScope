@@ -48,10 +48,14 @@ internal static class TraceReads
     /// fault: the temporary file is HeapScope's own.
     /// </summary>
     public static bool IsFileError(Exception ex) =>
-        ex is not (OperationCanceledException or OutOfMemoryException or InsufficientExecutionStackException or UnauthorizedAccessException)
-        && ex is not IOException or EndOfStreamException
+        CanBeTheFiles(ex)
         && Deciding(ex) is { } method
         && (method.Module.Assembly == s_traceEvent || method.Module.Assembly == s_fastSerialization || method.DeclaringType == typeof(TraceReads));
+
+    /// <summary>The types of error a file can cause.</summary>
+    internal static bool CanBeTheFiles(Exception ex) =>
+        ex is not (OperationCanceledException or OutOfMemoryException or InsufficientExecutionStackException or UnauthorizedAccessException)
+        && ex is not IOException or EndOfStreamException;
 
     /// <summary>Where an error was thrown, for the log: its type and the first method that is not the runtime's. No values.</summary>
     public static string Origin(Exception ex) =>
@@ -72,6 +76,9 @@ internal static class TraceReads
 
         return null;
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void Convert(string path, string etlx, TraceLogOptions options) => TraceLog.CreateFromEventPipeDataFile(path, etlx, options);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static TraceLog Open(string etlx) => new(etlx);
