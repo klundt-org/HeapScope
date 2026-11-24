@@ -335,6 +335,13 @@ public sealed class GcDumpLoader : ISnapshotLoader
             return 0;
         }
 
+        // The file states it, like a child's index (4.2.1, found by the nightly fuzz test). Left to the reader, the error was
+        // blamed on HeapScope once the JIT had inlined the accessor that throws (IsReaderInconsistency).
+        if ((long)source.RootIndex < 0 || (long)source.RootIndex >= (long)source.NodeIndexLimit)
+        {
+            throw new SnapshotFormatException($"The gcdump starts its roots at node {(long)source.RootIndex}, outside its {(long)source.NodeIndexLimit:N0} nodes. The file is damaged or crafted; capture another gcdump.");
+        }
+
         var type = source.AllocTypeNodeStorage();
         var visited = new HashSet<NodeIndex>();
         var pending = new Stack<(NodeIndex Node, RootClass Class)>();

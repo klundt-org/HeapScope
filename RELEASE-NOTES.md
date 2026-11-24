@@ -9,7 +9,7 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 | Version | Released |
 |---|---|
-| 4.2.0 | 2026-11-23, `v4.2.0` |
+| 4.2.0 | 2026-11-24, `v4.2.0` |
 | 3.13.2 | 2026-11-20, `v3.13.2` |
 | 3.13.1 | 2026-11-19, `v3.13.1` |
 | 3.13.0 | 2026-11-17, `v3.13.0` |
