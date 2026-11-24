@@ -176,13 +176,9 @@ public static class CounterMonitor
                 // Sprint 4.1 review H6: what the reason given rests on.
                 logger?.LogInformation("Pid {Pid} could not be monitored: {Evidence}", processId, evidence);
             }
-            else if (failure is ElevationRequiredException && HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current))
+            else if (failure is ElevationRequiredException && CapturePlatform.UserIdsOf(processId) is { } ids)
             {
-                logger?.LogInformation(
-                    "Pid {Pid} was refused as another user's: effective user {Target}, HeapScope's {Own}",
-                    processId,
-                    CapturePlatform.EffectiveUserId(processId),
-                    CapturePlatform.EffectiveUserId(Environment.ProcessId));
+                logger?.LogInformation("Pid {Pid} was refused as another user's: {Ids}", processId, ids);
             }
 
             throw failure;

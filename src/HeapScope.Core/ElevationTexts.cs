@@ -25,8 +25,8 @@ namespace HeapScope.Core;
 
 /// <summary>
 /// The words for a process HeapScope needs more rights to reach, per system (sprint 4.1): on Windows, run HeapScope as
-/// administrator; on Linux, run it as the process's own user or as root (the capture layer's UnixElevationProbe). Each text has
-/// an <c>On</c> form taking the system, so both are tested everywhere. Linux texts: drafts for the owner (info-text.md).
+/// administrator; on Linux, run it as the process's own user or as root; on macOS, as that user (the capture layer's UnixElevationProbe).
+/// Each text has an <c>On</c> form taking the system, so all are tested everywhere (info-text.md).
 /// </summary>
 public static class ElevationTexts
 {
@@ -50,20 +50,25 @@ public static class ElevationTexts
     /// <summary>Why the tutorial's sample does not start while HeapScope runs with more rights.</summary>
     public static string SampleRefused => SampleRefusedOn(s_system);
 
-    public static string NeedsMoreOn(HostSystem system) => HostSystems.RightsGoByUser(system) ? "Needs root or its user" : "Needs administrator";
+    public static string NeedsMoreOn(HostSystem system) => system switch
+    {
+        HostSystem.Linux => "Needs root or its user",
+        HostSystem.MacOS => "Needs its user",
+        _ => "Needs administrator",
+    };
 
     public static string ReachableOn(HostSystem system) => HostSystems.RightsGoByUser(system) ? "Another user's" : "Elevated";
 
     public static string HintOn(HostSystem system) => HostSystems.RightsGoByUser(system)
-        ? "Processes marked 'Needs root or its user' run as another user. To capture them, run HeapScope as that user, or as root (sudo)."
+        ? $"Processes marked '{NeedsMoreOn(system)}' run as another user. To capture them, run HeapScope as that user{OrRoot(system, ", or as root (sudo)")}."
         : "Processes marked 'Needs administrator' run elevated or as another user. To capture them, run HeapScope as administrator.";
 
     public static string ColumnTipOn(HostSystem system) => HostSystems.RightsGoByUser(system)
-        ? "\"Needs root or its user\" means you must run HeapScope as that process's user, or as root, to capture it. \"Another user's\" means it runs as another user and HeapScope runs as root, so it can."
+        ? $"\"{NeedsMoreOn(system)}\" means you must run HeapScope as that process's user{OrRoot(system, ", or as root,")} to capture it. \"Another user's\" means it runs as another user and HeapScope runs as root, so it can."
         : "\"Needs administrator\" means you must run HeapScope as administrator to capture this process. \"Elevated\" means it runs elevated and HeapScope does too.";
 
     public static string CliNoteOn(HostSystem system) => HostSystems.RightsGoByUser(system)
-        ? "Processes marked elevated run as another user: run heapscope-cli as that user, or with sudo, to capture them."
+        ? $"Processes marked elevated run as another user: run heapscope-cli as that user{OrRoot(system, ", or with sudo,")} to capture them."
         : "Processes marked elevated can only be captured when HeapScope runs as administrator.";
 
     public static string SampleRefusedOn(HostSystem system) => HostSystems.RightsGoByUser(system)
@@ -79,7 +84,7 @@ public static class ElevationTexts
     public static string ShowHiddenOn(HostSystem system) => HostSystems.RightsGoByUser(system) ? "Show other users' processes" : "Show elevated processes";
 
     public static string ShowHiddenTipOn(HostSystem system) => HostSystems.RightsGoByUser(system)
-        ? "Also lists the processes of other users. HeapScope can capture them only when it runs as that user or as root (sudo)."
+        ? $"Also lists the processes of other users. HeapScope can capture them only when it runs as that user{OrRoot(system, " or as root (sudo)")}."
         : "Also lists the processes that run elevated or as another user. HeapScope can capture them only when it runs as administrator.";
 
     /// <summary>The note in place of <see cref="Hint"/> while <paramref name="count"/> processes are hidden (sprint 4.1.1).</summary>
@@ -93,7 +98,7 @@ public static class ElevationTexts
         var box = ShowHiddenOn(system);
         return HostSystems.RightsGoByUser(system)
             ? (count == 1 ? "1 process of another user is hidden" : $"{n} processes of other users are hidden")
-                + $": HeapScope cannot capture {them} unless it runs as that user or as root (sudo). Check '{box}' to list {them}."
+                + $": HeapScope cannot capture {them} unless it runs as that user{OrRoot(system, " or as root (sudo)")}. Check '{box}' to list {them}."
             : (count == 1 ? "1 process that runs elevated or as another user is hidden" : $"{n} processes that run elevated or as another user are hidden")
                 + $": HeapScope cannot capture {them} unless it runs as administrator. Check '{box}' to list {them}.";
     }
@@ -110,6 +115,12 @@ public static class ElevationTexts
 
     /// <summary>The refusal to reach a process that needs more rights: what HeapScope cannot do, and what to do instead.</summary>
     public static string Refusal(string? name, int processId, string cannot, string again, HostSystem system) => HostSystems.RightsGoByUser(system)
-        ? $"{name ?? "The process"} (pid {processId}) runs as another user, so HeapScope cannot {cannot}. Run HeapScope as that user, or as root (sudo), and {again}."
+        ? $"{name ?? "The process"} (pid {processId}) runs as another user, so HeapScope cannot {cannot}. Run HeapScope as that user{OrRoot(system, ", or as root (sudo),")} and {again}."
         : $"{name ?? "The process"} (pid {processId}) runs elevated or as another user, so HeapScope cannot {cannot}. Run HeapScope as administrator (right-click, Run as administrator) and {again}.";
+
+    /// <summary>
+    /// Root as the other way, on Linux. Not on macOS: each user has their own temp folder there and sudo does not keep it, so
+    /// HeapScope run with sudo would look in a folder that holds no one's sockets (4.2 review).
+    /// </summary>
+    private static string OrRoot(HostSystem system, string text) => system == HostSystem.Linux ? text : string.Empty;
 }

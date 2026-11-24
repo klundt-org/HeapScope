@@ -29,7 +29,7 @@ namespace HeapScope.Capture.Tests;
 public sealed class CapturePlatformTests
 {
     [Fact]
-    public void Capture_is_refused_off_windows_with_the_way_to_take_a_dump_there()
+    public void Capture_is_refused_where_it_is_not_built_with_the_way_to_take_a_dump_there()
     {
         var refused = Should.Throw<PlatformNotSupportedException>(() => CapturePlatform.EnsureSupported(supported: false));
 
@@ -44,7 +44,7 @@ public sealed class CapturePlatformTests
     {
         CapturePlatform.ElevationProbe().ShouldBeOfType(OperatingSystem.IsWindows() ? typeof(WindowsElevationProbe) : typeof(UnixElevationProbe));
         UnixElevationProbe.Instance.IsCurrentProcessElevated.ShouldBe(Environment.IsPrivilegedProcess);
-        UnixElevationProbe.Instance.GetState(Environment.ProcessId).ShouldBe(OperatingSystem.IsLinux() ? ElevationState.NotElevated : ElevationState.Unknown);
+        UnixElevationProbe.Instance.GetState(Environment.ProcessId).ShouldBe(HostSystems.RightsGoByUser(HostSystems.Current) ? ElevationState.NotElevated : ElevationState.Unknown);
     }
 
     [Fact]
@@ -67,6 +67,9 @@ public sealed class CapturePlatformTests
         CapturePlatform.ProcessFacts(HostSystem.Other).ShouldBeOfType<NoProcessFacts>();
         CapturePlatform.Rules(HostSystem.Windows).ShouldBeOfType<WindowsCaptureRules>();
         CapturePlatform.Rules(HostSystem.Linux).ShouldBeOfType<LinuxCaptureRules>();
+        CapturePlatform.Rules(HostSystem.Other).ShouldBeOfType<NoCaptureRules>();
+        CapturePlatform.ElevationProbe(HostSystem.Windows).ShouldBeOfType<WindowsElevationProbe>();
+        CapturePlatform.ElevationProbe(HostSystem.Linux).ShouldBeOfType<UnixElevationProbe>();
         CapturePlatform.IsSupportedOn(HostSystem.Other).ShouldBeFalse();
         NoProcessFacts.Instance.EffectiveUserId(Environment.ProcessId).ShouldBeNull();
         NoProcessFacts.Instance.ReadableBytes(Environment.ProcessId).ShouldBeNull();

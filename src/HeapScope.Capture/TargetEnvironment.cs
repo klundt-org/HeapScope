@@ -48,7 +48,8 @@ internal sealed class TargetEnvironment
         }
 
         DiagnosticsOff = Array.Find(s_diagnosticsOff, name => variables.TryGetValue(name, out var value) && value.Trim() == "0");
-        TempFolder = Folder(variables.TryGetValue("TMPDIR", out var tmp) && tmp.Length > 0 ? tmp : "/tmp");
+        TempFolderSet = variables.TryGetValue("TMPDIR", out var tmp) && tmp.Length > 0;
+        TempFolder = Folder(TempFolderSet ? tmp! : "/tmp");
     }
 
     /// <summary>The variable that turns the diagnostics port off, or null.</summary>
@@ -56,6 +57,9 @@ internal sealed class TargetEnvironment
 
     /// <summary>The folder its socket is in: its <c>TMPDIR</c>, or <c>/tmp</c>.</summary>
     public string TempFolder { get; }
+
+    /// <summary>Whether <see cref="TempFolder"/> is its <c>TMPDIR</c>, not the default.</summary>
+    public bool TempFolderSet { get; }
 
     /// <summary><paramref name="path"/> without its trailing slashes.</summary>
     public static string Folder(string path)

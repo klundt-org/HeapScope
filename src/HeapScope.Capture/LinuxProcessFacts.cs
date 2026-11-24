@@ -44,6 +44,19 @@ internal sealed class LinuxProcessFacts : IProcessFacts
         return RuntimeLibrary.WithFileVersion(Read(() => ProcText.Runtime(File.ReadAllText(ProcFile(process.Id, "maps")))), ProcText.RuntimeLibraryFile);
     }
 
+    public long? PrivateBytes(Process process)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        try
+        {
+            return process.PrivateMemorySize64;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
     public long? ReadableBytes(int processId)
     {
         try

@@ -29,8 +29,11 @@ namespace HeapScope.Capture;
 public static class CapturePlatform
 {
     /// <summary>The elevation probe of this system.</summary>
-    public static IElevationProbe ElevationProbe() =>
-        OperatingSystem.IsWindows() ? WindowsElevationProbe.Instance : UnixElevationProbe.Instance;
+    public static IElevationProbe ElevationProbe() => ElevationProbe(HostSystems.Current);
+
+    /// <summary><see cref="ElevationProbe()"/> of <paramref name="system"/> (tests).</summary>
+    internal static IElevationProbe ElevationProbe(HostSystem system) =>
+        system == HostSystem.Windows ? WindowsElevationProbe.Instance : new UnixElevationProbe(ProcessFacts(system));
 
     /// <summary>What this system lets HeapScope read about a process (sprint 4.1).</summary>
     internal static IProcessFacts ProcessFacts() => ProcessFacts(HostSystems.Current);
@@ -50,9 +53,10 @@ public static class CapturePlatform
     /// <summary><see cref="Rules()"/> of <paramref name="system"/> (tests).</summary>
     internal static ICaptureRules Rules(HostSystem system) => system switch
     {
+        HostSystem.Windows => WindowsCaptureRules.Instance,
         HostSystem.Linux => LinuxCaptureRules.Instance,
         HostSystem.MacOS => MacCaptureRules.Instance,
-        _ => WindowsCaptureRules.Instance,
+        _ => NoCaptureRules.Instance,
     };
 
     /// <summary>
@@ -60,6 +64,17 @@ public static class CapturePlatform
     /// rule that marks another user's process rests on it. Null on Windows, or when the process exited.
     /// </summary>
     public static int? EffectiveUserId(int processId) => ProcessFacts().EffectiveUserId(processId);
+
+    /// <summary>The user ids a refusal as another user's rests on, for the log; null on Windows, where rights go by elevation.</summary>
+    public static string? UserIdsOf(int processId) =>
+        HostSystems.RightsGoByUser(HostSystems.Current) ? $"effective user {UserId(processId)}, HeapScope's {UserId(Environment.ProcessId)}" : null;
+
+    /// <summary>A process's effective user id for the log, "unknown" when it could not be read.</summary>
+    public static string UserId(int processId) =>
+        EffectiveUserId(processId) is { } id ? ((uint)id).ToString(System.Globalization.CultureInfo.InvariantCulture) : "unknown";
+
+    /// <summary>How every read does on HeapScope's own process, for the log, on a system where nobody has run them; null elsewhere.</summary>
+    public static string? SelfCheck() => ProcessFacts().SelfCheck();
 
     /// <summary>Whether capture is built for this system: Windows, Linux (sprint 4.1) and macOS (sprint 4.2, untested).</summary>
     public static bool IsSupported { get; } = IsSupportedOn(HostSystems.Current);

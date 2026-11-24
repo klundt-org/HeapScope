@@ -49,15 +49,11 @@ public sealed class MacFactsTests
     private static byte[] ProcArgs(int count, string rest) =>
         [.. BitConverter.GetBytes(count), .. Encoding.UTF8.GetBytes(rest)];
 
-    private static MacTarget Target(
-        int? user = 501,
-        int? own = 501,
-        TargetEnvironment? environment = null,
-        bool regionsRead = true,
-        string? runtime = null,
-        bool? carries = null,
-        string ownTemp = "/var/folders/ab/T/") =>
-        new(42, user, own, environment, regionsRead, runtime, carries, ownTemp);
+    private static MacTarget Target(int? user = 501, int? own = 501, TargetEnvironment? environment = null, bool running = true, MacWalk? walk = null) =>
+        new(42, running, user, "errno 3", own, environment, "errno 22", walk, "/var/folders/ab/T/");
+
+    private static Func<ulong, (MacRegion? Region, string Outcome)> Reads(params MacRegion[] regions) =>
+        address => regions.Where(r => r.Address + r.Size > address).Select(r => ((MacRegion?)r, string.Empty)).DefaultIfEmpty((null, "errno 22")).First();
 
     [Fact]
     public void The_user_id_is_read_from_a_whole_struct_only()
@@ -83,28 +79,58 @@ public sealed class MacFactsTests
     }
 
     [Fact]
-    public void A_walk_follows_the_regions_and_stops_where_they_end_or_do_not_move_on()
+    public void A_walk_follows_the_regions_and_says_how_it_ended()
     {
-        MacRegion[] regions = [new(0x1000, 0x1000, true, null), new(0x8000, 0x1000, false, null), new(0x9000, 0x3000, true, null)];
-        MacRegion? Next(ulong address) => regions.Where(r => r.Address + r.Size > address).Select(r => (MacRegion?)r).FirstOrDefault();
+        var walk = MacProcData.Walk(Reads(new(0x1000, 0x1000, true, "/usr/lib/dyld"), new(0x8000, 0x1000, false, null), new(0x9000, 0x3000, true, null)));
+        walk.ShouldBe(new MacWalk(3, 1, 0xC000, "errno 22", 0x4000, null));
+        walk.ToString().ShouldBe("3 regions (1 with a file) to 0xC000, ended: errno 22; 16384 readable bytes; runtime not seen");
 
-        MacProcData.Walk(Next).ShouldBe(regions);
-        MacProcData.ReadableBytes(MacProcData.Walk(Next)).ShouldBe(0x4000);
-        MacProcData.Walk(_ => null).ShouldBeEmpty();
-        MacProcData.ReadableBytes([]).ShouldBeNull("not allowed is not zero bytes");
-        MacProcData.Walk(_ => new MacRegion(0, 0, true, null)).Count().ShouldBe(1, "a region that does not move the walk on ends it");
-        MacProcData.Walk(a => new MacRegion(a, ulong.MaxValue, true, null)).Count().ShouldBeLessThan(3, "an end past the address space wraps");
-        MacProcData.ReadableBytes([new(0, ulong.MaxValue, true, null), new(0, 5, true, null)]).ShouldBe(long.MaxValue);
+        MacProcData.Walk(_ => (null, "errno 1")).ShouldBe(new MacWalk(0, 0, 0, "errno 1", null, null), "not allowed is not zero bytes");
+        MacProcData.Walk(_ => (new MacRegion(0, 0, true, null), string.Empty)).End.ShouldBe("a region did not move it on");
+        MacProcData.Walk(a => (new MacRegion(a, ulong.MaxValue, true, null), string.Empty)).Regions.ShouldBeLessThan(3, "an end past the address space wraps");
     }
+
+    [Fact]
+    public void A_sum_no_process_has_is_not_a_size() =>
+        MacProcData.Walk(Reads(new(0, 1UL << 45, true, null), new(1UL << 45, 1UL << 60, true, null))).ReadableBytes.ShouldBeNull();
 
     [Fact]
     public void The_runtime_is_the_folder_of_the_mapped_libcoreclr()
     {
-        MacRegion[] regions = [new(1, 1, true, "/usr/lib/dyld"), new(2, 1, true, null), new(3, 1, true, Framework + "/libcoreclr.dylib")];
-        MacProcData.Runtime(regions).ShouldBe(new RuntimeFacts("10.0.1", Framework));
-        MacProcData.Runtime([new(1, 1, true, "/Applications/Orders.app/libcoreclr.dylib")]).ShouldBe(new RuntimeFacts(null, "/Applications/Orders.app"));
-        MacProcData.Runtime([new(1, 1, true, "/opt/orders/OrdersWorker")]).ShouldBeNull("a single-file app links the runtime in");
+        var regions = new MacRegion[] { new(1, 1, true, "/usr/lib/dyld"), new(2, 1, true, null), new(3, 1, true, Framework + "/libcoreclr.dylib"), new(4, 1, true, null) };
+        MacProcData.Walk(Reads(regions)).Runtime.ShouldBe(new RuntimeFacts("10.0.1", Framework));
+        var stopped = MacProcData.Walk(Reads(regions), stopAtRuntime: true);
+        stopped.Regions.ShouldBe(3);
+        stopped.End.ShouldBe("the runtime was found");
+        MacProcData.Walk(Reads(new MacRegion(1, 1, true, "/Applications/Orders.app/libcoreclr.dylib"))).Runtime.ShouldBe(new RuntimeFacts(null, "/Applications/Orders.app"));
+        MacProcData.Walk(Reads(new MacRegion(1, 1, true, "/opt/orders/OrdersWorker"))).Runtime.ShouldBeNull("a single-file app links the runtime in");
     }
+
+    [Fact]
+    public void The_footprint_is_read_from_a_whole_struct_and_zero_is_not_one()
+    {
+        var usage = new byte[MacProcData.UsageSize];
+        MacProcData.PhysicalFootprint(usage).ShouldBeNull();
+        BinaryPrimitives.WriteUInt64LittleEndian(usage.AsSpan(72), 123_456_789);
+        MacProcData.PhysicalFootprint(usage).ShouldBe(123_456_789);
+        MacProcData.PhysicalFootprint(usage.AsSpan(0, 88)).ShouldBeNull();
+        BinaryPrimitives.WriteUInt64LittleEndian(usage.AsSpan(72), ulong.MaxValue);
+        MacProcData.PhysicalFootprint(usage).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(2, "/bin/a\0\0\0run\0SECRET=orders-key\0HOME=/Users/a\0")]
+    [InlineData(3, "/bin/a\0\0a\0run\0SECRET=orders-key\0HOME=/Users/a\0")]
+    public void An_environment_entry_taken_for_an_argument_never_reaches_the_command_line(int count, string rest)
+    {
+        // An empty first argument reads as padding, or the count is one too high: either moves the first entry in.
+        MacProcData.CommandLine(ProcArgs(count, rest))!.ShouldNotContain("orders-key");
+        MacProcData.Environment(ProcArgs(count, rest)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_setting_in_an_option_is_kept() =>
+        MacProcData.CommandLine(ProcArgs(2, "/bin/a\0\0a\0--urls=http://localhost:5000\0HOME=/Users/a\0")).ShouldBe("a --urls=http://localhost:5000");
 
     [Fact]
     public void The_command_line_is_the_arguments_after_the_padded_path()
@@ -143,15 +169,24 @@ public sealed class MacFactsTests
     }
 
     [Fact]
-    public void Off_macos_every_fact_is_empty()
+    public void Off_macos_every_fact_is_empty_and_says_why()
     {
         Assert.SkipWhen(OperatingSystem.IsMacOS(), "The calls exist there.");
+        var facts = MacProcessFacts.Instance;
         var pid = Environment.ProcessId;
-        MacProcessFacts.Instance.ImagePath(pid).ShouldBeNull();
-        MacProcessFacts.Instance.CommandLine(pid).ShouldBeNull();
-        MacProcessFacts.Instance.EffectiveUserId(pid).ShouldBeNull();
-        MacProcessFacts.Instance.ReadableBytes(pid).ShouldBeNull();
+        using var self = System.Diagnostics.Process.GetCurrentProcess();
+        facts.ImagePath(pid).ShouldBeNull();
+        facts.CommandLine(pid).ShouldBeNull();
+        facts.EffectiveUserId(pid).ShouldBeNull();
+        facts.ReadableBytes(pid).ShouldBeNull();
+        facts.PrivateBytes(self).ShouldBeNull();
+        facts.Runtime(self).ShouldBeNull();
+        facts.UncountedBytes.ShouldBe(MacProcessFacts.DefaultSharedCacheBytes);
         MacCaptureRules.Instance.WhyNotFound(pid).Reason.ShouldBeNull();
+        MacCaptureRules.Instance.WhyNotFound(pid).Evidence!.ShouldContain("running yes; effective user not readable (the call is not there)", Case.Sensitive, "a failed read is not an exited process");
+        facts.SelfCheck().ShouldContain("user id the call is not there; ");
+        facts.SelfCheck().ShouldEndWith("regions 0 regions (0 with a file) to 0x0, ended: the call is not there; readable bytes unknown; runtime not seen");
+        CapturePlatform.SelfCheck().ShouldBeNull("Windows and Linux are tested");
     }
 
     [Fact]
@@ -159,13 +194,16 @@ public sealed class MacFactsTests
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "Calls libproc and sysctl, which macOS has.");
         using var self = System.Diagnostics.Process.GetCurrentProcess();
-        var facts = CapturePlatform.ProcessFacts();
+        var facts = MacProcessFacts.Instance;
         facts.ImagePath(self.Id).ShouldBe(Environment.ProcessPath);
         facts.CommandLine(self.Id).ShouldNotBeNullOrEmpty();
-        facts.EffectiveUserId(self.Id).ShouldNotBeNull();
         facts.ReadableBytes(self.Id)!.Value.ShouldBeGreaterThan(16 * 1024 * 1024);
-        facts.Runtime(self)!.Directory.ShouldNotBeNull();
-        MacProcessFacts.Instance.Environment(self.Id).ShouldNotBeNull();
+        facts.PrivateBytes(self)!.Value.ShouldBeGreaterThan(1024 * 1024);
+        facts.UncountedBytes.ShouldBeGreaterThan(512L * 1024 * 1024);
+        facts.Runtime(self)!.Directory.ShouldBe(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory().TrimEnd('/'));
+        facts.Environment(self.Id, out var outcome).ShouldNotBeNull(outcome);
+        facts.EffectiveUserId(self.Id).ShouldNotBeNull();
+        facts.EffectiveUserId(1).ShouldBe(0, "launchd runs as root");
     }
 
     [Fact]
@@ -173,7 +211,9 @@ public sealed class MacFactsTests
     {
         CapturePlatform.ProcessFacts(HostSystem.MacOS).ShouldBeOfType<MacProcessFacts>();
         CapturePlatform.Rules(HostSystem.MacOS).ShouldBeOfType<MacCaptureRules>();
+        CapturePlatform.ElevationProbe(HostSystem.MacOS).ShouldBeOfType<UnixElevationProbe>();
         CapturePlatform.IsSupportedOn(HostSystem.MacOS).ShouldBeTrue();
+        CapturePlatform.Rules(HostSystem.MacOS).LibraryRefusal("orders", 42)!.ShouldStartWith("orders (pid 42) runs as another user, and the runtime writes its full dump as that user");
     }
 
     [Fact]
@@ -185,69 +225,94 @@ public sealed class MacFactsTests
         probe.GetState(3).ShouldBe(ElevationState.Unknown);
     }
 
+    // The texts are .NET 10's macOS createdump's own (its osx-arm64 runtime pack).
     [Theory]
-    [InlineData("[createdump] Invalid process id: task_for_pid(42) FAILED (os/kern) failure (5)\nThis failure may be because createdump or the application is not properly signed and entitled.", "task_for_pid refused")]
-    [InlineData("No space left on device", "no space left")]
-    [InlineData("Could not open output file: Permission denied", "the folder is not writable by the target's account")]
-    [InlineData("Writing dump FAILED", "none matched")]
-    public void A_write_failure_is_named_from_what_createdump_reported(string message, string rule)
+    [InlineData("Invalid process id: task_for_pid(42) FAILED (os/kern) failure (5)\nThis failure may be because createdump or the application is not properly signed and entitled.", "task_for_pid refused ('task_for_pid')", "macOS did not let the runtime examine the process, which can mean that the application or the runtime is not signed with the entitlements that allow it. A gcdump does not need this: capture one instead")]
+    [InlineData("task_for_pid(42) FAILED: Permission denied", "task_for_pid refused ('task_for_pid')", "macOS did not let the runtime examine the process, which can mean that the application or the runtime is not signed with the entitlements that allow it. A gcdump does not need this: capture one instead")]
+    [InlineData("Error writing data to dump file: No space left on device (28)", "no space left ('No space left')", "the disk is full")]
+    [InlineData("failed 0x80070070", "no space left ('0x80070070')", "the disk is full")]
+    [InlineData("Could not create output file '/d/a.dmp': Operation not permitted (1)", "macOS refused the write ('Operation not permitted')", "macOS did not let the account orders runs as write to /d. macOS protects some folders (Desktop, Documents, Downloads) from applications that were not allowed to use them")]
+    [InlineData("Could not create output file '/d/a.dmp': Permission denied (13)", "the folder is not writable by the target's account ('Permission denied')", "the account orders runs as cannot write to /d")]
+    [InlineData("Could not create output file '/d/a.dmp': No such file or directory (2)", "the folder is not writable by the target's account ('Could not create output file')", "the account orders runs as cannot write to /d")]
+    [InlineData("failed 0x80070005", "the folder is not writable by the target's account ('0x80070005')", "the account orders runs as cannot write to /d")]
+    [InlineData("mach_vm_region_recurse for address 0 FAILED", "none matched", null)]
+    public void A_write_failure_is_named_from_what_createdump_reported(string message, string rule, string? reason)
     {
-        var reason = MacCaptureRules.WriteFailure(message, "orders", "/Users/a/dumps", out var decided);
+        MacCaptureRules.WriteFailure(message, "orders", "/d", out var decided).ShouldBe(reason);
         decided.ShouldBe(rule);
-        (reason is null).ShouldBe(rule == "none matched");
-        MacCaptureRules.Instance.WhyNotWritten(message, "orders", "/Users/a/dumps").ShouldBe(new WriteFailureExplanation(reason, "macOS; rule: " + rule));
+        MacCaptureRules.Instance.WhyNotWritten(message, "orders", "/d").ShouldBe(new WriteFailureExplanation(reason, "macOS; rule: " + rule));
     }
-
-    [Fact]
-    public void A_task_for_pid_failure_offers_a_gcdump() =>
-        MacCaptureRules.WriteFailure("task_for_pid(42) FAILED", "orders", "/d", out _)!.ShouldEndWith("A gcdump does not need this: capture one instead");
 
     [Fact]
     public void A_process_that_is_not_found_is_explained_where_macos_can_tell()
     {
         var here = new TargetEnvironment(["TMPDIR=/private/var/folders/ab/T/"]);
-        MacCaptureRules.WhyNoDiagnostics(Target(user: null)).ShouldBeNull();
-        MacCaptureRules.WhyNoDiagnostics(Target(user: 502))!.ShouldContain("runs as another user");
-        MacCaptureRules.WhyNoDiagnostics(Target(own: 0, environment: here, runtime: Framework)).ShouldBeNull("root reaches it in the same folder");
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["COMPlus_EnableDiagnostics=0"])))!.ShouldContain("(COMPlus_EnableDiagnostics=0)");
-        MacCaptureRules.WhyNoDiagnostics(Target(own: 0, environment: new TargetEnvironment(["TMPDIR=/var/folders/zz/T/"])))!.ShouldContain("TMPDIR=/var/folders/zz/T,");
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: here, runtime: Framework)).ShouldBeNull("/var is a link into /private");
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: here, carries: false))!.ShouldContain("not a .NET process");
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: here, carries: true)).ShouldBeNull();
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: here, carries: null)).ShouldBeNull();
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: here, regionsRead: false)).ShouldBeNull();
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: null, runtime: Framework)).ShouldBeNull();
+        MacCaptureRules.WhyNoDiagnostics(Target(running: false, user: null)).ShouldBeNull();
+        MacCaptureRules.WhyNoDiagnostics(Target(user: 502)).ShouldBe(
+            "Process 42 runs as another user, and HeapScope finds a process by the diagnostics socket it creates in its own temp folder, which on macOS differs per user. Run HeapScope as that user.");
+        MacCaptureRules.WhyNoDiagnostics(Target(own: 0, environment: here)).ShouldBeNull("root reaches it in the same folder");
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["COMPlus_EnableDiagnostics=0"]))).ShouldBe(
+            "Process 42 turned its diagnostics off (COMPlus_EnableDiagnostics=0), so no tool can capture it. Start it without that setting, then capture it again.");
+        MacCaptureRules.WhyNoDiagnostics(Target(own: 0, environment: new TargetEnvironment(["TMPDIR=/var/folders/zz/T/"]))).ShouldBe(
+            "Process 42 keeps its diagnostics socket in /var/folders/zz/T (its TMPDIR), and HeapScope looks in /var/folders/ab/T. Start HeapScope with TMPDIR=/var/folders/zz/T, then capture it again.");
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["HOME=/Users/a"])))!.ShouldContain("in /tmp (its TMPDIR is not set), and");
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: here)).ShouldBeNull("/var is a link into /private");
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["TMPDIR=/VAR/folders/ab/T"]))).ShouldNotBeNull("only the links macOS has are resolved");
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["TMPDIR=/var/folders/AB/T"]))).ShouldBeNull("case does not count on macOS");
+        MacCaptureRules.WhyNoDiagnostics(Target(user: null, environment: new TargetEnvironment(["TMPDIR=/x"]))).ShouldNotBeNull("an unreadable user id hides no other reason");
+        MacCaptureRules.WhyNoDiagnostics(Target()).ShouldBeNull();
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: here, walk: new MacWalk(1, 1, 5, "errno 22", 1, null))).ShouldBeNull("a walk without the runtime may have ended early, so nothing says it is not .NET");
     }
 
     [Fact]
     public void The_evidence_says_what_the_decision_rests_on_and_no_value_but_the_temp_folder()
     {
-        MacCaptureRules.Evidence(Target(environment: new TargetEnvironment(["TMPDIR=/t", "SECRET=orders-key"]), runtime: Framework)).ShouldBe(
-            $"macOS check of pid 42: running yes; effective user 501, HeapScope's 501; environment readable; diagnostics off: none; TMPDIR /t, HeapScope's /var/folders/ab/T; runtime libcoreclr.dylib in {Framework}");
-        MacCaptureRules.Evidence(Target(user: null, regionsRead: false)).ShouldBe(
-            "macOS check of pid 42: running no; effective user unknown, HeapScope's 501; environment not given; diagnostics off: unknown; TMPDIR unknown, HeapScope's /var/folders/ab/T; runtime regions not readable");
+        MacCaptureRules.Evidence(Target(environment: new TargetEnvironment(["TMPDIR=/t", "SECRET=orders-key"]), walk: new MacWalk(9, 4, 0x2000, "errno 22", 4096, new RuntimeFacts(null, Framework)))).ShouldBe(
+            $"macOS check of pid 42: running yes; effective user 501, HeapScope's 501; environment readable; diagnostics off: none; TMPDIR /t, HeapScope's /var/folders/ab/T; regions 9 regions (4 with a file) to 0x2000, ended: errno 22; 4096 readable bytes; runtime {Framework}");
+        MacCaptureRules.Evidence(Target(user: null)).ShouldBe(
+            "macOS check of pid 42: running yes; effective user not readable (errno 3), HeapScope's 501; environment not readable (errno 22); diagnostics off: unknown; TMPDIR unknown, HeapScope's /var/folders/ab/T; regions not read");
     }
 
     [Fact]
-    public void The_estimate_takes_the_larger_figure_on_macos_where_a_walk_may_end_early()
+    public void The_estimate_takes_the_larger_figure_where_a_walk_may_end_early_and_adds_what_it_leaves_out()
     {
         const long Mb = 1024 * 1024;
+        const long Cache = 4000 * Mb;
         var fallback = DumpSizeEstimator.FromPrivateBytes(500 * Mb);
-        DumpSizeEstimator.Choose(10 * Mb, 500 * Mb, HostSystem.MacOS).ShouldBe(fallback);
-        DumpSizeEstimator.Choose(5000 * Mb, 500 * Mb, HostSystem.MacOS).ShouldBe((5000 * Mb) + DumpSizeEstimator.StreamBytes);
-        DumpSizeEstimator.Choose(long.MaxValue, 500 * Mb, HostSystem.MacOS).ShouldBe(long.MaxValue);
-        DumpSizeEstimator.Choose(10 * Mb, 500 * Mb, HostSystem.Linux).ShouldBe((10 * Mb) + DumpSizeEstimator.StreamBytes);
-        DumpSizeEstimator.Choose(null, 500 * Mb, HostSystem.Windows).ShouldBe(fallback);
+        DumpSizeEstimator.Choose(10 * Mb, 500 * Mb, walkMayEndEarly: true, Cache).ShouldBe(new DumpEstimate(fallback + Cache, 10 * Mb, 500 * Mb, Cache, FromWalk: false));
+        DumpSizeEstimator.Choose(5000 * Mb, 500 * Mb, walkMayEndEarly: true, Cache).Bytes.ShouldBe((5000 * Mb) + DumpSizeEstimator.StreamBytes + Cache);
+        DumpSizeEstimator.Choose(null, null, walkMayEndEarly: true, Cache).Bytes.ShouldBe(DumpSizeEstimator.FromPrivateBytes(null) + Cache);
+        DumpSizeEstimator.Choose(10 * Mb, 500 * Mb, walkMayEndEarly: false, 0).Bytes.ShouldBe((10 * Mb) + DumpSizeEstimator.StreamBytes, "Windows and Linux as before");
+        DumpSizeEstimator.Choose(null, 500 * Mb, walkMayEndEarly: false, 0).ToString().ShouldBe($"{fallback} bytes, from the private bytes (walk not readable, private bytes {500 * Mb}, not in the walk 0)");
     }
 
     [Fact]
-    public void Macos_has_the_words_of_a_system_where_rights_go_by_user()
+    public void A_huge_estimate_is_refused_not_wrapped_into_a_pass()
     {
-        ElevationTexts.NeedsMoreOn(HostSystem.MacOS).ShouldBe("Needs root or its user");
+        var self = new DotNetProcess(1, "orders", null, null, ElevationState.NotElevated, null, null, null);
+        Should.Throw<InsufficientDiskSpaceException>(() => new DumpCapturer(disk: new SomeDisk(), estimator: _ => long.MaxValue).Preflight(self, Path.Combine(Path.GetTempPath(), "a.dmp")));
+    }
+
+    [Fact]
+    public void Macos_says_to_run_as_the_processs_user_and_never_offers_sudo()
+    {
+        string[] texts =
+        [
+            ElevationTexts.NeedsMoreOn(HostSystem.MacOS), ElevationTexts.HintOn(HostSystem.MacOS), ElevationTexts.CliNoteOn(HostSystem.MacOS), ElevationTexts.ShowHiddenTipOn(HostSystem.MacOS),
+            ElevationTexts.HiddenNoteOn(3, HostSystem.MacOS), ElevationTexts.Refusal("app", 7, "dump it", "capture again", HostSystem.MacOS),
+        ];
+        texts.ShouldAllBe(t => !t.Contains("root", StringComparison.Ordinal) && !t.Contains("sudo", StringComparison.Ordinal) && !t.Contains("administrator", StringComparison.Ordinal));
+        texts[0].ShouldBe("Needs its user");
+        texts[5].ShouldBe("app (pid 7) runs as another user, so HeapScope cannot dump it. Run HeapScope as that user and capture again.");
+        ElevationTexts.ColumnTipOn(HostSystem.MacOS).ShouldStartWith("\"Needs its user\" means you must run HeapScope as that process's user to capture it.");
         ElevationTexts.ShowHiddenOn(HostSystem.MacOS).ShouldBe("Show other users' processes");
-        ElevationTexts.Refusal("app", 7, "dump it", "capture again", HostSystem.MacOS).ShouldBe(ElevationTexts.Refusal("app", 7, "dump it", "capture again", HostSystem.Linux));
         ElevationTexts.LearnNoteOn(HostSystem.MacOS)!.ShouldStartWith("Capture on macOS is untested.");
         ElevationTexts.NeedsMoreOn(HostSystem.Other).ShouldBe("Needs administrator");
+    }
+
+    private sealed class SomeDisk : IDiskSpace
+    {
+        public long? AvailableBytes(string directory) => 1L << 40;
     }
 
     private sealed class FakeFacts : IProcessFacts
@@ -261,5 +326,7 @@ public sealed class MacFactsTests
         public int? EffectiveUserId(int processId) => processId == 2 ? 502 : processId == 3 ? null : 501;
 
         public long? ReadableBytes(int processId) => null;
+
+        public long? PrivateBytes(System.Diagnostics.Process process) => null;
     }
 }

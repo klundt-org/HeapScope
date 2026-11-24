@@ -50,7 +50,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
 | 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
 | 4.1.1 | Hide processes HeapScope cannot capture | Closed | 2026-11-21 | sprint-4.1.1 |
-| 4.2 | Capture on macOS | In Progress | | |
+| 4.2 | Capture on macOS | Wrapping | | |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
 | 4.5 | Peer review | Planned | | |
@@ -162,11 +162,12 @@ rules that explain a failure, and the texts. The per-system split of 4.1 is part
 - The structs and constants come from Apple's published headers (XNU `proc_info.h`), read 2026-11-23. Every read checks the
   size the system returns and gives nothing on a mismatch, so a wrong layout loses a detail and never a listing. Decided
   autonomously.
-- Where a source could not be read (the macOS dump writer's own messages, how a region walk ends), the code assumes the
-  least: an unknown message gets the generic text, and a walk stops at the first failed or non-advancing read. Decided
+- Where a source could not be read (how a region walk ends), the code assumes the least: a walk stops at the first failed
+  or non-advancing read, and nothing is concluded from what it did not hold. The dump writer's messages come from the
+  macOS createdump in the runtime pack (the review read them); an unknown one gets the generic text. Decided autonomously.
+- Another user's process follows 4.1's rule on user ids, but the texts on macOS say to run as that user only: each user's
+  temp folder differs there and sudo does not keep it (the review). No search of other users' folders. Decided
   autonomously.
-- Another user's process follows 4.1's rule (run as that user, or as root); its temp folder differs on macOS, so the refusal
-  names it and what to start HeapScope with. No search of other users' folders. Decided autonomously.
 - HeapScope never signs or re-signs a target or changes its entitlements; a refusal says what the runtime reported. Decided
   autonomously.
 - No new sample scenario or lesson: 4.1's lesson note gains macOS wording (a draft for the owner). Decided autonomously.

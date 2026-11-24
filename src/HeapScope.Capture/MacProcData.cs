@@ -40,8 +40,14 @@ internal static class MacProcData
     /// <summary>The size of <c>proc_regionwithpathinfo</c>.</summary>
     public const int RegionSize = 1272;
 
+    /// <summary>The size of <c>rusage_info_v0</c>.</summary>
+    public const int UsageSize = 96;
+
     /// <summary>The library that holds the runtime, with the separator before it.</summary>
     public const string RuntimeLibraryFile = "/libcoreclr.dylib";
+
+    /// <summary>More readable bytes than any process has: a layout misread, so the walk is not used.</summary>
+    public const long MostReadableBytes = 1L << 44;
 
     private const int UserIdOffset = 36;
     private const int ProtectionOffset = 0;
@@ -49,6 +55,7 @@ internal static class MacProcData
     private const int AddressOffset = 80;
     private const int SizeOffset = 88;
     private const int PathOffset = 248;
+    private const int FootprintOffset = 72;
     private const uint ProtectionRead = 1;
     private const uint ShareModeEmpty = 3;
 
@@ -58,6 +65,10 @@ internal static class MacProcData
     /// <summary>The effective user id in a <c>proc_bsdshortinfo</c> (<c>pbsi_uid</c>); null when it is another size.</summary>
     public static int? EffectiveUserId(ReadOnlySpan<byte> shortInfo) =>
         shortInfo.Length == ShortInfoSize ? BinaryPrimitives.ReadInt32LittleEndian(shortInfo[UserIdOffset..]) : null;
+
+    /// <summary>The physical footprint in a <c>rusage_info_v0</c> (Activity Monitor's Memory); null when it is another size or 0.</summary>
+    public static long? PhysicalFootprint(ReadOnlySpan<byte> usage) =>
+        usage.Length == UsageSize && BinaryPrimitives.ReadUInt64LittleEndian(usage[FootprintOffset..]) is > 0 and <= MostReadableBytes and var bytes ? (long)bytes : null;
 
     /// <summary>The region in a <c>proc_regionwithpathinfo</c>; null when it is another size.</summary>
     public static MacRegion? Region(ReadOnlySpan<byte> region)
@@ -79,58 +90,59 @@ internal static class MacProcData
     }
 
     /// <summary>
-    /// The regions of a process in address order: <paramref name="read"/> gives the first at or after an address, or null
-    /// when there is none or it is not allowed. The walk ends there, or when a region does not move it on.
+    /// Walks a process's regions in address order: <paramref name="read"/> gives the first at or after an address, or none
+    /// with the outcome of the call. The walk ends there, when a region does not move it on, or (when
+    /// <paramref name="stopAtRuntime"/>) at the runtime. One that ended early cannot be told from a whole one, so nothing
+    /// is concluded from what it did not hold; how it ended is kept for the log.
     /// </summary>
-    public static IEnumerable<MacRegion> Walk(Func<ulong, MacRegion?> read)
+    public static MacWalk Walk(Func<ulong, (MacRegion? Region, string Outcome)> read, bool stopAtRuntime = false)
     {
         ArgumentNullException.ThrowIfNull(read);
         ulong address = 0;
-        for (var i = 0; i < MostRegions; i++)
+        var regions = 0;
+        var withPath = 0;
+        long bytes = 0;
+        RuntimeFacts? runtime = null;
+        string end;
+        while (true)
         {
-            if (read(address) is not { } region)
+            var (found, outcome) = read(address);
+            if (found is not { } region)
             {
-                yield break;
+                end = outcome;
+                break;
             }
 
-            yield return region;
+            regions++;
+            bytes = region.Readable ? (long)Math.Min((ulong)bytes + Math.Min(region.Size, MostReadableBytes), 2 * (ulong)MostReadableBytes) : bytes;
+            if (region.Path is { } path)
+            {
+                withPath++;
+                runtime ??= RuntimeLibrary.FromPath(path, RuntimeLibraryFile);
+            }
+
             var next = unchecked(region.Address + region.Size);
             if (next <= address)
             {
-                yield break;
+                end = "a region did not move it on";
+                break;
             }
 
             address = next;
-        }
-    }
-
-    /// <summary>The bytes of the readable regions, what a full dump holds; null when there is no region to count.</summary>
-    public static long? ReadableBytes(IEnumerable<MacRegion> regions)
-    {
-        ArgumentNullException.ThrowIfNull(regions);
-        long? total = null;
-        foreach (var region in regions)
-        {
-            var bytes = region.Readable ? (long)Math.Min(region.Size, long.MaxValue) : 0;
-            total = long.MaxValue - (total ?? 0) < bytes ? long.MaxValue : (total ?? 0) + bytes;
-        }
-
-        return total;
-    }
-
-    /// <summary>The runtime from the first region that maps <c>libcoreclr.dylib</c>; null when none does (a single-file app).</summary>
-    public static RuntimeFacts? Runtime(IEnumerable<MacRegion> regions)
-    {
-        ArgumentNullException.ThrowIfNull(regions);
-        foreach (var region in regions)
-        {
-            if (region.Path is { } path && RuntimeLibrary.FromPath(path, RuntimeLibraryFile) is { } runtime)
+            if (stopAtRuntime && runtime is not null)
             {
-                return runtime;
+                end = "the runtime was found";
+                break;
+            }
+
+            if (regions == MostRegions)
+            {
+                end = "too many regions";
+                break;
             }
         }
 
-        return null;
+        return new MacWalk(regions, withPath, address, end, regions == 0 || bytes > MostReadableBytes ? null : bytes, runtime);
     }
 
     /// <summary>
@@ -138,7 +150,7 @@ internal static class MacProcData
     /// the environment. Null when the buffer is cut before the arguments end.
     /// </summary>
     public static string? CommandLine(ReadOnlySpan<byte> procArgs) =>
-        TryArguments(procArgs, out var arguments, out _) ? ProcText.CommandLine(string.Concat(arguments.Select(a => a + '\0'))) : null;
+        TryArguments(procArgs, out var arguments, out _, out _) ? ProcText.CommandLine(string.Concat(arguments.Select(a => a + '\0'))) : null;
 
     /// <summary>
     /// What the environment after the arguments says about the diagnostics socket. Null when there is none to read: macOS
@@ -146,12 +158,10 @@ internal static class MacProcData
     /// </summary>
     public static TargetEnvironment? Environment(ReadOnlySpan<byte> procArgs)
     {
-        if (!TryArguments(procArgs, out _, out var at))
+        if (!TryArguments(procArgs, out _, out var entries, out var at))
         {
             return null;
         }
-
-        List<string> entries = [];
 
         // An empty string ends the environment; what macOS keeps after it (its own loader strings) is not the process's.
         while (NextString(procArgs, ref at) is { Length: > 0 } entry)
@@ -162,9 +172,10 @@ internal static class MacProcData
         return entries.Count == 0 ? null : new TargetEnvironment(entries);
     }
 
-    private static bool TryArguments(ReadOnlySpan<byte> procArgs, out List<string> arguments, out int at)
+    private static bool TryArguments(ReadOnlySpan<byte> procArgs, out List<string> arguments, out List<string> entries, out int at)
     {
         arguments = [];
+        entries = [];
         at = sizeof(int);
         if (procArgs.Length < sizeof(int))
         {
@@ -193,8 +204,26 @@ internal static class MacProcData
             arguments.Add(argument);
         }
 
+        // The padding cannot be told from an empty first argument, which would move an environment entry in as the last
+        // argument. No environment value may reach the process list, so one that has an entry's shape counts as an entry.
+        while (arguments.Count > 1 && IsEntry(arguments[^1]))
+        {
+            entries.Insert(0, arguments[^1]);
+            arguments.RemoveAt(arguments.Count - 1);
+        }
+
         return true;
     }
+
+    /// <summary>Whether <paramref name="text"/> has the shape of an environment entry: a name of letters, digits and '_', then '='.</summary>
+    private static bool IsEntry(string text)
+    {
+        var equals = text.IndexOf('=', StringComparison.Ordinal);
+        return equals > 0 && !char.IsAsciiDigit(text[0]) && text.AsSpan(0, equals).IndexOfAnyExcept(s_nameCharacters) < 0;
+    }
+
+    private static readonly System.Buffers.SearchValues<char> s_nameCharacters =
+        System.Buffers.SearchValues.Create("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
 
     /// <summary>The string at <paramref name="at"/>, which moves past its NUL; null at the end of the buffer or when it is cut.</summary>
     private static string? NextString(ReadOnlySpan<byte> procArgs, ref int at)

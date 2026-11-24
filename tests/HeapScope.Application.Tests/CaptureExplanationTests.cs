@@ -81,7 +81,7 @@ public sealed class CaptureExplanationTests : IDisposable
     [Fact]
     public async Task As_root_on_linux_another_users_full_dump_is_refused_for_the_library_before_anything_is_written()
     {
-        Assert.SkipUnless(OperatingSystem.IsLinux(), "The runtime writes the dump as the target's user on Linux.");
+        Assert.SkipUnless(HostSystems.RightsGoByUser(HostSystems.Current), "The runtime writes the dump as the target's user on Linux and macOS.");
         var other = new DotNetProcess(77, "app", null, "10.0.1", ElevationState.Elevated, 1 << 20, 1 << 20, null);
         var service = Service(new Discovery(other, NotFoundExplanation.None), elevated: true);
 
@@ -115,7 +115,7 @@ public sealed class CaptureExplanationTests : IDisposable
         else
         {
             line.ShouldContain($"; diagnostics sockets looked for in {Path.GetTempPath()} only");
-            if (OperatingSystem.IsLinux())
+            if (HostSystems.RightsGoByUser(HostSystems.Current))
             {
                 // Review H6: the ids behind the marks.
                 line.ShouldContain("; HeapScope's effective user ");
@@ -138,6 +138,34 @@ public sealed class CaptureExplanationTests : IDisposable
 
         entry.Elevation.ShouldBe(ProcessElevation.Unknown);
         entry.NeedsAdministrator.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_dac_and_the_runtime_library_kept_beside_a_dump_have_each_systems_names()
+    {
+        CaptureService.DacFileName(HostSystem.Windows).ShouldBe("mscordaccore.dll");
+        CaptureService.DacFileName(HostSystem.Linux).ShouldBe("libmscordaccore.so");
+        CaptureService.DacFileName(HostSystem.MacOS).ShouldBe("libmscordaccore.dylib");
+        CaptureService.RuntimeFileName(HostSystem.Windows).ShouldBeNull();
+        CaptureService.RuntimeFileName(HostSystem.Linux).ShouldBe("libcoreclr.so");
+        CaptureService.RuntimeFileName(HostSystem.MacOS).ShouldBe("libcoreclr.dylib");
+    }
+
+    [Fact]
+    public void Whether_this_system_captures_is_the_capture_layers_answer() =>
+        RightsTexts.CanCapture.ShouldBe(CapturePlatform.IsSupported);
+
+    [Fact]
+    public async Task A_full_dump_logs_what_its_estimate_rests_on_once_and_that_no_dac_is_copied()
+    {
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture refuses first where it is not built (ADR-025).");
+        var process = new DotNetProcess(4321, "orders", null, null, ElevationState.NotElevated, null, 2048, null);
+
+        await Service(new Discovery(process, NotFoundExplanation.None)).StartCapture(4321).Result;
+
+        var lines = _logger.Lines;
+        lines.Count(l => l.StartsWith("The full dump of pid 4321 is estimated at 1024 bytes, from the private bytes (walk not readable, private bytes 2048, not in the walk 0); free in its folder: 1099511627776", StringComparison.Ordinal)).ShouldBe(1);
+        lines.ShouldContain(l => l.StartsWith("No DAC is copied next to the dump: the runtime folder of pid 4321 is not known", StringComparison.Ordinal));
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
@@ -185,19 +213,4 @@ public sealed class CaptureExplanationTests : IDisposable
             return File.WriteAllBytesAsync(path, [0x4D, 0x44, 0x4D, 0x50]);
         }
     }
-
-    [Fact]
-    public void The_dac_and_the_runtime_library_kept_beside_a_dump_have_each_systems_names()
-    {
-        CaptureService.DacFileName(HostSystem.Windows).ShouldBe("mscordaccore.dll");
-        CaptureService.DacFileName(HostSystem.Linux).ShouldBe("libmscordaccore.so");
-        CaptureService.DacFileName(HostSystem.MacOS).ShouldBe("libmscordaccore.dylib");
-        CaptureService.RuntimeFileName(HostSystem.Windows).ShouldBeNull();
-        CaptureService.RuntimeFileName(HostSystem.Linux).ShouldBe("libcoreclr.so");
-        CaptureService.RuntimeFileName(HostSystem.MacOS).ShouldBe("libcoreclr.dylib");
-    }
-
-    [Fact]
-    public void Whether_this_system_captures_is_the_capture_layers_answer() =>
-        RightsTexts.CanCapture.ShouldBe(CapturePlatform.IsSupported);
 }

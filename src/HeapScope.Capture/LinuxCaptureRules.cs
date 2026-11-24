@@ -107,8 +107,9 @@ internal sealed class LinuxCaptureRules : ICaptureRules
             return "the disk is full";
         }
 
-        var ptrace = Has(message, "ptrace") || Has(message, "Operation not permitted");
-        if (Has(message, "0x80070005") || (!ptrace && (Has(message, "Permission denied") || Has(message, "Could not open"))))
+        var file = Has(message, "Could not create output file") || Has(message, "Could not open");
+        var ptrace = Has(message, "ptrace") || (!file && Has(message, "Operation not permitted"));
+        if (Has(message, "0x80070005") || (!ptrace && (file || Has(message, "Permission denied"))))
         {
             rule = "the folder is not writable by the target's account";
             return $"the account {account} runs as cannot write to {directory}";

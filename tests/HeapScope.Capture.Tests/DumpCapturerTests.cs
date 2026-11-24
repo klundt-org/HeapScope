@@ -52,7 +52,7 @@ public sealed class DumpCapturerTests : IDisposable
         CaptureSupported();
         var ex = await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Process(ElevationState.Elevated), Dump(), null, Ct));
 
-        ex.Message.ShouldContain(OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user and" : OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
         ex.Message.ShouldContain("pid 4242");
         _writer.Calls.ShouldBe(0, "refused before the runtime is asked");
     }
@@ -112,7 +112,8 @@ public sealed class DumpCapturerTests : IDisposable
         committed.ShouldNotBeNull();
         committed.Value.ShouldBeGreaterThan(current.PrivateMemorySize64 / 2);
         // The process grows between the two walks, so allow some drift.
-        Math.Abs(DumpSizeEstimator.Estimate(self) - (committed.Value + DumpSizeEstimator.StreamBytes)).ShouldBeLessThan(64L * 1024 * 1024);
+        var expected = DumpSizeEstimator.Choose(committed, null, CapturePlatform.ProcessFacts().WalkMayEndEarly, CapturePlatform.ProcessFacts().UncountedBytes).Bytes;
+        Math.Abs(DumpSizeEstimator.Estimate(self).Bytes - expected).ShouldBeLessThan(64L * 1024 * 1024);
     }
 
     [Fact]
@@ -169,7 +170,7 @@ public sealed class DumpCapturerTests : IDisposable
 
         var ex = await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Process(ElevationState.Unknown), Dump(), null, Ct));
 
-        ex.Message.ShouldContain(OperatingSystem.IsLinux() ? "or as root (sudo)" : "administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user" : OperatingSystem.IsLinux() ? "or as root (sudo)" : "administrator");
     }
 
     [Fact]

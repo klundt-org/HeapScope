@@ -301,10 +301,9 @@ show them.
 
 ## Sprint 4.2 additions
 
-Drafts for the owner (sprint 4.2, capture on macOS). Where macOS shows a Linux text above ("Needs root or its user", the
-banner, the column tooltip, the refusal for another user's process, the check box and its note, the sample refusal, the
-library refusal, a full disk, a folder the account cannot write, diagnostics off, another temp folder, not .NET), it is the
-same text. `MacFactsTests` checks them.
+Drafts for the owner (sprint 4.2, capture on macOS). Where macOS shows a Linux text above (the check box, the sample refusal,
+the library refusal, a full disk, a folder the account cannot write, diagnostics off, another temp folder), it is the same
+text. `MacFactsTests` checks the rows below and those but the sample refusal (`SampleServiceTests`).
 
 | Page | Where | Text | Status |
 |---|---|---|---|
@@ -315,6 +314,10 @@ same text. `MacFactsTests` checks them.
 | Learn (macOS) | A note under the title | Capture on macOS is untested. HeapScope reaches a process that runs as your own user, as the sample does; another user's process needs HeapScope run as that user. macOS may refuse a full dump of an application that is not signed to allow it; a gcdump does not need that. When a capture is refused, HeapScope says what to change. | draft |
 | Capture (macOS) | A dump the runtime could not write, task_for_pid refused | The dump of {name} (pid {pid}) could not be written: macOS did not let the runtime examine the process, which can mean that the application or the runtime is not signed with the entitlements that allow it. A gcdump does not need this: capture one instead. The target process writes ... (as on Linux) | draft |
 | Capture (macOS) | A pid that is not found: another user's | Process {pid} runs as another user, and HeapScope finds a process by the diagnostics socket it creates in its own temp folder, which on macOS differs per user. Run HeapScope as that user. | draft |
+| Processes (macOS) | Elevation column, a process HeapScope cannot reach | Needs its user | draft |
+| Processes, Live, command line (macOS) | The Linux banner, column tooltip, check box tooltip, hidden note, `list` note and refusal | The Linux texts without ", or as root (sudo)" and ", or with sudo,", and with "Needs its user": sudo looks in another temp folder on macOS and finds nothing. For example: {name} (pid {pid}) runs as another user, so HeapScope cannot dump it. Run HeapScope as that user and capture again. | draft |
+| Capture (macOS) | A dump the runtime could not write, refused by macOS | ... could not be written: macOS did not let the account {name} runs as write to {folder}. macOS protects some folders (Desktop, Documents, Downloads) from applications that were not allowed to use them. ... | draft |
+| Capture (macOS) | A pid that is not found: no TMPDIR | Process {pid} keeps its diagnostics socket in /tmp (its TMPDIR is not set), and HeapScope looks in {our folder}. Start HeapScope with TMPDIR=/tmp, then capture it again. | draft |
 | README, INSTALL, USER-GUIDE, the CLI's README | The macOS passages | (as committed in sprint 4.2) | draft |
 
 ## Evidence: the per-setting drafts

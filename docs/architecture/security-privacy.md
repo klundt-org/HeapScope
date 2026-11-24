@@ -88,7 +88,10 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   holds them (logging.md).
 - Elevated targets require HeapScope to run elevated (ADR-014). HeapScope never tries to elevate silently.
 - Capture on macOS (sprint 4.2, untested): the same rules as on Linux (below). A target's environment is read to find its
-  temp folder and whether diagnostics are off; the buffer is cleared after the read, and no other variable is kept or logged.
+  temp folder and whether diagnostics are off; the buffer is cleared after the read, the other variables are dropped, and
+  none is logged or shown: an argument with an environment entry's shape (`NAME=value`) at the end of a command line is left
+  out, since macOS's buffer cannot always tell the two apart. `build/capture-check.sh` prints no other process's row, since its
+  output may go into a public issue.
 - Capture on Linux (sprint 4.1 and its review): another user's process needs HeapScope run as that user or as root;
   HeapScope never changes system settings (`ptrace_scope`, a container's capabilities) and only says what to change. As
   root it writes no other user's full dump into its own 0700 folders (the runtime writes a dump as the target's user;

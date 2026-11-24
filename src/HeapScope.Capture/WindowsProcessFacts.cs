@@ -145,6 +145,19 @@ internal sealed partial class WindowsProcessFacts : IProcessFacts
 
     public int? EffectiveUserId(int processId) => null;
 
+    public long? PrivateBytes(Process process)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        try
+        {
+            return process.PrivateMemorySize64;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The committed pages that are neither no-access nor guard pages, walked with VirtualQueryEx; null when the walk is denied.</summary>
     public long? ReadableBytes(int processId)
     {

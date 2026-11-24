@@ -67,13 +67,9 @@ public sealed class TraceService(ILogger<TraceService>? logger = null)
                 // Sprint 4.1 review H6: what the reason given rests on.
                 _logger.LogInformation("Pid {Pid} could not be traced: {Evidence}", processId, evidence);
             }
-            else if (ex is ElevationRequiredException && HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current))
+            else if (ex is ElevationRequiredException && CapturePlatform.UserIdsOf(processId) is { } ids)
             {
-                _logger.LogInformation(
-                    "Pid {Pid} was refused as another user's: effective user {Target}, HeapScope's {Own}",
-                    processId,
-                    CapturePlatform.EffectiveUserId(processId),
-                    CapturePlatform.EffectiveUserId(Environment.ProcessId));
+                _logger.LogInformation("Pid {Pid} was refused as another user's: {Ids}", processId, ids);
             }
 
             throw failure;

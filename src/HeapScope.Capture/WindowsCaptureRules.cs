@@ -23,7 +23,7 @@
 
 namespace HeapScope.Capture;
 
-/// <summary>Windows' rules, and those of a system without its own: createdump's HRESULT says why a dump was not written.</summary>
+/// <summary>Windows' rules: createdump's HRESULT says why a dump was not written.</summary>
 internal sealed class WindowsCaptureRules : ICaptureRules
 {
     public static WindowsCaptureRules Instance { get; } = new();

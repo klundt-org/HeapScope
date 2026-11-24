@@ -69,7 +69,7 @@ Capture and sessions (sprint 1.1):
   elsewhere `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump`.
   Off Windows `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5],
   which on Linux and macOS compares effective user ids: another user's process needs HeapScope run as that user or as root, since
-  its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` there (`LinuxProcessFacts`), and a
+  its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` on Linux (`LinuxProcessFacts`) and from libproc and sysctl on macOS (`MacProcessFacts`), and a
   refusal names its Linux cause (`LinuxCaptureRules`: `ptrace_scope`, a container without `SYS_PTRACE`, another
   `TMPDIR`, diagnostics turned off).
 - `DumpCapturer`: checks elevation and free space before asking the runtime for a full dump (`DumpType.Full`: module

@@ -35,7 +35,7 @@ public static class PlatformHints
     /// <summary>The Processes page's banner for a process HeapScope needs more rights to reach, per system (sprint 4.1).</summary>
     public static string ElevationHint => HeapScope.Application.Sessions.RightsTexts.Hint;
 
-    /// <summary>The Learn page's note on who can capture whom, on Linux only (sprint 4.1 task 8); null elsewhere.</summary>
+    /// <summary>The Learn page's note on who can capture whom, on Linux and macOS; null elsewhere.</summary>
     public static string? LearnNote => HeapScope.Application.Sessions.RightsTexts.LearnNote;
 
     /// <summary>Whether this system has a <see cref="LearnNote"/> (the page shows its box only then).</summary>

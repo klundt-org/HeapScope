@@ -21,8 +21,8 @@
   - Windows only for now (Linux since sprint 4.1, below): capture (process discovery, dump writing, elevation). Off Windows it refuses with
     `PlatformNotSupportedException` naming `dotnet-dump` (`CapturePlatform.EnsureSupported`), which Application reports
     as `CaptureFailedException` with `CaptureFailure.NotSupportedOnThisSystem`; the elevation probe
-    reports `Environment.IsPrivilegedProcess`. Linux capture came in sprint 4.1 (amendment below); macOS capture is
-    sprint 4.2.
+    reports `Environment.IsPrivilegedProcess`. Linux capture came in sprint 4.1 (amendment below); macOS capture came in
+    sprint 4.2 (untested; below).
   - Some tests depend on Windows file semantics (an open or mapped file cannot be deleted or replaced there; it can on
     Linux and macOS) or Windows paths; they skip off Windows.
 - Prototype (`spikes/AvaloniaGrid`, outside the solution, removed in 2.3.6, Small dump): Avalonia 12.1.4 with the Fluent theme and the
@@ -80,10 +80,14 @@
   (`HostSystem`); each has its facts (`IProcessFacts`) and the rules that explain a refusal (`ICaptureRules`), and a system
   without them gets none, never another's. On macOS the facts come from libproc and sysctl, whose structs are read from
   XNU's published headers; a read whose size differs from the header's gives nothing, so a wrong layout loses a detail and
-  never a listing. The size estimate there is the larger of the region walk and the fallback. A dump's `task_for_pid` failure is reported as what createdump says,
+  never a listing, and how each read ended is logged (once for HeapScope's own process, the self-check, and in every
+  not-found line). The size estimate there is the larger of the region walk and the fallback, whose private bytes are the
+  physical footprint (.NET 10 sets none), plus the dyld shared cache: the walk reports that as one empty submap, but
+  createdump walks into it and a full dump holds it. No rule says a process is not .NET, since a walk that ended early
+  cannot be told from a whole one. A dump's `task_for_pid` failure is reported as what createdump says,
   and a gcdump is offered, which needs no such right; HeapScope never signs a target or changes its entitlements. Each
-  macOS user has their own temp folder, so another user's process is named with what to start HeapScope with. The mark
-  "untested" comes off when somebody has run `build/capture-check.sh` on a Mac (Backlog, "Testing on macOS").
+  macOS user has their own temp folder and sudo does not keep it, so the texts there say to run as the process's user and
+  never offer sudo. The mark "untested" comes off when the Backlog's list ("Testing on macOS") is confirmed on a Mac.
 - Amended by ADR-039 (sprint 3.9): releases ship win-x64 and linux-x64 (since 3.10 also the macOS builds, marked untested),
   and the CLI's dotnet tool carries a framework-dependent worker started through the dotnet host, beside the
   self-contained worker per runtime identifier.

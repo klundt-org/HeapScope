@@ -21,8 +21,6 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-using HeapScope.Core;
-
 namespace HeapScope.Capture;
 
 /// <summary>
@@ -31,7 +29,8 @@ namespace HeapScope.Capture;
 /// exactly those pages; when the walk is not allowed, the estimate falls back to private bytes plus a fixed part for
 /// images and mapped files (measured on the samples: 250 to 660 MB outside the GC heap). On Linux (sprint 4.1) the readable
 /// mappings in <c>/proc/&lt;pid&gt;/maps</c> are summed instead (<see cref="ProcText.ReadableBytes"/>), with the same fallback
-/// when another user's maps cannot be read.
+/// when another user's maps cannot be read. On macOS (sprint 4.2, untested) the regions libproc gives are summed, and the
+/// shared cache, which that walk leaves out, is added (<see cref="Choose"/>).
 /// </summary>
 public static class DumpSizeEstimator
 {
@@ -48,23 +47,23 @@ public static class DumpSizeEstimator
     public static long FromPrivateBytes(long? privateBytes) =>
         (long)((privateBytes ?? 0) * FallbackFactor) + FallbackImageBytes + StreamBytes;
 
-    /// <summary>The estimate for a running process: the committed readable pages, or the fallback.</summary>
-    public static long Estimate(DotNetProcess process)
+    /// <summary>The estimate for a running process: the committed readable memory, or the fallback, with what it rests on.</summary>
+    public static DumpEstimate Estimate(DotNetProcess process)
     {
         ArgumentNullException.ThrowIfNull(process);
-        return Choose(CommittedReadableBytes(process.ProcessId), process.PrivateBytes, HostSystems.Current);
+        var facts = CapturePlatform.ProcessFacts();
+        return Choose(facts.ReadableBytes(process.ProcessId), process.PrivateBytes, facts.WalkMayEndEarly, facts.UncountedBytes);
     }
 
     /// <summary>
-    /// The walk's bytes, or the fallback without one. On macOS (sprint 4.2, untested) the larger of the two: a region walk
-    /// that ends early cannot be told from one that is complete, and the estimate must not err low.
+    /// The walk's bytes, or the fallback without one; where a walk may end early (macOS) the larger of the two. What a dump
+    /// holds beside the walk (macOS: the shared cache) is added to either, so the estimate does not err low.
     /// </summary>
-    internal static long Choose(long? committed, long? privateBytes, HostSystem system)
+    internal static DumpEstimate Choose(long? walked, long? privateBytes, bool walkMayEndEarly, long uncounted)
     {
         var fallback = FromPrivateBytes(privateBytes);
-        return committed is not { } bytes ? fallback
-            : system == HostSystem.MacOS ? Math.Max(bytes > long.MaxValue - StreamBytes ? long.MaxValue : bytes + StreamBytes, fallback)
-            : bytes + StreamBytes;
+        var fromWalk = walked is { } bytes && (!walkMayEndEarly || bytes + StreamBytes >= fallback);
+        return new DumpEstimate((fromWalk ? walked!.Value + StreamBytes : fallback) + uncounted, walked, privateBytes, uncounted, fromWalk);
     }
 
     /// <summary>Sum of committed pages that are neither no-access nor guard pages; null when the walk is denied.</summary>

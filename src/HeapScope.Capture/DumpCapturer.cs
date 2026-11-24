@@ -142,14 +142,16 @@ public sealed class DumpCapturer(
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
     private readonly IDiskSpace _disk = disk ?? VolumeDiskSpace.Instance;
     private readonly IDumpWriter _writer = writer ?? DiagnosticsDumpWriter.Instance;
-    private readonly Func<DotNetProcess, long> _estimate = estimator ?? DumpSizeEstimator.Estimate;
+    private readonly Func<DotNetProcess, DumpEstimate> _estimate = estimator is null
+        ? DumpSizeEstimator.Estimate
+        : process => new DumpEstimate(estimator(process), null, process.PrivateBytes, 0, FromWalk: false);
 
     /// <summary>The estimated dump size of <paramref name="process"/>.</summary>
-    public long Estimate(DotNetProcess process) => _estimate(process);
+    public long Estimate(DotNetProcess process) => _estimate(process).Bytes;
 
     /// <summary>
     /// Why a full dump of <paramref name="process"/> cannot go into HeapScope's own folders (review H1 of sprint 4.1): on
-    /// Linux, while HeapScope runs as root, the runtime writes another user's dump as that user, who cannot write to
+    /// Linux and macOS, while HeapScope runs as root, the runtime writes another user's dump as that user, who cannot write to
     /// root's folders. Null when it can. A folder the user names (--out) is not judged: the write's own failure says.
     /// </summary>
     public static string? LibraryRefusal(DotNetProcess process, bool heapScopeElevated)
@@ -161,7 +163,7 @@ public sealed class DumpCapturer(
     }
 
     /// <summary>Checks elevation and disk space; throws the specific exception with a next step when one fails.</summary>
-    public long Preflight(DotNetProcess process, string path)
+    public long Preflight(DotNetProcess process, string path, Action<DumpEstimate, long?>? estimated = null)
     {
         ArgumentNullException.ThrowIfNull(process);
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -171,8 +173,13 @@ public sealed class DumpCapturer(
         }
 
         var directory = PartialSnapshotFile.DirectoryOf(path, "dump");
-        var needed = _estimate(process);
-        if (_disk.AvailableBytes(directory) is { } available && available < needed + ReserveBytes)
+        var estimate = _estimate(process);
+        var needed = estimate.Bytes;
+        var free = _disk.AvailableBytes(directory);
+        estimated?.Invoke(estimate, free);
+
+        // Not needed + reserve, which a huge estimate would wrap (4.2 review).
+        if (free is { } available && available - ReserveBytes < needed)
         {
             throw new InsufficientDiskSpaceException(directory, needed, available, ReserveBytes);
         }
@@ -186,14 +193,19 @@ public sealed class DumpCapturer(
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
     /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>.
     /// </summary>
-    public async Task CaptureAsync(DotNetProcess process, string path, IProgress<CaptureProgress>? progress, CancellationToken cancellationToken)
+    public async Task CaptureAsync(
+        DotNetProcess process,
+        string path,
+        IProgress<CaptureProgress>? progress,
+        CancellationToken cancellationToken,
+        Action<DumpEstimate, long?>? estimated = null)
     {
         ArgumentNullException.ThrowIfNull(process);
         ArgumentException.ThrowIfNullOrEmpty(path);
         CapturePlatform.EnsureSupported();
         progress?.Report(new CaptureProgress("Checking"));
         Directory.CreateDirectory(PartialSnapshotFile.DirectoryOf(path, "dump"));
-        var estimate = Preflight(process, path);
+        var estimate = Preflight(process, path, estimated);
         var file = PartialSnapshotFile.Reserve(path, "dump");
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new CaptureProgress(
@@ -235,7 +247,7 @@ public sealed class DumpCapturer(
 
         if (ex is ServerNotAvailableException)
         {
-            return new TargetUnavailableException($"{process.Name} (pid {process.ProcessId}) did not answer on its diagnostics port; it may have exited.", ex);
+            return CapturePlatform.Rules().NotAnswering(process.ProcessId, $"{process.Name} (pid {process.ProcessId}) did not answer on its diagnostics port; it may have exited.", ex);
         }
 
         if (ex is DiagnosticsClientException)

@@ -163,7 +163,7 @@ public sealed class LinuxCaptureRulesTests
 
         var refusal = DumpCapturer.LibraryRefusal(process, heapScopeElevated: true);
 
-        if (OperatingSystem.IsLinux())
+        if (HostSystems.RightsGoByUser(HostSystems.Current))
         {
             refusal.ShouldBe(LinuxCaptureRules.RootLibraryRefusal("app", 4321));
             refusal.ShouldStartWith("app (pid 4321) runs as another user, and the runtime writes its full dump as that user");

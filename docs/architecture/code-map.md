@@ -81,11 +81,12 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   writing through `PartialSnapshotFile` (reserve, never overwrite, commit by rename, discard with retries) [1.9];
   `TraceRecorder` (EventPipe sessions to `.nettrace`, profiles cpu and gc) [1.5]; `CounterMonitor` (an EventPipe session
   on the target's `System.Runtime` EventCounters) and `CounterSampleBuilder` (counter events to one `CounterSample` per
-  interval) [1.7]. `IProcessFacts` (a process's image path, command line and runtime per system, chosen by
+  interval) [1.7]. `IProcessFacts` (a process's image path, command line, runtime, user id, private and readable bytes per system, chosen by
   `CapturePlatform.ProcessFacts`): `WindowsProcessFacts` (the kernel calls `ProcessDiscovery` made before) and
   `LinuxProcessFacts` (reads `/proc/<pid>`), whose text `ProcText` parses on every system: the command line, a deleted
   executable, the runtime's folder and version from `maps`, the effective user id from `status` [4.1].
-  `MacProcessFacts` (libproc and sysctl, untested), whose structs `MacProcData` parses on every system, and `MacCaptureRules` [4.2];
+  `MacProcessFacts` (libproc and sysctl, untested), whose structs `MacProcData` parses on every system into `MacRegion` and `MacWalk`, and `MacCaptureRules` [4.2]; `NoProcessFacts` and
+  `NoCaptureRules` for a system without capture; `DumpEstimate` (an estimate and what it rests on) [4.2];
   `HostSystem` (in Core), by which `CapturePlatform` picks each system's facts and `ICaptureRules`; `RuntimeLibrary` (the runtime
   from a mapped path, its embedded version) and `TargetEnvironment` (what an environment says about the diagnostics socket) [4.2];
   `LinuxCaptureRules` (why Linux refuses: a pid not found, from a `LinuxTarget` read from `/proc`, by user ids, diagnostics

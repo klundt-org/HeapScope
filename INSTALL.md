@@ -81,11 +81,13 @@ Also unconfirmed. Both steps turn off a macOS check for this folder, so [check t
 - It says the app "cannot be opened" or "cannot be verified": remove the download mark with
   `xattr -dr com.apple.quarantine <folder>`, or allow it under System Settings, Privacy & Security, Open Anyway.
 - Terminal says `killed` on Apple silicon: give the files a local signature, the `worker` folder included:
-  `find <folder> -type f \( -perm +111 -o -name '*.dylib' \) -exec codesign --force --sign - {} \;`
+  `find <folder> -type f \( -perm +111 -o -name '*.dylib' \) -exec codesign --force --preserve-metadata=entitlements --sign - {} \;`
 
 If you try a macOS package, please say how it went in an [issue](https://github.com/klundt-org/HeapScope/issues): nobody has
 reported yet. In a clone of the repository, `bash build/capture-check.sh <folder>/heapscope-cli` tries every kind of capture
-on the sample that comes with HeapScope and says what failed; its output is what the issue needs.
+on the sample that comes with HeapScope and says what failed. Its output shows no other process, but it does show your
+folders: read it, then put it in the issue. When something failed it also prints where HeapScope's log is. The log names
+your processes, so leave it out of the issue and share it only with someone you trust.
 
 To build on your Mac instead, with the .NET 10 SDK, run `bash build/publish.sh osx-arm64 <folder>` (or `osx-x64`) in a clone
 of the repository. That build is untested too.
@@ -147,7 +149,9 @@ To update, put the new version's file in that folder and run `dotnet tool update
   another (`kernel.yama.ptrace_scope` of 2 or 3, or a container without `SYS_PTRACE`); HeapScope then says what to
   change, and changes nothing itself. A process that keeps its diagnostics socket in another temp folder (its `TMPDIR`)
   is found when HeapScope runs with the same `TMPDIR`.
-- macOS (untested): as on Linux. If that fails, the `dotnet-dump collect` command above, with `dotnet-dump` from `dotnet tool install --global dotnet-dump`.
+- macOS (untested): in the app or with `heapscope-cli`, for the processes that run as your user. If that fails, take the dump
+  with `dotnet-dump collect --process-id <pid> --type Full` (`dotnet tool install --global dotnet-dump` installs it) and open
+  the file.
 
 To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version
 the dumped process ran on. HeapScope finds it in the .NET runtimes installed on the machine and in its own runtime when

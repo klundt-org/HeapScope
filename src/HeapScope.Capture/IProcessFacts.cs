@@ -27,7 +27,8 @@ namespace HeapScope.Capture;
 
 /// <summary>
 /// What HeapScope reads about a process besides its diagnostics channel, per system (sprint 4.1): Windows asks the kernel
-/// (<see cref="WindowsProcessFacts"/>), Linux reads <c>/proc</c> (<see cref="LinuxProcessFacts"/>). Each read returns null
+/// (<see cref="WindowsProcessFacts"/>), Linux reads <c>/proc</c> (<see cref="LinuxProcessFacts"/>), macOS asks libproc
+/// (<see cref="MacProcessFacts"/>, sprint 4.2). Each read returns null
 /// when it is not allowed or the process has gone, so a process is still listed with what could be read.
 /// </summary>
 internal interface IProcessFacts
@@ -46,4 +47,16 @@ internal interface IProcessFacts
 
     /// <summary>The bytes of the process's committed, readable memory: what a full dump holds. Null when it cannot be walked.</summary>
     long? ReadableBytes(int processId);
+
+    /// <summary>The process's private bytes, as this system counts them; null when not readable.</summary>
+    long? PrivateBytes(Process process);
+
+    /// <summary>Whether <see cref="ReadableBytes"/> can end early without a sign, so an estimate also asks the private bytes.</summary>
+    bool WalkMayEndEarly => false;
+
+    /// <summary>The bytes a full dump holds that <see cref="ReadableBytes"/> leaves out.</summary>
+    long UncountedBytes => 0;
+
+    /// <summary>How every read does on HeapScope's own process, for the log, where nobody has run them; null elsewhere.</summary>
+    string? SelfCheck() => null;
 }

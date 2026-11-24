@@ -21,7 +21,6 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-
 namespace HeapScope.Capture;
 
 /// <summary>

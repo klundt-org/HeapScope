@@ -163,6 +163,6 @@ public sealed class ProcFactsTests
     [Fact]
     public void The_facts_are_chosen_for_this_system()
     {
-        CapturePlatform.ProcessFacts().ShouldBeOfType(OperatingSystem.IsLinux() ? typeof(LinuxProcessFacts) : typeof(WindowsProcessFacts));
+        CapturePlatform.ProcessFacts().ShouldBeOfType(OperatingSystem.IsLinux() ? typeof(LinuxProcessFacts) : OperatingSystem.IsMacOS() ? typeof(MacProcessFacts) : typeof(WindowsProcessFacts));
     }
 }

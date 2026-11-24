@@ -47,7 +47,7 @@ notes who can capture whom.
 ## Finding your way
 
 - **Processes you cannot capture.** The Processes page and the Live page list only the processes HeapScope can capture as
-  it runs now. Those that run elevated or as another user (on Linux, another user's) are hidden, and a note says how many;
+  it runs now. Those that run elevated or as another user (on Linux and macOS, another user's) are hidden, and a note says how many;
   check "Show elevated processes" (on Linux, "Show other users' processes") to list them, marked with what they need. Run
   HeapScope as administrator (or as root) and they are all listed. `heapscope-cli list` always lists every process, with
   its mark.

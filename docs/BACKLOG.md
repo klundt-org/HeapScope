@@ -51,7 +51,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
 
 **High**
 - The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
-  lesson runs without starting the sample, and where capture is not available: Linux, macOS); a lesson on reading an object's
+  lesson runs without starting the sample, and where capture is not available); a lesson on reading an object's
   fields (the Inspection scenario has none yet); a per-lesson platform or capability requirement, with the first lesson that
   needs one (a WPF scenario on Windows only); a capture of a sample tagged with its scenarios and catalog version in the
   session; answers that name a method or call site, not only a type (sprint 3.13 review L7).
@@ -107,9 +107,10 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   run. Since 3.10 releases attach them marked untested (ADR-039). Before that mark comes off, the product owner picks a way
   to test them: a Mac of their own, or macOS runners for a release only.
   Sprint 4.2 built capture for macOS without one. Unconfirmed there, to check first: the libproc struct sizes
-  (`MacProcData`), how a region walk ends, what createdump reports when it cannot write (only its `task_for_pid` text was
-  read), which memory a full dump holds (the estimate), the DAC found beside a macOS dump, and the not-found reasons.
-  `build/capture-check.sh` runs the whole path.
+  (`MacProcData`; the log's self-check line shows them), how a region walk ends, which memory a full dump holds (the estimate
+  beside the size written; the shared cache is added), the DAC found beside a macOS dump, the not-found reasons, and how
+  long a list takes (a region walk per process). `build/capture-check.sh` runs the captures; a Mac owner's `dotnet test` runs
+  the reads (`MacFactsTests`).
   Standard hosted runners are free in public repositories, and HeapScope is public; the owner checks the billing
   report before macOS runners come back (2026-10-31).
 - Objects finalized between two snapshots: the baseline's finalizable objects whose finalizer has not run, matched by

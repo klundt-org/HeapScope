@@ -42,4 +42,6 @@ internal sealed class NoProcessFacts : IProcessFacts
     public int? EffectiveUserId(int processId) => null;
 
     public long? ReadableBytes(int processId) => null;
+
+    public long? PrivateBytes(Process process) => null;
 }
