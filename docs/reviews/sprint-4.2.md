@@ -3,7 +3,7 @@
 Reviewers: solution-architect, senior-dev, gc-specialist, support-engineer (2026-11-23), on `sprint/4.2` against the tag
 `sprint-4.1.1`. Each reviewer read the working tree (none had a shell or ran anything; the gc-specialist read the strings of
 the macOS runtime pack's binaries, which were checked again here). Findings that overlap are merged and keep the highest
-severity. Counts: 8 High, 15 Moderate, 40 Low (with those of the confirmations).
+severity. Counts: 8 High, 15 Moderate, 47 Low (with those of the confirmations).
 
 Before the review: Debug and Release builds with 0 warnings; the fast tier passed (1,596 tests, 17 skipped), and the light
 integration tier (287). The owner decided the Moderates' handling in advance (autonomy for Phase 4): each was applied as
@@ -19,14 +19,14 @@ recommended, marked "decided autonomously". The sprint's texts are drafts for th
   target is paused.
 - Fix: `IProcessFacts.UncountedBytes`, on macOS the cache's own size (`_dyld_get_shared_cache_range`, 5 GB when not given),
   added to walk and fallback. Tests: `MacFactsTests.The_estimate_takes_the_larger_figure...`.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H2. The estimate's fallback was a constant
 - Reviewers: gc-specialist. .NET 10.0.15 sets no `PrivateBytes` on macOS (checked in the runtime pack), so the "larger of"
   rule compared with 400 MB, and a walk that ended early in a large process passed the check.
 - Fix: `IProcessFacts.PrivateBytes`, on macOS the physical footprint (`proc_pid_rusage`), 0 is not a size. Tests:
   `The_footprint_is_read_from_a_whole_struct_and_zero_is_not_one`.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H3. A failed macOS read left no trace
 - Reviewers: support-engineer. A missing call, an errno, another struct size and a parse failure all read the same, and the
@@ -34,27 +34,27 @@ recommended, marked "decided autonomously". The sprint's texts are drafts for th
 - Fix: each read keeps its outcome; once per run "Capture on this system is untested. macOS reads of HeapScope's own process
   ..." (`SelfCheck`); the "Listed" line counts what could not be read; the evidence gives the outcomes. Tests:
   `Off_macos_every_fact_is_empty_and_says_why`, the evidence tests.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H4. A failed read was logged as "running no"
 - Reviewers: support-engineer (High), solution-architect (Low). Fix: running comes from the process list, and an unreadable
   user id ends no other check. Tests: `A_process_that_is_not_found...`, the evidence tests.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H5. "Not a .NET process" rested on a walk that may have ended early
 - Reviewers: support-engineer (High), senior-dev, gc-specialist (Moderate). Fix: the rule is gone on macOS (the generic text
   stays), and the evidence says how many regions were read, where the walk stopped and why.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H6. The check script printed every process's command line for a public issue
 - Reviewers: support-engineer. Fix: it prints the sample's row and the number of the others; INSTALL.md says what the output
   shows.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ### H7. The check script deleted the logs that explain a failure
 - Reviewers: support-engineer (High), senior-dev, solution-architect (Moderate). Fix: on a failure the log folder stays and
   is printed, with a note that it is not for the issue.
-- Status: Fixed; confirmation below.
+- Status: Fixed and confirmed (Confirmations below).
 
 ## Moderate
 
@@ -78,7 +78,7 @@ recommended, marked "decided autonomously". The sprint's texts are drafts for th
   estimate's policy, one helper for the refused-user line. Fix: each done. Decided autonomously.
 - M9 (support-engineer): the log had one estimate figure, not what it rests on; a missing DAC copy was silent; an unanswered
   capture had no evidence; a write rule did not say what it matched. Fix: the estimate line (every system), the DAC lines,
-  `NotAnswering` in a capture, the matched text. Decided autonomously.
+  the not-found evidence in a capture (M12), the matched text. Decided autonomously.
 - M10 (support-engineer; senior-dev and solution-architect Low): an environment entry could be read as the last argument and
   shown. Fix: a trailing argument with an entry's shape is left out. Decided autonomously.
 - M11 (support-engineer): logging.md and INSTALL.md lagged (the `dotnet-dump` command was missing). Fixed. Decided autonomously.
@@ -141,5 +141,20 @@ left-out argument is not marked; L35 (senior-dev) quadratic move of entries (fix
 caller's thread (fixed); L37 (senior-dev) case of /var (fixed); L38 (senior-dev) stale names (fixed in part); L39 (architect)
 the script's log lines were lost on a pass (fixed: printed); L40 (architect) ARCHITECTURE and ADR-014 (fixed).
 
-Second round:
-(asked)
+Second round (2026-11-23):
+- senior-dev: H8, M12 to M15 Confirmed. solution-architect: H8, M12, the exited target test and the docs Confirmed.
+  support-engineer: M12 to M14 Confirmed. Nothing High or Moderate is left.
+- New Lows: L41 (senior-dev, support) with a wrong kernel count, or more empty leading arguments than entries, an entry before
+  an empty string stays in the command line; L42 (senior-dev) with an empty first argument and `TMPDIR` as the first entry the
+  reason says it is not set; L43 (senior-dev) a failing `rm` ended the script's trap (fixed); L44 (support) with
+  `HEAPSCOPE_DATA_FOLDER` set the script prints earlier runs' lines, and only at its end; L45 (support) it misses the captured
+  line when the sample has another process name; L46 (support) INSTALL does not say that some log lines are printed; L47
+  (architect) docs and comments (fixed in the sweep).
+
+## Markdown sweep
+
+Every tracked Markdown file that names macOS, capture, elevation, the process list, the estimate, the DAC or the check script
+was read against the code. Changed: ADR-014, ADR-025, ADR-042 and the ADR index, `docs/ARCHITECTURE.md`, the code map,
+`logging.md`, `security-privacy.md`, `docs/DEVELOPER.md`, `docs/BACKLOG.md`, `docs/SPRINTS.md`, `docs/USER-GUIDE.md`,
+`docs/design/info-text.md`, `README.md`, `INSTALL.md`, the CLI's `README.md`. No em or en dashes in the changed files.
+THIRD-PARTY-NOTICES.md holds (no package changed).

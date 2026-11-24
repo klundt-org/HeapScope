@@ -34,7 +34,7 @@
     512 MB (sprint 3.13 review M5). Each running sample has a record in the data folder (its pid and start time), so
     `heapscope-cli sample stop` stops only a sample, never a process that reused its pid, on every system (review H4).
     Process discovery lists the sample although it sits under the installation's folder, since it is there to be captured.
-  - **Where lessons run** (review M3): every lesson starts with a capture, so where capture is not available (Linux and macOS,
+  - **Where lessons run** (review M3): every lesson starts with a capture, so where capture is not available (Linux and macOS then; since 4.2 neither,
     ADR-025) the Learn page says so and starts none, and the Processes page does not offer the sample. A per-lesson
     requirement (a WPF scenario on Windows only) is added with the first lesson that needs one (Backlog).
 - Consequences: packages grow by the sample's size (measured, budgets.md); the leak library is shipped code, licensed like the

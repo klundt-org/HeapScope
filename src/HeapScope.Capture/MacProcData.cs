@@ -29,8 +29,8 @@ namespace HeapScope.Capture;
 /// <summary>
 /// Parsers of what macOS returns about a process (sprint 4.2): the structs of XNU's <c>bsd/sys/proc_info.h</c> (from
 /// <c>proc_pidinfo</c>) and the buffer of <c>sysctl KERN_PROCARGS2</c>. They take the bytes, not the process, so they run and
-/// are tested on every system; <see cref="MacProcessFacts"/> makes the calls. Nobody has run them on a Mac, so each checks
-/// the size the system returned and gives nothing when it is not the one expected.
+/// are tested on every system; <see cref="MacProcessFacts"/> makes the calls. Nobody has run them on a Mac, so each whose size
+/// the system returns checks it and gives nothing when it is not the one expected (<c>proc_pid_rusage</c> returns none).
 /// </summary>
 internal static class MacProcData
 {

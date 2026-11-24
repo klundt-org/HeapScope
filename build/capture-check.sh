@@ -66,7 +66,7 @@ pid=
 cleanup() {
   [ -n "$pid" ] && "$cli" sample stop --pid "$pid" > /dev/null 2>&1 || true
   kill "$starter" 2> /dev/null || true
-  rm -rf "$work"/sample.dmp* "$work"/sample.gcdump* "$work"/sample.nettrace* "$work"/sample.out "$work"/dac
+  rm -rf "$work"/sample.dmp* "$work"/sample.gcdump* "$work"/sample.nettrace* "$work"/sample.out "$work"/dac || true
   report || true
   if [ -n "$made_work" ] && [ -n "$passed" ]; then rm -rf "$work" || true; fi
 }

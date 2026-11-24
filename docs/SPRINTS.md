@@ -172,6 +172,15 @@ rules that explain a failure, and the texts. The per-system split of 4.1 is part
   autonomously.
 - No new sample scenario or lesson: 4.1's lesson note gains macOS wording (a draft for the owner). Decided autonomously.
 
+**Review summary:** 8 High, 15 Moderate, 47 Low ([docs/reviews/sprint-4.2.md](reviews/sprint-4.2.md)); every High fixed and
+confirmed, every Moderate decided autonomously and its fix confirmed. Fixed: the size estimate counts the shared cache and has
+a real fallback on macOS; every macOS read keeps its outcome and one self-check line shows them; a failed read is never
+called an exited process; no rule calls a process not .NET; the write rules use createdump's own texts (Linux too); a huge
+estimate no longer passes the free-space check; no environment value reaches the process list; macOS texts never offer sudo;
+the check script runs every step, shows no other process and keeps its log; the tests ask each system's own answer; every
+system logs what a dump's estimate rests on. Deferred: the Lows, and everything only a Mac can confirm (Backlog, "Testing on
+macOS").
+
 ---
 
 ## Sprint 4.1.1: Hide processes HeapScope cannot capture

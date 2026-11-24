@@ -436,7 +436,7 @@ public sealed class CaptureService : ICaptureService
 
     /// <summary>
     /// On Linux and macOS, HeapScope's effective user id and each marked process's (sprint 4.1 review H6): the mark "Needs root or its
-    /// user" rests on the two differing. Empty elsewhere.
+    /// user" (on macOS "Needs its user") rests on the two differing. Empty elsewhere.
     /// </summary>
     private static string UserIds(IReadOnlyList<DotNetProcess> processes)
     {

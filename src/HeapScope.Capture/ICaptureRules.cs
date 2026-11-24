@@ -52,7 +52,7 @@ internal static class CaptureRulesExtensions
 {
     /// <summary>
     /// The failure for a process that did not answer on its diagnostics port (Live and recording, 4.1 review M2 and H6): the
-    /// reason a capture would give, with its evidence for the log; <paramref name="otherwise"/> when none applies.
+    /// reason a capture of a pid that is not found gives, with its evidence for the log; <paramref name="otherwise"/> when none applies.
     /// </summary>
     public static TargetUnavailableException NotAnswering(this ICaptureRules rules, int processId, string otherwise, Exception inner)
     {
