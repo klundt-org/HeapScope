@@ -68,7 +68,12 @@ public sealed class CapturePlatformTests
         CapturePlatform.Rules(HostSystem.Windows).ShouldBeOfType<WindowsCaptureRules>();
         CapturePlatform.Rules(HostSystem.Linux).ShouldBeOfType<LinuxCaptureRules>();
         CapturePlatform.Rules(HostSystem.Other).ShouldBeOfType<NoCaptureRules>();
-        CapturePlatform.ElevationProbe(HostSystem.Windows).ShouldBeOfType<WindowsElevationProbe>();
+        if (OperatingSystem.IsWindows())
+        {
+            // Its constructor reads the token through kernel32, which other systems do not have.
+            CapturePlatform.ElevationProbe(HostSystem.Windows).ShouldBeOfType<WindowsElevationProbe>();
+        }
+
         CapturePlatform.ElevationProbe(HostSystem.Linux).ShouldBeOfType<UnixElevationProbe>();
         CapturePlatform.IsSupportedOn(HostSystem.Other).ShouldBeFalse();
         NoProcessFacts.Instance.EffectiveUserId(Environment.ProcessId).ShouldBeNull();
