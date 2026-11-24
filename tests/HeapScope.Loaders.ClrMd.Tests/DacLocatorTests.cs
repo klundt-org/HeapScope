@@ -65,6 +65,35 @@ public sealed class DacLocatorTests : IDisposable
     }
 
     [Fact]
+    public void Every_dac_folder_beside_the_dump_is_searched_after_the_one_named_by_the_version()
+    {
+        // Sprint 4.1 review H4: a Linux capture names the folder by the runtime library's file version, and ClrMD may name
+        // the runtime by its folder instead (10.0.1); the identity checks pick the file, so every dac/ folder is a candidate.
+        var dumps = Directory.CreateTempSubdirectory("heapscope-dacfolders-");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dumps.FullName, "dac", "10.0.125.57005"));
+            Directory.CreateDirectory(Path.Combine(dumps.FullName, "dac", "10.0.1"));
+            Directory.CreateDirectory(Path.Combine(dumps.FullName, "dac", "0.0"));
+            var request = Request(runtimeDirectory: Path.Combine(dumps.FullName, "Microsoft.NETCore.App", "10.0.1"));
+
+            var folders = DacLocator.BesideDumpDirectories(request, Path.Combine(dumps.FullName, "app.dmp"));
+
+            folders.ShouldBe([
+                dumps.FullName,
+                Path.Combine(dumps.FullName, "dac", request.RuntimeVersion),
+                .. new[] { "0.0", "10.0.1", "10.0.125.57005" }
+                    .Select(name => Path.Combine(dumps.FullName, "dac", name))
+                    .Where(folder => folder != Path.Combine(dumps.FullName, "dac", request.RuntimeVersion)),
+            ]);
+        }
+        finally
+        {
+            dumps.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void The_dumped_runtime_folder_can_be_left_out()
     {
         Assert.SkipUnless(OperatingSystem.IsWindows(), "The locator's rules are checked with Windows paths (drive letters, UNC shares).");

@@ -21,18 +21,38 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-
 namespace HeapScope.Capture;
 
 /// <summary>
-/// Elevation off Windows (sprint 2.3.5): whether this process runs as root, from .NET's own cross-platform check. Another
-/// process's state is not looked up yet (Linux and macOS capture is a later sprint), so it is <see cref="ElevationState.Unknown"/>.
+/// Elevation off Windows (sprint 2.3.5): whether this process runs as root, from .NET's own cross-platform check. On Linux
+/// (sprint 4.1) another process's state follows the user it acts as: a .NET process creates its diagnostics socket as its
+/// effective user, so HeapScope reaches it as that user or as root. Another user's process is
+/// <see cref="ElevationState.Elevated"/> (it needs root, or HeapScope run as that user), the same user's is not. macOS
+/// (sprint 4.2) follows the same rule; the ids come from each system's <see cref="IProcessFacts"/>.
 /// </summary>
 public sealed class UnixElevationProbe : IElevationProbe
 {
-    public static UnixElevationProbe Instance { get; } = new();
+    private readonly IProcessFacts _facts;
+    private readonly Lazy<int?> _ownUser;
+
+    internal UnixElevationProbe(IProcessFacts facts)
+    {
+        _facts = facts;
+        _ownUser = new(() => facts.EffectiveUserId(Environment.ProcessId));
+    }
+
+    public static UnixElevationProbe Instance { get; } = new(CapturePlatform.ProcessFacts());
 
     public bool IsCurrentProcessElevated => Environment.IsPrivilegedProcess;
 
-    public ElevationState GetState(int processId) => ElevationState.Unknown;
+    public ElevationState GetState(int processId) => StateOf(_facts.EffectiveUserId(processId), _ownUser.Value);
+
+    /// <summary>
+    /// The rule on two effective user ids: the same user's process is not elevated, another user's is (root's included);
+    /// unknown when either id could not be read (the process exited).
+    /// </summary>
+    internal static ElevationState StateOf(int? target, int? own) =>
+        target is not { } targetUser || own is not { } ownUser ? ElevationState.Unknown
+        : targetUser == ownUser ? ElevationState.NotElevated
+        : ElevationState.Elevated;
 }

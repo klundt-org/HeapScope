@@ -1,9 +1,9 @@
 # HeapScope Sprints
 
 Phases: **0.x** architecture, framework and skeleton; **1.x** quick wins; **2.x** heavy hitters; **3.x** depth to
-match dotMemory (planned 2026-10-28); **Phase 4 candidates** what Phase 3 leaves out; the Backlog ([BACKLOG.md](BACKLOG.md)) everything else. Closed sprints are
+match dotMemory (planned 2026-10-28); **4.x** what Phase 3 leaves out (planned 2026-11-18); the Backlog ([BACKLOG.md](BACKLOG.md)) everything else. Closed sprints are
 in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-1.md),
-[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 to 3.12](sprints/phase-3.md).
+[Phase 2](sprints/phase-2.md), [Phase 3, the peer review sprints, 3.9 to 3.12](sprints/phase-3.md), [Phase 4](sprints/phase-4.md).
 
 ## Status
 
@@ -48,6 +48,15 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.12 | First-show performance and refactor analysis | Closed | 2026-11-15 | sprint-3.12 |
 | 3.13 | Tutorial | Closed | 2026-11-15 | sprint-3.13 |
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
+| 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
+| 4.1.1 | Hide processes HeapScope cannot capture | Closed | 2026-11-21 | sprint-4.1.1 |
+| 4.2 | Capture on macOS | Closed | 2026-11-23 | sprint-4.2 |
+| 4.3 | Live session | Planned | | |
+| 4.4 | Allocated between two snapshots | Planned | | |
+| 4.5 | Peer review | Planned | | |
+| 4.6 | Analysis tabs | Planned | | |
+| 4.7 | Sunburst | Planned | | |
+| 4.8 | WPF leak detectors (optional) | Planned | | |
 
 ---
 
@@ -76,19 +85,47 @@ Closed 2026-11-10; its section is in [sprints/phase-3.md](sprints/phase-3.md) an
 
 ---
 
-## Phase 4 candidates
+## Phase 4
 
-Not planned; picked from when Phase 3 closes (product owner, 2026-10-28: what Phase 3 does not address). Each one, when
-built, adds its scenario to the sample and its lesson to the tutorial (sprint 3.13's extension contract; product owner,
-2026-11-15), for example a WPF leak scenario with the WPF detectors, a sunburst lesson, or a live session lesson.
-- A profiler-style live session: allocation data streamed beside the timeline, and snapshots faster than a full dump.
-- What was allocated between two snapshots in Compare, from a trace recorded between them (from 2.5; needs traces in
-  `session.json` on the snapshots' clock, and each tick's type id and module to join a diff's rows, ADR-028).
-- A sunburst view beside the icicle chart for dominators and call trees.
-- Analysis tabs: several analyses of a snapshot side by side, each with its own path (from 2.7; the branching analysis
-  path covers coming back to an earlier analysis for now).
-- Capture on Linux and macOS (from 2.3.5, ADR-025): process discovery through `/proc` and the diagnostics client, full
-  dumps through the runtime's createdump (the diagnostics client's `WriteDump`), gcdumps through the vendored code;
-  elevation and ptrace rules per system. Until then capture refuses there and points to `dotnet-dump`.
-- WPF leak detectors with a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection
-  bindings, dependency property descriptors, x:Name.
+Planned 2026-11-18 with the product owner from the Phase 4 candidates (what Phase 3 leaves out). Each sprint adds its
+scenario to the sample and its lesson to the tutorial where it has one (sprint 3.13's extension contract, ADR-042).
+Owner decisions, 2026-11-18:
+- No Mac to test on: macOS is built and checked on Linux as far as it can be, and marked untested, like the macOS packages.
+- The same autonomy as Phase 3: green sprint PRs are merged and tagged and the next sprint starts; costly or irreversible
+  steps, user-facing wording and releases still go to the owner. At the end of the phase, stop and report.
+- Releases after 4.2 (capture everywhere), after 4.4 (the live session and Compare) and at the end of the phase.
+- A peer review after 4.4, before the UI-heavy sprints, like 3.5's.
+- The checks by hand (DEVELOPER.md 5) are automated as far as they can be, first, in 4.1.
+
+| Sprint | Title | Size | What |
+|---|---|---|---|
+| 4.1 | Capture on Linux | L | Process list, full dumps and gcdumps, live counters and allocation recording on Linux, through the runtime's diagnostics channel; permission and ptrace rules; the tutorial on Linux; the checks by hand automated. |
+| 4.1.1 | Hide processes HeapScope cannot capture | S | Owner, 2026-11-20: the Processes list hides the processes that need more rights than HeapScope has ("Needs administrator", on Linux "Needs root or its user"), with a check box to show them; when HeapScope runs elevated (as root) it can capture them, so all are shown. The list keeps marking which processes are elevated or another user's. |
+| 4.2 | Capture on macOS | M | The same on macOS, built and checked on Linux, marked untested. |
+| 4.3 | Live session | L | Allocations streamed beside the Live timeline from a trace read while it grows (ADR-037), and snapshots faster than a full dump. |
+| 4.4 | Allocated between two snapshots | M | In Compare, from the trace recorded between them (from 2.5; ADR-028). |
+| 4.5 | Peer review | M | A review of the phase so far, like 3.5's; its fixes plan the next sprints. |
+| 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
+| 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
+| 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.2: Capture on macOS
+
+Closed 2026-11-23; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.2.md](reviews/sprint-4.2.md). ADR-025 and ADR-014 are amended for it.
+
+---
+
+## Sprint 4.1.1: Hide processes HeapScope cannot capture
+
+Closed 2026-11-21; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.1.1.md](reviews/sprint-4.1.1.md). ADR-014 is amended for it.
+
+---
+
+## Sprint 4.1: Capture on Linux
+
+Closed 2026-11-20; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.1.md](reviews/sprint-4.1.md). ADR-025 is amended for capture on Linux.

@@ -5,7 +5,7 @@ Status: living document. Every sprint updates it to match what was actually buil
 ## 1. Purpose, scope, non-goals
 
 **Purpose.** HeapScope is a desktop memory profiler for .NET applications (.NET 5 and later, ADR-002) on Windows,
-Linux and macOS (ADR-025; capture is Windows only). It replaces the core of JetBrains dotMemory for one primary
+Linux and macOS (ADR-025; capture on Windows, Linux and, untested, macOS). It replaces the core of JetBrains dotMemory for one primary
 workflow: a memory leak is suspected in an ASP.NET Core API, the developer runs the API locally, replays representative
 traffic, takes snapshots over time, and uses HeapScope to find what is growing and why it is retained.
 
@@ -16,7 +16,8 @@ traffic, takes snapshots over time, and uses HeapScope to find what is growing a
 - Live counters and timed snapshots.
 - Reverse references, retention paths, dominator tree, retained sizes, smart leak detectors.
 - A CLI with the same capabilities as the UI, usable in automation.
-- Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture there is a backlog item.
+- Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture on Linux since sprint 4.1,
+  on macOS since sprint 4.2 (untested).
 - Sharing results as an exported analysis the user writes and passes on (ADR-026).
 
 **Non-goals (for now).**
@@ -64,14 +65,22 @@ Capture and sessions (sprint 1.1):
   installation's `sample/` folder, is the exception, since it is there to be captured (sprint 3.13, ADR-042). A detail that cannot be read stays
   empty. `WindowsElevationProbe` reads token elevation for targets and for HeapScope itself (one rule): a token that
   cannot be opened for query (elevated, or another user's, such as services running as SYSTEM) or that reports
-  elevation means only an elevated HeapScope can dump it. Capture is Windows only (ADR-025): off Windows,
-  `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump`, and
-  `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5].
+  elevation means only an elevated HeapScope can dump it. Capture runs on Windows, Linux [4.1] and, untested, macOS [4.2] (ADR-025):
+  elsewhere `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump`.
+  Off Windows `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5],
+  which on Linux and macOS compares effective user ids: another user's process needs HeapScope run as that user (on Linux
+  also as root), since its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` on Linux (`LinuxProcessFacts`) and from libproc and sysctl on macOS (`MacProcessFacts`), and a
+  refusal names its Linux cause (`LinuxCaptureRules`: `ptrace_scope`, a container without `SYS_PTRACE`, another
+  `TMPDIR`, diagnostics turned off) or its macOS one (`MacCaptureRules`: createdump's `task_for_pid`, a protected folder,
+  another `TMPDIR`, diagnostics turned off) [4.2].
 - `DumpCapturer`: checks elevation and free space before asking the runtime for a full dump (`DumpType.Full`: module
   images are in the dump, so it never depends on finding the exact module files). The estimate is measured, not
-  guessed: the target's committed readable pages from a `VirtualQueryEx` walk plus 16 MB of streams; when the walk is
-  denied, private bytes x 1.1 + 384 MB for images and mapped files + 16 MB. Free space comes from
-  `GetDiskFreeSpaceEx` on the folder itself (UNC paths and mount points), and 1 GB is always left free. The dump is
+  guessed: the target's committed readable pages from a `VirtualQueryEx` walk (on Linux, since 4.1, the readable
+  mappings in `/proc/<pid>/maps`; on macOS, since 4.2 and untested, libproc's regions or, when larger, the physical footprint's
+  fallback, plus the shared cache) plus 16 MB of streams; when the walk is denied, private bytes x 1.1 + 384 MB for images
+  and mapped files + 16 MB. Free space comes from `GetDiskFreeSpaceEx` on the folder itself (UNC paths and mount points;
+  elsewhere `DriveInfo` on the folder, which asks its file system), and 1 GB is always left free. The capture's log line
+  names the estimate beside the size written, so each system's margin shows in the logs. The dump is
   written to `<name>.dmp.partial` and renamed only on success; an existing file is never overwritten. The runtime's
   createdump runs inside the target under the target's account and cannot be stopped safely, so a cancel waits until
   it has written the file and then deletes it (measured: a 200 ms cancel used to leave a complete 203 MB dump). The
@@ -107,9 +116,10 @@ Capture and sessions (sprint 1.1):
   The current session is created when the first capture passes its checks (a refused capture leaves no folder), or
   chosen with `Open` (Home's Open, CLI `--session`). `CaptureService` (behind `ICaptureService`) lists processes off
   the calling thread, runs captures as tracked jobs with collision-free file names into the session that was current
-  when the capture started, copies the target's `mscordaccore.dll` to `dac\<file version>\` next to the dump (the
-  loader searches it; the dump stays readable after the runtime on this machine is updated, for self-contained apps,
-  and with several runtimes in one session) and, since 3.6, trusts that copy by its SHA-256 (`TrustedDacs`, ADR-035),
+  when the capture started, copies the target's DAC (`mscordaccore.dll`; on Linux `libmscordaccore.so` with
+  `libcoreclr.so`, sprint 4.1; on macOS `libmscordaccore.dylib` with `libcoreclr.dylib`, 4.2) to `dac\<file version>\` next to the dump (the loader searches every `dac` folder
+  there; the dump stays readable after the runtime on this machine is updated, for self-contained apps, and with several
+  runtimes in one session) and, since 3.6, trusts that copy by its SHA-256 (`TrustedDacs`, ADR-035),
   records the snapshot, and logs start, end and failures. Every capture states that the dump
   contains secrets and where it was written. Front ends see only Application types: `ICaptureService`, `ProcessEntry`
   (with `ProcessElevation` and `NeedsAdministrator`) and `CaptureFailedException` with a `CaptureFailure` reason (the

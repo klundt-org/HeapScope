@@ -36,9 +36,14 @@ public sealed class GcDumpCapturerTests : IDisposable
 
     private GcDumpCapturer Capturer => new(_elevation, _writer);
 
+    // Sprint 4.1 review M9: capture runs on Windows, Linux and macOS (ADR-025); elsewhere it refuses first, so these tests skip there.
+    private static void CaptureSupported() =>
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
+
     [Fact]
     public async Task A_successful_capture_renames_the_partial_file()
     {
+        CaptureSupported();
         var path = File();
 
         await Capturer.CaptureAsync(Running(), path, null, null, Ct);
@@ -51,6 +56,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task An_elevated_target_is_refused_before_the_runtime_is_asked()
     {
+        CaptureSupported();
         await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Running(ElevationState.Elevated), File(), null, null, Ct));
 
         _writer.Calls.ShouldBe(0);
@@ -62,6 +68,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [InlineData(GcDumpFailure.Error, "failed: boom")]
     public async Task A_failed_snapshot_deletes_the_partial_file_and_says_why(GcDumpFailure failure, string message)
     {
+        CaptureSupported();
         _writer.Result = new GcDumpWriteResult(failure, "boom");
         var path = File();
 
@@ -74,7 +81,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task A_failure_of_a_process_that_is_gone_says_it_exited()
     {
-        Assert.SkipUnless(OperatingSystem.IsWindows(), "Capture runs on Windows only (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
         _writer.Result = new GcDumpWriteResult(GcDumpFailure.Error, "pipe closed");
         var gone = new DotNetProcess(int.MaxValue - 7, "Gone", null, "10.0.13", ElevationState.NotElevated, null, null, null);
 
@@ -86,6 +93,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task A_writer_that_cannot_write_is_reported_as_a_write_failure()
     {
+        CaptureSupported();
         _writer.Throw = new UnauthorizedAccessException("denied");
 
         var ex = await Should.ThrowAsync<DumpWriteFailedException>(() => Capturer.CaptureAsync(Running(), File(), null, null, Ct));
@@ -97,6 +105,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task A_success_without_a_file_is_a_write_failure()
     {
+        CaptureSupported();
         _writer.WriteFile = false;
 
         await Should.ThrowAsync<DumpWriteFailedException>(() => Capturer.CaptureAsync(Running(), File(), null, null, Ct));
@@ -105,6 +114,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task An_existing_file_is_never_overwritten()
     {
+        CaptureSupported();
         var path = File();
         await System.IO.File.WriteAllTextAsync(path, "mine", Ct);
 
@@ -117,6 +127,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task A_cancellation_during_the_snapshot_removes_the_partial_file()
     {
+        CaptureSupported();
         using var cancel = new CancellationTokenSource();
         _writer.OnWrite = cancel.Cancel;
 

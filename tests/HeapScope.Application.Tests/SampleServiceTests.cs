@@ -105,7 +105,9 @@ public sealed class SampleServiceTests : IDisposable
     public async Task A_start_is_refused_with_what_to_do()
     {
         (await Refusal(Service(elevated: true), ["StaticCache"]))
-            .ShouldBe("HeapScope runs as administrator, so the sample would too. Start HeapScope without administrator rights to run it.");
+            .ShouldBe(HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current)
+                ? "HeapScope runs as root, so the sample would too. Start HeapScope as your own user to run it."
+                : "HeapScope runs as administrator, so the sample would too. Start HeapScope without administrator rights to run it.");
         (await Refusal(Service(installed: false), ["StaticCache"]))
             .ShouldBe($"The sample is not in this installation. {SampleService.RepairStep}.");
         (await Refusal(Service(), ["Nope"])).ShouldBe("There is no scenario Nope in this HeapScope's sample. The Processes page and 'heapscope-cli sample list' list them.");

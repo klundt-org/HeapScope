@@ -34,6 +34,9 @@ namespace HeapScope.UI.ViewModels;
 /// <summary>One row of the process list. Numbers stay numeric so the grid sorts them.</summary>
 public sealed record ProcessRow(int ProcessId, string Name, string Runtime, string Elevation, long WorkingSetBytes, string CommandLine, bool NeedsAdministrator, bool IsSample = false)
 {
+    /// <summary>The mark after a process's name where a list has no Elevation column (the Live page's chooser, sprint 4.1.1).</summary>
+    public string ElevationSuffix => Elevation.Length == 0 ? string.Empty : ", " + Elevation;
+
     /// <summary>"Sample" for the tutorial's sample this HeapScope started (sprint 3.13), else empty.</summary>
     public string Kind => IsSample ? "Sample" : string.Empty;
 
@@ -42,7 +45,7 @@ public sealed record ProcessRow(int ProcessId, string Name, string Runtime, stri
         ArgumentNullException.ThrowIfNull(process);
         var elevation = process.Elevation switch
         {
-            ProcessElevation.Elevated => process.NeedsAdministrator ? "Needs administrator" : "Elevated",
+            ProcessElevation.Elevated => process.NeedsAdministrator ? HeapScope.Application.Sessions.RightsTexts.NeedsMore : HeapScope.Application.Sessions.RightsTexts.Reachable,
             ProcessElevation.NotElevated => string.Empty,
             _ => "Unknown",
         };
@@ -108,6 +111,21 @@ public sealed partial class ProcessesViewModel : ObservableObject
     [ObservableProperty]
     private bool _showElevationHint;
 
+    // Sprint 4.1.1: the processes HeapScope cannot capture as it runs now are hidden unless the box is checked.
+    private readonly ProcessListFilter _filter = new();
+
+    /// <summary>The check box: list the processes hidden because they need more rights (off at each start).</summary>
+    [ObservableProperty]
+    private bool _showHiddenProcesses;
+
+    /// <summary>Whether a process needs more rights than HeapScope has, so the check box is offered.</summary>
+    [ObservableProperty]
+    private bool _canShowHiddenProcesses;
+
+    /// <summary>How many processes are hidden and why, while they are; null otherwise (the banner shows once they are listed).</summary>
+    [ObservableProperty]
+    private string? _hiddenNote;
+
     /// <summary>Capture a gcdump instead of a full dump (sprint 1.8): the object graph only, smaller, no field values.</summary>
     [ObservableProperty]
     private bool _captureGcDump;
@@ -149,16 +167,10 @@ public sealed partial class ProcessesViewModel : ObservableObject
         try
         {
             var processes = await _capture.ListProcessesAsync(CancellationToken.None);
-            var selectedId = Selected?.ProcessId;
-            Processes.Clear();
-            foreach (var process in processes)
-            {
-                Processes.Add(ProcessRow.From(process) with { IsSample = _samples?.IsSample(process.ProcessId) == true });
-            }
-
-            Selected = Processes.FirstOrDefault(p => p.ProcessId == selectedId);
-            ShowElevationHint = Processes.Any(p => p.NeedsAdministrator);
-            Status = Processes.Count == 0 ? "No running .NET processes were found." : null;
+            _filter.Replace(processes.Select(process => ProcessRow.From(process) with { IsSample = _samples?.IsSample(process.ProcessId) == true }));
+            ShowRows();
+            Status = _filter.All.Count == 0 ? "No running .NET processes were found." : null;
+            _filter.Log(_logger, "Processes", toggled: false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException or UnauthorizedAccessException)
         {
@@ -253,21 +265,50 @@ public sealed partial class ProcessesViewModel : ObservableObject
         Status = stopped ? $"Sample {row.ProcessId} stopped." : $"Sample {row.ProcessId} had already exited.";
     }
 
+    partial void OnShowHiddenProcessesChanged(bool value)
+    {
+        _filter.ShowHidden = value;
+        ShowRows();
+        _filter.Log(_logger, "Processes", toggled: true);
+    }
+
+    /// <summary>
+    /// Shows the rows the filter lets through, keeps the selection while its row is shown, and says what is hidden: the
+    /// note while processes are hidden, the banner once they are listed (sprint 4.1.1).
+    /// </summary>
+    private void ShowRows()
+    {
+        var selectedId = Selected?.ProcessId;
+        Processes.Clear();
+        foreach (var row in _filter.Visible)
+        {
+            Processes.Add(row);
+        }
+
+        Selected = Processes.FirstOrDefault(p => p.ProcessId == selectedId);
+        CanShowHiddenProcesses = _filter.AnyNeedMoreRights;
+        HiddenNote = _filter.Hidden.Count > 0 ? HeapScope.Application.Sessions.RightsTexts.HiddenNote(_filter.Hidden.Count) : null;
+        ShowElevationHint = Processes.Any(p => p.NeedsAdministrator);
+    }
+
     // Review H3: a sample stopped elsewhere, or exited, loses its Sample mark without waiting for a refresh.
+    // Every listed row, hidden or not, so a row shown later never brings back a stale mark (review M4).
     private void MarkSamples()
     {
-        for (var i = 0; i < Processes.Count; i++)
+        var changed = false;
+        foreach (var row in _filter.All.ToList())
         {
-            var isSample = _samples?.IsSample(Processes[i].ProcessId) == true;
-            if (Processes[i].IsSample != isSample)
+            var isSample = _samples?.IsSample(row.ProcessId) == true;
+            if (row.IsSample != isSample)
             {
-                var wasSelected = Selected == Processes[i];
-                Processes[i] = Processes[i] with { IsSample = isSample };
-                if (wasSelected)
-                {
-                    Selected = Processes[i];
-                }
+                _filter.Update(row with { IsSample = isSample });
+                changed = true;
             }
+        }
+
+        if (changed)
+        {
+            ShowRows();
         }
     }
 

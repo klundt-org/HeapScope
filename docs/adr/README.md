@@ -18,7 +18,7 @@ section 13 links here).
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene
 - [ADR-012](ADR-012-git.md) Git
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth
-- [ADR-014](ADR-014-elevation.md) Elevation
+- [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1, 4.1.1 and 4.2: the Linux and macOS meaning; hidden by default)
 - [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment)
 - [ADR-016](ADR-016-contracts-owns-the-wire-vocabulary.md) Contracts owns the wire vocabulary (added in sprint 0.1)
 - [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035)
@@ -29,7 +29,7 @@ section 13 links here).
 - [ADR-022](ADR-022-license-agplv3-only-with-additional-terms-attribution-on-the.md) License: AGPLv3 only with additional terms, attribution on the main screen (added before sprint 1.8)
 - [ADR-023](ADR-023-gcdump-capture-moves-to-the-worker.md) gcdump capture moves to the worker (added in sprint 1.9, amended by ADR-037: it stays in the front end)
 - [ADR-024](ADR-024-retention-semantics-shared-by-paths-and-dominators.md) Retention semantics shared by paths and dominators (added in sprint 2.3)
-- [ADR-025](ADR-025-ui-platform-avalonia-on-windows-linux-and-macos.md) UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039)
+- [ADR-025](ADR-025-ui-platform-avalonia-on-windows-linux-and-macos.md) UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039 and sprints 4.1 and 4.2: capture on Linux and macOS)
 - [ADR-026](ADR-026-sharing-results-an-exported-analysis-analysis-only-by-defaul.md) Sharing results: an exported analysis, analysis only by default (added in sprint 2.3.5)
 - [ADR-027](ADR-027-dominator-children-kept-the-tree-served-flattened.md) Dominator children kept; the tree served flattened (added in sprint 2.4)
 - [ADR-028](ADR-028-allocation-traces-read-in-the-worker-from-eventpipe-allocati.md) Allocation traces read in the worker from EventPipe allocation ticks (added in sprint 2.5)

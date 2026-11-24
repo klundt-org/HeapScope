@@ -55,7 +55,7 @@ internal static partial class CliCommands
 
             if (processes.Any(p => p.NeedsAdministrator))
             {
-                await error.WriteLineAsync("Processes marked elevated can only be captured when HeapScope runs as administrator.").ConfigureAwait(false);
+                await error.WriteLineAsync(HeapScope.Application.Sessions.RightsTexts.CliNote).ConfigureAwait(false);
             }
 
             return Success;

@@ -22,7 +22,6 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Microsoft.Diagnostics.NETCore.Client;
 
 namespace HeapScope.Capture;
@@ -40,18 +39,28 @@ public interface IProcessDiscovery
     /// describe (they exited meanwhile), by pid, so the log can say why a process is not listed.
     /// </summary>
     DiscoveryOmissions LastOmitted => DiscoveryOmissions.None;
+
+    /// <summary>
+    /// Why a process that was asked for by pid is not found, with what to do, where the system can tell (sprint 4.1: on
+    /// Linux and macOS, another user's process, diagnostics turned off, its own /tmp, or a socket in another temp folder), and what
+    /// that rests on, for the log (review H6).
+    /// </summary>
+    NotFoundExplanation WhyNotFound(int processId) => NotFoundExplanation.None;
 }
 
 /// <summary>
 /// Discovers .NET processes through their diagnostics ports (<c>DiagnosticsClient.GetPublishedProcesses</c>) and reads
 /// what it can about each one. A detail that cannot be read is left empty; it never fails the list.
 /// </summary>
-public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) : IProcessDiscovery
+public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProcessDiscovery
 {
     /// <summary>HeapScope's own executables live under this folder (the worker in its worker subfolder).</summary>
     private static readonly string s_ownFolder = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
 
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
+
+    // Sprint 4.1: the image path, command line and runtime per system (IProcessFacts).
+    private readonly IProcessFacts _facts = CapturePlatform.ProcessFacts();
 
     public DiscoveryOmissions LastOmitted { get; private set; } = DiscoveryOmissions.None;
 
@@ -94,6 +103,8 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
         return FindOnThisSystem(processId);
     }
 
+    public NotFoundExplanation WhyNotFound(int processId) => CapturePlatform.Rules().WhyNotFound(processId);
+
     private DotNetProcess? FindOnThisSystem(int processId) =>
         !IsOwn(processId) && DiagnosticsClient.GetPublishedProcesses().Contains(processId) ? Describe(processId) : null;
 
@@ -104,10 +115,10 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
     /// host, so its command line names the worker's assembly in this installation (sprint 3.9, ADR-039). The tutorial's
     /// sample (sprint 3.13, ADR-042) is HeapScope's too, but it is there to be captured, so it is listed.
     /// </summary>
-    private static bool IsOwn(int processId) =>
+    private bool IsOwn(int processId) =>
         processId == Environment.ProcessId
-        || (ReadImagePath(processId) is { } image && IsOwnImage(image, s_ownFolder))
-        || RunsOwnWorkerAssembly(ReadCommandLine(processId), s_ownFolder);
+        || (_facts.ImagePath(processId) is { } image && IsOwnImage(image, s_ownFolder))
+        || RunsOwnWorkerAssembly(_facts.CommandLine(processId), s_ownFolder);
 
     /// <summary>
     /// Whether <paramref name="image"/> is one of the installation's own executables in <paramref name="ownFolder"/>: any
@@ -137,112 +148,17 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
         using (process)
         {
             var elevation = _elevation.GetState(processId);
-            var runtime = elevation == ElevationState.NotElevated || _elevation.IsCurrentProcessElevated ? ReadRuntime(process) : null;
+            var runtime = elevation == ElevationState.NotElevated || _elevation.IsCurrentProcessElevated ? _facts.Runtime(process) : null;
             return new DotNetProcess(
                 processId,
                 Try(() => process.ProcessName) ?? $"pid {processId}",
-                ReadCommandLine(processId),
+                _facts.CommandLine(processId),
                 runtime?.Version,
                 elevation,
                 TryValue(() => process.WorkingSet64),
-                TryValue(() => process.PrivateMemorySize64),
+                _facts.PrivateBytes(process),
                 TryValue(() => new DateTimeOffset(process.StartTime)),
                 runtime?.Directory);
-        }
-    }
-
-    /// <summary>
-    /// The file version and folder of the process's coreclr.dll (the runtime ClrMD will need a DAC for). Single-file
-    /// apps link the runtime into their executable and have no coreclr.dll: their version stays unknown.
-    /// </summary>
-    private static RuntimeInfo? ReadRuntime(Process process) => Try(() =>
-    {
-        RuntimeInfo? found = null;
-        foreach (ProcessModule module in process.Modules)
-        {
-            using (module)
-            {
-                if (found is null && string.Equals(module.ModuleName, "coreclr.dll", StringComparison.OrdinalIgnoreCase))
-                {
-                    var version = module.FileVersionInfo;
-                    found = new RuntimeInfo(
-                        $"{version.FileMajorPart}.{version.FileMinorPart}.{version.FileBuildPart}.{version.FilePrivatePart}",
-                        Path.GetDirectoryName(module.FileName));
-                }
-            }
-        }
-
-        return found;
-    });
-
-    /// <summary>The executable path through QueryFullProcessImageName (limited query rights).</summary>
-    private static string? ReadImagePath(int processId)
-    {
-        var handle = OpenProcess(ProcessQueryLimitedInformation, false, (uint)processId);
-        if (handle == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        try
-        {
-            var buffer = new char[32768];
-            var length = buffer.Length;
-            return QueryFullProcessImageName(handle, 0, buffer, ref length) ? new string(buffer, 0, length) : null;
-        }
-        finally
-        {
-            CloseHandle(handle);
-        }
-    }
-
-    private sealed record RuntimeInfo(string Version, string? Directory);
-
-    /// <summary>The command line through NtQueryInformationProcess (works with limited query rights).</summary>
-    private static string? ReadCommandLine(int processId)
-    {
-        var handle = OpenProcess(ProcessQueryLimitedInformation, false, (uint)processId);
-        if (handle == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        try
-        {
-            var length = 4096;
-            for (var attempt = 0; attempt < 3; attempt++)
-            {
-                var buffer = Marshal.AllocHGlobal(length);
-                try
-                {
-                    var status = NtQueryInformationProcess(handle, ProcessCommandLineInformation, buffer, length, out var needed);
-                    if (status == StatusInfoLengthMismatch && needed > length)
-                    {
-                        length = needed;
-                        continue;
-                    }
-
-                    if (status != 0)
-                    {
-                        return null;
-                    }
-
-                    // UNICODE_STRING { ushort Length; ushort MaximumLength; IntPtr Buffer } followed by the characters.
-                    var bytes = Marshal.ReadInt16(buffer) & 0xFFFF;
-                    var chars = Marshal.ReadIntPtr(buffer, IntPtr.Size);
-                    return bytes == 0 ? null : Marshal.PtrToStringUni(chars, bytes / 2);
-                }
-                finally
-                {
-                    Marshal.FreeHGlobal(buffer);
-                }
-            }
-
-            return null;
-        }
-        finally
-        {
-            CloseHandle(handle);
         }
     }
 
@@ -271,22 +187,4 @@ public sealed partial class ProcessDiscovery(IElevationProbe? elevation = null) 
             return null;
         }
     }
-
-    private const uint ProcessQueryLimitedInformation = 0x1000;
-    private const int ProcessCommandLineInformation = 60;
-    private const int StatusInfoLengthMismatch = unchecked((int)0xC0000004);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    private static partial IntPtr OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint processId);
-
-    [LibraryImport("kernel32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool CloseHandle(IntPtr handle);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", StringMarshalling = StringMarshalling.Utf16)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool QueryFullProcessImageName(IntPtr process, uint flags, [Out] char[] name, ref int size);
-
-    [LibraryImport("ntdll.dll")]
-    private static partial int NtQueryInformationProcess(IntPtr process, int informationClass, IntPtr information, int length, out int returnLength);
 }

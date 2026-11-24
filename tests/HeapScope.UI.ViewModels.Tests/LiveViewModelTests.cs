@@ -59,6 +59,42 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         };
     }
 
+    [Fact]
+    public async Task The_chooser_hides_processes_HeapScope_cannot_watch_until_the_box_is_checked()
+    {
+        // Sprint 4.1.1: the same rule as the Processes page.
+        _capture.Processes.Add(new ProcessEntry(77, "service", null, "10.0.0", ProcessElevation.Elevated, false, null, null));
+
+        await _live.RefreshCommand.ExecuteAsync(null);
+
+        _live.Processes.Select(p => p.ProcessId).ShouldBe([42]);
+        _live.CanShowHiddenProcesses.ShouldBeTrue();
+        _live.HiddenNote.ShouldBe(HeapScope.Application.Sessions.RightsTexts.HiddenNote(1));
+
+        _live.ShowHiddenProcesses = true;
+        _live.Processes.Select(p => p.ProcessId).ShouldBe([42, 77]);
+        _live.Processes[1].ElevationSuffix.ShouldBe(", " + HeapScope.Application.Sessions.RightsTexts.NeedsMore, "a shown one says what it needs");
+        _live.Processes[0].ElevationSuffix.ShouldBeEmpty();
+        _live.HiddenNote.ShouldBeNull();
+
+        _live.SelectedProcess = _live.Processes[1];
+        _live.ShowHiddenProcesses = false;
+        _live.SelectedProcess.ShouldBeNull("a hidden process is not chosen");
+    }
+
+    [Fact]
+    public async Task Run_elevated_the_chooser_lists_every_process_with_no_box()
+    {
+        _capture.IsHeapScopeElevated = true;
+        _capture.Processes.Add(new ProcessEntry(77, "service", null, "10.0.0", ProcessElevation.Elevated, false, null, null));
+
+        await _live.RefreshCommand.ExecuteAsync(null);
+
+        _live.Processes.Select(p => p.ProcessId).ShouldBe([42, 77]);
+        _live.CanShowHiddenProcesses.ShouldBeFalse();
+        _live.HiddenNote.ShouldBeNull();
+    }
+
     private async Task StartLiveAsync()
     {
         if (_live.SelectedProcess is null)
@@ -184,7 +220,7 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await WaitUntilAsync(() => !live.IsRunning);
 
         live.RunWarning.ShouldNotBeNull().ShouldContain("cannot monitor it");
-        live.RunWarning!.ShouldContain("Run HeapScope as administrator");
+        live.RunWarning!.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user and" : OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
         live.RunWarning!.ShouldNotContain("dump");
         live.Status.ShouldBeNull("the warning says it; a second line would repeat it");
         live.ShowEmptyState.ShouldBeFalse();

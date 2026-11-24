@@ -9,7 +9,7 @@ acceptance criteria, decisions, tasks and review summary as they stood when it c
 Planned 2026-10-28. The product owner found HeapScope "well under powered for what dotMemory offers" after Phase 2.
 Phase 2 covered most of dotMemory's feature list (`docs/research/dotmemory-ux.md` 7) but each feature shallower. Phase 3
 deepens the analysis in five sprints, ahead of 2.8 Packaging (which still waits for the audiences and channels). The
-product owner agreed to this plan ("lets do your phase 3"); anything it leaves out is listed under Phase 4 candidates.
+product owner agreed to this plan ("lets do your phase 3"); anything it leaves out is listed under Phase 4 candidates, planned as Phase 4 in SPRINTS.md on 2026-11-18.
 Phase 3 runs like Phase 2: autonomously, one sprint at a time, stopping after each close.
 
 ---

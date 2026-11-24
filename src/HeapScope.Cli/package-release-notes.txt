@@ -1,8 +1,12 @@
-3.13.2: dump values in logs, by consent.
+4.2.0: capture on Linux, and on macOS untested.
 
-- heapscope-cli settings --dump-values-in-logs on --yes writes the values HeapScope reads from dumps (field values and
-  string text) into its logs, to back up a result in full; off (the default) keeps only their length. Turning it on
-  needs --yes; without it the command says what it would do and changes nothing. The logs stay on your machine.
-- heapscope-cli settings shows the new setting, and every log says at its start whether it holds dump values.
+- heapscope-cli list, capture (full dumps and gcdumps), monitor and trace now run on Linux, as on Windows. Another user's
+  process needs heapscope-cli run as that user, or with sudo; as root, a full dump of another user's process goes to a
+  folder that user can write (--out), since the runtime writes it as that user.
+- When Linux stops a capture (kernel.yama.ptrace_scope, a container without SYS_PTRACE, diagnostics turned off, another
+  TMPDIR, a service's own /tmp), the error says why and what to change. heapscope-cli never changes system settings.
+- On macOS the same commands are built, on Linux, and nobody has run them on a Mac: if a capture fails, take a dump with
+  dotnet-dump and open it with heapscope-cli. A full dump may need an application signed to allow it; a gcdump does not.
+- heapscope-cli list shows every process with its mark; the app hides those it cannot capture (4.1.1).
 
 All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md

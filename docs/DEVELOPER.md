@@ -4,8 +4,9 @@ Status: living document, updated by every sprint.
 
 ## 1. Prerequisites
 - Windows 11 x64 (Windows 10 x64 also supported) for everything. Since sprint 2.3.6 the engine, the worker, the CLI and
-  the Avalonia app also build and run on Linux (x64) and macOS (Apple silicon or Intel); capture and the integration tests
-  stay Windows only. The build scripts are bash (Git Bash on Windows); the sample dump scripts in `fixtures/scripts` are
+  the Avalonia app also build and run on Linux (x64) and macOS (Apple silicon or Intel). Capture runs on Linux too since
+  sprint 4.1, proven in CI's Linux job (no local Linux run here), and is built for macOS since 4.2, where nobody has run it:
+  its parsers and rules are tested on every system (`MacFactsTests`), its calls to the system are not. The integration tests stay Windows only. The build scripts are bash (Git Bash on Windows); the sample dump scripts in `fixtures/scripts` are
   PowerShell.
 - .NET 10 SDK (10.0.100 or later). `global.json` sets the minimum SDK (10.0.100) and rolls forward to the latest
   installed feature band.
@@ -23,8 +24,8 @@ dotnet test --solution HeapScope.sln
 ```
 - Full gate (sprint 1.9; bash since 3.6, the same steps as CI, section 7): `bash build/gate.sh` builds Debug and Release
   (zero warnings), runs the fast and the integration tiers, then CI's fixture check (a LeakyConsole dump, captured by
-  the CLI on Windows and by `dotnet-dump` elsewhere, checked against the known answers, which needs `jq`; without
-  `jq` or `dotnet-dump` the check is reported as skipped) and appends a line to `artifacts/gate/history.csv`
+  the CLI on Windows and Linux and by `dotnet-dump` on macOS, checked against the known answers, which needs `jq`; without
+  `jq`, or `dotnet-dump` on macOS, the check is reported as skipped) and appends a line to `artifacts/gate/history.csv`
   (git-ignored): time, commit, outcome, durations, test counts and failed test names; a test that failed in an earlier run
   is named again. Its log and TRX results are kept under `artifacts/test-results/<time>`. Run it before closing a sprint.
   A tier or the fixture check whose inputs already passed is skipped and the log says so (2026-11-19, to spare the
@@ -46,7 +47,8 @@ dotnet test --solution HeapScope.sln
 - Data folders (sprint 3.8): every test process sets `HEAPSCOPE_DATA_FOLDER` to `HeapScopeTests/data` under the temporary
   folder (`tests/Shared/TestDataFolder.cs`) before anything reads `HeapScopeFolders`, and the workers and front ends it
   starts inherit it, so no test writes into the user's sessions, logs, index cache key, trusted DACs or bookmarks. Set it
-  by hand to run the app or the CLI against a scratch profile. The worker also takes `--data-folder` (from
+  by hand to run the app or the CLI against a scratch profile; the build scripts that drive the CLI set it to a scratch
+  folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `capture-check.sh`). The worker also takes `--data-folder` (from
   `Worker:DataFolder` on the client), which wins over the variable.
 - Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`) run a short pass in every run;
   `HEAPSCOPE_FUZZ_ITERATIONS` and `HEAPSCOPE_FUZZ_SEED` raise and vary it. The nightly `fuzz.yml` runs 2,000 iterations on
@@ -236,7 +238,10 @@ dotnet test --solution HeapScope.sln
   `Worker:AttachPipeName` for the UI.
 - Screenshots (sprint 3.10): `bash build/demo-data.sh` makes the demo dumps and trace from the LeakyApi fixture in
   `artifacts/demo` (fixture data only), then `bash build/screenshots.sh [folder] [Release|Debug]` captures every page at
-  twice the size, one run per theme (`--headless --screenshots folder`), into `artifacts/screenshots`. The Live page's
+  twice the size, one run per theme (`--headless --screenshots folder`), into `artifacts/screenshots`. Since sprint 4.1
+  it also opens the popups the real window shows, which a headless window draws into its own frame: info icon texts on the
+  Processes page, the Retainers chart's hover texts, and Purge all's question (answered Cancel, so nothing is deleted); a
+  popup that does not open fails the run. The Live page's
   picture watches the running fixture under load for 45 s. The Processes page's rows are made up, so that picture stays out
   of the README. By hand: not in CI, and no test compares pictures. After a change to the look, copy the README's ten
   pictures to `docs/images/`: `09-inspections` as `inspections`, `08-why-alive-diagram` as `why-alive`, `10-retainers` as
@@ -525,21 +530,22 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   and can also be run directly from their output folder.
 - Assertions: Shouldly or plain xUnit asserts. FluentAssertions is not allowed (commercial license).
 - Tests that call methods taking a `CancellationToken` pass `TestContext.Current.CancellationToken` (xUnit1051).
-- **Checks by hand** (2026-11-17): what the headless tests cannot see, in the real window on Windows. Run them after a
-  change to the screens they cover, and before a release that changed them:
-  1. Info icons: on every page and tab, hover the (i) beside the title, then click it, then reach it
-     with Tab and press Enter or Space; each opens its text. One beside a turned-off button opens too.
-  2. Retainers chart: start the sample with StaticCache (Processes page, Sample process), capture it, select a
-     `StaticCacheEntry` row and open Retainers. Hover a bar: its name and size show. Hover the "+N smaller" bar: it says
-     how many bars it holds and their size.
-  3. Live's refusal: from an administrator terminal, `dotnet run --project src/HeapScope.Sample -- --scenarios StaticCache`.
+- **Checks by hand** (2026-11-17; sprint 4.1 moved the popups and Purge all's question into the screenshot run): what
+  neither the headless tests nor the screenshot run can see, in the real window on Windows. Run them after a change to the
+  screens they cover, and before a release that changed them:
+  1. Looks on a real monitor: open the screenshot run's pictures (`build/screenshots.sh`, section 2) beside the real
+     window: an info icon's open text by a title and beside a turned-off button (`02-processes-info`,
+     `02-processes-info-beside-off`), the Retainers chart's hover text on a bar and on a "+N smaller" bar
+     (`10-retainers-bar`, `10-retainers-smaller`, when the dump has one), and Purge all's question
+     (`19-purge-all-question`). What they cannot judge: fonts and scaling on your monitor, and where a popup lands near
+     the screen's edge. That the popups open, by mouse and keyboard, and what they say is tested (`InfoIconTests`,
+     `IcicleChartTests`), and so is what the purges delete (`SettingsViewModelTests`).
+  2. Live's refusal: from an administrator terminal, `dotnet run --project src/HeapScope.Sample -- --scenarios StaticCache`.
      In HeapScope, not elevated, monitor that pid on the Live page: a warning says it runs elevated and what to do, and
      stays.
-  4. Allocations on a busy process: start the sample with SteadyAllocation and growth on. On Live, tick Record
+  3. Allocations on a busy process: start the sample with SteadyAllocation and growth on. On Live, tick Record
      allocations, start the run, wait about 30 s, stop. The window stays responsive, and the Allocations
      page shows Types and Back traces.
-  5. Settings: Purge logs empties the logs folder (About shows it) except the logs running processes still write. Purge
-     all asks first, then Home lists no sessions, and a dump opened from your own folder is still there.
 
 ## 6. Benchmarks
 `perf/HeapScope.Benchmarks` is a plain console app (no BenchmarkDotNet, because the interesting cases use
@@ -615,9 +621,15 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     at a time) beside it (`test.sh integration-heavy`; the first job runs `integration-light`), which halves the wait
     for a PR. The local gate still runs the whole `integration` tier.
   - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests (the view model and headless UI
-    tests included), dumps the fixture with `dotnet-dump` (pinned), checks the CLI's JSON against the known answers with
-    `jq` (counts, sizes, retained sizes, the path root, a complete graph, a named runtime version) and opens the dump in
-    the app without a display (`--headless --smoke-open`).
+    tests included, and since sprint 4.1 the capture tests), captures the fixture with the CLI (`dotnet-dump` before
+    capture ran on Linux), checks the CLI's JSON against the known answers with `jq` (counts, sizes, retained sizes, the
+    path root, a complete graph, a named runtime version) and opens the dump in the app without a display
+    (`--headless --smoke-open`). Then `build/capture-check.sh` starts the tutorial's sample with `sample start`,
+    finds it with `list`, captures a full dump and a gcdump and opens both with `summary` (2,000 `StaticCacheEntry`
+    objects each), watches it with `monitor` and records an allocations trace with `trace` that `allocations` must name
+    the SteadyAllocation scenario's `PricedOrder` from (the 4.1 review, M7), all with a scratch data folder; the capture
+    log lines name the size estimate beside the size written, and the job warns when a dump is larger than its estimate.
+    The app runs its live smoke run headless (`--smoke-live 1800`). The Linux package is captured by its own unpacked CLI too.
   - No macOS runners since 2026-10-31 (owner: their minutes cost about ten times Linux's). Until then a macOS job did
     what Linux does, informational (an arm64 runner; ADR-025). Nothing in CI tests on macOS now.
   - Beside the tests (since 2026-10-31; before, after them), a package job publishes the self-contained builds per

@@ -293,6 +293,23 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Purge_alls_question_can_be_shown_without_asking_or_deleting()
+    {
+        // Sprint 4.1: the screenshot run shows the question itself, since a smoke run answers every question yes.
+        var (current, older, _) = Library();
+        _interaction.Answer = true;
+        var page = new SettingsViewModel(_service, _interaction);
+
+        var question = await page.PurgeAllQuestionAsync();
+
+        question.ShouldNotBeNull().ShouldStartWith("This deletes HeapScope's logs and its whole library: 2 sessions, ");
+        _interaction.Titles.ShouldBeEmpty();
+        Directory.Exists(current).ShouldBeTrue();
+        Directory.Exists(older).ShouldBeTrue();
+        File.Exists(_bookmarks.Path).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Purge_all_deletes_the_library_the_bookmarks_and_the_logs_and_leaves_the_users_own_dumps_and_keys()
     {
         var (current, older, writtenNow) = Library();

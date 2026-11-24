@@ -42,12 +42,17 @@ public sealed class DumpCapturerTests : IDisposable
 
     private DumpCapturer Capturer => new(_elevation, _disk, _writer, _ => _estimate);
 
+    // Review M9: capture runs on Windows, Linux and macOS (ADR-025); elsewhere it refuses first, so these tests skip there.
+    private static void CaptureSupported() =>
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
+
     [Fact]
     public async Task An_elevated_target_from_an_unelevated_HeapScope_asks_to_run_as_administrator()
     {
+        CaptureSupported();
         var ex = await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Process(ElevationState.Elevated), Dump(), null, Ct));
 
-        ex.Message.ShouldContain("Run HeapScope as administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user and" : OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
         ex.Message.ShouldContain("pid 4242");
         _writer.Calls.ShouldBe(0, "refused before the runtime is asked");
     }
@@ -55,6 +60,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task An_elevated_HeapScope_may_capture_an_elevated_target()
     {
+        CaptureSupported();
         _elevation.Current = true;
 
         await Capturer.CaptureAsync(Process(ElevationState.Elevated), Dump(), null, Ct);
@@ -65,6 +71,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task Too_little_disk_space_is_refused_before_capture_with_both_numbers_and_the_reserve()
     {
+        CaptureSupported();
         _estimate = 4 * Gb;
         _disk.Available = 4 * Gb + (DumpCapturer.ReserveBytes / 2);
 
@@ -78,6 +85,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task Unknown_free_space_does_not_block_the_capture()
     {
+        CaptureSupported();
         _disk.Available = null;
 
         await Capturer.CaptureAsync(Process(), Dump(), null, Ct);
@@ -95,6 +103,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public void The_measured_estimate_of_this_process_is_its_committed_readable_memory()
     {
+        CaptureSupported();
         var self = new DotNetProcess(Environment.ProcessId, "self", null, null, ElevationState.NotElevated, null, null, null);
         using var current = System.Diagnostics.Process.GetCurrentProcess();
 
@@ -103,12 +112,14 @@ public sealed class DumpCapturerTests : IDisposable
         committed.ShouldNotBeNull();
         committed.Value.ShouldBeGreaterThan(current.PrivateMemorySize64 / 2);
         // The process grows between the two walks, so allow some drift.
-        Math.Abs(DumpSizeEstimator.Estimate(self) - (committed.Value + DumpSizeEstimator.StreamBytes)).ShouldBeLessThan(64L * 1024 * 1024);
+        var expected = DumpSizeEstimator.Choose(committed, null, CapturePlatform.ProcessFacts().WalkMayEndEarly, CapturePlatform.ProcessFacts().UncountedBytes).Bytes;
+        Math.Abs(DumpSizeEstimator.Estimate(self).Bytes - expected).ShouldBeLessThan(64L * 1024 * 1024);
     }
 
     [Fact]
     public async Task The_dump_is_written_to_a_partial_name_and_renamed_on_success()
     {
+        CaptureSupported();
         var dump = Dump();
 
         await Capturer.CaptureAsync(Process(), dump, null, Ct);
@@ -121,6 +132,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task Canceling_waits_for_the_runtime_then_removes_the_whole_dump()
     {
+        CaptureSupported();
         using var cancellation = new CancellationTokenSource();
         var phases = new List<string>();
         _writer.Behavior = async path =>
@@ -142,6 +154,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task Writing_reports_that_the_target_is_paused()
     {
+        CaptureSupported();
         var messages = new List<string?>();
 
         await Capturer.CaptureAsync(Process(), Dump(), new SyncProgress(p => messages.Add(p.Message)), Ct);
@@ -152,16 +165,18 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task Access_denied_from_the_runtime_becomes_the_administrator_message()
     {
+        CaptureSupported();
         _writer.Behavior = _ => throw new UnauthorizedAccessException("Access is denied.");
 
         var ex = await Should.ThrowAsync<ElevationRequiredException>(() => Capturer.CaptureAsync(Process(ElevationState.Unknown), Dump(), null, Ct));
 
-        ex.Message.ShouldContain("administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user" : OperatingSystem.IsLinux() ? "or as root (sudo)" : "administrator");
     }
 
     [Fact]
     public async Task A_runtime_error_explains_that_the_target_writes_the_dump_under_its_own_account()
     {
+        CaptureSupported();
         _writer.Behavior = _ => throw new ServerErrorException("Writing dump failed (HRESULT: 0x80070005)");
 
         var ex = await Should.ThrowAsync<DumpWriteFailedException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
@@ -173,6 +188,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task A_full_disk_during_the_write_is_named()
     {
+        CaptureSupported();
         _writer.Behavior = _ => throw new ServerErrorException("Writing dump failed (HRESULT: 0x80070070)");
 
         var ex = await Should.ThrowAsync<DumpWriteFailedException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
@@ -183,17 +199,19 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task An_exited_target_gives_a_plain_message()
     {
-        Assert.SkipUnless(OperatingSystem.IsWindows(), "Capture runs on Windows only (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
         _writer.Behavior = _ => throw new ServerNotAvailableException("gone");
 
         var ex = await Should.ThrowAsync<TargetUnavailableException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
 
         ex.Message.ShouldContain("may have exited");
+        (ex.Evidence is null).ShouldBe(!HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current), "the log keeps what the system says of it, the message does not guess");
     }
 
     [Fact]
     public async Task An_existing_file_is_never_overwritten()
     {
+        CaptureSupported();
         var dump = Dump();
         await File.WriteAllTextAsync(dump, "keep", Ct);
 
@@ -206,12 +224,14 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task A_root_path_is_refused_with_a_message()
     {
+        CaptureSupported();
         await Should.ThrowAsync<ArgumentException>(() => Capturer.CaptureAsync(Process(), Path.GetPathRoot(_folder)!, null, Ct));
     }
 
     [Fact]
     public void The_real_probe_answers_for_this_process()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The Windows probe asks the Windows kernel.");
         WindowsElevationProbe.Instance.GetState(Environment.ProcessId)
             .ShouldBe(WindowsElevationProbe.Instance.IsCurrentProcessElevated ? ElevationState.Elevated : ElevationState.NotElevated);
     }

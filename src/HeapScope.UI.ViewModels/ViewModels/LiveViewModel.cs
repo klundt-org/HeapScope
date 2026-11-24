@@ -177,6 +177,21 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<ProcessRow> Processes { get; } = [];
 
+    // Sprint 4.1.1: the same rule as the Processes page for the processes HeapScope cannot watch as it runs now.
+    private readonly ProcessListFilter _filter = new();
+
+    /// <summary>The check box: list the processes hidden because they need more rights (off at each start).</summary>
+    [ObservableProperty]
+    private bool _showHiddenProcesses;
+
+    /// <summary>Whether a process needs more rights than HeapScope has, so the check box is offered.</summary>
+    [ObservableProperty]
+    private bool _canShowHiddenProcesses;
+
+    /// <summary>How many processes are hidden and why, while they are; null otherwise.</summary>
+    [ObservableProperty]
+    private string? _hiddenNote;
+
     public ObservableCollection<SnapshotCard> Snapshots { get; } = [];
 
     public IReadOnlyList<string> RearmModes { get; } = ["below", "once", "step"];
@@ -235,19 +250,36 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         try
         {
             var processes = await _capture.ListProcessesAsync(CancellationToken.None);
-            var selected = SelectedProcess?.ProcessId;
-            Processes.Clear();
-            foreach (var process in processes)
-            {
-                Processes.Add(ProcessRow.From(process));
-            }
-
-            SelectedProcess = Processes.FirstOrDefault(p => p.ProcessId == selected);
+            _filter.Replace(processes.Select(ProcessRow.From));
+            ShowRows();
+            _filter.Log(_logger, "Live", toggled: false);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
             Status = "The process list could not be read: " + ex.Message;
         }
+    }
+
+    partial void OnShowHiddenProcessesChanged(bool value)
+    {
+        _filter.ShowHidden = value;
+        ShowRows();
+        _filter.Log(_logger, "Live", toggled: true);
+    }
+
+    /// <summary>Shows the rows the filter lets through and keeps the choice while its row is shown (sprint 4.1.1).</summary>
+    private void ShowRows()
+    {
+        var selected = SelectedProcess?.ProcessId;
+        Processes.Clear();
+        foreach (var row in _filter.Visible)
+        {
+            Processes.Add(row);
+        }
+
+        SelectedProcess = Processes.FirstOrDefault(p => p.ProcessId == selected);
+        CanShowHiddenProcesses = _filter.AnyNeedMoreRights;
+        HiddenNote = _filter.Hidden.Count > 0 ? HeapScope.Application.Sessions.RightsTexts.HiddenNote(_filter.Hidden.Count) : null;
     }
 
     private bool CanStart() => !IsRunning;

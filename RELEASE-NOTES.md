@@ -9,6 +9,8 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 | Version | Released |
 |---|---|
+| 4.2.0 | 2026-11-23, `v4.2.0` |
+| 3.13.2 | 2026-11-20, `v3.13.2` |
 | 3.13.1 | 2026-11-19, `v3.13.1` |
 | 3.13.0 | 2026-11-17, `v3.13.0` |
 | 3.9.0 | 2026-11-02, `v3.9.0` |
@@ -17,6 +19,44 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 | 2.2.0 | 2026-10-25, `v2.2.0` |
 
 Everything else was built on `develop` and first shipped in the next release above it.
+
+## 4.2.0: Capture on macOS (sprint 4.2)
+
+- **Capture on macOS, untested**: the process list, full dumps, gcdumps, the Live page, allocation recording and the
+  tutorial's sample are built for macOS as on Windows and Linux. They are built on Linux and nobody has run them on a Mac: if
+  a capture fails, take a dump with `dotnet-dump` and open it. [INSTALL.md](INSTALL.md) says how to try every kind of capture
+  with one script and report how it went.
+- **Who can capture whom on macOS**: a process that runs as your user. Another user's process is marked "Needs its user".
+  macOS may refuse a full dump of an application that is not signed to allow it; a gcdump does not need that. When a capture
+  is refused, HeapScope says what to change, and changes nothing itself.
+- **Dumps that cannot be written (Linux)**: a folder the runtime may not write is named as that, no longer as a ptrace refusal,
+  when the runtime reports "Operation not permitted" for the dump's file.
+- **The log says more (every system)**: what a full dump's size estimate rests on and the free space, whether the DAC was copied
+  beside the dump, and on Linux why a listed process did not answer.
+
+## 4.1.1: Hide processes HeapScope cannot capture (sprint 4.1.1)
+
+- **The process lists show what you can capture**: the Processes page and the Live page hide the processes HeapScope
+  cannot capture as it runs now (those that run elevated or as another user; on Linux, other users' processes), and a
+  note says how many. Check "Show elevated processes" (on Linux, "Show other users' processes") to list them, marked with
+  what they need. Run HeapScope as administrator (or as root) and every process is listed.
+- **Unchanged**: `heapscope-cli list` lists every process with its mark, so scripts keep working.
+
+## 4.1.0: Capture on Linux (sprint 4.1)
+
+- **Capture on Linux**: the Processes page and `heapscope-cli` list the .NET processes you can capture, take full dumps
+  and gcdumps, watch the Live page and record allocations on Linux, as on Windows. The tutorial's sample and lessons run
+  there too.
+- **Who can capture whom on Linux**: a process that runs as your user, yes. Another user's process is marked "Needs root or
+  its user": run HeapScope as that user, or as root (`sudo`) for everything but a full dump into HeapScope's own folders
+  (the runtime writes a full dump as the process's user; on the command line, `--out` can name a folder that user can
+  write).
+- **Refusals that say what to change**: when the system stops a capture (`kernel.yama.ptrace_scope`, a container without
+  `SYS_PTRACE`), the process turned its diagnostics off, keeps its socket in another `TMPDIR` or has its own `/tmp` (a
+  service with PrivateTmp), HeapScope says so and what to change. It never changes system settings itself, and its log
+  keeps what each refusal rests on.
+- **Limits**: capture on macOS is not built yet (sprint 4.2): take a dump with `dotnet-dump` and open it. Linux was
+  proven in CI on Ubuntu; HeapScope finds a process only through the diagnostics socket in its own temp folder.
 
 ## 3.13.2: Dump values in logs, by consent (sprint 3.13.2)
 

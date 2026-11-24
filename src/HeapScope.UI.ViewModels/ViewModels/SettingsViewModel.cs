@@ -224,10 +224,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 return;
             }
 
-            var question = string.Create(
-                CultureInfo.CurrentCulture,
-                $"This deletes HeapScope's logs and its whole library: {plan.Sessions} sessions, {plan.Files.Files.Count} files, {Format.Bytes(plan.Files.Bytes)}. Dumps you opened from your own folders stay. This cannot be undone.");
-            var yes = await _interaction.ConfirmAsync("Delete everything HeapScope keeps?", question, "Delete everything", "Cancel");
+            var yes = await _interaction.ConfirmAsync(PurgeAllTitle, DescribePurgeAll(plan), PurgeAllConfirm, PurgeAllCancel);
             _logger?.LogInformation("Asked to purge all ({Sessions} sessions, {Files} files, {Bytes} bytes); the user answered {Answer}", plan.Sessions, plan.Files.Files.Count, plan.Files.Bytes, yes ? "yes" : "no");
             if (!yes)
             {
@@ -254,6 +251,26 @@ public sealed partial class SettingsViewModel : ObservableObject
             IsBusy = false;
         }
     }
+
+    public const string PurgeAllTitle = "Delete everything HeapScope keeps?";
+
+    public const string PurgeAllConfirm = "Delete everything";
+
+    public const string PurgeAllCancel = "Cancel";
+
+    /// <summary>
+    /// What Purge all would ask now, without asking: the screenshot run shows it in the real question window and answers
+    /// Cancel itself (sprint 4.1), since a smoke run answers every question yes. Null when HeapScope refuses to purge now.
+    /// </summary>
+    public async Task<string?> PurgeAllQuestionAsync()
+    {
+        var plan = await Task.Run(_settings.PlanPurgeAll);
+        return plan.Refused is null ? DescribePurgeAll(plan) : null;
+    }
+
+    private static string DescribePurgeAll(PurgePlan plan) => string.Create(
+        CultureInfo.CurrentCulture,
+        $"This deletes HeapScope's logs and its whole library: {plan.Sessions} sessions, {plan.Files.Files.Count} files, {Format.Bytes(plan.Files.Bytes)}. Dumps you opened from your own folders stay. This cannot be undone.");
 
     private static string Stopped(Exception ex) => string.Create(
         CultureInfo.CurrentCulture,
