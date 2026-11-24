@@ -19,6 +19,20 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.2.0: Capture on macOS (sprint 4.2)
+
+- **Capture on macOS, untested**: the process list, full dumps, gcdumps, the Live page, allocation recording and the
+  tutorial's sample are built for macOS as on Windows and Linux. They are built on Linux and nobody has run them on a Mac: if
+  a capture fails, take a dump with `dotnet-dump` and open it. [INSTALL.md](INSTALL.md) says how to try every kind of capture
+  with one script and report how it went.
+- **Who can capture whom on macOS**: a process that runs as your user. Another user's process is marked "Needs its user".
+  macOS may refuse a full dump of an application that is not signed to allow it; a gcdump does not need that. When a capture
+  is refused, HeapScope says what to change, and changes nothing itself.
+- **Dumps that cannot be written (Linux)**: a folder the runtime may not write is named as that, no longer as a ptrace refusal,
+  when the runtime reports "Operation not permitted" for the dump's file.
+- **The log says more (every system)**: what a full dump's size estimate rests on and the free space, whether the DAC was copied
+  beside the dump, and on Linux why a listed process did not answer.
+
 ## 4.1.1: Hide processes HeapScope cannot capture (sprint 4.1.1)
 
 - **The process lists show what you can capture**: the Processes page and the Live page hide the processes HeapScope

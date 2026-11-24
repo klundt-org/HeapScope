@@ -158,3 +158,9 @@ was read against the code. Changed: ADR-014, ADR-025, ADR-042 and the ADR index,
 `logging.md`, `security-privacy.md`, `docs/DEVELOPER.md`, `docs/BACKLOG.md`, `docs/SPRINTS.md`, `docs/USER-GUIDE.md`,
 `docs/design/info-text.md`, `README.md`, `INSTALL.md`, the CLI's `README.md`. No em or en dashes in the changed files.
 THIRD-PARTY-NOTICES.md holds (no package changed).
+
+## Peer review before the merge
+
+Owner, 2026-11-23: a very quick review with fresh eyes for anything glaring. It read the whole diff (nothing was run) and found
+nothing High or Moderate. It asked that the CLI's release notes no longer say macOS capture is not built (done at close) and
+noted a stale comment in `ProcessesPage.axaml` (fixed).
