@@ -36,6 +36,7 @@ namespace HeapScope.Integration.Tests;
 /// failure only with the same base: with <c>HEAPSCOPE_FUZZ_KEEP</c> set to a folder, the base and a failing input are kept
 /// there, and <c>HEAPSCOPE_FUZZ_TRACE</c> names a kept base to replay from. Fixture data only.
 /// </summary>
+[Collection(nameof(HeavyTestsCollection))]
 [Trait("Category", "Integration")]
 public sealed class CraftedTraceTests : IDisposable
 {
@@ -63,9 +64,10 @@ public sealed class CraftedTraceTests : IDisposable
         // The base itself must read, or every copy's refusal would say nothing.
         AllocationTraceReader.Read(basePath, null, _folder.File("etlx"), token).SampleCount.ShouldBeGreaterThan(0);
 
+        var (opened, refused) = (0, 0);
         for (var i = 0; i < iterations; i++)
         {
-            // Each iteration has its own numbers, so one replays alone.
+            // Alone in the process (its collection), since the memory counted is the process's. Each iteration has its own numbers, so one replays alone.
             var random = new Random(HashCode(seed, i));
             var bytes = (byte[])original.Clone();
             for (var changes = random.Next(1, 8); changes > 0; changes--)
@@ -73,6 +75,11 @@ public sealed class CraftedTraceTests : IDisposable
                 // The event descriptions sit near the start: favor the first kilobytes.
                 var at = random.Next(3) == 0 ? random.Next(bytes.Length) : random.Next(Math.Min(bytes.Length, 16_384));
                 bytes[at] = (byte)random.Next(256);
+            }
+
+            if (random.Next(8) == 0)
+            {
+                Array.Resize(ref bytes, random.Next(bytes.Length));
             }
 
             // A file of its own: TraceEvent leaves one it fails to open in use until the next collection (the worker collects
@@ -90,11 +97,17 @@ public sealed class CraftedTraceTests : IDisposable
                 {
                     try
                     {
-                        AllocationTraceReader.Read(mutated, null, _folder.File("etlx"), token);
+                        var trace = AllocationTraceReader.Read(mutated, null, _folder.File("etlx"), token);
+
+                        // What opening a trace does with it: damaged amounts may not overflow the total.
+                        trace.SampleBytes.Sum().ShouldBeGreaterThanOrEqualTo(0);
+                        opened++;
                     }
-                    catch (SnapshotFormatException)
+                    catch (SnapshotFormatException ex)
                     {
                         // Refused with a reason: the expected answer for many mutations.
+                        ex.Message.ShouldContain("record", Case.Insensitive);
+                        refused++;
                     }
                 },
                 token);
@@ -118,6 +131,14 @@ public sealed class CraftedTraceTests : IDisposable
 
             allocated.ShouldBeLessThan(MostBytes, $"seed {seed}, iteration {i}: the read allocated {allocated:N0} bytes");
             Delete(mutated);
+        }
+
+        TestContext.Current.TestOutputHelper?.WriteLine($"{opened} read, {refused} refused");
+        if (iterations >= 20)
+        {
+            // Refusing everything, or nothing, would pass the rest.
+            opened.ShouldBeGreaterThan(0);
+            refused.ShouldBeGreaterThan(0);
         }
     }
 

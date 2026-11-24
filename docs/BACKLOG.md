@@ -330,6 +330,9 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   second source (better statistics on runtimes that have it); a streaming trace reader for long, busy traces
   (TraceEvent's conversion cannot be canceled and holds about 2 bytes per file byte while it runs; 72 MB read in 1.9 s);
   choosing a timeline interval from the keyboard (2.7's keyboard work).
+- From the 4.2.1 review (decided autonomously): traces of nettrace version 6 (newer tools write it; refused since 4.2.1, as
+  nothing checks them): extend the check and test it against a recorded one. One handle held from the check to the conversion.
+  The `allocations` benchmark before and after a change of the sample loop, recorded each time.
 - From the 2.5 review (decided autonomously): extract one flattened-tree builder (children order, batches, "more"
   rows, the row limit) and one set of tree keys and limits in Contracts from the dominator and allocation trees when a
   third tree arrives (2.6 or Compare's link), with their view models' shared parts (M5); progress on the timeline,

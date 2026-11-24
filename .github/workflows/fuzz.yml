@@ -1,7 +1,7 @@
-# HeapScope nightly fuzzing (sprint 3.7, peer review P13): the mutation tests of the index cache reader, the gcdump
-# loader and (since 4.2.1) the trace reader run with many more iterations than in CI, on a new seed every night (the run number). A failure names its seed
-# and iteration, so `HEAPSCOPE_FUZZ_SEED=<seed> HEAPSCOPE_FUZZ_ITERATIONS=<n>` replays it locally; the gcdump half also
-# needs the base gcdump it mutated (`HEAPSCOPE_FUZZ_BASE`), which is kept with the results, with any failing input and
+# HeapScope nightly fuzzing (sprint 3.7, peer review P13): the mutation tests of the index cache reader, the gcdump loader
+# and (since 4.2.1) the trace reader run with many more iterations than in CI, on a new seed every night (the run number). A failure names its seed
+# and iteration, so `HEAPSCOPE_FUZZ_SEED=<seed> HEAPSCOPE_FUZZ_ITERATIONS=<n>` replays it locally; the gcdump and
+# trace parts also need the base they mutated (`HEAPSCOPE_FUZZ_BASE`, `HEAPSCOPE_FUZZ_TRACE`), which is kept with the results, with any failing input and
 # the iteration in progress (fixture data from LeakyConsole only). A schedule runs on the default branch's copy of this
 # file, so it checks out develop explicitly: the nightly fuzzes the code in progress, not the last release.
 name: Fuzz

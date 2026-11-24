@@ -22,47 +22,96 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
+using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// What the reader asks TraceEvent while it builds its samples, each call in a method of its own that is never inlined: an
+/// What the reader asks TraceEvent of an opened trace, each call in a method of its own that is never inlined: an
 /// error thrown here, or in TraceEvent's own code, comes from the file, and one thrown anywhere else is HeapScope's and
 /// never reads as a bad file (the rule of the gcdump loader, 3.7 review H5). Without it the JIT may inline TraceEvent's
 /// accessors into the reader, and its errors would look like HeapScope's (as the gcdump loader's did, 4.2.1).
 /// </summary>
 internal static class TraceReads
 {
-    /// <summary>Whether <paramref name="ex"/> was thrown by TraceEvent reading the file: the first frame that is not the runtime's decides.</summary>
-    public static bool IsFileError(Exception ex)
+    private static readonly Assembly s_traceEvent = typeof(TraceLog).Assembly;
+
+    private static readonly Assembly s_fastSerialization = typeof(FastSerialization.IOStreamStreamReader).Assembly;
+
+    /// <summary>
+    /// Whether <paramref name="ex"/> was thrown by TraceEvent reading the file. The disk, access and memory are not the file's
+    /// fault: the temporary file is HeapScope's own.
+    /// </summary>
+    public static bool IsFileError(Exception ex) =>
+        ex is not (OperationCanceledException or OutOfMemoryException or InsufficientExecutionStackException or UnauthorizedAccessException)
+        && ex is not IOException or EndOfStreamException
+        && Deciding(ex) is { } method
+        && (method.Module.Assembly == s_traceEvent || method.Module.Assembly == s_fastSerialization || method.DeclaringType == typeof(TraceReads));
+
+    /// <summary>Where an error was thrown, for the log: its type and the first method that is not the runtime's. No values.</summary>
+    public static string Origin(Exception ex) =>
+        $"{ex.GetType().Name} at {(Deciding(ex) is { } method ? $"{method.Module.Assembly.GetName().Name}, {method.DeclaringType?.Name}.{method.Name}" : "an unknown method")}";
+
+    /// <summary>The first frame that is not the runtime's.</summary>
+    private static MethodBase? Deciding(Exception ex)
     {
         foreach (var frame in new StackTrace(ex, fNeedFileInfo: false).GetFrames())
         {
             var method = frame.GetMethod();
             var assembly = method?.Module.Assembly.GetName().Name;
-            if (assembly is null || assembly.StartsWith("System.", StringComparison.Ordinal))
+            if (assembly is not null && !assembly.StartsWith("System.", StringComparison.Ordinal))
             {
-                continue;
+                return method;
             }
-
-            return assembly is "Microsoft.Diagnostics.Tracing.TraceEvent" or "Microsoft.Diagnostics.FastSerialization" || method!.DeclaringType == typeof(TraceReads);
         }
 
-        return false;
+        return null;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static TraceLog Open(string etlx) => new(etlx);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    public static TraceLogEventSource Source(TraceLog log) => log.Events.GetSource();
+
+    /// <summary>How many events of a provider's kind the trace counts.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static long Count(TraceLog log, int eventId)
+    {
+        long count = 0;
+        foreach (var counts in log.Stats)
+        {
+            if (counts.ProviderGuid == ClrTraceEventParser.ProviderGuid && (int)counts.EventID == eventId)
+            {
+                count += counts.Count;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>When the recording started (UTC), how long it ran in milliseconds, and the events lost.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static (DateTime StartUtc, double DurationMs, int Lost) Session(TraceLog log) =>
+        (log.SessionStartTime.ToUniversalTime(), log.SessionDuration.TotalMilliseconds, log.EventsLost);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static bool IsRundown(TraceEvent e) => e.ProviderGuid == ClrRundownTraceEventParser.ProviderGuid;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public static TraceSample Sample(GCAllocationTickTraceData data) =>
         new(data.TypeName, data.CallStackIndex(), data.TimeStampRelativeMSec, data.AllocationAmount64, data.AllocationKind);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public static (int Id, string? Name) Process(GCAllocationTickTraceData data) => (data.ProcessID, data.ProcessName);
+    public static int ProcessId(GCAllocationTickTraceData data) => data.ProcessID;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static string? ProcessName(GCAllocationTickTraceData data) => data.ProcessName;
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static CallStackIndex Caller(TraceLog log, CallStackIndex stack) => log.CallStacks.Caller(stack);

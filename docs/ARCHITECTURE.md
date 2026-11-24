@@ -174,7 +174,7 @@ tests/
   HeapScope.Capture.Tests      Capture preflight (elevation, disk, partial files) with fakes; the real probe.
   HeapScope.Application.Tests  Job tracking, logging and worker client logic with fakes.
   HeapScope.Cli.Tests          The CLI in process: usage errors, tables as text, cells by name (sprint 3.8).
-  HeapScope.Worker.Tests       Worker internals: result set store, progress throttling, error mapping.
+  HeapScope.Worker.Tests       Worker internals: result set store, progress throttling, error mapping; the trace file check [4.2.1].
   HeapScope.UI.ViewModels.Tests View model tests (no windows are shown; they run on every system).
   HeapScope.UI.Tests           The app's views on Avalonia's headless platform: every page, the grids over 1.5 million
                                rows, the attribution markup and the themes (sprint 2.3.6).

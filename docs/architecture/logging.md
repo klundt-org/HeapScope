@@ -248,6 +248,11 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   node and first 16 frames);
   user actions on the page (an interval, a type, an expansion, the tree kind) log under a `HeapScope.Allocations`
   activity whose trace id the worker's answer lines carry. Never event payloads beyond type names and sizes.
+  Since 4.2.1 the opening line also says what the check walked ("check 1: whole|cut short|another tag at byte N, blocks,
+  descriptions, fields"), and "Refused allocation trace ..." gives the same identity and versions with the rule and the byte,
+  or, for a file TraceEvent failed on, the exception's type and the method that threw it ("X at assembly, type.method"), the
+  check and TraceEvent's own problem lines. That method decides whether the file or HeapScope is at fault (the first that is
+  not the runtime's); its stack is logged at Debug.
 - Hardening (sprint 3.7): the worker logs where its index cache key came from (`Index cache key {Path}: Loaded`,
   `Created`, `ReplacedDamaged`) or, when the key file can be neither read nor created, a Warning naming the path, the
   error and the next step (this run signs with a key of its own; ADR-036). A cache not used logs its reason with the

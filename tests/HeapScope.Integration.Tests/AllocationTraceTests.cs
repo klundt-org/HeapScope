@@ -147,6 +147,80 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
     }
 
     [Fact]
+    public void The_check_walks_the_whole_of_a_trace_the_runtime_wrote()
+    {
+        // 4.2.1: every block to the end tag, and the descriptions in them. A walk that stopped early would pass quietly.
+        using var stream = new FileStream(_shared.TracePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var result = TraceFileCheck.Check(stream, _shared.TracePath, TestContext.Current.CancellationToken);
+
+        result.End.ShouldBe(TraceCheckResult.Whole);
+        result.Bytes.ShouldBe(stream.Length - 1);
+        result.Descriptions.ShouldBeGreaterThan(10);
+    }
+
+    [Theory]
+    [InlineData(0.9)]
+    [InlineData(0.6)]
+    [InlineData(0.35)]
+    public void A_trace_cut_short_still_opens_with_what_came_before(double part)
+    {
+        var bytes = File.ReadAllBytes(_shared.TracePath);
+        var path = _scratch.File($"cut-{part.ToString(CultureInfo.InvariantCulture)}.nettrace");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, bytes[..(int)(bytes.Length * part)]);
+
+        var cut = AllocationTraceReader.Read(path, null, TestContext.Current.CancellationToken);
+
+        cut.SampleCount.ShouldBeGreaterThan(0);
+        cut.Info.IsIncomplete.ShouldBeTrue();
+        cut.Info.Checked.ShouldNotBeNull().ShouldContain(TraceCheckResult.CutShort);
+    }
+
+    [Fact]
+    public async Task The_check_accepts_what_an_event_source_describes()
+    {
+        // Numbers, text, structs, arrays, arrays of structs: the runtime describes them in the two lists the check reads.
+        var path = _scratch.File("source.nettrace");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var source = new System.Diagnostics.Tracing.EventSource("HeapScope-Check-Test", System.Diagnostics.Tracing.EventSourceSettings.EtwSelfDescribingEventFormat);
+        using (var manifest = new DescribedEvents())
+        {
+            var client = new Microsoft.Diagnostics.NETCore.Client.DiagnosticsClient(Environment.ProcessId);
+            Microsoft.Diagnostics.NETCore.Client.EventPipeProvider[] providers =
+            [
+                new("HeapScope-Check-Test", System.Diagnostics.Tracing.EventLevel.Verbose),
+                new("HeapScope-Check-Manifest", System.Diagnostics.Tracing.EventLevel.Verbose),
+            ];
+            using var session = await client.StartEventPipeSessionAsync(providers, requestRundown: false, token: TestContext.Current.CancellationToken);
+            await using var file = File.Create(path);
+            var copy = session.EventStream.CopyToAsync(file, TestContext.Current.CancellationToken);
+            source.Write("Rich", new { Count = 1, Name = "n", Inner = new { A = 2L, Deep = new { B = 3.5 } }, Numbers = new[] { 1, 2 }, Many = new[] { new { C = 1 } } });
+            manifest.Plain(1, "text", 2.5, Guid.Empty);
+            manifest.Bytes([1, 2, 3]);
+            await Task.Delay(300, TestContext.Current.CancellationToken);
+            await session.StopAsync(TestContext.Current.CancellationToken);
+            await copy;
+        }
+
+        await using var written = File.OpenRead(path);
+        var result = TraceFileCheck.Check(written, path, TestContext.Current.CancellationToken);
+
+        result.End.ShouldBe(TraceCheckResult.Whole);
+        result.Descriptions.ShouldBeGreaterThanOrEqualTo(3);
+        result.Fields.ShouldBeGreaterThan(4);
+    }
+
+    [System.Diagnostics.Tracing.EventSource(Name = "HeapScope-Check-Manifest")]
+    private sealed class DescribedEvents : System.Diagnostics.Tracing.EventSource
+    {
+        [System.Diagnostics.Tracing.Event(1)]
+        public void Plain(int count, string name, double amount, Guid id) => WriteEvent(1, count, name, amount, id);
+
+        [System.Diagnostics.Tracing.Event(2)]
+        public void Bytes(byte[] data) => WriteEvent(2, data);
+    }
+
+    [Fact]
     public async Task A_recording_whose_process_exits_has_no_rundown_and_says_so()
     {
         using var api = await FixtureProcess.StartApiAsync();

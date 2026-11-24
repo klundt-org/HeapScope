@@ -25,3 +25,12 @@
   share a row, and joining trace types to a diff's rows (name and module) needs the tick's type id and the module, kept
   with the Compare item. TraceEvent's conversion cannot be canceled: a cancel takes effect when it returns (the job's
   status says so); reading the samples after it checks the token every 4,096 events.
+- Amended in 4.2.1: HeapScope walks a trace's blocks itself before TraceEvent reads it (`TraceFileCheck`) and refuses sizes,
+  field counts and nesting the file cannot hold. It covers nettrace version 4, which the .NET runtime writes, and follows
+  TraceEvent 4.0's own reading of it: where TraceEvent stops (a file cut short, another tag) the walk stops, and what came
+  before is read as it was. Any other version is refused, since nothing checks it. All the field lists of an event's
+  description share one budget, a field per six bytes of its record; a block of descriptions is at most 1 MB and types nest at
+  most 64 deep. A file the check lets through and TraceEvent then fails on is refused as well (`TraceReads` tells its errors
+  from HeapScope's), and memory that runs out while converting, which TraceEvent takes as the trace's end, is reported as
+  such. Look at the check again when TraceEvent or the runtime's format changes. 4.3's live reader needs it resumable: the
+  walk keeps its place in a file that grows, and only whole, checked blocks reach TraceEvent.

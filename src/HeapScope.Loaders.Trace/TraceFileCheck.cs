@@ -21,8 +21,9 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using System.Buffers;
 using System.Buffers.Binary;
-using System.Text;
+using System.Globalization;
 using HeapScope.Core;
 
 namespace HeapScope.Loaders.Trace;
@@ -30,303 +31,425 @@ namespace HeapScope.Loaders.Trace;
 /// <summary>
 /// Checks that what a trace file states fits in it, before TraceEvent reads it (4.2.1): the size of each block, and the
 /// fields each event description states. Walks the block headers and reads only the description blocks, so a long trace
-/// costs little. It covers the format the .NET runtime writes (nettrace version 4); a file cut short is left to the reader,
-/// which keeps what was recorded.
+/// costs little. It follows TraceEvent's own reading of nettrace version 4, the one the .NET runtime writes, tag by tag:
+/// where TraceEvent stops (a file cut short, another tag) the walk stops, and what it accepts here it has been shown to fit.
+/// Any other version is refused, since nothing checks it. Look at it again when TraceEvent or the runtime's format changes.
 /// </summary>
 internal static class TraceFileCheck
 {
-    /// <summary>The runtime's blocks hold about 100 KB: one that states more than this and ends past the file was never written.</summary>
-    private const int LargestTornBlock = 64 * 1024 * 1024;
+    /// <summary>Changes when what is refused changes (the worker's versions line).</summary>
+    public const int Version = 1;
 
     /// <summary>Structs inside structs: the runtime's own events have none, and event sources a few levels.</summary>
     internal const int DeepestType = 64;
 
-    /// <summary>"Nettrace", then the length and text of the serialization header.</summary>
-    private static readonly byte[] s_serialization = Encoding.ASCII.GetBytes("!FastSerialization.1");
+    /// <summary>The runtime's description blocks hold about 100 KB at most.</summary>
+    internal const int LargestDescriptions = 1024 * 1024;
+
+    /// <summary>A block that states more than this and ends past the file was never written (the runtime's hold about 100 KB).</summary>
+    private const int LargestTornBlock = 64 * 1024 * 1024;
+
+    private const byte EndOfTrace = 1;
+    private const byte BeginObject = 5;
+    private const byte EndObject = 6;
+    private const byte NullReference = 1;
+    private const int TraceVersion = 4;
+    private const int TraceObjectBytes = 48;
+
+    /// <summary>Begin object, begin type, null reference, version, minimum reader version, the length of the type's name.</summary>
+    private const int PreambleBytes = 3 + 4 + 4 + 4;
+
+    private const int StructType = 1;
+    private const int ArrayType = 19;
+    private const byte FieldsTag = 2;
 
     /// <param name="stream">The trace, at its start.</param>
-    /// <exception cref="SnapshotFormatException">The file states what it cannot hold.</exception>
-    public static void Check(Stream stream, string path, CancellationToken cancellationToken)
+    /// <exception cref="SnapshotFormatException">The file states what it cannot hold, or is another version of the format.</exception>
+    public static TraceCheckResult Check(Stream stream, string path, CancellationToken cancellationToken)
     {
         var length = stream.Length;
         Span<byte> head = stackalloc byte[8 + 4 + 20];
-        if (!TryRead(stream, head) || BinaryPrimitives.ReadInt32LittleEndian(head[8..]) != s_serialization.Length || !head[12..].SequenceEqual(s_serialization))
+        if (!TryRead(stream, head) || BinaryPrimitives.ReadInt32LittleEndian(head[8..]) != 20 || !head[12..].SequenceEqual("!FastSerialization.1"u8))
         {
-            // Another version of the format: its counts are 16 bits, and the reader's thread has room for what it nests.
-            return;
+            throw new SnapshotFormatException($"{path} is in a version of the trace format HeapScope does not read. Record the trace with HeapScope, or with dotnet-trace's nettrace format.");
         }
 
         Span<byte> word = stackalloc byte[4];
-        Span<byte> name = stackalloc byte[64];
+        Span<byte> preamble = stackalloc byte[PreambleBytes];
+        Span<byte> nameBuffer = stackalloc byte[64];
+        var (blocks, descriptions, fields) = (0, 0, 0L);
+        var first = true;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            // Begin object (5), begin type (5), null reference (1), version, minimum reader version, the name's length.
-            if (!TryRead(stream, name[..15]) || name[0] != 5)
+            var at = stream.Position;
+            TraceCheckResult Stopped(string end) => new(end, at, blocks, descriptions, fields);
+            if (!TryRead(stream, preamble[..1]))
             {
-                // The end of the file (1), a file cut short, or what TraceEvent itself refuses.
-                return;
+                return Stopped(TraceCheckResult.CutShort);
             }
 
-            var nameLength = BinaryPrimitives.ReadInt32LittleEndian(name[11..]);
-            if (nameLength <= 0 || nameLength > name.Length)
+            if (preamble[0] == EndOfTrace)
             {
-                throw Refuse(path, $"has a block whose name is stated to be {nameLength:N0} bytes long");
+                return Stopped(TraceCheckResult.Whole);
             }
 
-            // The name and the type's end tag.
-            var type = name[..nameLength];
+            if (!TryRead(stream, preamble[1..]))
+            {
+                return Stopped(preamble[0] == BeginObject ? TraceCheckResult.CutShort : TraceCheckResult.OtherTag);
+            }
+
+            if (preamble[0] != BeginObject || preamble[1] != BeginObject || preamble[2] != NullReference)
+            {
+                return Stopped(TraceCheckResult.OtherTag);
+            }
+
+            var version = BinaryPrimitives.ReadInt32LittleEndian(preamble[3..]);
+            var nameLength = BinaryPrimitives.ReadInt32LittleEndian(preamble[11..]);
+            if (nameLength <= 0 || nameLength > nameBuffer.Length)
+            {
+                throw Refuse(path, at, "block name", $"a block's name is stated to be {nameLength:N0} bytes long");
+            }
+
+            var type = nameBuffer[..nameLength];
             if (!TryRead(stream, type) || !TryRead(stream, word[..1]))
             {
-                return;
+                return Stopped(TraceCheckResult.CutShort);
             }
 
-            var description = type.SequenceEqual("MetadataBlock"u8);
-            if (type.SequenceEqual("Trace"u8))
+            if (word[0] != EndObject)
             {
-                stream.Position += 48 + 1;
-                continue;
+                return Stopped(TraceCheckResult.OtherTag);
             }
 
-            if (!TryRead(stream, word))
+            if (first != type.SequenceEqual("Trace"u8) || (first && version != TraceVersion))
             {
-                return;
+                throw Refuse(path, at, "version", first ? $"it does not start as a trace of version {TraceVersion} (version {version:N0})" : "it has a second start");
             }
 
-            var size = BinaryPrimitives.ReadInt32LittleEndian(word);
-            stream.Position = (stream.Position + 3) & ~3L;
-            var left = length - stream.Position;
-            if (size < 0 || (size > left && size > LargestTornBlock))
+            if (first)
             {
-                throw Refuse(path, $"has a block stated to be {size:N0} bytes long, with {Math.Max(0, left):N0} bytes left in the file");
-            }
+                first = false;
+                if (length - stream.Position < TraceObjectBytes + 1)
+                {
+                    return Stopped(TraceCheckResult.CutShort);
+                }
 
-            if (size > left)
-            {
-                return;
-            }
-
-            if (description)
-            {
-                var block = new byte[size];
-                stream.ReadExactly(block);
-                CheckDescriptions(block, path);
-                stream.Position++;
+                stream.Position += TraceObjectBytes;
             }
             else
             {
-                stream.Position += size + 1;
+                if (!TryRead(stream, word))
+                {
+                    return Stopped(TraceCheckResult.CutShort);
+                }
+
+                var size = BinaryPrimitives.ReadInt32LittleEndian(word);
+                stream.Position = (stream.Position + 3) & ~3L;
+                var left = Math.Max(0, length - stream.Position);
+                if (size < 0 || (size > left && size > LargestTornBlock))
+                {
+                    throw Refuse(path, at, "block size", $"a block is stated to be {size:N0} bytes long, with {left:N0} bytes left in the file");
+                }
+
+                if (size > left)
+                {
+                    return Stopped(TraceCheckResult.CutShort);
+                }
+
+                if (type.SequenceEqual("MetadataBlock"u8))
+                {
+                    if (size > LargestDescriptions)
+                    {
+                        throw Refuse(path, at, "description block size", $"a block of event descriptions is {size:N0} bytes long, more than HeapScope reads ({LargestDescriptions:N0})");
+                    }
+
+                    var start = stream.Position;
+                    var block = ArrayPool<byte>.Shared.Rent(size);
+                    try
+                    {
+                        if (!TryRead(stream, block.AsSpan(0, size)))
+                        {
+                            return Stopped(TraceCheckResult.CutShort);
+                        }
+
+                        CheckDescriptions(block.AsSpan(0, size), path, start, ref descriptions, ref fields, cancellationToken);
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(block);
+                    }
+                }
+                else
+                {
+                    stream.Position += size;
+                }
+            }
+
+            blocks++;
+            if (!TryRead(stream, word[..1]))
+            {
+                return Stopped(TraceCheckResult.CutShort);
+            }
+
+            if (word[0] != EndObject)
+            {
+                return Stopped(TraceCheckResult.OtherTag);
             }
         }
     }
 
     /// <summary>A block of event descriptions: every field count must fit in its record.</summary>
-    internal static void CheckDescriptions(ReadOnlySpan<byte> block, string path)
+    private static void CheckDescriptions(ReadOnlySpan<byte> block, string path, long start, ref int descriptions, ref long fields, CancellationToken cancellationToken)
     {
-        var reader = new Reader(block, path);
-        var headerSize = (int)reader.UInt16();
+        var reader = new Reader(block, path, start);
+        var headerSize = (int)reader.UInt16("block header");
         if (headerSize < 20)
         {
-            throw Refuse(path, $"has a block whose header is stated to be {headerSize:N0} bytes long");
+            throw Refuse(path, start, "block header", $"a block's header is stated to be {headerSize:N0} bytes long");
         }
 
-        var compressed = (reader.UInt16() & 1) != 0;
-        reader.Bytes(headerSize - 4);
+        var compressed = (reader.UInt16("block header") & 1) != 0;
+        reader.Bytes(headerSize - 4, "block header");
         var payloadSize = 0;
         while (reader.Left > 0)
         {
+            if ((++descriptions & 0xFFF) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             payloadSize = compressed ? CompressedHeader(ref reader, payloadSize) : PlainHeader(ref reader);
-            var record = new Reader(reader.Bytes(payloadSize), path);
-            CheckDescription(ref record);
+            var record = reader.Part(payloadSize, "record size");
+
+            // Every field takes six bytes of its record at least (a type and an empty name), so all the lists of a
+            // description together can state no more than that: one budget, since the reader allocates for each list.
+            var all = record.Left / LeastFieldBytes;
+            var budget = all;
+            CheckDescription(ref record, ref budget);
+            fields += all - budget;
         }
     }
 
+    private const int LeastFieldBytes = 4 + 2;
+
     private static int PlainHeader(ref Reader reader)
     {
-        // Size, description id, sequence number, thread, capturing thread, processor, stack, time, two activity ids.
-        reader.Bytes(4 + 4 + 4 + 8 + 8 + 4 + 4 + 8 + 16 + 16);
-        return reader.Int32();
+        // Size, description id, sequence number, thread, capturing thread, processor, stack, time, two activity ids. TraceEvent
+        // steps by the payload's size in a block of descriptions, not by the record's, and so does this.
+        reader.Bytes(4 + 4 + 4 + 8 + 8 + 4 + 4 + 8 + 16 + 16, "record header");
+        return reader.Int32("record header");
     }
 
     private static int CompressedHeader(ref Reader reader, int previousPayloadSize)
     {
-        var flags = reader.Byte();
+        const string rule = "record header";
+        var flags = reader.Byte(rule);
         if ((flags & 1) != 0)
         {
-            reader.VarUInt();
+            // The description's id.
+            reader.VarUInt(5);
         }
 
         if ((flags & 2) != 0)
         {
-            reader.VarUInt();
-            reader.VarUInt();
-            reader.VarUInt();
+            // Sequence number, capturing thread, processor.
+            reader.VarUInt(5);
+            reader.VarUInt(10);
+            reader.VarUInt(5);
         }
 
         if ((flags & 4) != 0)
         {
-            reader.VarUInt();
+            // Thread.
+            reader.VarUInt(10);
         }
 
         if ((flags & 8) != 0)
         {
-            reader.VarUInt();
+            // Stack.
+            reader.VarUInt(5);
         }
 
-        reader.VarUInt();
+        // Time.
+        reader.VarUInt(10);
         if ((flags & 16) != 0)
         {
-            reader.Bytes(16);
+            // Activity.
+            reader.Bytes(16, rule);
         }
 
         if ((flags & 32) != 0)
         {
-            reader.Bytes(16);
+            // Related activity.
+            reader.Bytes(16, rule);
         }
 
-        return (flags & 128) != 0 ? (int)(uint)reader.VarUInt() : previousPayloadSize;
+        return (flags & 128) != 0 ? (int)(uint)reader.VarUInt(5) : previousPayloadSize;
     }
 
-    private static void CheckDescription(ref Reader reader)
+    private static void CheckDescription(ref Reader reader, ref int budget)
     {
+        const string rule = "description";
+
         // Id, provider, event id, event name, keywords, version, level.
-        reader.Int32();
-        reader.Text();
-        reader.Int32();
-        reader.Text();
-        reader.Bytes(8 + 4 + 4);
+        reader.Int32(rule);
+        reader.Text(rule);
+        reader.Int32(rule);
+        reader.Text(rule);
+        reader.Bytes(8 + 4 + 4, rule);
         if (reader.Left == 0)
         {
             return;
         }
 
-        CheckFields(ref reader, sized: false, depth: 0);
+        // TraceEvent gives up a list at a type it does not know and reads the tags from where it stopped: so does this, or a
+        // later list could be read there unchecked.
+        Understood(ref reader, sized: false, depth: 0, ref budget);
         while (reader.Left > 0)
         {
-            var tagLength = reader.Int32();
-            var tag = reader.Byte();
-            var body = new Reader(reader.Bytes(tagLength), reader.Path);
-            if (tag == 2)
+            var tagLength = reader.Int32("tag");
+            var tag = reader.Byte("tag");
+            var body = reader.Part(tagLength, "tag");
+            if (tag == FieldsTag)
             {
-                CheckFields(ref body, sized: true, depth: 0);
+                Understood(ref body, sized: true, depth: 0, ref budget);
             }
         }
     }
 
-    /// <summary>A list of fields. Sized fields (an optional later list) state their length and come name first.</summary>
-    /// <returns>False at a type this version of the format does not have: TraceEvent reads no further in the list.</returns>
-    private static bool CheckFields(ref Reader reader, bool sized, int depth)
+    /// <summary>
+    /// A list of fields; false when it holds a type this version of the format does not have, and the rest of the list was
+    /// not read. Sized fields (an optional later list) state their length and come name first.
+    /// </summary>
+    private static bool Understood(ref Reader reader, bool sized, int depth, ref int budget)
     {
         if (depth > DeepestType)
         {
-            throw Refuse(reader.Path, $"describes an event whose types are nested more than {DeepestType} deep");
+            throw TooDeep(reader);
         }
 
-        // The least a field takes: its type and an empty name, and its length when it states one.
-        var least = sized ? 4 + 2 + 4 : 4 + 2;
-        var count = reader.Int32();
-        if (count < 0 || count > reader.Left / least)
+        var count = reader.Int32("field count");
+        if (count < 0 || count > budget)
         {
-            throw Refuse(reader.Path, $"describes an event of {count:N0} fields in {reader.Left:N0} bytes");
+            throw Refuse(reader.Path, reader.Offset - 4, "field count", $"an event is described with {count:N0} fields, with room for {budget:N0}");
         }
 
+        budget -= count;
         for (var i = 0; i < count; i++)
         {
             if (sized)
             {
-                var field = new Reader(reader.Bytes(reader.Int32() - 4), reader.Path);
-                field.Text();
-                if (!CheckType(ref field, sized, depth))
+                var stated = reader.Int32("field size");
+                var field = reader.Part(stated >= 4 ? stated - 4 : -1, "field size");
+                field.Text("field name");
+                if (!UnderstoodType(ref field, sized, depth, ref budget))
                 {
                     return false;
                 }
             }
             else
             {
-                if (!CheckType(ref reader, sized, depth))
+                if (!UnderstoodType(ref reader, sized, depth, ref budget))
                 {
                     return false;
                 }
 
-                reader.Text();
+                reader.Text("field name");
             }
         }
 
         return true;
     }
 
-    private static bool CheckType(ref Reader reader, bool sized, int depth)
+    private static bool UnderstoodType(ref Reader reader, bool sized, int depth, ref int budget)
     {
-        var type = reader.Int32();
-        switch (type)
+        var type = reader.Int32("field type");
+        if (type == StructType)
         {
-            case 1:
-                return CheckFields(ref reader, sized, depth + 1);
-            case 19 when sized:
-                // An array: the type of its elements follows.
-                return depth < DeepestType
-                    ? CheckType(ref reader, sized, depth + 1)
-                    : throw Refuse(reader.Path, $"describes an event whose types are nested more than {DeepestType} deep");
-            default:
-                return type is >= 3 and <= 18;
+            return Understood(ref reader, sized, depth + 1, ref budget);
         }
+
+        if (type == ArrayType && sized)
+        {
+            // The type of its elements follows.
+            return depth < DeepestType ? UnderstoodType(ref reader, sized, depth + 1, ref budget) : throw TooDeep(reader);
+        }
+
+        // Bool (3) to a string (18).
+        return type is >= 3 and <= 18;
     }
 
-    private static SnapshotFormatException Refuse(string path, string what) =>
-        new($"{path} {what}. The file is damaged or crafted; record the trace again.");
+    private static SnapshotFormatException TooDeep(Reader reader) =>
+        Refuse(reader.Path, reader.Offset, "nesting", $"an event is described with types nested deeper than HeapScope reads ({DeepestType} levels)");
+
+    private static SnapshotFormatException Refuse(string path, long offset, string rule, string what) =>
+        new(string.Create(CultureInfo.CurrentCulture, $"{path} does not match the trace format at byte {offset:N0} ({rule}): {what}. If it was copied or downloaded, copy it again and compare its size with the original; otherwise record the trace again."));
 
     private static bool TryRead(Stream stream, Span<byte> into) =>
         stream.ReadAtLeast(into, into.Length, throwOnEndOfStream: false) == into.Length;
 
     /// <summary>Reads a record and refuses the file when it ends early.</summary>
-    private ref struct Reader(ReadOnlySpan<byte> bytes, string path)
+    private ref struct Reader(ReadOnlySpan<byte> bytes, string path, long offset)
     {
         private ReadOnlySpan<byte> _bytes = bytes;
+        private long _offset = offset;
 
         public readonly int Left => _bytes.Length;
 
         public readonly string Path => path;
 
-        public ReadOnlySpan<byte> Bytes(int count)
+        /// <summary>Where in the file the next byte is.</summary>
+        public readonly long Offset => _offset;
+
+        public ReadOnlySpan<byte> Bytes(int count, string rule)
         {
             if (count < 0 || count > _bytes.Length)
             {
-                throw Refuse(path, $"has an event description that needs {count:N0} bytes where {_bytes.Length:N0} are left");
+                throw Refuse(path, _offset, rule, $"{count:N0} bytes are needed where {_bytes.Length:N0} are left");
             }
 
             var taken = _bytes[..count];
             _bytes = _bytes[count..];
+            _offset += count;
             return taken;
         }
 
-        public byte Byte() => Bytes(1)[0];
-
-        public ushort UInt16() => BinaryPrimitives.ReadUInt16LittleEndian(Bytes(2));
-
-        public int Int32() => BinaryPrimitives.ReadInt32LittleEndian(Bytes(4));
-
-        /// <summary>A number in groups of 7 bits; only its length matters here, except a payload's size.</summary>
-        public ulong VarUInt()
+        /// <summary>The next bytes as a record of their own.</summary>
+        public Reader Part(int count, string rule)
         {
+            var start = _offset;
+            return new Reader(Bytes(count, rule), path, start);
+        }
+
+        public byte Byte(string rule) => Bytes(1, rule)[0];
+
+        public ushort UInt16(string rule) => BinaryPrimitives.ReadUInt16LittleEndian(Bytes(2, rule));
+
+        public int Int32(string rule) => BinaryPrimitives.ReadInt32LittleEndian(Bytes(4, rule));
+
+        /// <summary>A number in groups of 7 bits, at most <paramref name="groups"/>; only its length matters, except a payload's size.</summary>
+        public ulong VarUInt(int groups)
+        {
+            var start = _offset;
             var value = 0UL;
-            for (var shift = 0; shift < 70; shift += 7)
+            for (var i = 0; i < groups; i++)
             {
-                var part = Byte();
-                value |= (ulong)(part & 0x7F) << shift;
+                var part = Byte("number");
+                value |= (ulong)(part & 0x7F) << (7 * i);
                 if ((part & 0x80) == 0)
                 {
                     return value;
                 }
             }
 
-            throw Refuse(path, "has an event description with a number that does not end");
+            throw Refuse(path, start, "number", $"a number is longer than {groups} bytes");
         }
 
         /// <summary>UTF-16 text up to its terminating zero.</summary>
-        public void Text()
+        public void Text(string rule)
         {
-            while (UInt16() != 0)
+            while (UInt16(rule) != 0)
             {
                 // Only its end matters.
             }
