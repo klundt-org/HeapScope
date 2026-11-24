@@ -85,11 +85,14 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `CapturePlatform.ProcessFacts`): `WindowsProcessFacts` (the kernel calls `ProcessDiscovery` made before) and
   `LinuxProcessFacts` (reads `/proc/<pid>`), whose text `ProcText` parses on every system: the command line, a deleted
   executable, the runtime's folder and version from `maps`, the effective user id from `status` [4.1].
+  `MacProcessFacts` (libproc and sysctl, untested), whose structs `MacProcData` parses on every system, and `MacCaptureRules` [4.2];
+  `HostSystem` (in Core), by which `CapturePlatform` picks each system's facts and `ICaptureRules`; `RuntimeLibrary` (the runtime
+  from a mapped path, its embedded version) and `TargetEnvironment` (what an environment says about the diagnostics socket) [4.2];
   `LinuxCaptureRules` (why Linux refuses: a pid not found, from a `LinuxTarget` read from `/proc`, by user ids, diagnostics
   turned off, its own `/tmp`, another `TMPDIR`, no runtime even in a single-file executable; a dump createdump could not
   write, from what it reported, then the ptrace rule or the container; each with the evidence the log keeps), returned as
   `NotFoundExplanation` by `IProcessDiscovery.WhyNotFound` and used by `CounterMonitor` and `TraceRecorder` too;
-  `UnixElevationProbe` (on Linux another user's process, by effective user id, is Elevated); `DumpCapturer.LibraryRefusal`
+  `UnixElevationProbe` (on Linux and macOS another user's process, by effective user id, is Elevated); `DumpCapturer.LibraryRefusal`
   (as root, another user's full dump never goes to HeapScope's folders); `TargetFiles` (a file a target names is read only
   when regular and of a sane size) [4.1, its review]. The per-system texts for more rights are Core's `ElevationTexts`,
   passed to the front ends by Application's `RightsTexts` [4.1].

@@ -299,6 +299,24 @@ show them.
 | Processes, Live | Note while processes are hidden (Windows), in place of the banner | {N} processes that run elevated or as another user are hidden: HeapScope cannot capture them unless it runs as administrator. Check 'Show elevated processes' to list them. (One: "1 process that runs elevated or as another user is hidden: ... capture it ... list it.") | approved 2026-11-21 (the review's wording: the set the banner names) |
 | Processes, Live | The same (Linux) | {N} processes of other users are hidden: HeapScope cannot capture them unless it runs as that user or as root (sudo). Check 'Show other users' processes' to list them. (One: "1 process of another user is hidden: ...") | approved 2026-11-21 |
 
+## Sprint 4.2 additions
+
+Drafts for the owner (sprint 4.2, capture on macOS). Where macOS shows a Linux text above ("Needs root or its user", the
+banner, the column tooltip, the refusal for another user's process, the check box and its note, the sample refusal, the
+library refusal, a full disk, a folder the account cannot write, diagnostics off, another temp folder, not .NET), it is the
+same text. `MacFactsTests` checks them.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Processes, Live | Page texts (Table 1): "on Windows and Linux" | on Windows, Linux and macOS (untested) | draft |
+| Processes | Record allocations tooltip (Table 3): "on Windows or Linux" | on Windows, Linux or macOS | draft |
+| Capture refused (a system without capture) | Why capture is not available | Capturing from HeapScope runs on Windows, Linux and macOS. Here, take a dump with 'dotnet-dump collect --process-id <pid> --type Full' and open it with HeapScope. | draft |
+| Snapshots, Live, Allocations, Home (a system without capture) | "needs Windows or Linux" in the empty pages and tips | needs Windows, Linux or macOS | draft |
+| Learn (macOS) | A note under the title | Capture on macOS is untested. HeapScope reaches a process that runs as your own user, as the sample does; another user's process needs HeapScope run as that user. macOS may refuse a full dump of an application that is not signed to allow it; a gcdump does not need that. When a capture is refused, HeapScope says what to change. | draft |
+| Capture (macOS) | A dump the runtime could not write, task_for_pid refused | The dump of {name} (pid {pid}) could not be written: macOS did not let the runtime examine the process, which can mean that the application or the runtime is not signed with the entitlements that allow it. A gcdump does not need this: capture one instead. The target process writes ... (as on Linux) | draft |
+| Capture (macOS) | A pid that is not found: another user's | Process {pid} runs as another user, and HeapScope finds a process by the diagnostics socket it creates in its own temp folder, which on macOS differs per user. Run HeapScope as that user. | draft |
+| README, INSTALL, USER-GUIDE, the CLI's README | The macOS passages | (as committed in sprint 4.2) | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

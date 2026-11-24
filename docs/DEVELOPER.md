@@ -5,7 +5,8 @@ Status: living document, updated by every sprint.
 ## 1. Prerequisites
 - Windows 11 x64 (Windows 10 x64 also supported) for everything. Since sprint 2.3.6 the engine, the worker, the CLI and
   the Avalonia app also build and run on Linux (x64) and macOS (Apple silicon or Intel). Capture runs on Linux too since
-  sprint 4.1, proven in CI's Linux job (no local Linux run here); the integration tests stay Windows only. The build scripts are bash (Git Bash on Windows); the sample dump scripts in `fixtures/scripts` are
+  sprint 4.1, proven in CI's Linux job (no local Linux run here), and is built for macOS since 4.2, where nobody has run it:
+  its parsers and rules are tested on every system (`MacFactsTests`), its calls to the system are not. The integration tests stay Windows only. The build scripts are bash (Git Bash on Windows); the sample dump scripts in `fixtures/scripts` are
   PowerShell.
 - .NET 10 SDK (10.0.100 or later). `global.json` sets the minimum SDK (10.0.100) and rolls forward to the latest
   installed feature band.
@@ -47,7 +48,7 @@ dotnet test --solution HeapScope.sln
   folder (`tests/Shared/TestDataFolder.cs`) before anything reads `HeapScopeFolders`, and the workers and front ends it
   starts inherit it, so no test writes into the user's sessions, logs, index cache key, trusted DACs or bookmarks. Set it
   by hand to run the app or the CLI against a scratch profile; the build scripts that drive the CLI set it to a scratch
-  folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `linux-capture-check.sh`). The worker also takes `--data-folder` (from
+  folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `capture-check.sh`). The worker also takes `--data-folder` (from
   `Worker:DataFolder` on the client), which wins over the variable.
 - Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`) run a short pass in every run;
   `HEAPSCOPE_FUZZ_ITERATIONS` and `HEAPSCOPE_FUZZ_SEED` raise and vary it. The nightly `fuzz.yml` runs 2,000 iterations on
@@ -623,7 +624,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     tests included, and since sprint 4.1 the capture tests), captures the fixture with the CLI (`dotnet-dump` before
     capture ran on Linux), checks the CLI's JSON against the known answers with `jq` (counts, sizes, retained sizes, the
     path root, a complete graph, a named runtime version) and opens the dump in the app without a display
-    (`--headless --smoke-open`). Then `build/linux-capture-check.sh` starts the tutorial's sample with `sample start`,
+    (`--headless --smoke-open`). Then `build/capture-check.sh` starts the tutorial's sample with `sample start`,
     finds it with `list`, captures a full dump and a gcdump and opens both with `summary` (2,000 `StaticCacheEntry`
     objects each), watches it with `monitor` and records an allocations trace with `trace` that `allocations` must name
     the SteadyAllocation scenario's `PricedOrder` from (the 4.1 review, M7), all with a scratch data folder; the capture

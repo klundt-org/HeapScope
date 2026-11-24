@@ -41,7 +41,7 @@ The lessons, scenario by scenario, and where each one's answer shows:
 The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once from one
 HeapScope window or command, and stops when HeapScope closes. A growing sample stops growing when its heap reaches 512 MB;
 stop it when you are done. Two scenarios that both block the finalizer thread (FinalizerBacklog and Waste) cannot run
-together. The lessons start with a capture, which runs on Windows and Linux: on macOS the Learn page says so. On Linux it also
+together. The lessons start with a capture, which runs on Windows and Linux and is untested on macOS. On Linux and macOS the Learn page
 notes who can capture whom.
 
 ## Finding your way

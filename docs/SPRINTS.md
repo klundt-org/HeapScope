@@ -122,29 +122,40 @@ far as Windows and Linux allow, and marked untested: nobody has run it on a Mac.
 rules that explain a failure, and the texts. The per-system split of 4.1 is partial (4.1 review M6, 4.1.1 review L18).
 
 **Tasks**
-1. [ ] The split made whole (M6, L18): `HostSystem` in Core in place of `bool linux` in `ElevationTexts` and
+1. [x] The split made whole (M6, L18): `HostSystem` in Core in place of `bool linux` in `ElevationTexts` and
    `PlatformHints`; the effective user id and the readable bytes behind `IProcessFacts`; the rules that explain a failure
-   behind one interface per system (`ICaptureRules`); a system without a reader refuses instead of getting Windows' facts;
+   behind one interface per system (`ICaptureRules`); a system without a reader gets none instead of Windows' facts;
    `PlatformHints.CanCapture` taken from Application. No behavior changes on Windows or Linux. Tests: the facts and rules
    chosen per system, every text per system, `CanCapture` equal to the capture layer's answer.
-2. [ ] macOS facts (`MacProcessFacts`): the image path, effective user id and mapped regions through libproc, the command
+   Done: `HostSystem` and `HostSystems` in Core, `ICaptureRules` (Windows, Linux), `RuntimeLibrary` and `TargetEnvironment`
+   shared; a system without a reader has `NoProcessFacts`, and capture refuses there before any is asked for; `CanCapture`
+   through `RightsTexts`. Tests: `CapturePlatformTests`, `CaptureExplanationTests`, the text tests.
+2. [x] macOS facts (`MacProcessFacts`): the image path, effective user id and mapped regions through libproc, the command
    line and environment through `sysctl` (`KERN_PROCARGS2`); the runtime's folder from the mapped `libcoreclr.dylib`; the
    readable regions for the size estimate. The buffers are parsed by pure functions (`MacProcData`) over bytes. Tests: the
    parsers on built buffers (short, cut, padded, hostile counts) on every system; on macOS, the test process itself.
-3. [ ] Elevation on macOS: the rule on effective user ids of 4.1, with the ids from task 2. Tests: the rule and the probe's
+   Done: `MacProcessFacts`, `MacProcData`, `MacRegion`; off macOS every read is empty. Tests: `MacFactsTests`. The estimate
+   takes the larger of the walk and the fallback (`DumpSizeEstimator.Choose`).
+3. [x] Elevation on macOS: the rule on effective user ids of 4.1, with the ids from task 2. Tests: the rule and the probe's
    source per system.
-4. [ ] Refusals on macOS (`MacCaptureRules`): createdump's `task_for_pid` failure (signing and entitlements), a folder the
+   Done: `UnixElevationProbe` over `IProcessFacts`. Tests: `MacFactsTests`, `CapturePlatformTests`.
+4. [x] Refusals on macOS (`MacCaptureRules`): createdump's `task_for_pid` failure (signing and entitlements), a folder the
    target's account cannot write, a full disk, diagnostics turned off, another `TMPDIR` (each macOS user has their own),
    another user's process; each with its evidence for the log. Wording drafted for the owner. Tests: each rule on text.
-5. [ ] The DAC beside a dump on macOS: `libcoreclr.dylib` copied with `libmscordaccore.dylib`, sizes allowed for. Tests: the
+   Done: `MacCaptureRules` (drafts in info-text.md, Sprint 4.2 additions). Tests: `MacFactsTests`.
+5. [x] The DAC beside a dump on macOS: `libcoreclr.dylib` copied with `libmscordaccore.dylib`, sizes allowed for. Tests: the
    copied names per system.
-6. [ ] Capture turned on for macOS: `IsSupported`, the empty pages, tips and the Learn page, marked untested where a user
+   Done: `CaptureService.DacFileName` and `RuntimeFileName`. Tests: `CaptureExplanationTests`.
+6. [x] Capture turned on for macOS: `IsSupported`, the empty pages, tips and the Learn page, marked untested where a user
    reads it before relying on it. Drafts for the owner. Tests: the texts per system.
-7. [ ] A check a Mac owner can run: `build/linux-capture-check.sh` runs on macOS too (its name and messages say "capture
+   Done: the texts are drafts. Tests: `MacFactsTests`, `InfoIconTests`.
+7. [x] A check a Mac owner can run: `build/linux-capture-check.sh` becomes `build/capture-check.sh` (its name and messages say "capture
    check"); INSTALL.md and the issue link say how to report it. CI's Linux job keeps running it.
-8. [ ] Docs: ADR-025 amended, ARCHITECTURE and its pages, logging, security-privacy, DEVELOPER, README, INSTALL, USER-GUIDE,
+   Done: `build/capture-check.sh`; run on Windows here. INSTALL.md says how to run it on a Mac and report.
+8. [x] Docs: ADR-025 amended, ARCHITECTURE and its pages, logging, security-privacy, DEVELOPER, README, INSTALL, USER-GUIDE,
    the CLI's README, info-text.md (drafts), Backlog (what stays unconfirmed, and the AllocationTraceTests CI failure of
    2026-11-21).
+   Done: as listed; the user-facing passages are drafts for the owner.
 
 **Decisions**
 - No Mac and no macOS runners: built and checked on Linux, marked untested (owner, 2026-11-18 and 2026-10-31).

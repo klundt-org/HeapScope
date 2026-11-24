@@ -5,7 +5,7 @@ Status: living document. Every sprint updates it to match what was actually buil
 ## 1. Purpose, scope, non-goals
 
 **Purpose.** HeapScope is a desktop memory profiler for .NET applications (.NET 5 and later, ADR-002) on Windows,
-Linux and macOS (ADR-025; capture on Windows and, since sprint 4.1, Linux). It replaces the core of JetBrains dotMemory for one primary
+Linux and macOS (ADR-025; capture on Windows, Linux and, untested, macOS). It replaces the core of JetBrains dotMemory for one primary
 workflow: a memory leak is suspected in an ASP.NET Core API, the developer runs the API locally, replays representative
 traffic, takes snapshots over time, and uses HeapScope to find what is growing and why it is retained.
 
@@ -17,7 +17,7 @@ traffic, takes snapshots over time, and uses HeapScope to find what is growing a
 - Reverse references, retention paths, dominator tree, retained sizes, smart leak detectors.
 - A CLI with the same capabilities as the UI, usable in automation.
 - Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture on Linux since sprint 4.1,
-  on macOS in sprint 4.2.
+  on macOS since sprint 4.2 (untested).
 - Sharing results as an exported analysis the user writes and passes on (ADR-026).
 
 **Non-goals (for now).**
@@ -65,10 +65,10 @@ Capture and sessions (sprint 1.1):
   installation's `sample/` folder, is the exception, since it is there to be captured (sprint 3.13, ADR-042). A detail that cannot be read stays
   empty. `WindowsElevationProbe` reads token elevation for targets and for HeapScope itself (one rule): a token that
   cannot be opened for query (elevated, or another user's, such as services running as SYSTEM) or that reports
-  elevation means only an elevated HeapScope can dump it. Capture runs on Windows and, since sprint 4.1, Linux (ADR-025):
-  on macOS `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump` (until 4.2).
+  elevation means only an elevated HeapScope can dump it. Capture runs on Windows, Linux [4.1] and, untested, macOS [4.2] (ADR-025):
+  elsewhere `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump`.
   Off Windows `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5],
-  which on Linux compares effective user ids: another user's process needs HeapScope run as that user or as root, since
+  which on Linux and macOS compares effective user ids: another user's process needs HeapScope run as that user or as root, since
   its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` there (`LinuxProcessFacts`), and a
   refusal names its Linux cause (`LinuxCaptureRules`: `ptrace_scope`, a container without `SYS_PTRACE`, another
   `TMPDIR`, diagnostics turned off).

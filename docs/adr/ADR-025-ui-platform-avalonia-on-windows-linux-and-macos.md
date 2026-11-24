@@ -1,4 +1,4 @@
-# ADR-025 UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039 and sprint 4.1)
+# ADR-025 UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039 and sprints 4.1 and 4.2)
 
 - Context: the product owner wants to reach Linux developers (possibly macOS) and teams sharing results (2026-10-25).
   Everything but the WPF UI already targets plain `net10.0`; the engine stays .NET because ClrMD has no equivalent
@@ -75,7 +75,15 @@
   as that user. Files a target names (its runtime folder) are read only when regular and of a sane size, and a DAC copied
   beside a dump comes with `libcoreclr.so`; the loader searches every `dac/` folder there. Discovery looks only where the
   runtime publishes (this user's temp folder); it does not search others. Proven in CI's Linux job (the capture tests,
-  `build/linux-capture-check.sh`); there is no local Linux run on the development machine.
+  `build/capture-check.sh`, named `linux-capture-check.sh` until 4.2); there is no local Linux run on the development machine.
+- Amended in sprint 4.2: capture is built for macOS too, untested (no Mac, no macOS runners). The system is one value
+  (`HostSystem`); each has its facts (`IProcessFacts`) and the rules that explain a refusal (`ICaptureRules`), and a system
+  without them gets none, never another's. On macOS the facts come from libproc and sysctl, whose structs are read from
+  XNU's published headers; a read whose size differs from the header's gives nothing, so a wrong layout loses a detail and
+  never a listing. The size estimate there is the larger of the region walk and the fallback. A dump's `task_for_pid` failure is reported as what createdump says,
+  and a gcdump is offered, which needs no such right; HeapScope never signs a target or changes its entitlements. Each
+  macOS user has their own temp folder, so another user's process is named with what to start HeapScope with. The mark
+  "untested" comes off when somebody has run `build/capture-check.sh` on a Mac (Backlog, "Testing on macOS").
 - Amended by ADR-039 (sprint 3.9): releases ship win-x64 and linux-x64 (since 3.10 also the macOS builds, marked untested),
   and the CLI's dotnet tool carries a framework-dependent worker started through the dotnet host, beside the
   self-contained worker per runtime identifier.

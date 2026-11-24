@@ -12,8 +12,8 @@ release has:
 | `HeapScope-vX.Y.Z-sbom-*.cdx.json` | Software bills of materials (CycloneDX) of the app, the CLI, the worker and the tutorial's sample. |
 | `SHA256SUMS` | The SHA-256 checksum of every file above. |
 
-Capturing a snapshot of a running process works on Windows and Linux. On macOS, HeapScope opens dumps taken with
-`dotnet-dump` (see [Your first snapshot](#your-first-snapshot)).
+Capturing a snapshot of a running process works on Windows and Linux. On macOS it is built but untested; HeapScope also
+opens dumps taken with `dotnet-dump` (see [Your first snapshot](#your-first-snapshot)).
 
 ## Check the download
 
@@ -70,8 +70,9 @@ refuse to open them. The steps below are what should work; nobody has confirmed 
    does the analysis.
 3. Run `./HeapScope` from that folder, or `./heapscope-cli` for the CLI.
 
-On macOS capturing is not built yet, so take a dump with `dotnet-dump` and open the file in the app or the CLI (see
-[Your first snapshot](#your-first-snapshot)).
+Capturing is built for macOS since 4.2.0, and untested too. HeapScope captures the processes that run as your user. macOS may
+refuse a full dump of an application that is not signed to allow it; a gcdump does not need that. If capturing fails, take
+a dump with `dotnet-dump` and open the file in the app or the CLI (see [Your first snapshot](#your-first-snapshot)).
 
 ### If macOS refuses it
 
@@ -83,7 +84,8 @@ Also unconfirmed. Both steps turn off a macOS check for this folder, so [check t
   `find <folder> -type f \( -perm +111 -o -name '*.dylib' \) -exec codesign --force --sign - {} \;`
 
 If you try a macOS package, please say how it went in an [issue](https://github.com/klundt-org/HeapScope/issues): nobody has
-reported yet.
+reported yet. In a clone of the repository, `bash build/capture-check.sh <folder>/heapscope-cli` tries every kind of capture
+on the sample that comes with HeapScope and says what failed; its output is what the issue needs.
 
 To build on your Mac instead, with the .NET 10 SDK, run `bash build/publish.sh osx-arm64 <folder>` (or `osx-x64`) in a clone
 of the repository. That build is untested too.
@@ -103,7 +105,7 @@ dotnet tool install --global HeapScope.Cli
 
 Its page, https://www.nuget.org/packages/HeapScope.Cli, links back to this repository. To update: `dotnet tool update
 --global HeapScope.Cli`. To remove it: `dotnet tool uninstall --global HeapScope.Cli`. The tool works like the CLI in
-the archives (capture on Windows and Linux); it is not tested on macOS.
+the archives (capture on Windows and Linux, and untested on macOS).
 
 Or install it from the release's file, without nuget.org:
 
@@ -145,7 +147,7 @@ To update, put the new version's file in that folder and run `dotnet tool update
   another (`kernel.yama.ptrace_scope` of 2 or 3, or a container without `SYS_PTRACE`); HeapScope then says what to
   change, and changes nothing itself. A process that keeps its diagnostics socket in another temp folder (its `TMPDIR`)
   is found when HeapScope runs with the same `TMPDIR`.
-- macOS (untested): the same `dotnet-dump collect` command, with `dotnet-dump` from `dotnet tool install --global dotnet-dump`.
+- macOS (untested): as on Linux. If that fails, the `dotnet-dump collect` command above, with `dotnet-dump` from `dotnet tool install --global dotnet-dump`.
 
 To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version
 the dumped process ran on. HeapScope finds it in the .NET runtimes installed on the machine and in its own runtime when

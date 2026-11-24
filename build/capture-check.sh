@@ -22,21 +22,22 @@
 #
 # Commercial licenses are available. See COMMERCIAL.md.
 
-# Capture on Linux end to end (sprint 4.1 task 7), through HeapScope's CLI, which runs the same application layer as the
+# Capture end to end (sprint 4.1 task 7, for Linux; since 4.2 also for whoever tries macOS), through HeapScope's CLI, which runs the same application layer as the
 # app: the tutorial's sample started by 'sample start', found by 'list', captured as a full dump and as a gcdump, and both
 # opened by 'summary', which counts the 2,000 StaticCacheEntry objects the StaticCache scenario plants; then watched by
 # 'monitor' and recorded by 'trace', whose allocations trace 'allocations' reads and must name the PricedOrder objects the
-# SteadyAllocation scenario allocates without end (review M7). CI's Linux job runs it; it runs on Windows too. Everything HeapScope keeps goes to a scratch data folder (review M10), never the user's own, and the
+# SteadyAllocation scenario allocates without end (review M7). CI's Linux job runs it; it runs on
+# Windows too, and is written to run on macOS, where nobody has run it (INSTALL.md says how). Everything HeapScope keeps goes to a scratch data folder (review M10), never the user's own, and the
 # work folder is removed when the script made it. The files hold the sample's data only.
-# Usage: linux-capture-check.sh <heapscope-cli path> [work folder]
+# Usage: capture-check.sh <heapscope-cli path> [work folder]
 set -euo pipefail
-[ $# -ge 1 ] || { echo "Usage: linux-capture-check.sh <heapscope-cli path> [work folder]" >&2; exit 64; }
+[ $# -ge 1 ] || { echo "Usage: capture-check.sh <heapscope-cli path> [work folder]" >&2; exit 64; }
 cli="$1"
 made_work=
 if [ $# -ge 2 ]; then work="$2"; else work=$(mktemp -d); made_work=1; fi
 mkdir -p "$work"
 export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$work/data}"
-fail() { echo "Linux capture check: $1" >&2; exit 1; }
+fail() { echo "Capture check: $1" >&2; exit 1; }
 
 out="$work/sample.out"
 "$cli" sample start --scenarios StaticCache,SteadyAllocation > "$out" 2>&1 &
@@ -85,4 +86,4 @@ grep -q "HeapScope.Sample.PricedOrder" <<< "$allocations" || fail "'allocations'
 
 "$cli" sample stop --pid "$pid" || fail "'sample stop' did not stop the sample"
 pid=
-echo "Linux capture check passed: the sample was listed, captured as a full dump and a gcdump (both counted its 2,000 entries), monitored and traced."
+echo "Capture check passed: the sample was listed, captured as a full dump and a gcdump (both counted its 2,000 entries), monitored and traced."

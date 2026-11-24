@@ -94,6 +94,9 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   checked|unchecked; hidden as needing more rights than HeapScope has: {pids}" (200 at most, then "and N more") after a
   listing when that changed since its last line, and on every toggle of the box ("(just changed)"). The "Listed" line
   says on Windows whether HeapScope runs elevated, and on Linux gives the effective user ids, which decide the marks.
+- **Capture on macOS (sprint 4.2)**: the same lines as on Linux (below), with "macOS check of pid {pid}: ..." (user ids,
+  whether the environment was given, diagnostics off, both `TMPDIR`s, the runtime) and, for a dump that was not written,
+  "macOS; rule: {the rule that decided}".
 - **Capture on Linux (sprint 4.1 and its review H6, M4)**: each capture logs "Captured {name} (pid): {bytes} bytes in {s} s;
   estimated {bytes} ({n}% of it written)", so the disk check's margin is known on each system (CI flags a Linux dump larger
   than its estimate; the first runs wrote 94 to 95%). A pid that is not found logs "Pid {pid} was not found: Linux check
