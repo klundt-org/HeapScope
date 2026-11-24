@@ -24,7 +24,7 @@
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Next steps that depend on whether this system can reach a running process: Windows and Linux (sprint 4.1) can; elsewhere
+/// Next steps that depend on whether this system can reach a running process: Windows, Linux and macOS can; elsewhere
 /// dumps come from dotnet-dump (ADR-025). The pages' own banners give the same reason (sprint 3.10 review M20).
 /// </summary>
 public static class PlatformHints
@@ -58,11 +58,11 @@ public static class PlatformHints
 
     public static string CaptureTip { get; } = CanCapture
         ? "Choose a running .NET process and capture a full dump of it."
-        : "Capturing needs Windows or Linux. Take a dump with dotnet-dump, then open it here.";
+        : "Capturing needs Windows, Linux or macOS. Take a dump with dotnet-dump, then open it here.";
 
     public static string LiveTip { get; } = CanCapture
         ? "Chart a running process's GC heap, and capture dumps when a rule fires."
-        : "Watching a process live needs Windows or Linux. Take a dump with dotnet-dump, then open it here.";
+        : "Watching a process live needs Windows, Linux or macOS. Take a dump with dotnet-dump, then open it here.";
 
     public static string SnapshotEmptyOn(bool canCapture) => canCapture
         ? "Open a dump (.dmp, .gcdump or a core dump) to see what is on the heap, or capture one on the Processes page."
@@ -70,9 +70,9 @@ public static class PlatformHints
 
     public static string LiveEmptyOn(bool canCapture) => canCapture
         ? "Choose a process and press Start to chart its GC heap."
-        : "Watching a process live needs Windows or Linux. Take a dump with dotnet-dump and open it on the Snapshots page.";
+        : "Watching a process live needs Windows, Linux or macOS. Take a dump with dotnet-dump and open it on the Snapshots page.";
 
     public static string AllocationsEmptyOn(bool canCapture) => canCapture
         ? "No allocation trace is open. Select a process on the Processes page and use Record allocations while the application runs, or open a .nettrace file. HeapScope then shows which types and call stacks allocated the most."
-        : "No allocation trace is open. Recording allocations needs Windows or Linux; here you can open a .nettrace file. HeapScope then shows which types and call stacks allocated the most.";
+        : "No allocation trace is open. Recording allocations needs Windows, Linux or macOS; here you can open a .nettrace file. HeapScope then shows which types and call stacks allocated the most.";
 }

@@ -36,9 +36,9 @@ public sealed class GcDumpCapturerTests : IDisposable
 
     private GcDumpCapturer Capturer => new(_elevation, _writer);
 
-    // Sprint 4.1 review M9: capture runs on Windows and Linux (ADR-025); elsewhere it refuses first, so these tests skip there.
+    // Sprint 4.1 review M9: capture runs on Windows, Linux and macOS (ADR-025); elsewhere it refuses first, so these tests skip there.
     private static void CaptureSupported() =>
-        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows and Linux (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
 
     [Fact]
     public async Task A_successful_capture_renames_the_partial_file()
@@ -81,7 +81,7 @@ public sealed class GcDumpCapturerTests : IDisposable
     [Fact]
     public async Task A_failure_of_a_process_that_is_gone_says_it_exited()
     {
-        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows and Linux (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
         _writer.Result = new GcDumpWriteResult(GcDumpFailure.Error, "pipe closed");
         var gone = new DotNetProcess(int.MaxValue - 7, "Gone", null, "10.0.13", ElevationState.NotElevated, null, null, null);
 

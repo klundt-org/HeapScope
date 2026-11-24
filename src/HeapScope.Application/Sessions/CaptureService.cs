@@ -56,12 +56,11 @@ public sealed record CaptureResult(string Path, long SizeBytes, ProcessEntry Pro
 public sealed class CaptureService : ICaptureService
 {
     // The DAC's name on this system (sprint 4.1: Linux captures too); the loader picks the same name for a dump of this system.
-    private static readonly string s_dacFileName =
-        OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so";
+    private static readonly string s_dacFileName = DacFileName(HeapScope.Core.HostSystems.Current);
 
-    // Sprint 4.1 review H4: on Linux the loader accepts a DAC found by its runtime library's build id only with that library
-    // next to it, so the library is copied too. It is read for its identity, never loaded.
-    private static readonly string? s_runtimeFileName = OperatingSystem.IsLinux() ? "libcoreclr.so" : null;
+    // Sprint 4.1 review H4: off Windows the loader can match a DAC by its runtime library, so that library is copied too. It
+    // is read for its identity, never loaded.
+    private static readonly string? s_runtimeFileName = RuntimeFileName(HeapScope.Core.HostSystems.Current);
 
     private readonly IProcessDiscovery _discovery;
     private readonly DumpCapturer _capturer;
@@ -98,6 +97,20 @@ public sealed class CaptureService : ICaptureService
         // Off the constructing thread (the UI dispatcher at startup); the walk grows with the library.
         _ = Task.Run(() => SweepPartialDumps(null));
     }
+
+    internal static string DacFileName(HeapScope.Core.HostSystem system) => system switch
+    {
+        HeapScope.Core.HostSystem.Windows => "mscordaccore.dll",
+        HeapScope.Core.HostSystem.MacOS => "libmscordaccore.dylib",
+        _ => "libmscordaccore.so",
+    };
+
+    internal static string? RuntimeFileName(HeapScope.Core.HostSystem system) => system switch
+    {
+        HeapScope.Core.HostSystem.Linux => "libcoreclr.so",
+        HeapScope.Core.HostSystem.MacOS => "libcoreclr.dylib",
+        _ => null,
+    };
 
     public SessionLibrary Library { get; }
 
@@ -407,7 +420,7 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
-    /// On Linux, HeapScope's effective user id and each marked process's (sprint 4.1 review H6): the mark "Needs root or its
+    /// On Linux and macOS, HeapScope's effective user id and each marked process's (sprint 4.1 review H6): the mark "Needs root or its
     /// user" rests on the two differing. Empty elsewhere.
     /// </summary>
     private static string UserIds(IReadOnlyList<DotNetProcess> processes)
@@ -476,7 +489,7 @@ public sealed class CaptureService : ICaptureService
         Func<DotNetProcess, string, IProgress<CaptureProgress>, CancellationToken, Task> Capture);
 
     /// <summary>
-    /// Copies the target's DAC (and on Linux its runtime library, review H4) next to the dump, so the 1.2 loader finds the matching DAC in the dump's
+    /// Copies the target's DAC (and off Windows its runtime library, 4.1 review H4) next to the dump, so the 1.2 loader finds the matching DAC in the dump's
     /// folder even after the runtime on this machine is updated or for self-contained apps. A failed copy is logged; the
     /// dump stays readable while the runtime stays installed.
     /// </summary>

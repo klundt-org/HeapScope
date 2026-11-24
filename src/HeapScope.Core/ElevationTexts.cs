@@ -101,9 +101,12 @@ public static class ElevationTexts
     /// <summary>The Learn page's note on who can capture whom, where rights go by user (sprint 4.1 task 8); null elsewhere.</summary>
     public static string? LearnNote => LearnNoteOn(s_system);
 
-    public static string? LearnNoteOn(HostSystem system) => system == HostSystem.Linux
-        ? "On Linux, HeapScope reaches a process that runs as your own user, as the sample does. Another user's process needs HeapScope run as that user or as root, and some systems block it altogether (kernel.yama.ptrace_scope); when a capture is refused, HeapScope says what to change."
-        : null;
+    public static string? LearnNoteOn(HostSystem system) => system switch
+    {
+        HostSystem.Linux => "On Linux, HeapScope reaches a process that runs as your own user, as the sample does. Another user's process needs HeapScope run as that user or as root, and some systems block it altogether (kernel.yama.ptrace_scope); when a capture is refused, HeapScope says what to change.",
+        HostSystem.MacOS => "Capture on macOS is untested. HeapScope reaches a process that runs as your own user, as the sample does; another user's process needs HeapScope run as that user. macOS may refuse a full dump of an application that is not signed to allow it; a gcdump does not need that. When a capture is refused, HeapScope says what to change.",
+        _ => null,
+    };
 
     /// <summary>The refusal to reach a process that needs more rights: what HeapScope cannot do, and what to do instead.</summary>
     public static string Refusal(string? name, int processId, string cannot, string again, HostSystem system) => HostSystems.RightsGoByUser(system)

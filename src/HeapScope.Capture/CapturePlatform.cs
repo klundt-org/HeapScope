@@ -40,6 +40,7 @@ public static class CapturePlatform
     {
         HostSystem.Windows => WindowsProcessFacts.Instance,
         HostSystem.Linux => LinuxProcessFacts.Instance,
+        HostSystem.MacOS => MacProcessFacts.Instance,
         _ => NoProcessFacts.Instance,
     };
 
@@ -50,6 +51,7 @@ public static class CapturePlatform
     internal static ICaptureRules Rules(HostSystem system) => system switch
     {
         HostSystem.Linux => LinuxCaptureRules.Instance,
+        HostSystem.MacOS => MacCaptureRules.Instance,
         _ => WindowsCaptureRules.Instance,
     };
 
@@ -59,16 +61,16 @@ public static class CapturePlatform
     /// </summary>
     public static int? EffectiveUserId(int processId) => ProcessFacts().EffectiveUserId(processId);
 
-    /// <summary>Whether capture is built for this system: Windows, and Linux since sprint 4.1 (macOS follows in 4.2).</summary>
+    /// <summary>Whether capture is built for this system: Windows, Linux (sprint 4.1) and macOS (sprint 4.2, untested).</summary>
     public static bool IsSupported { get; } = IsSupportedOn(HostSystems.Current);
 
     /// <summary><see cref="IsSupported"/> of <paramref name="system"/> (tests).</summary>
-    internal static bool IsSupportedOn(HostSystem system) => system is HostSystem.Windows or HostSystem.Linux;
+    internal static bool IsSupportedOn(HostSystem system) => system is HostSystem.Windows or HostSystem.Linux or HostSystem.MacOS;
 
     /// <summary>
-    /// Refuses capture where it is not built yet (macOS until sprint 4.2). Opening and analyzing snapshots works everywhere.
+    /// Refuses capture where it is not built. Opening and analyzing snapshots works everywhere.
     /// </summary>
-    /// <exception cref="PlatformNotSupportedException">Not running on Windows or Linux.</exception>
+    /// <exception cref="PlatformNotSupportedException">Not running on Windows, Linux or macOS.</exception>
     public static void EnsureSupported() => EnsureSupported(IsSupported);
 
     /// <summary><see cref="EnsureSupported()"/> for a system that does or does not support capture (tests).</summary>
@@ -87,6 +89,6 @@ public static class CapturePlatform
     public static string? UnsupportedReason(bool supported) =>
         supported
             ? null
-            : "Capturing from HeapScope runs on Windows and Linux for now. On macOS, take a dump with "
+            : "Capturing from HeapScope runs on Windows, Linux and macOS. Here, take a dump with "
                 + "'dotnet-dump collect --process-id <pid> --type Full' and open it with HeapScope.";
 }

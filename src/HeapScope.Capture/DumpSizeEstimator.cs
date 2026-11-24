@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Core;
+
 namespace HeapScope.Capture;
 
 /// <summary>
@@ -50,9 +52,19 @@ public static class DumpSizeEstimator
     public static long Estimate(DotNetProcess process)
     {
         ArgumentNullException.ThrowIfNull(process);
-        return CommittedReadableBytes(process.ProcessId) is { } committed
-            ? committed + StreamBytes
-            : FromPrivateBytes(process.PrivateBytes);
+        return Choose(CommittedReadableBytes(process.ProcessId), process.PrivateBytes, HostSystems.Current);
+    }
+
+    /// <summary>
+    /// The walk's bytes, or the fallback without one. On macOS (sprint 4.2, untested) the larger of the two: a region walk
+    /// that ends early cannot be told from one that is complete, and the estimate must not err low.
+    /// </summary>
+    internal static long Choose(long? committed, long? privateBytes, HostSystem system)
+    {
+        var fallback = FromPrivateBytes(privateBytes);
+        return committed is not { } bytes ? fallback
+            : system == HostSystem.MacOS ? Math.Max(bytes > long.MaxValue - StreamBytes ? long.MaxValue : bytes + StreamBytes, fallback)
+            : bytes + StreamBytes;
     }
 
     /// <summary>Sum of committed pages that are neither no-access nor guard pages; null when the walk is denied.</summary>

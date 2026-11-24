@@ -36,7 +36,7 @@ public static class InfoTexts
 
     /// <summary>Processes.</summary>
     public const string Processes =
-        "Lists the running .NET processes, on Windows and Linux. Use it when the problem is happening now and you want a dump of the process, or a recording of what it allocates. Select a process, then press Capture dump or Record allocations.";
+        "Lists the running .NET processes, on Windows, Linux and macOS (untested). Use it when the problem is happening now and you want a dump of the process, or a recording of what it allocates. Select a process, then press Capture dump or Record allocations.";
 
     /// <summary>Snapshots.</summary>
     public const string Snapshots =
@@ -128,7 +128,7 @@ public static class InfoTexts
 
     /// <summary>Live.</summary>
     public const string Live =
-        "Charts a running process's memory over time, by heap area, on Windows and Linux, and can take dumps by itself when a rule fires. Use it when a leak takes time to show, so you can leave it running. Choose a process, then press Start.";
+        "Charts a running process's memory over time, by heap area, on Windows, Linux and macOS (untested), and can take dumps by itself when a rule fires. Use it when a leak takes time to show, so you can leave it running. Choose a process, then press Start.";
 
     /// <summary>Jobs.</summary>
     public const string Jobs =

@@ -28,8 +28,8 @@ namespace HeapScope.Capture;
 /// Elevation off Windows (sprint 2.3.5): whether this process runs as root, from .NET's own cross-platform check. On Linux
 /// (sprint 4.1) another process's state follows the user it acts as: a .NET process creates its diagnostics socket as its
 /// effective user, so HeapScope reaches it as that user or as root. Another user's process is
-/// <see cref="ElevationState.Elevated"/> (it needs root, or HeapScope run as that user), the same user's is not. On macOS
-/// it is not looked up yet (sprint 4.2), so it is <see cref="ElevationState.Unknown"/>.
+/// <see cref="ElevationState.Elevated"/> (it needs root, or HeapScope run as that user), the same user's is not. macOS
+/// (sprint 4.2) follows the same rule; the ids come from each system's <see cref="IProcessFacts"/>.
 /// </summary>
 public sealed class UnixElevationProbe : IElevationProbe
 {

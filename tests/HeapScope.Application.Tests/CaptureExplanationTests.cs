@@ -24,6 +24,7 @@
 using HeapScope.Application.Jobs;
 using HeapScope.Application.Sessions;
 using HeapScope.Capture;
+using HeapScope.Core;
 
 namespace HeapScope.Application.Tests;
 
@@ -184,4 +185,19 @@ public sealed class CaptureExplanationTests : IDisposable
             return File.WriteAllBytesAsync(path, [0x4D, 0x44, 0x4D, 0x50]);
         }
     }
+
+    [Fact]
+    public void The_dac_and_the_runtime_library_kept_beside_a_dump_have_each_systems_names()
+    {
+        CaptureService.DacFileName(HostSystem.Windows).ShouldBe("mscordaccore.dll");
+        CaptureService.DacFileName(HostSystem.Linux).ShouldBe("libmscordaccore.so");
+        CaptureService.DacFileName(HostSystem.MacOS).ShouldBe("libmscordaccore.dylib");
+        CaptureService.RuntimeFileName(HostSystem.Windows).ShouldBeNull();
+        CaptureService.RuntimeFileName(HostSystem.Linux).ShouldBe("libcoreclr.so");
+        CaptureService.RuntimeFileName(HostSystem.MacOS).ShouldBe("libcoreclr.dylib");
+    }
+
+    [Fact]
+    public void Whether_this_system_captures_is_the_capture_layers_answer() =>
+        RightsTexts.CanCapture.ShouldBe(CapturePlatform.IsSupported);
 }

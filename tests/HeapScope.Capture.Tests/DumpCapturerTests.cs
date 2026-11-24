@@ -42,9 +42,9 @@ public sealed class DumpCapturerTests : IDisposable
 
     private DumpCapturer Capturer => new(_elevation, _disk, _writer, _ => _estimate);
 
-    // Review M9: capture runs on Windows and Linux (ADR-025); elsewhere it refuses first, so these tests skip there.
+    // Review M9: capture runs on Windows, Linux and macOS (ADR-025); elsewhere it refuses first, so these tests skip there.
     private static void CaptureSupported() =>
-        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows and Linux (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
 
     [Fact]
     public async Task An_elevated_target_from_an_unelevated_HeapScope_asks_to_run_as_administrator()
@@ -198,7 +198,7 @@ public sealed class DumpCapturerTests : IDisposable
     [Fact]
     public async Task An_exited_target_gives_a_plain_message()
     {
-        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows and Linux (ADR-025): elsewhere it refuses before the writer is called.");
+        Assert.SkipUnless(CapturePlatform.IsSupported, "Capture runs on Windows, Linux and macOS (ADR-025): elsewhere it refuses before the writer is called.");
         _writer.Behavior = _ => throw new ServerNotAvailableException("gone");
 
         var ex = await Should.ThrowAsync<TargetUnavailableException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
