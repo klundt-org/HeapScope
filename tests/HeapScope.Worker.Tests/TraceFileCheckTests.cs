@@ -156,14 +156,14 @@ public sealed class TraceFileCheckTests
         // Nothing checks it, so it does not reach the reader. A sound file of another version is not told to be copied again.
         var message = Should.Throw<SnapshotFormatException>(() => Check(Trace(version, Block(false, Description(Fields()))))).Message;
 
-        message.ShouldContain(version == 0 ? "(version): its version is stated to be 0" : $"is a trace of format version {version} (version); HeapScope reads version 4");
+        message.ShouldContain(version == 0 ? "(version): its version is stated to be 0" : $"is a trace of format version {version}; HeapScope reads version 4");
         message.Contains("copy it again", StringComparison.Ordinal).ShouldBe(version == 0);
     }
 
     [Fact]
     public void A_head_of_another_format_is_refused()
     {
-        Should.Throw<SnapshotFormatException>(() => Check([.. "Nettrace"u8, .. Int(0), .. Int(6), .. new byte[40]])).Message.ShouldContain("is a trace of format version 6 (version); HeapScope reads version 4");
+        Should.Throw<SnapshotFormatException>(() => Check([.. "Nettrace"u8, .. Int(0), .. Int(6), .. new byte[40]])).Message.ShouldContain("is a trace of format version 6; HeapScope reads version 4");
         Refused([.. "Nettrace"u8, .. Int(21), .. new byte[44]]).ShouldContain("(head)");
     }
 

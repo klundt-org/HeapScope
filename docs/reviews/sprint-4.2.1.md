@@ -45,7 +45,8 @@ otherwise, marked "decided autonomously".
 - M6 (senior-dev, solution-architect) No test of `IsFileError`, of the wiring, or of a real trace cut short. Fixed.
 - M7 (gc-specialist) Nothing showed the walk agrees with the runtime's writer. Fixed: the check returns what it walked; the
   recorded LeakyApi trace is walked to its end tag, as is a recording of event sources with numbers, text, structs, arrays and
-  arrays of structs, and a real trace cut at three places opens with what came before.
+  arrays of structs (.NET 10 describes the fields of plain events only, so the list of sized fields is tested by hand), and a real
+  trace cut at three places opens with what came before.
 - M8 (solution-architect, senior-dev) The mutation test counted the whole process's memory beside other tests. Fixed: it runs
   alone; it truncates too, sums the samples, and fails when it refuses everything or nothing.
 - M9 (gc-specialist) Amounts from the file could overflow the total. Fixed: an amount below 0 or above 1 TB, or a total past
@@ -84,5 +85,9 @@ Each reviewer read the fixes (2026-11-24) and confirmed its findings, but for th
   without the file's identity and the check's result. Fixed.
 - C5 (support-engineer, Moderate; senior-dev, Low) A sound trace of another version and a damaged head got one text. Fixed: the
   version is named, and only a damaged file is told to be copied again.
+- After that all four confirmed. Looked up for gc-specialist in the source the package is built from (10e5d27): TraceEvent reads
+  every type the check accepts, and has no limit of its own on depth here.
+- The gate then failed on two tests whose expectations were wrong (a refusal's new words; how many fields .NET describes) and
+  passed with them corrected.
 - Low, fixed: the type rule of `IsFileError` tested by itself; the conversion called through `TraceReads`; the memory line
   matched at its start; the event source test counts every field; ADR-037 points to ADR-028; the reader's version is 2.

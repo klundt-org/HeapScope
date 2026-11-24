@@ -310,7 +310,7 @@ public sealed class GcDumpTests(AllLeaksGcDump shared) : IClassFixture<AllLeaksG
         graph.RootIndex = node;
         GCHeapDump.WriteMemoryGraph(graph, path, "test");
 
-        Should.Throw<SnapshotFormatException>(() => new GcDumpLoader().Load(path, cancellationToken: Ct)).Message.ShouldContain("is not the start of a root tree");
+        Should.Throw<SnapshotFormatException>(() => new GcDumpLoader().Load(path, cancellationToken: Ct)).Message.ShouldContain(described ? "which is an object and not the start of a root tree" : "which is not described and not the start of a root tree");
     }
 
     [Fact]

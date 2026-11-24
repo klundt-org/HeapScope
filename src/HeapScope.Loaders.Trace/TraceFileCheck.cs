@@ -34,7 +34,8 @@ namespace HeapScope.Loaders.Trace;
 /// costs little. It follows TraceEvent's own reading of nettrace version 4, the one the .NET runtime writes, tag by tag:
 /// where TraceEvent stops (a file cut short, another tag) the walk stops, and what it accepts here it has been shown to fit.
 /// Descriptions are read from their own blocks only: in version 4 TraceEvent 4.0 takes none from a block of events (an event
-/// whose description is not known, 0 included, is an error there). Any other version is refused, since nothing checks it.
+/// whose description is not known, 0 included, is an error there), and it reads every type the check accepts, at any depth
+/// (its source at 10e5d27, the commit the package is built from). Any other version is refused, since nothing checks it.
 /// Look at it again when TraceEvent or the runtime's format changes.
 /// </summary>
 internal static class TraceFileCheck
@@ -396,7 +397,7 @@ internal static class TraceFileCheck
 
     /// <summary>A sound file may be of another version: no advice to copy it again.</summary>
     private static SnapshotFormatException OtherVersion(string path, int version) =>
-        new($"{path} is a trace of format version {version} (version); HeapScope reads version {TraceVersion}, which the .NET runtime writes. Record it with HeapScope, or with dotnet-trace collect.");
+        new($"{path} is a trace of format version {version}; HeapScope reads version {TraceVersion}, which the .NET runtime writes. Record it with HeapScope, or with dotnet-trace collect.");
 
     private static SnapshotFormatException Refuse(string path, long offset, string rule, string what) =>
         new(string.Create(CultureInfo.CurrentCulture, $"{path} does not match the trace format at byte {offset:N0} ({rule}): {what}. If it was copied or downloaded, copy it again and compare its size with the original; otherwise record the trace again."));
