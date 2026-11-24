@@ -222,7 +222,7 @@ public sealed class CaptureService : ICaptureService
                     _logger.LogInformation("The write failure of pid {Pid} was judged by: {Evidence}", processId, evidence);
                 }
 
-                if (OperatingSystem.IsLinux() && ex is ElevationRequiredException)
+                if (HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current) && ex is ElevationRequiredException)
                 {
                     // Sprint 4.1 review H6: the ids the refusal rests on, also where no process list was logged (the CLI).
                     _logger.LogInformation("Pid {Pid} was refused as another user's: effective user {Target}, HeapScope's {Own}", processId, UserId(processId), UserId(Environment.ProcessId));
@@ -412,7 +412,7 @@ public sealed class CaptureService : ICaptureService
     /// </summary>
     private static string UserIds(IReadOnlyList<DotNetProcess> processes)
     {
-        if (!OperatingSystem.IsLinux())
+        if (!HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current))
         {
             return string.Empty;
         }

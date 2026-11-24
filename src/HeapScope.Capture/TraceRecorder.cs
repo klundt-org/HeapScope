@@ -209,9 +209,9 @@ public static class TraceRecorder
             return new TargetUnavailableException($"No running process has id {processId}.", ex);
         }
 
-        // Sprint 4.1 review M2: on Linux the same reasons as a capture's (another user's, diagnostics off, another /tmp).
+        // Sprint 4.1 review M2: the same reasons as a capture's (another user's, diagnostics off, another /tmp).
         return ex is UnauthorizedAccessException
             ? ElevationRequiredException.ForTrace(processId, name, ex)
-            : LinuxCaptureRules.NotAnswering(processId, $"{name} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
+            : CapturePlatform.Rules().NotAnswering(processId, $"{name} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);
     }
 }

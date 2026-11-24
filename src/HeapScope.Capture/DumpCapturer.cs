@@ -155,8 +155,8 @@ public sealed class DumpCapturer(
     public static string? LibraryRefusal(DotNetProcess process, bool heapScopeElevated)
     {
         ArgumentNullException.ThrowIfNull(process);
-        return OperatingSystem.IsLinux() && heapScopeElevated && process.Elevation == ElevationState.Elevated
-            ? LinuxCaptureRules.RootLibraryRefusal(process.Name, process.ProcessId)
+        return heapScopeElevated && process.Elevation == ElevationState.Elevated
+            ? CapturePlatform.Rules().LibraryRefusal(process.Name, process.ProcessId)
             : null;
     }
 
@@ -240,25 +240,8 @@ public sealed class DumpCapturer(
 
         if (ex is DiagnosticsClientException)
         {
-            // The dump is written by createdump under the target's own account, not HeapScope's. On Linux (review H2) what
-            // createdump reported decides first; the ptrace rule and the container only explain a ptrace failure.
-            var account = process.Name;
-            string? reason;
-            string? evidence = null;
-            if (OperatingSystem.IsLinux())
-            {
-                var scope = LinuxCaptureRules.PtraceScope();
-                var inContainer = LinuxCaptureRules.InContainer();
-                reason = LinuxCaptureRules.WriteFailure(ex.Message, scope, inContainer, account, directory, out var rule);
-                evidence = LinuxCaptureRules.WriteEvidence(scope, inContainer, rule);
-            }
-            else
-            {
-                reason = ex.Message.Contains("0x80070070", StringComparison.OrdinalIgnoreCase) ? "the disk is full"
-                    : ex.Message.Contains("0x80070005", StringComparison.OrdinalIgnoreCase) ? $"the account {account} runs as cannot write to {directory}"
-                    : null;
-            }
-
+            // The dump is written by createdump under the target's own account, not HeapScope's.
+            var (reason, evidence) = CapturePlatform.Rules().WhyNotWritten(ex.Message, process.Name, directory);
             return new DumpWriteFailedException(
                 $"The dump of {process.Name} (pid {process.ProcessId}) could not be written: {reason ?? "the runtime refused the request"}. The target process writes the dump itself, under its own account; choose a folder it can write to (--out), and check free space. Details: {ex.Message}",
                 ex)

@@ -33,14 +33,20 @@ namespace HeapScope.Capture;
 /// </summary>
 public sealed class UnixElevationProbe : IElevationProbe
 {
-    private readonly Lazy<int?> _ownUser = new(static () => OperatingSystem.IsLinux() ? LinuxProcessFacts.EffectiveUserId(Environment.ProcessId) : null);
+    private readonly IProcessFacts _facts;
+    private readonly Lazy<int?> _ownUser;
 
-    public static UnixElevationProbe Instance { get; } = new();
+    internal UnixElevationProbe(IProcessFacts facts)
+    {
+        _facts = facts;
+        _ownUser = new(() => facts.EffectiveUserId(Environment.ProcessId));
+    }
+
+    public static UnixElevationProbe Instance { get; } = new(CapturePlatform.ProcessFacts());
 
     public bool IsCurrentProcessElevated => Environment.IsPrivilegedProcess;
 
-    public ElevationState GetState(int processId) =>
-        OperatingSystem.IsLinux() ? StateOf(LinuxProcessFacts.EffectiveUserId(processId), _ownUser.Value) : ElevationState.Unknown;
+    public ElevationState GetState(int processId) => StateOf(_facts.EffectiveUserId(processId), _ownUser.Value);
 
     /// <summary>
     /// The rule on two effective user ids: the same user's process is not elevated, another user's is (root's included);

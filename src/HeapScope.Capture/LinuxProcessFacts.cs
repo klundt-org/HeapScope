@@ -41,36 +41,23 @@ internal sealed class LinuxProcessFacts : IProcessFacts
     public RuntimeFacts? Runtime(Process process)
     {
         ArgumentNullException.ThrowIfNull(process);
-        var runtime = Read(() => ProcText.Runtime(File.ReadAllText(ProcFile(process.Id, "maps"))));
-
-        // The library's own file version, as on Windows and as ClrMD reads it from a dump; the folder's name otherwise.
-        return runtime?.Directory is { } folder && FileVersion(folder + "/libcoreclr.so") is { } version ? runtime with { Version = version } : runtime;
+        return RuntimeLibrary.WithFileVersion(Read(() => ProcText.Runtime(File.ReadAllText(ProcFile(process.Id, "maps")))), ProcText.RuntimeLibraryFile);
     }
 
-    /// <summary>A runtime library's embedded file version, read once per file and write time (a list reads every process's).</summary>
-    internal static string? FileVersion(string library)
+    public long? ReadableBytes(int processId)
     {
-        // Review H5: the path comes from the target's maps; as root HeapScope reads only a regular file of a sane size.
-        if (!TargetFiles.IsReadable(library))
-        {
-            return null;
-        }
-
         try
         {
-            var key = (library, File.GetLastWriteTimeUtc(library));
-            return s_versions.GetOrAdd(key, static k => ProcText.EmbeddedVersion(File.ReadAllBytes(k.Path)));
+            return ProcText.ReadableBytes(File.ReadAllText(ProcFile(processId, "maps")));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return null;
+            return null; // Exited, or another user's.
         }
     }
 
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, DateTime Written), string?> s_versions = new();
-
     /// <summary>The user the process acts as (its effective user id), read from <c>status</c>, which anyone may read.</summary>
-    public static int? EffectiveUserId(int processId)
+    public int? EffectiveUserId(int processId)
     {
         try
         {

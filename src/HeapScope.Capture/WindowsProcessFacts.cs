@@ -33,6 +33,10 @@ namespace HeapScope.Capture;
 internal sealed partial class WindowsProcessFacts : IProcessFacts
 {
     private const uint ProcessQueryLimitedInformation = 0x1000;
+    private const uint ProcessQueryInformation = 0x0400;
+    private const uint MemCommit = 0x1000;
+    private const uint PageNoAccess = 0x01;
+    private const uint PageGuard = 0x100;
     private const int ProcessCommandLineInformation = 60;
     private const int StatusInfoLengthMismatch = unchecked((int)0xC0000004);
 
@@ -139,6 +143,60 @@ internal sealed partial class WindowsProcessFacts : IProcessFacts
         }
     }
 
+    public int? EffectiveUserId(int processId) => null;
+
+    /// <summary>The committed pages that are neither no-access nor guard pages, walked with VirtualQueryEx; null when the walk is denied.</summary>
+    public long? ReadableBytes(int processId)
+    {
+        var handle = OpenProcess(ProcessQueryInformation, false, (uint)processId);
+        if (handle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            long total = 0;
+            var info = default(MemoryBasicInformation);
+            var size = (nuint)Marshal.SizeOf<MemoryBasicInformation>();
+            ulong address = 0;
+            while (VirtualQueryEx(handle, (nuint)address, out info, size) != 0)
+            {
+                if (info.State == MemCommit && (info.Protect & PageNoAccess) == 0 && (info.Protect & PageGuard) == 0)
+                {
+                    total += (long)info.RegionSize;
+                }
+
+                var next = (ulong)info.BaseAddress + (ulong)info.RegionSize;
+                if (next <= address)
+                {
+                    break;
+                }
+
+                address = next;
+            }
+
+            return total;
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MemoryBasicInformation
+    {
+        public nuint BaseAddress;
+        public nuint AllocationBase;
+        public uint AllocationProtect;
+        public ushort PartitionId;
+        public nuint RegionSize;
+        public uint State;
+        public uint Protect;
+        public uint Type;
+    }
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial IntPtr OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint processId);
 
@@ -152,4 +210,7 @@ internal sealed partial class WindowsProcessFacts : IProcessFacts
 
     [LibraryImport("ntdll.dll")]
     private static partial int NtQueryInformationProcess(IntPtr process, int informationClass, IntPtr information, int length, out int returnLength);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial nuint VirtualQueryEx(IntPtr process, nuint address, out MemoryBasicInformation buffer, nuint length);
 }

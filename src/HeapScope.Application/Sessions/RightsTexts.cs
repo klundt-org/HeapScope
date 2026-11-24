@@ -29,6 +29,12 @@ namespace HeapScope.Application.Sessions;
 /// </summary>
 public static class RightsTexts
 {
+    /// <summary>Whether this system can capture a running process at all (the capture layer's answer, sprint 4.2).</summary>
+    public static bool CanCapture => HeapScope.Capture.CapturePlatform.IsSupported;
+
+    /// <summary>The Learn page's note on who can capture whom on this system, or null.</summary>
+    public static string? LearnNote => HeapScope.Core.ElevationTexts.LearnNote;
+
     /// <summary>The Processes page's mark on a process HeapScope cannot reach as it runs now.</summary>
     public static string NeedsMore => HeapScope.Core.ElevationTexts.NeedsMore;
 

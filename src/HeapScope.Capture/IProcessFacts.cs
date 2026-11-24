@@ -40,4 +40,10 @@ internal interface IProcessFacts
 
     /// <summary>The loaded runtime's version and folder (the runtime ClrMD will need a DAC for).</summary>
     RuntimeFacts? Runtime(Process process);
+
+    /// <summary>The user the process acts as (its effective user id); null on Windows, where rights go by elevation.</summary>
+    int? EffectiveUserId(int processId);
+
+    /// <summary>The bytes of the process's committed, readable memory: what a full dump holds. Null when it cannot be walked.</summary>
+    long? ReadableBytes(int processId);
 }

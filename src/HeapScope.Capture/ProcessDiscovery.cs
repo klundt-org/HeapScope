@@ -103,16 +103,7 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
         return FindOnThisSystem(processId);
     }
 
-    public NotFoundExplanation WhyNotFound(int processId)
-    {
-        if (!OperatingSystem.IsLinux())
-        {
-            return NotFoundExplanation.None;
-        }
-
-        var target = LinuxCaptureRules.Read(processId);
-        return new NotFoundExplanation(LinuxCaptureRules.WhyNoDiagnostics(target), LinuxCaptureRules.Evidence(target));
-    }
+    public NotFoundExplanation WhyNotFound(int processId) => CapturePlatform.Rules().WhyNotFound(processId);
 
     private DotNetProcess? FindOnThisSystem(int processId) =>
         !IsOwn(processId) && DiagnosticsClient.GetPublishedProcesses().Contains(processId) ? Describe(processId) : null;

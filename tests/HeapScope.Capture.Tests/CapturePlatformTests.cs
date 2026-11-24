@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Core;
+
 namespace HeapScope.Capture.Tests;
 
 /// <summary>Sprint 2.3.5: capture on each system, and elevation off Windows.</summary>
@@ -56,4 +58,24 @@ public sealed class CapturePlatformTests
         UnixElevationProbe.StateOf(target: null, own: 1000).ShouldBe(ElevationState.Unknown);
         UnixElevationProbe.StateOf(target: 1000, own: null).ShouldBe(ElevationState.Unknown);
     }
+
+    [Fact]
+    public void Each_system_has_its_own_facts_and_rules_and_one_without_a_reader_gets_none()
+    {
+        CapturePlatform.ProcessFacts(HostSystem.Windows).ShouldBeOfType<WindowsProcessFacts>();
+        CapturePlatform.ProcessFacts(HostSystem.Linux).ShouldBeOfType<LinuxProcessFacts>();
+        CapturePlatform.ProcessFacts(HostSystem.Other).ShouldBeOfType<NoProcessFacts>();
+        CapturePlatform.Rules(HostSystem.Windows).ShouldBeOfType<WindowsCaptureRules>();
+        CapturePlatform.Rules(HostSystem.Linux).ShouldBeOfType<LinuxCaptureRules>();
+        CapturePlatform.IsSupportedOn(HostSystem.Other).ShouldBeFalse();
+        NoProcessFacts.Instance.EffectiveUserId(Environment.ProcessId).ShouldBeNull();
+        NoProcessFacts.Instance.ReadableBytes(Environment.ProcessId).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("createdump failed 0x80070070", "the disk is full")]
+    [InlineData("createdump failed 0x80070005", "the account orders runs as cannot write to D:\\dumps")]
+    [InlineData("createdump failed 0x80004005", null)]
+    public void On_windows_the_result_code_explains_a_dump_that_was_not_written(string message, string? reason) =>
+        WindowsCaptureRules.Instance.WhyNotWritten(message, "orders", @"D:\dumps").Reason.ShouldBe(reason);
 }
