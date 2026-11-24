@@ -50,12 +50,12 @@ dotnet test --solution HeapScope.sln
   by hand to run the app or the CLI against a scratch profile; the build scripts that drive the CLI set it to a scratch
   folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `capture-check.sh`). The worker also takes `--data-folder` (from
   `Worker:DataFolder` on the client), which wins over the variable.
-- Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`) run a short pass in every run;
+- Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`, and `CraftedTraceTests` since 4.2.1, which also bounds memory) run a short pass in every run;
   `HEAPSCOPE_FUZZ_ITERATIONS` and `HEAPSCOPE_FUZZ_SEED` raise and vary it. The nightly `fuzz.yml` runs 2,000 iterations on
   the run number as the seed, on `develop`; a failure names its seed, iteration and exception type. The cache half replays
   from the seed alone. The gcdump half mutates a gcdump captured live, so it also needs that base: with
   `HEAPSCOPE_FUZZ_KEEP=<folder>` (set by the nightly, kept with its results) the test keeps the base (`base.gcdump`), the
-  iteration in progress and any failing input there, and `HEAPSCOPE_FUZZ_BASE=<base.gcdump>` replays from it.
+  iteration in progress and any failing input there, and `HEAPSCOPE_FUZZ_BASE=<base.gcdump>` replays from it; a trace likewise, with `base.nettrace` and `HEAPSCOPE_FUZZ_TRACE`.
 - The DAC trust check on a real dump of any system: `HEAPSCOPE_FIXTURE_DUMP=<dump> dotnet test --project
   tests/HeapScope.Loaders.ClrMd.Tests --filter-class "*PlantedDacTests"` (CI's Linux job runs it, with
   `HEAPSCOPE_REQUIRE_FIXTURE=1` so a skip fails). It plants the DAC next to the dump and removes it after; a folder that

@@ -25,7 +25,10 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   is cancellable; the vendored gcdump reader refuses counts its stream cannot hold before allocating (`CHANGES.md` change
   5; the address table must cover every node), and the loader's object, reference and root walks share one budget of a
   child per byte of the file, check every child and type index and duplicate addresses, and refuse an inconsistency the
-  reader throws with a reason; HeapScope's own errors are never reported as a bad file (3.7 review H5). Mutation tests
+  reader throws with a reason; HeapScope's own errors are never reported as a bad file (3.7 review H5); since 4.2.1 the root index is checked too. A trace
+  was the exception until 4.2.1: `TraceFileCheck` now checks the sizes and counts it states, and how deep they nest, before
+  TraceEvent reads it, and an error TraceEvent throws on its events afterwards is a refusal, not HeapScope's error
+  (`TraceReads`). Mutation tests
   run in every CI run and nightly with more iterations (`fuzz.yml`).
 - The tutorial's sample (sprint 3.13, ADR-042) is HeapScope's own process, started as the user and refused while HeapScope
   runs elevated, so it never runs with more rights than the user; it exits with the process that started it. Its records
