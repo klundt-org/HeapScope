@@ -68,14 +68,16 @@ Capture and sessions (sprint 1.1):
   elevation means only an elevated HeapScope can dump it. Capture runs on Windows, Linux [4.1] and, untested, macOS [4.2] (ADR-025):
   elsewhere `CapturePlatform.EnsureSupported` refuses discovery and capture with a message naming `dotnet-dump`.
   Off Windows `CapturePlatform.ElevationProbe()` gives `UnixElevationProbe` (`Environment.IsPrivilegedProcess`) [2.3.5],
-  which on Linux and macOS compares effective user ids: another user's process needs HeapScope run as that user or as root, since
-  its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` on Linux (`LinuxProcessFacts`) and from libproc and sysctl on macOS (`MacProcessFacts`), and a
+  which on Linux and macOS compares effective user ids: another user's process needs HeapScope run as that user (on Linux
+  also as root), since its diagnostics socket is that user's [4.1]. A process's facts come from `/proc` on Linux (`LinuxProcessFacts`) and from libproc and sysctl on macOS (`MacProcessFacts`), and a
   refusal names its Linux cause (`LinuxCaptureRules`: `ptrace_scope`, a container without `SYS_PTRACE`, another
-  `TMPDIR`, diagnostics turned off).
+  `TMPDIR`, diagnostics turned off) or its macOS one (`MacCaptureRules`: createdump's `task_for_pid`, a protected folder,
+  another `TMPDIR`, diagnostics turned off) [4.2].
 - `DumpCapturer`: checks elevation and free space before asking the runtime for a full dump (`DumpType.Full`: module
   images are in the dump, so it never depends on finding the exact module files). The estimate is measured, not
   guessed: the target's committed readable pages from a `VirtualQueryEx` walk (on Linux, since 4.1, the readable
-  mappings in `/proc/<pid>/maps`) plus 16 MB of streams; when the walk is denied, private bytes x 1.1 + 384 MB for images
+  mappings in `/proc/<pid>/maps`; on macOS, since 4.2 and untested, libproc's regions or, when larger, the physical footprint's
+  fallback, plus the shared cache) plus 16 MB of streams; when the walk is denied, private bytes x 1.1 + 384 MB for images
   and mapped files + 16 MB. Free space comes from `GetDiskFreeSpaceEx` on the folder itself (UNC paths and mount points;
   elsewhere `DriveInfo` on the folder, which asks its file system), and 1 GB is always left free. The capture's log line
   names the estimate beside the size written, so each system's margin shows in the logs. The dump is
@@ -115,7 +117,7 @@ Capture and sessions (sprint 1.1):
   chosen with `Open` (Home's Open, CLI `--session`). `CaptureService` (behind `ICaptureService`) lists processes off
   the calling thread, runs captures as tracked jobs with collision-free file names into the session that was current
   when the capture started, copies the target's DAC (`mscordaccore.dll`; on Linux `libmscordaccore.so` with
-  `libcoreclr.so`, sprint 4.1) to `dac\<file version>\` next to the dump (the loader searches every `dac` folder
+  `libcoreclr.so`, sprint 4.1; on macOS `libmscordaccore.dylib` with `libcoreclr.dylib`, 4.2) to `dac\<file version>\` next to the dump (the loader searches every `dac` folder
   there; the dump stays readable after the runtime on this machine is updated, for self-contained apps, and with several
   runtimes in one session) and, since 3.6, trusts that copy by its SHA-256 (`TrustedDacs`, ADR-035),
   records the snapshot, and logs start, end and failures. Every capture states that the dump

@@ -1,4 +1,4 @@
-# ADR-014 Elevation (amended in sprints 4.1 and 4.1.1)
+# ADR-014 Elevation (amended in sprints 4.1, 4.1.1 and 4.2)
 
 - Decision: dumping or attaching to elevated processes requires HeapScope to run elevated. Detect this and
   explain it clearly; never fail silently.
@@ -12,3 +12,6 @@
   capture as it runs now, with a check box to list them and a note that says how many are hidden; listed, they keep their
   mark. Run elevated (or as root), HeapScope can capture them all, so nothing is hidden. The command line's `list` is
   unchanged. The rule is the view models' `ProcessListFilter`.
+- Amended in sprint 4.2 (untested): macOS follows the rule on user ids, but its texts say to run as the process's user only (the
+  mark reads "Needs its user"): each user has their own temp folder there and sudo does not keep it. Run as root, HeapScope still
+  lists only the processes whose sockets are in the folder it looks in.

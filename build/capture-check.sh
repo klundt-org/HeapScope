@@ -30,9 +30,9 @@
 # after one failed, and the end says which failed. CI's Linux job runs it; it runs on Windows too, and is written to run on
 # macOS (bash 3.2), where nobody has run it (INSTALL.md says how).
 # The output may go into a public issue, so it never shows another process's command line or name: of the process list it
-# prints the sample's row and how many rows there are (4.2 review H4). Everything HeapScope keeps goes to a scratch data
-# folder, never the user's own. The dumps and traces are removed; when a step failed, HeapScope's log stays and its folder
-# is printed (it names processes and paths, so it is for someone you trust, not for the issue).
+# prints the sample's row and how many rows there are (4.2 review H6). Everything HeapScope keeps goes to a scratch data
+# folder, never the user's own. The dumps and traces are removed; unless every step passed (a run that was stopped too),
+# HeapScope's log stays and its folder is printed (it names processes and paths, so it is for someone you trust, not for the issue).
 # Usage: capture-check.sh <heapscope-cli path> [work folder]
 set -euo pipefail
 [ $# -ge 1 ] || { echo "Usage: capture-check.sh <heapscope-cli path> [work folder]" >&2; exit 64; }
@@ -42,12 +42,14 @@ if [ $# -ge 2 ]; then work="$2"; else work=$(mktemp -d); made_work=1; fi
 mkdir -p "$work"
 export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$work/data}"
 failures=
+passed=
 problem() { echo "FAILED: $1" >&2; failures="$failures
   $1"; }
-stop() { problem "$1"; report; exit 1; }
+stop() { problem "$1"; exit 1; }
 report() {
-  if [ -z "$failures" ]; then return 0; fi
-  echo "Capture check failed:$failures" >&2
+  [ -n "$passed" ] && return 0
+  echo "Capture check failed:${failures:-
+  stopped before the end}" >&2
   if [ -d "$HEAPSCOPE_DATA_FOLDER/logs" ]; then
     echo "HeapScope's log says more: $HEAPSCOPE_DATA_FOLDER/logs (it names your processes and folders: read it before you share it)" >&2
   fi
@@ -57,6 +59,7 @@ echo "$(uname -s) $(uname -r) $(uname -m)"
 "$cli" --version || true
 
 out="$work/sample.out"
+: > "$out"
 "$cli" sample start --scenarios StaticCache,SteadyAllocation > "$out" 2>&1 &
 starter=$!
 pid=
@@ -64,9 +67,11 @@ cleanup() {
   [ -n "$pid" ] && "$cli" sample stop --pid "$pid" > /dev/null 2>&1 || true
   kill "$starter" 2> /dev/null || true
   rm -rf "$work"/sample.dmp* "$work"/sample.gcdump* "$work"/sample.nettrace* "$work"/sample.out "$work"/dac
-  if [ -n "$made_work" ] && [ -z "$failures" ]; then rm -rf "$work" || true; fi
+  report || true
+  if [ -n "$made_work" ] && [ -n "$passed" ]; then rm -rf "$work" || true; fi
 }
 trap cleanup EXIT
+trap 'exit 130' INT TERM
 
 for _ in $(seq 1 60); do
   pid=$(sed -n 's/^Sample \([0-9]*\) runs.*/\1/p' "$out")
@@ -78,7 +83,7 @@ done
 cat "$out"
 
 if list=$("$cli" list | tr -d '\r'); then
-  # The sample's own row, whose command line is HeapScope's, and the count of the others.
+  # The sample's own row, whose command line is HeapScope's, and the count of all rows.
   grep -E "^ *$pid " <<< "$list" || problem "'list' did not show the sample (pid $pid)"
   echo "The list has $(grep -cE '^ *[0-9]+ ' <<< "$list" || true) processes."
 else
@@ -118,6 +123,11 @@ else
 fi
 
 if "$cli" sample stop --pid "$pid"; then pid=; else problem "'sample stop' did not stop the sample"; fi
-report
+
+# What a first report on macOS needs from the log: how each read did on HeapScope's own process, and the estimate beside
+# the size written (pids, sizes and folders only).
+grep -hoE "(macOS reads of HeapScope's own process|The full dump of pid|Captured heapscope-sample \(pid).*" "$HEAPSCOPE_DATA_FOLDER"/logs/* 2> /dev/null || true
+
 [ -z "$failures" ] || exit 1
+passed=1
 echo "Capture check passed: the sample was listed, captured as a full dump and a gcdump (both counted its 2,000 entries), monitored and traced."

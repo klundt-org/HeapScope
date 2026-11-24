@@ -156,7 +156,7 @@ public sealed class LinuxCaptureRulesTests
     }
 
     [Fact]
-    public void As_root_another_users_full_dump_is_refused_for_the_library_only_on_linux()
+    public void As_root_another_users_full_dump_is_refused_for_the_library_where_rights_go_by_user()
     {
         // Review H1: the runtime writes the dump as the process's user, who cannot write root's folders.
         var process = new DotNetProcess(4321, "app", null, "10.0.1", ElevationState.Elevated, null, null, null);

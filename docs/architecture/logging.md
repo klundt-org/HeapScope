@@ -94,7 +94,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   checked|unchecked; hidden as needing more rights than HeapScope has: {pids}" (200 at most, then "and N more") after a
   listing when that changed since its last line, and on every toggle of the box ("(just changed)"). The "Listed" line
   says on Windows whether HeapScope runs elevated, and on Linux and macOS gives the effective user ids, which decide the
-  marks, and of how many processes the user, the command line and the runtime folder could not be read (sprint 4.2).
+  marks, and of how many processes the user, the command line and the runtime folder are not known (sprint 4.2; a single-file
+  application has no runtime folder, and another user's is not read).
 - **Capture on macOS (sprint 4.2)**: the same lines as on Linux (below), with "macOS check of pid {pid}: ..." (user ids,
   how the environment read ended, diagnostics off, both `TMPDIR`s, the region walk: how many regions, where it stopped and
   why) and, for a dump that was not written, "macOS; rule: {the rule that decided} ('the text it matched')". Once per run,
@@ -104,6 +105,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
 - **The estimate (sprint 4.2, every system)**: before a full dump, "The full dump of pid {pid} is estimated at {bytes}
   bytes, from the memory walk|the private bytes (walk ..., private bytes ..., not in the walk ...); free in its folder: ...".
   On macOS the larger of walk and private bytes decides, and "not in the walk" is the shared cache.
+- **A capture that got no answer (sprint 4.2, Linux and macOS)**: "Pid {pid} did not answer: {evidence}", the not-found check's
+  evidence. The message to the user stays "did not answer ...; it may have exited", since its socket was found.
 - **DAC beside a dump (sprint 4.2)**: "No DAC is copied ..." when the runtime folder is not known, and a runtime library left out.
 - **Capture on Linux (sprint 4.1 and its review H6, M4)**: each capture logs "Captured {name} (pid): {bytes} bytes in {s} s;
   estimated {bytes} ({n}% of it written)", so the disk check's margin is known on each system (CI flags a Linux dump larger

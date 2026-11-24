@@ -3,7 +3,7 @@
 Reviewers: solution-architect, senior-dev, gc-specialist, support-engineer (2026-11-23), on `sprint/4.2` against the tag
 `sprint-4.1.1`. Each reviewer read the working tree (none had a shell or ran anything; the gc-specialist read the strings of
 the macOS runtime pack's binaries, which were checked again here). Findings that overlap are merged and keep the highest
-severity. Counts: 7 High, 11 Moderate, 22 Low.
+severity. Counts: 8 High, 15 Moderate, 40 Low (with those of the confirmations).
 
 Before the review: Debug and Release builds with 0 warnings; the fast tier passed (1,596 tests, 17 skipped), and the light
 integration tier (287). The owner decided the Moderates' handling in advance (autonomy for Phase 4): each was applied as
@@ -111,4 +111,35 @@ recommended, marked "decided autonomously". The sprint's texts are drafts for th
 
 ## Confirmations
 
-(filled when the reviewers answer)
+First round (2026-11-23; all read the code and ran nothing):
+- gc-specialist: H1, H2, H5, M4, M6, M7 Confirmed, with L23 to L26.
+- support-engineer: H3 to H7, M1, M3, M9, M11 Confirmed; M10 not (M14 below), with M13 and L27 to L34.
+- senior-dev: H5, H7, M1, M4, M5, M7 Confirmed; M2 not (H8), with M12, M14, M15 and L35 to L38.
+- solution-architect: H7, M1, M3, M4, M8 Confirmed; M2 not (H8), with M12 and L39 and L40.
+
+New findings of that round, fixed:
+- H8 (senior-dev, solution-architect): a test of the "Listed" line expected its old end; its branch runs only off Windows, so
+  only CI's Linux job would have shown it. Fixed, and the counts have a test.
+- M12 (solution-architect, senior-dev): a capture of a listed process that did not answer got a not-found reason, which
+  contradicts its socket having been found (also on Linux). Fixed: the old message, with the evidence in the log only.
+  Decided autonomously.
+- M13 (support-engineer; senior-dev Low): the check script removed its logs when it was stopped. Fixed: they go only when every
+  step passed. Decided autonomously.
+- M14 (support-engineer, senior-dev; solution-architect Low): with one empty argument, or an entry with another name, an
+  environment value still reached the command line. Fixed with the cases as tests. Decided autonomously.
+- M15 (senior-dev; support-engineer and solution-architect Low): a trailing argument of that shape could decide a not-found
+  reason. Fixed: it decides nothing. Decided autonomously.
+
+New Low findings (listed, not fixed unless noted): L23 (gc) if a macOS reported the shared cache as more than an empty submap,
+it would be counted twice and captures refused for space; L24 (gc) an x64 HeapScope under Rosetta measures the x64 cache; L25
+(gc) a path holding "ptrace" or "task_for_pid" matches its rule; L26 (gc) the evidence's readable bytes are partial when the
+walk stopped at the runtime; L27 (support) Live, trace and a refused library capture log no self-check; L28 (support) the
+counts said "not readable" (fixed: "not known"); L29 (support, architect) logging.md lacked a line (fixed); L30 (support) a
+missing folder was called not writable (fixed); L31 (support) the estimate line does not say the cache size is assumed; L32
+(support, architect) USER-GUIDE on root (fixed); L33 (support) a gcdump that gets no answer has no evidence; L34 (support) the
+left-out argument is not marked; L35 (senior-dev) quadratic move of entries (fixed); L36 (senior-dev) the self-check ran on the
+caller's thread (fixed); L37 (senior-dev) case of /var (fixed); L38 (senior-dev) stale names (fixed in part); L39 (architect)
+the script's log lines were lost on a pass (fixed: printed); L40 (architect) ARCHITECTURE and ADR-014 (fixed).
+
+Second round:
+(asked)

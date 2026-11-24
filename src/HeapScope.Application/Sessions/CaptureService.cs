@@ -70,6 +70,9 @@ public sealed class CaptureService : ICaptureService
     private readonly ILogger _logger;
     private readonly TrustedDacs? _trustedDacs;
 
+    // Whether the self-check was logged (macOS).
+    private int _selfChecked;
+
     // One capture or forced collection per process at a time, across every page and rule (sprint 3.4, decision 3).
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, string> _busy = new();
 
@@ -125,9 +128,13 @@ public sealed class CaptureService : ICaptureService
     {
         try
         {
-            var processes = await Task.Run(() => _discovery.List(cancellationToken), cancellationToken).ConfigureAwait(false);
-
-            LogSelfCheck();
+            var processes = await Task.Run(
+                () =>
+                {
+                    LogSelfCheck();
+                    return _discovery.List(cancellationToken);
+                },
+                cancellationToken).ConfigureAwait(false);
 
             // Sprint 3.13 review H5: why a process the user expects is not listed (HeapScope's own, or gone while listing).
             var omitted = _discovery.LastOmitted;
@@ -442,10 +449,8 @@ public sealed class CaptureService : ICaptureService
         var marked = all.Take(200).Select(p => $"{p.ProcessId} (user {CapturePlatform.UserId(p.ProcessId)})").ToList();
         var more = all.Count > 200 ? $" and {all.Count - 200} more" : string.Empty;
         return $"; HeapScope's effective user {CapturePlatform.UserId(Environment.ProcessId)}; another user's: {(marked.Count == 0 ? "none" : string.Join(", ", marked) + more)}"
-            + $"; not readable: the user of {processes.Count(p => p.Elevation == ElevationState.Unknown)}, the command line of {processes.Count(p => p.CommandLine is null)}, the runtime folder of {processes.Count(p => p.RuntimeDirectory is null)}";
+            + $"; not known: the user of {processes.Count(p => p.Elevation == ElevationState.Unknown)}, the command line of {processes.Count(p => p.CommandLine is null)}, the runtime folder of {processes.Count(p => p.RuntimeDirectory is null)}";
     }
-
-    private int _selfChecked;
 
     /// <summary>Once per HeapScope, on a system where nobody has run its reads (macOS): how each does on its own process.</summary>
     private void LogSelfCheck()

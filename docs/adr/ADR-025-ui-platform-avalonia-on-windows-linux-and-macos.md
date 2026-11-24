@@ -79,7 +79,7 @@
 - Amended in sprint 4.2: capture is built for macOS too, untested (no Mac, no macOS runners). The system is one value
   (`HostSystem`); each has its facts (`IProcessFacts`) and the rules that explain a refusal (`ICaptureRules`), and a system
   without them gets none, never another's. On macOS the facts come from libproc and sysctl, whose structs are read from
-  XNU's published headers; a read whose size differs from the header's gives nothing, so a wrong layout loses a detail and
+  XNU's published headers; a read whose returned size differs from the header's gives nothing, so a wrong layout loses a detail and
   never a listing, and how each read ended is logged (once for HeapScope's own process, the self-check, and in every
   not-found line). The size estimate there is the larger of the region walk and the fallback, whose private bytes are the
   physical footprint (.NET 10 sets none), plus the dyld shared cache: the walk reports that as one empty submap, but

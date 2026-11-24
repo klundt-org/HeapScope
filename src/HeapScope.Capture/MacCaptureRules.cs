@@ -99,6 +99,13 @@ internal sealed class MacCaptureRules : ICaptureRules
                 + "Documents, Downloads) from applications that were not allowed to use them";
         }
 
+        if (Matched(message, "No such file or directory") is { } gone)
+        {
+            // The message itself names the file; nothing was measured that says more.
+            rule = $"the folder is not there for the target ('{gone}')";
+            return null;
+        }
+
         if (Matched(message, "0x80070005", "Permission denied", "Could not create output file", "Read-only file system") is { } folder)
         {
             rule = $"the folder is not writable by the target's account ('{folder}')";
@@ -197,7 +204,7 @@ internal sealed class MacCaptureRules : ICaptureRules
     private static string Real(string folder)
     {
         folder = TargetEnvironment.Folder(folder);
-        return folder == "/tmp" || folder.StartsWith("/tmp/", StringComparison.Ordinal) || folder.StartsWith("/var/", StringComparison.Ordinal)
+        return folder.Equals("/tmp", StringComparison.OrdinalIgnoreCase) || folder.StartsWith("/tmp/", StringComparison.OrdinalIgnoreCase) || folder.StartsWith("/var/", StringComparison.OrdinalIgnoreCase)
             ? "/private" + folder
             : folder;
     }

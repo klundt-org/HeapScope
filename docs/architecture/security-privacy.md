@@ -87,7 +87,7 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   turned on only after the user confirms (the command line: `--dump-values-in-logs on --yes`); every log says whether it
   holds them (logging.md).
 - Elevated targets require HeapScope to run elevated (ADR-014). HeapScope never tries to elevate silently.
-- Capture on macOS (sprint 4.2, untested): the same rules as on Linux (below). A target's environment is read to find its
+- Capture on macOS (sprint 4.2, untested): the same rules as on Linux (below), but the texts never offer root. A target's environment is read to find its
   temp folder and whether diagnostics are off; the buffer is cleared after the read, the other variables are dropped, and
   none is logged or shown: an argument with an environment entry's shape (`NAME=value`) at the end of a command line is left
   out, since macOS's buffer cannot always tell the two apart. `build/capture-check.sh` prints no other process's row, since its

@@ -247,7 +247,11 @@ public sealed class DumpCapturer(
 
         if (ex is ServerNotAvailableException)
         {
-            return CapturePlatform.Rules().NotAnswering(process.ProcessId, $"{process.Name} (pid {process.ProcessId}) did not answer on its diagnostics port; it may have exited.", ex);
+            // It was found by its socket a moment ago, so a not-found reason would contradict that: only its evidence is kept (4.2 review).
+            return new TargetUnavailableException($"{process.Name} (pid {process.ProcessId}) did not answer on its diagnostics port; it may have exited.", ex)
+            {
+                Evidence = CapturePlatform.Rules().WhyNotFound(process.ProcessId).Evidence,
+            };
         }
 
         if (ex is DiagnosticsClientException)

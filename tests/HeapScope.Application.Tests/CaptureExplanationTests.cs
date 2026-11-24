@@ -106,7 +106,7 @@ public sealed class CaptureExplanationTests : IDisposable
 
         await service.ListProcessesAsync(Ct);
 
-        var line = _logger.Lines.ShouldHaveSingleItem();
+        var line = _logger.Lines.Single(l => l.StartsWith("Listed", StringComparison.Ordinal));
         line.ShouldStartWith("Listed 0 .NET processes");
         if (OperatingSystem.IsWindows())
         {
@@ -119,7 +119,7 @@ public sealed class CaptureExplanationTests : IDisposable
             {
                 // Review H6: the ids behind the marks.
                 line.ShouldContain("; HeapScope's effective user ");
-                line.ShouldEndWith("; another user's: none");
+                line.ShouldEndWith("; another user's: none; not known: the user of 0, the command line of 0, the runtime folder of 0");
             }
         }
     }
@@ -166,6 +166,17 @@ public sealed class CaptureExplanationTests : IDisposable
         var lines = _logger.Lines;
         lines.Count(l => l.StartsWith("The full dump of pid 4321 is estimated at 1024 bytes, from the private bytes (walk not readable, private bytes 2048, not in the walk 0); free in its folder: 1099511627776", StringComparison.Ordinal)).ShouldBe(1);
         lines.ShouldContain(l => l.StartsWith("No DAC is copied next to the dump: the runtime folder of pid 4321 is not known", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Where_rights_go_by_user_the_list_says_of_how_many_processes_a_fact_is_not_known()
+    {
+        Assert.SkipUnless(CapturePlatform.IsSupported && HostSystems.RightsGoByUser(HostSystems.Current), "Windows' line has no user ids.");
+        var process = new DotNetProcess(4321, "orders", null, null, ElevationState.Unknown, null, null, null);
+
+        await Service(new Discovery(process, NotFoundExplanation.None)).ListProcessesAsync(CancellationToken.None);
+
+        _logger.Lines.Single(l => l.StartsWith("Listed", StringComparison.Ordinal)).ShouldEndWith("; not known: the user of 1, the command line of 1, the runtime folder of 1");
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

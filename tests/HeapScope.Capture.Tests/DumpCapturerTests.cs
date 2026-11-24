@@ -205,6 +205,7 @@ public sealed class DumpCapturerTests : IDisposable
         var ex = await Should.ThrowAsync<TargetUnavailableException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
 
         ex.Message.ShouldContain("may have exited");
+        (ex.Evidence is null).ShouldBe(!HeapScope.Core.HostSystems.RightsGoByUser(HeapScope.Core.HostSystems.Current), "the log keeps what the system says of it, the message does not guess");
     }
 
     [Fact]

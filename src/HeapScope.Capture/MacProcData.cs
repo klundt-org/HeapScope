@@ -150,7 +150,7 @@ internal static class MacProcData
     /// the environment. Null when the buffer is cut before the arguments end.
     /// </summary>
     public static string? CommandLine(ReadOnlySpan<byte> procArgs) =>
-        TryArguments(procArgs, out var arguments, out _, out _) ? ProcText.CommandLine(string.Concat(arguments.Select(a => a + '\0'))) : null;
+        TryArguments(procArgs, out var arguments, out _) ? ProcText.CommandLine(string.Concat(arguments.Select(a => a + '\0'))) : null;
 
     /// <summary>
     /// What the environment after the arguments says about the diagnostics socket. Null when there is none to read: macOS
@@ -158,10 +158,12 @@ internal static class MacProcData
     /// </summary>
     public static TargetEnvironment? Environment(ReadOnlySpan<byte> procArgs)
     {
-        if (!TryArguments(procArgs, out _, out var entries, out var at))
+        if (!TryArguments(procArgs, out _, out var at))
         {
             return null;
         }
+
+        List<string> entries = [];
 
         // An empty string ends the environment; what macOS keeps after it (its own loader strings) is not the process's.
         while (NextString(procArgs, ref at) is { Length: > 0 } entry)
@@ -172,10 +174,9 @@ internal static class MacProcData
         return entries.Count == 0 ? null : new TargetEnvironment(entries);
     }
 
-    private static bool TryArguments(ReadOnlySpan<byte> procArgs, out List<string> arguments, out List<string> entries, out int at)
+    private static bool TryArguments(ReadOnlySpan<byte> procArgs, out List<string> arguments, out int at)
     {
         arguments = [];
-        entries = [];
         at = sizeof(int);
         if (procArgs.Length < sizeof(int))
         {
@@ -205,25 +206,20 @@ internal static class MacProcData
         }
 
         // The padding cannot be told from an empty first argument, which would move an environment entry in as the last
-        // argument. No environment value may reach the process list, so one that has an entry's shape counts as an entry.
-        while (arguments.Count > 1 && IsEntry(arguments[^1]))
+        // argument. No environment value may reach the process list, so trailing arguments with an entry's shape are left
+        // out; they can be real ones (a setting such as Urls=...), so they never decide anything either (4.2 review M10).
+        var kept = arguments.Count;
+        while (kept > 0 && IsEntry(arguments[kept - 1]))
         {
-            entries.Insert(0, arguments[^1]);
-            arguments.RemoveAt(arguments.Count - 1);
+            kept--;
         }
 
+        arguments.RemoveRange(kept, arguments.Count - kept);
         return true;
     }
 
-    /// <summary>Whether <paramref name="text"/> has the shape of an environment entry: a name of letters, digits and '_', then '='.</summary>
-    private static bool IsEntry(string text)
-    {
-        var equals = text.IndexOf('=', StringComparison.Ordinal);
-        return equals > 0 && !char.IsAsciiDigit(text[0]) && text.AsSpan(0, equals).IndexOfAnyExcept(s_nameCharacters) < 0;
-    }
-
-    private static readonly System.Buffers.SearchValues<char> s_nameCharacters =
-        System.Buffers.SearchValues.Create("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+    /// <summary>Whether <paramref name="text"/> can be an environment entry: a name, which no option or path starts, then '='.</summary>
+    private static bool IsEntry(string text) => text.IndexOf('=', StringComparison.Ordinal) > 0 && text[0] is not ('-' or '/');
 
     /// <summary>The string at <paramref name="at"/>, which moves past its NUL; null at the end of the buffer or when it is cut.</summary>
     private static string? NextString(ReadOnlySpan<byte> procArgs, ref int at)

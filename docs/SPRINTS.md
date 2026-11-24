@@ -135,7 +135,7 @@ rules that explain a failure, and the texts. The per-system split of 4.1 is part
    readable regions for the size estimate. The buffers are parsed by pure functions (`MacProcData`) over bytes. Tests: the
    parsers on built buffers (short, cut, padded, hostile counts) on every system; on macOS, the test process itself.
    Done: `MacProcessFacts`, `MacProcData`, `MacRegion`; off macOS every read is empty. Tests: `MacFactsTests`. The estimate
-   takes the larger of the walk and the fallback (`DumpSizeEstimator.Choose`).
+   takes the larger of the walk and the fallback, plus the shared cache (`DumpSizeEstimator.Choose`).
 3. [x] Elevation on macOS: the rule on effective user ids of 4.1, with the ids from task 2. Tests: the rule and the probe's
    source per system.
    Done: `UnixElevationProbe` over `IProcessFacts`. Tests: `MacFactsTests`, `CapturePlatformTests`.
@@ -159,8 +159,8 @@ rules that explain a failure, and the texts. The per-system split of 4.1 is part
 
 **Decisions**
 - No Mac and no macOS runners: built and checked on Linux, marked untested (owner, 2026-11-18 and 2026-10-31).
-- The structs and constants come from Apple's published headers (XNU `proc_info.h`), read 2026-11-23. Every read checks the
-  size the system returns and gives nothing on a mismatch, so a wrong layout loses a detail and never a listing. Decided
+- The structs and constants come from Apple's published headers (XNU `proc_info.h`), read 2026-11-23. Every read whose size the
+  system returns is checked and gives nothing on a mismatch, so a wrong layout loses a detail and never a listing. Decided
   autonomously.
 - Where a source could not be read (how a region walk ends), the code assumes the least: a walk stops at the first failed
   or non-advancing read, and nothing is concluded from what it did not hold. The dump writer's messages come from the

@@ -121,11 +121,24 @@ public sealed class MacFactsTests
     [Theory]
     [InlineData(2, "/bin/a\0\0\0run\0SECRET=orders-key\0HOME=/Users/a\0")]
     [InlineData(3, "/bin/a\0\0a\0run\0SECRET=orders-key\0HOME=/Users/a\0")]
+    [InlineData(1, "/bin/a\0\0\0SECRET=orders-key\0HOME=/Users/a\0")]
+    [InlineData(2, "/bin/a\0\0\0\0SECRET=orders-key\0OTHER=orders-key\0HOME=/Users/a\0")]
+    [InlineData(2, "/bin/a\0\0\0run\0npm_config_a-b.c=orders-key\0HOME=/Users/a\0")]
+    [InlineData(2, "/bin/a\0\0\0run\0BASH_FUNC_f%%=orders-key\0HOME=/Users/a\0")]
     public void An_environment_entry_taken_for_an_argument_never_reaches_the_command_line(int count, string rest)
     {
         // An empty first argument reads as padding, or the count is one too high: either moves the first entry in.
-        MacProcData.CommandLine(ProcArgs(count, rest))!.ShouldNotContain("orders-key");
+        (MacProcData.CommandLine(ProcArgs(count, rest)) ?? string.Empty).ShouldNotContain("orders-key");
         MacProcData.Environment(ProcArgs(count, rest)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_trailing_setting_is_left_out_and_decides_nothing()
+    {
+        // A known limit: it may be a real argument, but it may be an environment entry too.
+        MacProcData.CommandLine(ProcArgs(3, "/bin/a\0\0a\0app.dll\0Urls=http://x\0HOME=/Users/a\0")).ShouldBe("a app.dll");
+        MacProcData.Environment(ProcArgs(2, "/bin/a\0\0a\0DOTNET_EnableDiagnostics=0\0HOME=/Users/a\0")).ShouldNotBeNull().DiagnosticsOff.ShouldBeNull();
+        MacProcData.Environment(ProcArgs(2, "/bin/a\0\0a\0TMPDIR=/x\0")).ShouldBeNull("macOS left the environment out");
     }
 
     [Fact]
@@ -233,7 +246,7 @@ public sealed class MacFactsTests
     [InlineData("failed 0x80070070", "no space left ('0x80070070')", "the disk is full")]
     [InlineData("Could not create output file '/d/a.dmp': Operation not permitted (1)", "macOS refused the write ('Operation not permitted')", "macOS did not let the account orders runs as write to /d. macOS protects some folders (Desktop, Documents, Downloads) from applications that were not allowed to use them")]
     [InlineData("Could not create output file '/d/a.dmp': Permission denied (13)", "the folder is not writable by the target's account ('Permission denied')", "the account orders runs as cannot write to /d")]
-    [InlineData("Could not create output file '/d/a.dmp': No such file or directory (2)", "the folder is not writable by the target's account ('Could not create output file')", "the account orders runs as cannot write to /d")]
+    [InlineData("Could not create output file '/d/a.dmp': No such file or directory (2)", "the folder is not there for the target ('No such file or directory')", null)]
     [InlineData("failed 0x80070005", "the folder is not writable by the target's account ('0x80070005')", "the account orders runs as cannot write to /d")]
     [InlineData("mach_vm_region_recurse for address 0 FAILED", "none matched", null)]
     public void A_write_failure_is_named_from_what_createdump_reported(string message, string rule, string? reason)
@@ -257,8 +270,7 @@ public sealed class MacFactsTests
             "Process 42 keeps its diagnostics socket in /var/folders/zz/T (its TMPDIR), and HeapScope looks in /var/folders/ab/T. Start HeapScope with TMPDIR=/var/folders/zz/T, then capture it again.");
         MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["HOME=/Users/a"])))!.ShouldContain("in /tmp (its TMPDIR is not set), and");
         MacCaptureRules.WhyNoDiagnostics(Target(environment: here)).ShouldBeNull("/var is a link into /private");
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["TMPDIR=/VAR/folders/ab/T"]))).ShouldNotBeNull("only the links macOS has are resolved");
-        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["TMPDIR=/var/folders/AB/T"]))).ShouldBeNull("case does not count on macOS");
+        MacCaptureRules.WhyNoDiagnostics(Target(environment: new TargetEnvironment(["TMPDIR=/VAR/folders/ab/T"]))).ShouldBeNull("case does not count on macOS");
         MacCaptureRules.WhyNoDiagnostics(Target(user: null, environment: new TargetEnvironment(["TMPDIR=/x"]))).ShouldNotBeNull("an unreadable user id hides no other reason");
         MacCaptureRules.WhyNoDiagnostics(Target()).ShouldBeNull();
         MacCaptureRules.WhyNoDiagnostics(Target(environment: here, walk: new MacWalk(1, 1, 5, "errno 22", 1, null))).ShouldBeNull("a walk without the runtime may have ended early, so nothing says it is not .NET");
