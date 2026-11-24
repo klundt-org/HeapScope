@@ -50,7 +50,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 3.13.2 | Dump values in logs, by consent | Closed | 2026-11-19 | sprint-3.13.2 |
 | 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
 | 4.1.1 | Hide processes HeapScope cannot capture | Closed | 2026-11-21 | sprint-4.1.1 |
-| 4.2 | Capture on macOS | Planned | | |
+| 4.2 | Capture on macOS | In Progress | | |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
 | 4.5 | Peer review | Planned | | |
@@ -108,6 +108,57 @@ Owner decisions, 2026-11-18:
 | 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.2: Capture on macOS
+
+**Goal:** what HeapScope captures on Windows and Linux (the process list, full dumps, gcdumps, live counters, allocation
+recording, the tutorial's sample) is built for macOS, with refusals that say what to change. It is built and checked as
+far as Windows and Linux allow, and marked untested: nobody has run it on a Mac.
+
+**Starting point.** The diagnostics channel is the runtime's own on macOS too. What is missing: the facts about a process
+(macOS has no `/proc`; `Process.Modules` gives the main executable only), the size estimate, another user's mark, the
+rules that explain a failure, and the texts. The per-system split of 4.1 is partial (4.1 review M6, 4.1.1 review L18).
+
+**Tasks**
+1. [ ] The split made whole (M6, L18): `HostSystem` in Core in place of `bool linux` in `ElevationTexts` and
+   `PlatformHints`; the effective user id and the readable bytes behind `IProcessFacts`; the rules that explain a failure
+   behind one interface per system (`ICaptureRules`); a system without a reader refuses instead of getting Windows' facts;
+   `PlatformHints.CanCapture` taken from Application. No behavior changes on Windows or Linux. Tests: the facts and rules
+   chosen per system, every text per system, `CanCapture` equal to the capture layer's answer.
+2. [ ] macOS facts (`MacProcessFacts`): the image path, effective user id and mapped regions through libproc, the command
+   line and environment through `sysctl` (`KERN_PROCARGS2`); the runtime's folder from the mapped `libcoreclr.dylib`; the
+   readable regions for the size estimate. The buffers are parsed by pure functions (`MacProcData`) over bytes. Tests: the
+   parsers on built buffers (short, cut, padded, hostile counts) on every system; on macOS, the test process itself.
+3. [ ] Elevation on macOS: the rule on effective user ids of 4.1, with the ids from task 2. Tests: the rule and the probe's
+   source per system.
+4. [ ] Refusals on macOS (`MacCaptureRules`): createdump's `task_for_pid` failure (signing and entitlements), a folder the
+   target's account cannot write, a full disk, diagnostics turned off, another `TMPDIR` (each macOS user has their own),
+   another user's process; each with its evidence for the log. Wording drafted for the owner. Tests: each rule on text.
+5. [ ] The DAC beside a dump on macOS: `libcoreclr.dylib` copied with `libmscordaccore.dylib`, sizes allowed for. Tests: the
+   copied names per system.
+6. [ ] Capture turned on for macOS: `IsSupported`, the empty pages, tips and the Learn page, marked untested where a user
+   reads it before relying on it. Drafts for the owner. Tests: the texts per system.
+7. [ ] A check a Mac owner can run: `build/linux-capture-check.sh` runs on macOS too (its name and messages say "capture
+   check"); INSTALL.md and the issue link say how to report it. CI's Linux job keeps running it.
+8. [ ] Docs: ADR-025 amended, ARCHITECTURE and its pages, logging, security-privacy, DEVELOPER, README, INSTALL, USER-GUIDE,
+   the CLI's README, info-text.md (drafts), Backlog (what stays unconfirmed, and the AllocationTraceTests CI failure of
+   2026-11-21).
+
+**Decisions**
+- No Mac and no macOS runners: built and checked on Linux, marked untested (owner, 2026-11-18 and 2026-10-31).
+- The structs and constants come from Apple's published headers (XNU `proc_info.h`), read 2026-11-23. Every read checks the
+  size the system returns and gives nothing on a mismatch, so a wrong layout loses a detail and never a listing. Decided
+  autonomously.
+- Where a source could not be read (the macOS dump writer's own messages, how a region walk ends), the code assumes the
+  least: an unknown message gets the generic text, and a walk stops at the first failed or non-advancing read. Decided
+  autonomously.
+- Another user's process follows 4.1's rule (run as that user, or as root); its temp folder differs on macOS, so the refusal
+  names it and what to start HeapScope with. No search of other users' folders. Decided autonomously.
+- HeapScope never signs or re-signs a target or changes its entitlements; a refusal says what the runtime reported. Decided
+  autonomously.
+- No new sample scenario or lesson: 4.1's lesson note gains macOS wording (a draft for the owner). Decided autonomously.
 
 ---
 
