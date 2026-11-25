@@ -54,7 +54,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.2.1 | Patch: damaged gcdumps and traces | Closed | 2026-11-24 | sprint-4.2.1 |
 | 4.3 | Live session | Closed | 2026-11-25 | sprint-4.3 |
 | 4.4 | Allocated between two snapshots | Closed | 2026-11-25 | sprint-4.4 |
-| 4.5 | Peer review | Planned | | |
+| 4.5 | Peer review | In Progress | | |
 | 4.6 | Analysis tabs | Planned | | |
 | 4.7 | Sunburst | Planned | | |
 | 4.8 | WPF leak detectors (optional) | Planned | | |
@@ -110,6 +110,27 @@ Owner decisions, 2026-11-18:
 | 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.5: Peer review
+
+**Goal:** what must change, be refactored or be proven before the first full release and the UI-heavy sprints, from reviewers who read
+the whole code base as outsiders, ranked, each finding checked in the code.
+
+**Tasks**
+1. [ ] Five reviewers read the code base at sprint 4.4 (not a diff), each its area: solution architect, senior developer, CLR and GC
+   specialist, support engineer, and DevSecOps (build, packages, CI, supply chain, threat surface). Each also says what stands between
+   this and a first full release.
+2. [ ] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
+   `docs/reviews/peer-review-4.5.md`.
+3. [ ] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
+4. [ ] A proposed split into sprints, for the owner to decide; the Backlog updated.
+5. [ ] The owner's 4.4 wording and release notes answers folded in, if they came.
+
+**Decisions**
+- Like 3.5's: the review changes no code but for Critical findings. Decided autonomously.
+- The split into sprints is the owner's decision, so the sprint ends by asking. Decided autonomously.
 
 ---
 
