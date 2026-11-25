@@ -39,6 +39,12 @@ public static class AllocatedBetweenTexts
 
     public const string Late = "A gcdump here was captured by a version before 4.4, which recorded when its file was done: what was allocated in the seconds between counts on the wrong side of it.";
 
+    public const string TickFirst = "Tick Allocated between first.";
+
+    public const string NoSample = "No allocation of this row was sampled between the snapshots.";
+
+    public const string TraceClosed = "The allocation trace was closed on the Allocations page. Tick Allocated between again to open it.";
+
     public static string NotRecorded(string note) => "The monitoring run of these snapshots has no allocation trace: " + note;
 
     /// <summary>What was counted, and what no row holds.</summary>

@@ -72,6 +72,9 @@ public sealed record DiffRow(
     /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
     public int? AllocatedSamples { get; init; }
 
+    /// <summary>The name the trace has for the row's type; null without a sample, and when the row joins several names.</summary>
+    public string? AllocatedType { get; init; }
+
     public long? RetainedDelta => BaselineRetained is { } before && CurrentRetained is { } after ? (long)after - (long)before : null;
 
     /// <summary>The byte delta of one heap kind (a side without the row counts 0).</summary>
@@ -80,8 +83,8 @@ public sealed record DiffRow(
     /// <summary>Rows are equal by value, their per-kind bytes compared element by element.</summary>
     public bool Equals(DiffRow? other) =>
         other is not null
-        && (Name, BaselineCount, BaselineBytes, CurrentCount, CurrentBytes, BaselineTypes, CurrentTypes, TypeName, Module, ComparesCopies, NewObjects, DeadObjects, BaselineRetained, CurrentRetained, AllocatedBytes, AllocatedSamples)
-            == (other.Name, other.BaselineCount, other.BaselineBytes, other.CurrentCount, other.CurrentBytes, other.BaselineTypes, other.CurrentTypes, other.TypeName, other.Module, other.ComparesCopies, other.NewObjects, other.DeadObjects, other.BaselineRetained, other.CurrentRetained, other.AllocatedBytes, other.AllocatedSamples)
+        && (Name, BaselineCount, BaselineBytes, CurrentCount, CurrentBytes, BaselineTypes, CurrentTypes, TypeName, Module, ComparesCopies, NewObjects, DeadObjects, BaselineRetained, CurrentRetained, AllocatedBytes, AllocatedSamples, AllocatedType)
+            == (other.Name, other.BaselineCount, other.BaselineBytes, other.CurrentCount, other.CurrentBytes, other.BaselineTypes, other.CurrentTypes, other.TypeName, other.Module, other.ComparesCopies, other.NewObjects, other.DeadObjects, other.BaselineRetained, other.CurrentRetained, other.AllocatedBytes, other.AllocatedSamples, other.AllocatedType)
         && (BaselineKinds ?? []).AsSpan().SequenceEqual(other.BaselineKinds ?? [])
         && (CurrentKinds ?? []).AsSpan().SequenceEqual(other.CurrentKinds ?? []);
 
@@ -172,6 +175,7 @@ public static class TypeDiff
                 CurrentKinds = extras.Kinds ? r.Value.CurKinds ?? new ulong[TypeAggregation.HeapKindSlots] : null,
                 AllocatedBytes = r.Value.AllocatedSamples > 0 ? r.Value.AllocatedBytes : null,
                 AllocatedSamples = r.Value.AllocatedSamples > 0 ? r.Value.AllocatedSamples : null,
+                AllocatedType = byType && r.Value.AllocatedName is { } traced && traced != Ambiguous ? traced : null,
             };
         })];
     }
@@ -211,10 +215,11 @@ public static class TypeDiff
             var typeRetained = retained is { ByType: true } ? retained.Bytes[t] : 0UL;
             var allocatedBytes = (isBaseline ? allocated?.BaselineBytes : allocated?.CurrentBytes)?[t] ?? 0;
             var allocatedSamples = (isBaseline ? allocated?.BaselineSamples : allocated?.CurrentSamples)?[t] ?? 0;
+            var allocatedName = (isBaseline ? allocated?.BaselineNames : allocated?.CurrentNames)?[t];
             foreach (var key in keys)
             {
                 rows.TryGetValue(key, out var row);
-                row = row with { AllocatedBytes = row.AllocatedBytes + allocatedBytes, AllocatedSamples = row.AllocatedSamples + allocatedSamples };
+                row = row with { AllocatedBytes = row.AllocatedBytes + allocatedBytes, AllocatedSamples = row.AllocatedSamples + allocatedSamples, AllocatedName = allocatedName is null ? row.AllocatedName : Merge(row.AllocatedName, allocatedName) };
                 var kinds = (isBaseline ? row.BaseKinds : row.CurKinds) ?? new ulong[TypeAggregation.HeapKindSlots];
                 for (var k = 0; k < TypeAggregation.HeapKindSlots; k++)
                 {
@@ -268,7 +273,8 @@ public static class TypeDiff
         ulong[]? BaseKinds = null,
         ulong[]? CurKinds = null,
         long AllocatedBytes = 0,
-        int AllocatedSamples = 0);
+        int AllocatedSamples = 0,
+        string? AllocatedName = null);
 }
 
 /// <summary>

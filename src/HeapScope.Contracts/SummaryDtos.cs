@@ -250,6 +250,12 @@ public static class TypeDiffColumns
     /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
     public const string AllocatedSamples = "AllocatedSamples";
 
+    /// <summary>
+    /// Hidden key column in Type grouping, with the two above: the name the trace has for the row's type, which the allocation
+    /// queries take; empty without a sample, and when the row joins several names. Several types can share it.
+    /// </summary>
+    public const string AllocatedType = "AllocatedType";
+
     /// <summary>The <see cref="Change"/> value of a row present only in the current snapshot.</summary>
     public const string New = "new";
 

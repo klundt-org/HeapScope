@@ -193,8 +193,8 @@ public sealed class DumpCapturer(
     /// Captures a full dump of <paramref name="process"/> to <paramref name="path"/>. Throws
     /// <see cref="ElevationRequiredException"/>, <see cref="InsufficientDiskSpaceException"/>,
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
-    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the runtime was done writing:
-    /// the target is paused until a moment before, so nothing it allocates lies between (sprint 4.4).
+    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the dump was last
+    /// written to, which is while the target is paused (sprint 4.4).
     /// </summary>
     public async Task<DateTimeOffset> CaptureAsync(
         DotNetProcess process,
@@ -222,11 +222,12 @@ public sealed class DumpCapturer(
             "Canceling",
             estimate,
             "The runtime finishes writing the dump, then HeapScope deletes it")));
+        var started = _time.GetUtcNow();
         DateTimeOffset written;
         try
         {
             await _writer.WriteAsync(process.ProcessId, file.PartialPath).ConfigureAwait(false);
-            written = _time.GetUtcNow();
+            written = LastWritten(file.PartialPath, started, _time.GetUtcNow());
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -242,6 +243,21 @@ public sealed class DumpCapturer(
 
         file.Commit();
         return written;
+    }
+
+    // The runtime answers a moment after the target runs again (0.16 s measured, in which a busy process allocates 200 MB), so the
+    // file's own time is taken where it is one of this write.
+    private static DateTimeOffset LastWritten(string path, DateTimeOffset started, DateTimeOffset answered)
+    {
+        try
+        {
+            var written = new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
+            return written >= started && written <= answered ? written : answered;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return answered;
+        }
     }
 
     private Exception Translate(DotNetProcess process, string directory, Exception ex)

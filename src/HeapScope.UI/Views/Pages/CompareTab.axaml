@@ -74,6 +74,7 @@
       <CheckBox Content="New and dead objects" Margin="16,0,0,0" VerticalAlignment="Center" IsChecked="{Binding MatchObjects, Mode=TwoWay}" />
       <CheckBox Content="Retained sizes" Margin="16,0,0,0" VerticalAlignment="Center" IsChecked="{Binding ShowRetained, Mode=TwoWay}" />
       <CheckBox Content="Generations" Margin="16,0,0,0" VerticalAlignment="Center" IsChecked="{Binding ShowGenerations, Mode=TwoWay}" IsEnabled="{Binding HasGenerations}" />
+      <CheckBox x:Name="AllocatedBox" Content="Allocated between" Margin="16,0,0,0" VerticalAlignment="Center" IsChecked="{Binding ShowAllocated, Mode=TwoWay}" IsVisible="{Binding OffersAllocated}" />
       <ctl:InfoIcon Text="{x:Static vm:InfoTexts.CompareOptions}" Margin="12,0,0,0" VerticalAlignment="Center" />
     </WrapPanel>
     <TextBlock DockPanel.Dock="Top" Text="{Binding Totals}" Classes="subtle" TextWrapping="Wrap" Margin="0,0,8,6" />
@@ -81,6 +82,7 @@
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding GroupNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding IdentityNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding RetainedNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
+    <ctl:NoteText DockPanel.Dock="Top" Text="{Binding AllocatedNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <DataGrid x:Name="CompareGrid" FrozenColumnCount="1" ctl:GridBehaviors.VisibleColumnGroups="{Binding VisibleColumnGroups}" ctl:GridExports.ExportName="Comparison" CanUserSortColumns="True" SelectionMode="Extended"
               ctl:GridBehaviors.Rows="{Binding Rows}"
               ctl:GridBehaviors.SortCommand="{Binding SortByCommand}" ctl:GridBehaviors.SortState="{Binding SortState}"
@@ -101,6 +103,9 @@
                     ToolTip.Tip="Opens this type's new, dead or survived objects as a set, with dead ones in the baseline. Needs grouping by type, with New and dead objects ticked and matched." />
           <MenuItem Header="Open survived objects as a set" Command="{Binding OpenSurvivedCommand}" CommandParameter="{Binding #CompareGrid.SelectedItem}"
                     ToolTip.Tip="Opens this type's new, dead or survived objects as a set, with dead ones in the baseline. Needs grouping by type, with New and dead objects ticked and matched." />
+          <Separator />
+          <MenuItem Header="Show where it was allocated" Command="{Binding ShowWhereAllocatedCommand}" CommandParameter="{Binding #CompareGrid.SelectedItem}"
+                    ToolTip.Tip="Opens the run's allocation trace on the Allocations page at the time between the snapshots, narrowed to this row's type. Needs Allocated between ticked." />
         </ContextMenu>
       </DataGrid.ContextMenu>
       <DataGrid.Columns>
@@ -158,6 +163,12 @@
         <DataGridTextColumn Header="Gen2 +/-" x:DataType="vm:DiffRowItem" Binding="{Binding Gen2Delta, StringFormat='{}{0:+#,0;-#,0;0}', Mode=OneWay}" Width="110" SortMemberPath="Gen2Delta" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
         <DataGridTextColumn Header="LOH +/-" x:DataType="vm:DiffRowItem" Binding="{Binding LohDelta, StringFormat='{}{0:+#,0;-#,0;0}', Mode=OneWay}" Width="110" SortMemberPath="LohDelta" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
         <DataGridTextColumn Header="POH +/-" x:DataType="vm:DiffRowItem" Binding="{Binding PohDelta, StringFormat='{}{0:+#,0;-#,0;0}', Mode=OneWay}" Width="110" SortMemberPath="PohDelta" CellStyleClasses="number" Tag="Generations" IsVisible="False" />
+        <DataGridTextColumn x:DataType="vm:DiffRowItem" Binding="{Binding AllocatedBytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="140" SortMemberPath="AllocatedBytes" CellStyleClasses="number" Tag="Allocated" IsVisible="False">
+          <DataGridTextColumn.Header>
+            <TextBlock Text="Allocated (est.)" ToolTip.Tip="Bytes of the row's types allocated between the two snapshots, what was collected since included. An estimate from the run's samples, about one per 100 KB: an empty cell means no sample, not no allocation." />
+          </DataGridTextColumn.Header>
+        </DataGridTextColumn>
+        <DataGridTextColumn Header="Samples" x:DataType="vm:DiffRowItem" Binding="{Binding AllocatedSamples, StringFormat='{}{0:N0}', Mode=OneWay}" Width="100" SortMemberPath="AllocatedSamples" CellStyleClasses="number" Tag="Allocated" IsVisible="False" />
         <DataGridTextColumn x:DataType="vm:DiffRowItem" Binding="{Binding BaselineTypes, Mode=OneWay}" Width="122" SortMemberPath="BaselineTypes" CellStyleClasses="number">
           <DataGridTextColumn.Header>
             <TextBlock Text="Types (baseline)" ToolTip.Tip="How many distinct types the row adds up in each snapshot. For a type row it differs when the type is loaded a different number of times." />

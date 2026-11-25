@@ -49,13 +49,15 @@ public sealed class AllocationJoin
     private const int CheckEvery = 0xFFFF;
     private const int KeptAbsent = 5;
 
-    private AllocationJoin(AllocationJoinTotals totals, long[] baselineBytes, int[] baselineSamples, long[] currentBytes, int[] currentSamples)
+    private AllocationJoin(AllocationJoinTotals totals, long[] baselineBytes, int[] baselineSamples, string?[] baselineNames, long[] currentBytes, int[] currentSamples, string?[] currentNames)
     {
         Totals = totals;
         BaselineBytes = baselineBytes;
         BaselineSamples = baselineSamples;
+        BaselineNames = baselineNames;
         CurrentBytes = currentBytes;
         CurrentSamples = currentSamples;
+        CurrentNames = currentNames;
     }
 
     public AllocationJoinTotals Totals { get; }
@@ -65,10 +67,16 @@ public sealed class AllocationJoin
 
     public int[] BaselineSamples { get; }
 
+    /// <summary>The name the trace has for each joined type of the baseline, which the trace's own queries take.</summary>
+    public string?[] BaselineNames { get; }
+
     /// <summary>Sampled bytes per type index of the current snapshot.</summary>
     public long[] CurrentBytes { get; }
 
     public int[] CurrentSamples { get; }
+
+    /// <summary>As <see cref="BaselineNames"/>, of the current snapshot.</summary>
+    public string?[] CurrentNames { get; }
 
     /// <summary>The types allocated in an interval, by name and method table, most bytes first.</summary>
     public static IReadOnlyList<AllocatedType> Types(AllocationTrace trace, AllocationFilter filter, CancellationToken cancellationToken = default)
@@ -119,8 +127,10 @@ public sealed class AllocationJoin
 
         var baselineBytes = new long[baseline.TypeCount];
         var baselineSamples = new int[baseline.TypeCount];
+        var baselineNames = new string?[baseline.TypeCount];
         var currentBytes = new long[current.TypeCount];
         var currentSamples = new int[current.TypeCount];
+        var currentNames = new string?[current.TypeCount];
         long total = 0, byTable = 0, byName = 0, shared = 0, absent = 0;
         var samples = 0;
         var otherNames = 0;
@@ -156,14 +166,17 @@ public sealed class AllocationJoin
 
             (target.IsCurrent ? currentBytes : baselineBytes)[target.Type] += type.Bytes;
             (target.IsCurrent ? currentSamples : baselineSamples)[target.Type] += type.Samples;
+            (target.IsCurrent ? currentNames : baselineNames)[target.Type] ??= type.Name;
         }
 
         return new AllocationJoin(
             new AllocationJoinTotals(total, samples, byTable, byName, shared, absent, absentTypes.Count, otherNames, [.. absentTypes.OrderByDescending(t => t.Bytes).Take(KeptAbsent)]),
             baselineBytes,
             baselineSamples,
+            baselineNames,
             currentBytes,
-            currentSamples);
+            currentSamples,
+            currentNames);
     }
 
     /// <summary>A name as the trace records it, in the one form both are compared in.</summary>

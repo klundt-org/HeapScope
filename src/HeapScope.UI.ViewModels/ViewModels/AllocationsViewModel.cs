@@ -80,7 +80,7 @@ public sealed partial class AllocationsViewModel : ObservableObject
     public async Task OpenPathAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        if (Traces.FirstOrDefault(t => HeapScope.Contracts.PathIdentity.Same(t.Trace.Path, Path.GetFullPath(path))) is { } open)
+        if (Find(path) is { } open)
         {
             Selected = open;
             TraceShown?.Invoke(this, EventArgs.Empty);
@@ -114,13 +114,53 @@ public sealed partial class AllocationsViewModel : ObservableObject
     public void Show(TraceHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);
+        Selected = Add(handle);
+        TraceShown?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// The trace of a file for another page (Compare, sprint 4.4): its tab is added when it has none, without switching to this page,
+    /// so the user can look at it and close it here. Read in the worker as a tracked job when it is not open yet.
+    /// </summary>
+    public async Task<DiffAllocations> OpenBesideAsync(string path, DateTimeOffset fromUtc, DateTimeOffset toUtc)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        if (Find(path) is not { } tab)
+        {
+            var handle = await _session.OpenOnceAsync(path);
+            tab = Find(path) ?? Add(handle);
+            Selected ??= tab;
+        }
+
+        return new DiffAllocations(_session, tab.Trace, fromUtc, toUtc);
+    }
+
+    /// <summary>Shows an interval of an open trace, of one type or every type, and this page. False when the trace was closed.</summary>
+    public bool ShowInterval(TraceHandle handle, TimeInterval interval, string? typeName)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        if (Traces.FirstOrDefault(t => t.Trace == handle) is not { } tab)
+        {
+            return false;
+        }
+
+        Selected = tab;
+        tab.Narrow(interval, typeName);
+        TraceShown?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    private AllocationTraceViewModel? Find(string path) =>
+        Traces.FirstOrDefault(t => HeapScope.Contracts.PathIdentity.Same(t.Trace.Path, Path.GetFullPath(path)));
+
+    private AllocationTraceViewModel Add(TraceHandle handle)
+    {
         var tab = new AllocationTraceViewModel(handle, _session, _dispatcher, _loggers);
         Traces.Add(tab);
         OnPropertyChanged(nameof(IsEmpty));
-        Selected = tab;
         _logger.LogInformation("Allocations: showing {Path}", handle.Path);
         tab.Start();
-        TraceShown?.Invoke(this, EventArgs.Empty);
+        return tab;
     }
 
     [RelayCommand]

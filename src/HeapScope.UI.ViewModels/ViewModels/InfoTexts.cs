@@ -229,7 +229,8 @@ public static class InfoTexts
         "Group by adds up rows by type, namespace, assembly or interface. Only type rows open objects or sets here, and interface rows need full dumps and have no retained sizes.\n" +
         "New and dead objects matches objects across the two snapshots by address, type and size, in the same heap (small object heap, LOH, POH or frozen). An object a collection moved counts as dead and new, and a new object of the same type and size where a dead one was can count as survived. It needs two complete full dumps of one run of a process, with the earlier one as baseline; if not, a note says why.\n" +
         "Retained sizes adds each row's retained bytes, what its objects keep alive, in both snapshots, as lower bounds. Interface rows have none, and the first time for a snapshot it has to compute them, which can take a while.\n" +
-        "Generations adds the change in bytes per heap area: Gen0, Gen1, Gen2, LOH and POH. It needs generations in both snapshots, so not a gcdump. Growth in Gen2 is usually what stays, though a full dump also counts objects not collected yet.";
+        "Generations adds the change in bytes per heap area: Gen0, Gen1, Gen2, LOH and POH. It needs generations in both snapshots, so not a gcdump. Growth in Gen2 is usually what stays, though a full dump also counts objects not collected yet.\n" +
+        "Allocated between adds what was allocated between the two snapshots, objects collected since included, estimated from samples. It needs two snapshots captured on the Live page while one run recorded allocations; if not, a note says why. Show where it was allocated, in a row's menu, opens the Allocations page at that time and type. The trace names a nested type without its declaring type, so types can share a name there.";
 
     /// <summary>Compare: trend: The options row.</summary>
     public const string TrendOptions =

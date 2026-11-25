@@ -86,8 +86,11 @@ internal sealed class TypeDiffSource : IResultSource
         new(TypeDiffColumns.Module, ResultColumnKind.Text, IsHidden: true),
     ];
 
+    private static readonly ResultColumn s_allocatedTypeColumn = new(TypeDiffColumns.AllocatedType, ResultColumnKind.Text, IsHidden: true);
+
     private readonly DiffRow[] _rows;
     private readonly bool _byType;
+    private readonly bool _allocated;
     private readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] _extra;
     private readonly ResultColumn[] _columns;
 
@@ -95,8 +98,9 @@ internal sealed class TypeDiffSource : IResultSource
     {
         _rows = rows;
         _byType = byType;
+        _allocated = byType && extra.Any(e => e.Column.Name == TypeDiffColumns.AllocatedBytes);
         _extra = extra;
-        _columns = [.. s_columns, .. extra.Select(e => e.Column), .. byType ? s_hiddenTypeColumns : []];
+        _columns = [.. s_columns, .. extra.Select(e => e.Column), .. byType ? s_hiddenTypeColumns : [], .. _allocated ? [s_allocatedTypeColumn] : Array.Empty<ResultColumn>()];
         UnfilteredCount = unfilteredCount;
         NewRows = newRows;
         GoneRows = goneRows;
@@ -218,7 +222,12 @@ internal sealed class TypeDiffSource : IResultSource
         if (_byType)
         {
             cells[next++] = row.TypeName;
-            cells[next] = row.Module;
+            cells[next++] = row.Module;
+        }
+
+        if (_allocated)
+        {
+            cells[next] = row.AllocatedType;
         }
     }
 
