@@ -69,6 +69,15 @@ public class TextRulesTests
         offenders.ShouldBeEmpty();
     }
 
+    // Peer review 4.5: a program named without its path is looked for in the current folder, where a planted one may lie.
+    [Fact]
+    public void Programs_are_started_by_their_full_paths() =>
+        Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)))
+            .Where(f => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(f), @"(ProcessStartInfo|Process\.Start)\(""[^""/\\]+"""))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ShouldBeEmpty();
+
     // One path rule (sprint 3.12, B3 and the review's M3): no file but PathIdentity.cs decides by system how paths compare, so
     // the rule cannot drift apart in copies (DacLocator kept one, ProcessDiscovery ignored case everywhere).
     [Fact]

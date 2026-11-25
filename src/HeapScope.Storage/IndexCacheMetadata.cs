@@ -42,6 +42,7 @@ namespace HeapScope.Storage;
 /// <param name="IncompleteSegments">Heap segments the loader could not walk completely: why a snapshot is not complete (sprint 2.3.7).</param>
 /// <param name="Dac">The data access component that read the dump and why (full dumps, sprint 2.3.7).</param>
 /// <param name="ProcessNameSource">The rule that chose the process name, so a reopen from the cache can still say it (full dumps, sprint 3.10). Optional in the JSON.</param>
+/// <param name="Handles">How the GC handles were read (full dumps, peer review 4.5). Optional in the JSON.</param>
 public sealed record IndexCacheMetadata(
     SnapshotInfo Info,
     SnapshotCapabilities Capabilities,
@@ -52,7 +53,8 @@ public sealed record IndexCacheMetadata(
     int StaticFieldRoots = 0,
     int IncompleteSegments = 0,
     Core.Loading.DacChoice? Dac = null,
-    string? ProcessNameSource = null)
+    string? ProcessNameSource = null,
+    Core.Loading.HandleWalk? Handles = null)
 {
     /// <summary>Informational version of this Storage assembly, without source revision.</summary>
     public static string CurrentWriterVersion { get; } = ReadVersion();

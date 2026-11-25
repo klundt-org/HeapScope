@@ -131,16 +131,17 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner) : IUserInteract
         try
         {
             // Explorer and Finder select the file; elsewhere the folder opens. Explorer's exit code means nothing, so it
-            // is not awaited. The path is one argument (Windows paths hold no quotes).
+            // is not awaited. The path is one argument (Windows paths hold no quotes). Both programs by their full paths: a bare name
+            // is looked for in the current folder first, where a file of that name may lie beside a dump (peer review 4.5).
             if (OperatingSystem.IsWindows())
             {
-                using var _ = Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = false });
+                using var _ = Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "/select,\"" + path + "\"") { UseShellExecute = false });
                 return true;
             }
 
             if (OperatingSystem.IsMacOS())
             {
-                using var _ = Process.Start(new ProcessStartInfo("open") { ArgumentList = { "-R", path }, UseShellExecute = false });
+                using var _ = Process.Start(new ProcessStartInfo("/usr/bin/open") { ArgumentList = { "-R", path }, UseShellExecute = false });
                 return true;
             }
         }

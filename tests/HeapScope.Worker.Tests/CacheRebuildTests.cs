@@ -152,8 +152,8 @@ public sealed class CacheRebuildTests : IDisposable
     public void The_older_cache_note_matches_the_current_loader_version()
     {
         ClrMdDumpLoader.CurrentVersion.ShouldBe(
-            4,
-            "a new loader version changes more than the process name: reword SnapshotOpener.OlderCacheNote and WithCurrentProcessName, or raise OldestFallbackLoaderVersion (ADR-041)");
+            5,
+            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote and WithCurrentProcessName, or raise OldestFallbackLoaderVersion (ADR-041)");
     }
 
     [Fact]

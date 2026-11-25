@@ -97,4 +97,7 @@ public sealed record ClrMdLoaderOptions
     /// the file hashed. Null: <c>HeapScope/dac</c> in the user's local application data.
     /// </summary>
     public string? TrustedDacCopyFolder { get; init; }
+
+    /// <summary>Reads GC handles as from a dump that does not record its processors (a core file), for tests.</summary>
+    internal bool IgnoreProcessorsForTests { get; init; }
 }

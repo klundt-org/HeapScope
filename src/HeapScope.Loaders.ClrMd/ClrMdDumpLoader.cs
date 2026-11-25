@@ -48,12 +48,14 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// <summary>
     /// 2 since sprint 1.8: truncated dumps lose CompleteGraph and ExactCounts, finalizer registrations are a fact. 3 since
     /// sprint 2.3.5: core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
-    /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists.
+    /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists. 5
+    /// since peer review 4.5: the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
+    /// LoaderAllocator references of 3.12 for caches written before them.
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     /// <summary>
     /// Checks, without loading it, that the DAC the dump needs may be loaded (sprint 3.6 review H1), for a dump opened from
@@ -139,7 +141,13 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump). A phase of its own since 3.12 (R5).
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
+        var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath) : null, cancellationToken);
         var weakHandles = AddDependentHandlesAndCollectWeak(runtime, builder, cancellationToken);
+        foreach (var handle in handles.LeftOut)
+        {
+            Add(handle, builder, weakHandles);
+        }
+
         AddReferences(heap, builder, clrTypes, progress, cancellationToken);
         var references = meter.End("references");
 
@@ -179,7 +187,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             graph,
             info,
             capabilities,
-            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source),
+            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk),
             new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
     }
 
@@ -496,6 +504,41 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         result.Sort();
         return [.. result.Distinct()];
+    }
+
+    /// <summary>Adds a handle the runtime's own walk left out, as the walks below add theirs.</summary>
+    private static void Add(LeftOutHandle handle, HeapGraphBuilder builder, List<ulong> weak)
+    {
+        if (handle.Object == 0)
+        {
+            return;
+        }
+
+        switch (handle.Kind)
+        {
+            case ClrHandleKind.Dependent:
+                builder.AddDependentHandle(handle.Object, handle.Dependent);
+                break;
+            case ClrHandleKind.WeakShort or ClrHandleKind.WeakLong or ClrHandleKind.WeakWinRT:
+                weak.Add(handle.Object);
+                break;
+            case ClrHandleKind.Pinned:
+                builder.AddRoot(handle.Object, RootKind.PinnedHandle, RootFlags.Retaining | RootFlags.Pinned);
+                break;
+            case ClrHandleKind.AsyncPinned:
+                builder.AddRoot(handle.Object, RootKind.AsyncPinnedHandle, RootFlags.Retaining | RootFlags.Pinned);
+                break;
+            case ClrHandleKind.RefCounted:
+                if (handle.IsStrong)
+                {
+                    builder.AddRoot(handle.Object, RootKind.RefCountedHandle, RootFlags.Retaining);
+                }
+
+                break;
+            case ClrHandleKind.Strong or ClrHandleKind.SizedRef:
+                builder.AddRoot(handle.Object, RootKind.StrongHandle, RootFlags.Retaining);
+                break;
+        }
     }
 
     private static List<ulong> AddDependentHandlesAndCollectWeak(ClrRuntime runtime, HeapGraphBuilder builder, CancellationToken cancellationToken)
