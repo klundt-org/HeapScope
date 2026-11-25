@@ -149,6 +149,10 @@ public sealed record TypeSummaryResult(
 /// Adds each row's retained lower bound in both snapshots and the delta (sprint 3.3); computes or opens both snapshots'
 /// dominators. Not for interface rows.
 /// </param>
+/// <param name="Allocations">
+/// Adds <see cref="TypeDiffColumns.AllocatedBytes"/> and <see cref="TypeDiffColumns.AllocatedSamples"/> from a trace of the same
+/// process (sprint 4.4); null leaves them out.
+/// </param>
 public sealed record TypeDiffRequest(
     Guid BaselineId,
     Guid CurrentId,
@@ -157,7 +161,8 @@ public sealed record TypeDiffRequest(
     string? SortColumn = null,
     bool Descending = true,
     bool MatchObjects = false,
-    bool IncludeRetained = false);
+    bool IncludeRetained = false,
+    DiffAllocationScope? Allocations = null);
 
 /// <summary>Column names of a type diff result set.</summary>
 public static class TypeDiffColumns
@@ -208,6 +213,18 @@ public static class TypeDiffColumns
 
     public const string PohDelta = "PohDelta";
 
+    /// <summary>Sampled bytes of the row's types allocated between the snapshots (sprint 4.4, an estimate); empty without a sample.</summary>
+    public const string AllocatedBytes = "AllocatedBytes";
+
+    /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
+    public const string AllocatedSamples = "AllocatedSamples";
+
+    /// <summary>
+    /// Hidden key column in Type grouping, with the two above: the name the trace has for the row's type, which the allocation
+    /// queries take; empty without a sample, and when the row joins several names. Several types can share it.
+    /// </summary>
+    public const string AllocatedType = "AllocatedType";
+
     /// <summary>The <see cref="Change"/> value of a row present only in the current snapshot.</summary>
     public const string New = "new";
 
@@ -231,7 +248,7 @@ public static class TypeDiffColumns
 /// <see cref="NewObjects"/> and <see cref="DeadObjects"/>), else <see cref="IdentityNote"/> says why not when asked (when
 /// matched, it holds a caution, such as few objects keeping their address);
 /// <see cref="KindDeltas"/> the whole heap's byte delta per heap kind when both snapshots have generations; the dominators'
-/// origins when retained bytes were asked for.
+/// origins when retained bytes were asked for. Since 4.4: <see cref="Allocations"/> when sampled allocations were asked for.
 /// </summary>
 public sealed record TypeDiffResult(
     ResultSetInfo Rows,
@@ -252,7 +269,8 @@ public sealed record TypeDiffResult(
     long DeadObjects = 0,
     IReadOnlyList<HeapKindTotal>? KindDeltas = null,
     DominatorIndexInfo? BaselineDominators = null,
-    DominatorIndexInfo? CurrentDominators = null);
+    DominatorIndexInfo? CurrentDominators = null,
+    DiffAllocationInfo? Allocations = null);
 
 /// <summary>
 /// A trend across several snapshots (sprint 3.3): rows per type, namespace, assembly or interface with objects and bytes

@@ -38,6 +38,9 @@ public static class ColumnGroups
     /// <summary>New and dead objects by address (sprint 3.3).</summary>
     public const string Identity = "Identity";
 
+    /// <summary>Sampled allocations between two snapshots (sprint 4.4).</summary>
+    public const string Allocated = "Allocated";
+
     /// <summary>The groups whose flag is set, in a list a view binds.</summary>
     public static IReadOnlyList<string> Of(params (string Group, bool Shown)[] groups) =>
         [.. (groups ?? []).Where(g => g.Shown).Select(g => g.Group)];

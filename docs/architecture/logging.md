@@ -291,3 +291,12 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   `dotnet` as its path; its header's folder is the tool's `worker` folder. A worker that cannot start says which case it
   is (no worker in the folder, an assembly without a dotnet host, a 32-bit host, a configured path not found) with a
   next step.
+- Allocated between (sprint 4.4): a capture's "Recorded ... its heap as of" line has its heap's time and what that was taken from (the
+  dump's last write, the first heap node, or the runtime's answer and why), and a gcdump's line says that the type table was flushed and
+  when the heap was walked. The app and the command line write "Allocations between {baseline} and {current}" with the trace taken or the
+  reason as said, and the evidence: each heap's time and where it is from, "in reverse order", and each run of the session (its process,
+  times, trace and note) with why it does not fit. The worker writes "Allocations between ..." with the trace, its start and length, the
+  interval asked for and counted, samples and bytes, and how they were joined: by method table, by name, names several types share,
+  types without an object, method tables that are another type's in the dumps, each with its largest five, and gcdump types without a
+  name; a refusal has the same line with what it refused. Compare also logs a refused or unread trace as said, what it sorted by
+  instead, that a closed trace unticked the box, and the row and interval behind "Show where it was allocated".

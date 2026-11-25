@@ -53,7 +53,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.2 | Capture on macOS | Closed | 2026-11-23 | sprint-4.2 |
 | 4.2.1 | Patch: damaged gcdumps and traces | Closed | 2026-11-24 | sprint-4.2.1 |
 | 4.3 | Live session | Closed | 2026-11-25 | sprint-4.3 |
-| 4.4 | Allocated between two snapshots | Planned | | |
+| 4.4 | Allocated between two snapshots | Closed | 2026-11-25 | sprint-4.4 |
 | 4.5 | Peer review | Planned | | |
 | 4.6 | Analysis tabs | Planned | | |
 | 4.7 | Sunburst | Planned | | |
@@ -110,6 +110,13 @@ Owner decisions, 2026-11-18:
 | 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.4: Allocated between two snapshots
+
+Closed 2026-11-25; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.4.md](reviews/sprint-4.4.md). ADR-028 is amended for it.
 
 ---
 

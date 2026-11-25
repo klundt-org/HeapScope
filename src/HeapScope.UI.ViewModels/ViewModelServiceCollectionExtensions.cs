@@ -49,7 +49,8 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<IUserInteraction>(),
             sp.GetService<ILoggerFactory>(),
             sp.GetService<HeapScope.Application.Bookmarks.BookmarkStore>(),
-            sp.GetService<SessionLibrary>()));
+            sp.GetService<SessionLibrary>(),
+            sp.GetRequiredService<AllocationsViewModel>()));
         services.AddSingleton(sp => new HomeViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<SnapshotsViewModel>(),

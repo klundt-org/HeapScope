@@ -271,6 +271,14 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             grid.Columns.Single(c => Equals(c.Tag, ColumnGroups.Identity) && c.SortMemberPath == "NewObjects").IsVisible.ShouldBeTrue();
             grid.Columns.Where(c => Equals(c.Tag, ColumnGroups.Retained)).ShouldAllBe(c => !c.IsVisible);
 
+            // Sprint 4.4: the box is there, and its columns wait for a recorded run.
+            window.GetVisualDescendants().OfType<CheckBox>().Single(b => b.Name == "AllocatedBox").IsVisible.ShouldBe(compare.OffersAllocated);
+            grid.Columns.Where(c => Equals(c.Tag, ColumnGroups.Allocated)).Select(c => (c.SortMemberPath, c.IsVisible)).ShouldBe([("AllocatedBytes", false), ("AllocatedSamples", false)]);
+            compare.AllocatedShown = true;
+            Dispatcher.UIThread.RunJobs();
+            grid.Columns.Where(c => Equals(c.Tag, ColumnGroups.Allocated)).ShouldAllBe(c => c.IsVisible);
+            grid.ContextMenu!.Items.OfType<MenuItem>().ShouldContain(i => Equals(i.Header, "Show where it was allocated"));
+
             compare.IsTrendShown = true;
             await compare.Trend.QueryTask;
             await Settle(compare.Trend.Rows);

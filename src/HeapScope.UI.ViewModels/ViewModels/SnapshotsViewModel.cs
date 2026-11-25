@@ -136,7 +136,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         IUserInteraction interaction,
         ILoggerFactory? loggers = null,
         BookmarkStore? bookmarks = null,
-        SessionLibrary? library = null)
+        SessionLibrary? library = null,
+        AllocationsViewModel? allocations = null)
     {
         _library = library;
         _logger = loggers?.CreateLogger<SnapshotsViewModel>();
@@ -149,7 +150,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         Navigator = new NavigatorViewModel(session, Types, this, loggers);
         Navigator.StepShown += OnStepShown;
         Bookmarks = new BookmarksViewModel(bookmarks, this, loggers?.CreateLogger<BookmarksViewModel>());
-        Compare = new CompareViewModel(session, Snapshots, dispatcher, loggers?.CreateLogger<CompareViewModel>(), this);
+        Compare = new CompareViewModel(session, Snapshots, dispatcher, loggers?.CreateLogger<CompareViewModel>(), this, allocations);
         Inspections = new InspectionsViewModel(session, loggers?.CreateLogger<InspectionsViewModel>(), this);
         Retainers = new RetainersViewModel(session, dispatcher, loggers?.CreateLogger<RetainersViewModel>(), this, loggers?.CreateLogger<RetainedBySetViewModel>());
     }

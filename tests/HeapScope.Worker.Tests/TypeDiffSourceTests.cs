@@ -22,6 +22,7 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using HeapScope.Analysis;
+using HeapScope.Analysis.Allocations;
 using HeapScope.Contracts;
 using HeapScope.Core.Graph;
 using HeapScope.Core.Synthetic;
@@ -102,6 +103,23 @@ public sealed class TypeDiffSourceTests : IDisposable
         Should.Throw<ArgumentException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, SortColumn: "Size")))
             .Message.ShouldContain("BytesDelta");
         Should.Throw<HeapScope.Core.RequestRefusedException>(() => Create(new TypeDiffRequest(Guid.Empty, Guid.Empty, (TypeGrouping)9)));
+    }
+
+    /// <summary>Sprint 4.4: an estimate, empty without a sample, and rows without one sort last.</summary>
+    [Fact]
+    public void Allocated_columns_are_estimates_and_empty_without_a_sample()
+    {
+        var join = AllocationJoin.Join([new("App.Order", 0, 5_000, 2), new("App.Fresh", 0, 0, 1)], new HashSet<string>(), _baseline, _baselineAggregation, _current, _currentAggregation, TestContext.Current.CancellationToken);
+        var source = TypeDiffSource.Create(
+            _baseline, _baselineAggregation, _current, _currentAggregation, new TypeDiffRequest(Guid.Empty, Guid.Empty, SortColumn: TypeDiffColumns.AllocatedBytes),
+            Core.SnapshotKind.FullDump, Core.SnapshotKind.FullDump, extras: new DiffExtras { Allocated = join });
+
+        Names(source)[..2].ShouldBe(["App.Order", "App.Fresh"]);
+        var at = source.Columns.Select(c => c.Name).ToList().IndexOf(TypeDiffColumns.AllocatedBytes);
+        (source.Columns[at].Bound, source.Columns[at + 1].Name).ShouldBe((ValueBound.Estimate, TypeDiffColumns.AllocatedSamples));
+        Row(source, 0)[at..(at + 2)].ShouldBe(["5000", "2"]);
+        Row(source, 1)[at..(at + 2)].ShouldBe(["0", "1"]);
+        Row(source, 2)[at..(at + 2)].ShouldBe([null, null]);
     }
 
     public void Dispose()

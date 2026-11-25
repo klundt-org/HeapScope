@@ -23,6 +23,7 @@
 
 using System.CommandLine;
 using System.Globalization;
+using HeapScope.Application.Allocations;
 using HeapScope.Application.Presentation;
 using HeapScope.Application.Snapshots;
 using HeapScope.Contracts;
@@ -63,6 +64,7 @@ internal static partial class CliCommands
 
         var matchObjects = new Option<bool>("--match-objects") { Description = "Add New and Dead objects per row, matched by address and type: only for two dumps of one process (sprint 3.3). An object moved by a compacting GC counts as dead and new." };
         var retained = RetainedOption("Add each row's retained bytes in both dumps and the delta (lower bounds; computes each dump's dominators the first time).");
+        var allocated = new Option<bool>("--allocated") { Description = "Add what was allocated of each row between the two snapshots, what was collected since included: estimated from the allocation trace of the monitoring run (the app's Live page, Record allocations) during which both were captured. An empty cell means no sample." };
         var growthOf = new Option<string>("--growth-of") { Description = "What --fail-on-growth checks: total bytes (default) or one heap kind's bytes (gen0, gen1, gen2, loh, poh; with a size, not a percent).", DefaultValueFactory = _ => "total" };
         growthOf.AcceptOnlyFromAmong(s_growthColumns.Keys.ToArray());
         var perRow = new Option<bool>("--fail-on-growth-per-row") { Description = "Check --fail-on-growth against each matching row on its own (a percent against that row's baseline bytes), so one growing type cannot hide behind a shrinking one." };
@@ -79,6 +81,7 @@ internal static partial class CliCommands
         command.Options.Add(failOnGrowth);
         command.Options.Add(matchObjects);
         command.Options.Add(retained);
+        command.Options.Add(allocated);
         command.Options.Add(growthOf);
         command.Options.Add(perRow);
         AddTopOrAllValidator(command, top, all);
@@ -103,6 +106,9 @@ internal static partial class CliCommands
                     break;
                 case "retained-delta" when !result.GetValue(retained):
                     result.AddError("--sort retained-delta needs --retained.");
+                    break;
+                case "allocated" when !result.GetValue(allocated):
+                    result.AddError("--sort allocated needs --allocated.");
                     break;
             }
 
@@ -133,6 +139,33 @@ internal static partial class CliCommands
 
             var session = context.Get<SnapshotSession>();
             var sortName = parseResult.GetValue(sort)!;
+            DiffAllocations? between = null;
+            double clockShift = 0;
+            if (parseResult.GetValue(allocated))
+            {
+                var found = await Task.Run(() => AllocatedBetween.Find(before.Path, after.Path), ct).ConfigureAwait(false);
+                context.Get<ILoggerFactory>().CreateLogger("HeapScope.Cli.Diff").LogInformation(
+                    "Allocations between {Baseline} and {Current}: {Outcome}; {Evidence}",
+                    before.Path,
+                    after.Path,
+                    found.Reason is { } reason ? "none, said as: " + reason : string.Create(CultureInfo.InvariantCulture, $"{found.TracePath} from {found.FromUtc:O} to {found.ToUtc:O}"),
+                    found.Evidence);
+                if (found.TracePath is not { } tracePath)
+                {
+                    await error.WriteLineAsync("Error: " + found.Reason).ConfigureAwait(false);
+                    return Failure;
+                }
+
+                if (found.NoHeapTime)
+                {
+                    await error.WriteLineAsync("Caution: " + AllocatedBetweenTexts.NoHeapTime).ConfigureAwait(false);
+                }
+
+                clockShift = found.ClockShiftSeconds;
+                var allocations = context.Get<AllocationSession>();
+                between = new DiffAllocations(allocations, await AwaitJobAsync(context, allocations.StartOpen(tracePath), ct).ConfigureAwait(false), found.FromUtc, found.ToUtc);
+            }
+
             var progress = parseResult.GetValue(retained) ? new StderrProgress(error) : null;
             var diff = await session.QueryTypeDiffAsync(
                 before,
@@ -144,12 +177,19 @@ internal static partial class CliCommands
                 progress: progress,
                 ct,
                 parseResult.GetValue(matchObjects),
-                parseResult.GetValue(retained)).ConfigureAwait(false);
+                parseResult.GetValue(retained),
+                between).ConfigureAwait(false);
             progress?.Stop();
             var result = diff.Result;
             if (result.BaselineDominators is { } baselineDominators && result.CurrentDominators is { } currentDominators)
             {
                 await error.WriteLineAsync("Retained bytes are lower bounds in each dump (the delta is their difference). Baseline: " + RetainedNote(baselineDominators) + " Current: " + RetainedNote(currentDominators)).ConfigureAwait(false);
+            }
+
+            if (result.Allocations is { } counted)
+            {
+                await error.WriteLineAsync("Note: " + AllocatedBetweenTexts.Summary(counted, Mb, CultureInfo.InvariantCulture, clockShift)).ConfigureAwait(false);
+                await error.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Where: heapscope-cli allocations \"{between!.Trace.Path}\" --from {counted.FromSeconds:R} --to {counted.ToSeconds:R}")).ConfigureAwait(false);
             }
 
             if (result.ObjectsMatched)
@@ -306,6 +346,7 @@ internal static partial class CliCommands
         ["dead"] = TypeDiffColumns.DeadObjects,
         ["retained-delta"] = TypeDiffColumns.RetainedDelta,
         ["gen2-delta"] = TypeDiffColumns.Gen2Delta,
+        ["allocated"] = TypeDiffColumns.AllocatedBytes,
     };
 
     private static string SortChoices => string.Join(", ", s_sortColumns.Keys);
@@ -329,13 +370,14 @@ internal static partial class CliCommands
             $"{result.Rows.TotalCount:N0} of {result.UnfilteredRows:N0} rows match ({result.NewRows:N0} new, {result.GoneRows:N0} gone overall), showing {rows.Count:N0}; matching rows grew by {Signed(result.MatchingBytesDelta)} bytes")).ConfigureAwait(false);
         // Sprint 3.3: New and Dead, and the retained delta, when the diff has them.
         var cells = new ColumnMap(columns);
-        var (matched, retained) = (cells.Has(TypeDiffColumns.NewObjects), cells.Has(TypeDiffColumns.RetainedDelta));
-        var extraHeader = (matched ? $" {"New",10} {"Dead",10}" : string.Empty) + (retained ? $" {"Retained delta",16}" : string.Empty);
+        var (matched, retained, allocated) = (cells.Has(TypeDiffColumns.NewObjects), cells.Has(TypeDiffColumns.RetainedDelta), cells.Has(TypeDiffColumns.AllocatedBytes));
+        var extraHeader = (matched ? $" {"New",10} {"Dead",10}" : string.Empty) + (retained ? $" {"Retained delta",16}" : string.Empty) + (allocated ? $" {"Allocated ~",16}" : string.Empty);
         await output.WriteLineAsync($"{"Objects delta",14} {"Bytes delta",16} {"Objects",12} {"Bytes",16}{extraHeader} {"Change",6}  Name").ConfigureAwait(false);
         foreach (var row in rows)
         {
             var extra = (matched ? string.Create(CultureInfo.InvariantCulture, $" {cells.Long(row, TypeDiffColumns.NewObjects),10:N0} {cells.Long(row, TypeDiffColumns.DeadObjects),10:N0}") : string.Empty)
-                + (retained ? string.Create(CultureInfo.InvariantCulture, $" {Signed(cells.Long(row, TypeDiffColumns.RetainedDelta)),16}") : string.Empty);
+                + (retained ? string.Create(CultureInfo.InvariantCulture, $" {Signed(cells.Long(row, TypeDiffColumns.RetainedDelta)),16}") : string.Empty)
+                + (allocated ? string.Create(CultureInfo.InvariantCulture, $" {(string.IsNullOrEmpty(cells.Text(row, TypeDiffColumns.AllocatedBytes)) ? string.Empty : cells.Long(row, TypeDiffColumns.AllocatedBytes).ToString("N0", CultureInfo.InvariantCulture)),16}") : string.Empty);
             await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
                 $"{Signed(cells.Long(row, TypeDiffColumns.ObjectsDelta)),14} {Signed(cells.Long(row, TypeDiffColumns.BytesDelta)),16} {cells.Long(row, TypeDiffColumns.CurrentObjects),12:N0} {cells.Long(row, TypeDiffColumns.CurrentBytes),16:N0}{extra} {cells.Text(row, TypeDiffColumns.Change),6}  {cells.Text(row, TypeDiffColumns.Name)}")).ConfigureAwait(false);
         }
@@ -380,6 +422,8 @@ internal static partial class CliCommands
             result.BaselineDominators,
             result.CurrentDominators,
             RetainedIsLowerBound = result.BaselineDominators is not null,
+            result.Allocations,
+            AllocatedIsEstimate = result.Allocations is not null,
             Rows = JsonRows(columns, rows),
         };
         await WriteJsonAsync(output, document).ConfigureAwait(false);

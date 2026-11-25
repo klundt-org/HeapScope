@@ -61,6 +61,7 @@ public sealed class MonitorRun : IAsyncDisposable
     private readonly TimeProvider _time;
     private readonly List<DateTimeOffset> _forcedGcs = [];
     private readonly DateTimeOffset _started;
+    private readonly long _startedStamp;
     private bool _maximumLogged;
     private bool _deferLogged;
     private bool _closing;
@@ -78,6 +79,7 @@ public sealed class MonitorRun : IAsyncDisposable
         _allocations = allocations;
         _time = time;
         _started = time.GetUtcNow();
+        _startedStamp = time.GetTimestamp();
         _rules = new SnapshotRuleEngine(options.Rules);
         _timeline = TimelineWriter.None(logger);
     }
@@ -364,7 +366,8 @@ public sealed class MonitorRun : IAsyncDisposable
                 record.Relative(trace),
                 snapshots,
                 forced,
-                TraceError),
+                TraceError,
+                ended is { } end ? (end - _started - _time.GetElapsedTime(_startedStamp)).TotalSeconds : null),
             described);
     }
 

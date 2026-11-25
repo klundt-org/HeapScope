@@ -223,7 +223,7 @@ internal sealed class AllocationTraceHandler(
 
     private LiveTrace Live(Guid traceId) => traces.TryGetLive(traceId) ?? throw NotLoaded(traceId);
 
-    private static Exception NotLoaded(Guid traceId) => WorkerErrors.Create(
+    internal static Exception NotLoaded(Guid traceId) => WorkerErrors.Create(
         HeapScopeErrorCode.TraceNotLoaded,
         $"Allocation trace {traceId} is not open in the analysis worker: it was closed or the worker restarted. Open it again.");
 

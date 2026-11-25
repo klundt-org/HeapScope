@@ -152,9 +152,8 @@ internal sealed class TraceStore
         }
 
         var kept = KeptBytes(trace);
-        var id = Guid.NewGuid();
         var open = new OpenTrace(path, trace);
-        _traces[id] = open;
+        var id = Add(open);
         var seconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
 
         // The trace's identity and what reading it found (the 2.5 review): a disputed figure is matched to this line.
@@ -201,6 +200,14 @@ internal sealed class TraceStore
             info.SamplesWithUnresolvedFrames,
             info.HasRundown,
             info.ConversionIssues);
+    }
+
+    /// <summary>Keeps an open trace under a new id.</summary>
+    internal Guid Add(OpenTrace open)
+    {
+        var id = Guid.NewGuid();
+        _traces[id] = open;
+        return id;
     }
 
     /// <summary>Follows a trace while it is recorded (sprint 4.3, ADR-037).</summary>
@@ -274,12 +281,18 @@ internal sealed class TraceStore
         ((long)trace.SampleCount * AllocationTrace.BytesPerSample)
         + (trace.StackFrames.Length * 8L)
         + trace.Frames.Sum(f => 40L + (2L * f.Length))
+        + ((trace.MethodTables?.Distinct.Length ?? 0) * 8L)
         + trace.Types.Sum(t => 40L + (2L * t.Length));
 }
 
 /// <summary>An open trace with its type ids by name.</summary>
 internal sealed class OpenTrace(string path, AllocationTrace trace, LiveTraceView? live = null)
 {
+    private readonly Lazy<IReadOnlySet<string>> _sharedNames = new(() => HeapScope.Analysis.Allocations.AllocationJoin.SharedNames(trace));
+
+    /// <summary>The names several types share (<see cref="HeapScope.Analysis.Allocations.AllocationJoin.SharedNames"/>), found once when a gcdump is first joined.</summary>
+    public IReadOnlySet<string> SharedNames => _sharedNames.Value;
+
     /// <summary>The view of a live trace this is, with the width of its stretches; null for a finished trace.</summary>
     public LiveTraceView? Live { get; } = live;
 

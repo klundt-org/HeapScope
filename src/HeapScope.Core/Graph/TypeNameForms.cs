@@ -27,6 +27,61 @@ namespace HeapScope.Core.Graph;
 public static class TypeNameForms
 {
     /// <summary>
+    /// A type name as the runtime's events spell it, in the snapshots' spelling (sprint 4.4):
+    /// <c>System.Collections.Generic.Dictionary`2[System.Int32,X]</c> becomes
+    /// <c>System.Collections.Generic.Dictionary&lt;System.Int32, X&gt;</c>. The runtime names a nested type by its innermost name
+    /// only, with the declaring types' arguments, as a gcdump does: compare it with <see cref="AsGcDumpName"/>. A name whose
+    /// brackets do not match is returned as it is.
+    /// </summary>
+    public static string FromRuntimeEvent(string recorded)
+    {
+        ArgumentNullException.ThrowIfNull(recorded);
+        if (recorded.AsSpan().IndexOfAny('`', '[') < 0)
+        {
+            return recorded;
+        }
+
+        // Open brackets, innermost last: true for a generic argument list, false for an array's. No recursion: a trace may hold any name.
+        var open = new Stack<bool>();
+        var text = new System.Text.StringBuilder(recorded.Length + 8);
+        for (var i = 0; i < recorded.Length; i++)
+        {
+            var c = recorded[i];
+            switch (c)
+            {
+                case '`' when i + 1 < recorded.Length && char.IsAsciiDigit(recorded[i + 1]):
+                    while (i + 1 < recorded.Length && char.IsAsciiDigit(recorded[i + 1]))
+                    {
+                        i++;
+                    }
+
+                    break;
+                case '[':
+                    var arguments = i + 1 < recorded.Length && recorded[i + 1] is not (']' or ',' or '*');
+                    open.Push(arguments);
+                    text.Append(arguments ? '<' : '[');
+                    break;
+                case ']':
+                    if (!open.TryPop(out var list))
+                    {
+                        return recorded;
+                    }
+
+                    text.Append(list ? '>' : ']');
+                    break;
+                case ',' when open.TryPeek(out var inside) && inside:
+                    text.Append(", ");
+                    break;
+                default:
+                    text.Append(c);
+                    break;
+            }
+        }
+
+        return open.Count == 0 ? text.ToString() : recorded;
+    }
+
+    /// <summary>
     /// The name a gcdump records for a type a full dump names <paramref name="fullName"/>. A gcdump keeps only the
     /// innermost name of a nested type, with the declaring types' generic arguments moved onto it:
     /// <c>System.Collections.Generic.Dictionary&lt;System.Int32, X&gt;+Entry[]</c> becomes

@@ -24,7 +24,8 @@ Installing needs the .NET 10 SDK; running needs the .NET 10 runtime, which the S
 - `heapscope-cli summary app.dmp`: what is on the heap, by type, namespace or assembly.
 - `heapscope-cli inspect app.dmp`: leak detectors and memory waste, each with its cause and fix.
 - `heapscope-cli paths app.dmp --type <type>`: why objects are still alive, from their GC roots.
-- `heapscope-cli diff before.dmp after.dmp` and `trend`: what grew between dumps.
+- `heapscope-cli diff before.dmp after.dmp` and `trend`: what grew between dumps, and with `--allocated` what was allocated between
+  them (two captures of one run the app recorded).
 - `heapscope-cli monitor`, `trace` and `allocations`: watch a running process and see what it allocates.
 - `heapscope-cli sample start`: a sample process with memory problems planted on purpose, to learn on.
 

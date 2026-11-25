@@ -59,7 +59,7 @@ internal sealed record Scenario(
 internal static class ScenarioCatalog
 {
     /// <summary>The catalog's version (sprint 3.13 review M4): raised when a scenario is added or changes what it plants.</summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     private const string FinalizerConflict = "both block the finalizer thread";
 
@@ -135,6 +135,16 @@ internal static class ScenarioCatalog
             null,
             [AllocationBursts.SteadyType],
             static _ => AllocationBursts.Start()),
+        new(
+            "Churn",
+            "Allocated and dropped",
+            "Exchange rates allocated all the time, of which only the latest are kept, and trades kept as they come, so what a comparison shows growing is not what is allocated most.",
+            null,
+            Churn.AnswerType,
+            [],
+            null,
+            [Churn.GrowingType],
+            static _ => Churn.Start()),
     ];
 
     /// <summary>The scenario named <paramref name="name"/> (without regard to case), or null.</summary>

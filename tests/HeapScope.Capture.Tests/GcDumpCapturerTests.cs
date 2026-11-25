@@ -53,6 +53,18 @@ public sealed class GcDumpCapturerTests : IDisposable
         _writer.Timeout.ShouldBe(GcDumpCapturer.DefaultTimeout);
     }
 
+    /// <summary>Sprint 4.4: when the runtime walked the heap, or nothing when its events did not say.</summary>
+    [Fact]
+    public async Task The_heap_s_time_is_the_writer_s()
+    {
+        CaptureSupported();
+        (await Capturer.CaptureAsync(Running(), File(), null, null, Ct)).ShouldBeNull();
+        var walked = new DateTimeOffset(2026, 11, 25, 12, 0, 0, TimeSpan.Zero);
+        _writer.Result = new GcDumpWriteResult(GcDumpFailure.None) { HeapUtc = walked };
+
+        (await Capturer.CaptureAsync(Running(), File(), null, null, Ct)).ShouldNotBeNull().Utc.ShouldBe(walked);
+    }
+
     [Fact]
     public async Task An_elevated_target_is_refused_before_the_runtime_is_asked()
     {

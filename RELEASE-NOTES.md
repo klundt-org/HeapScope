@@ -21,6 +21,18 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.4.0: Allocated between two snapshots (sprint 4.4)
+
+- **What was allocated between two snapshots**: when both were captured while one run on the Live page recorded allocations, tick
+  Allocated between in Compare. Each row says about how many bytes of its types were allocated between the two, collected objects
+  included, and "Show where it was allocated" opens the Allocations page at that time and type. On the command line:
+  `diff --allocated`.
+- **Gcdumps beside a recording have their types**: every gcdump but the first that was captured while a trace was recorded had types
+  without a name.
+- **A new lesson**, What was allocated between two snapshots, with its scenario in the sample.
+- **Limits**: the figures are estimates from samples. Types without an object in either snapshot have no row; a note says their bytes.
+  A gcdump is matched by type name only, and a name several types share has no row.
+
 ## 4.3.0: Live allocations (sprint 4.3)
 
 - **What a process allocates, while it runs**: with Record allocations ticked, the Live page shows below its chart the bytes allocated

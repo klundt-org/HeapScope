@@ -455,7 +455,7 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         (last.Samples, last.SampledBytes, last.LostEvents).ShouldBe((finished.Descriptor.Samples, finished.Descriptor.SampledBytes, finished.Descriptor.LostEvents));
 
         await _session.CloseLiveAsync(live, Ct);
-        await Should.ThrowAsync<InvalidOperationException>(() => _session.QueryLiveAsync(live, Ct));
+        await Should.ThrowAsync<WorkerOperationException>(() => _session.QueryLiveAsync(live, Ct));
 
         async Task<LiveTraceDto> FollowAsync(TraceHandle handle, Func<LiveTraceDto, bool> until, bool work = true)
         {

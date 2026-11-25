@@ -35,3 +35,11 @@ Each change is marked with a `HeapScope change` comment.
    checked the same way and must cover every node (3.7 review H8). Both constructors set the limit, and every read starts
    by setting it. The debug assertions on a node's child count and child index are removed: both come from the file, and
    the loader refuses them (3.7 review H7).
+6. `EventPipeDotNetHeapDumper.cs`, `DumpFromEventPipe`: an optional callback gets the time of the first heap node its collection reported, when the
+   target is paused, so a gcdump's time is its heap's and not its file's (sprint 4.4).
+7. `EventPipeDotNetHeapDumper.cs`, `DumpFromEventPipe`: the session that flushes the type table enables the runtime provider too (GC
+   keyword, no types). The runtime describes each type once for as long as a session has the type keyword, and forgets what it
+   described when the keyword is turned off; with the sample profiler alone that went unnoticed while another session had the runtime
+   provider on, so every gcdump but the first of a recording had types without a name (sprint 4.4, measured on .NET 10). A session of
+   another tool that has the type keyword itself still does that. Enabling the provider runs the runtime's callback with the keywords of
+   all sessions: one of another tool that asks for collections (GCHeapCollect) may get one more.

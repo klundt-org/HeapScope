@@ -156,7 +156,10 @@ dotnet test --solution HeapScope.sln
   gates on one heap kind's growth (with a size; a percent there exits 64), and `--fail-on-growth-per-row` checks each
   matching row on its own (a percent against that row's baseline bytes) and lists the rows over it. Both read every
   matching row; the gate's log line names each row over its limit with its baseline and limit. `--sort new|dead` needs
-  `--match-objects` and `--sort retained-delta` needs `--retained` (exit 64). `trend <dump> <dump> [<dump>...] [--group] [--filter] [--sort bytes-delta|count-delta|growth-steps|name]
+  `--match-objects` and `--sort retained-delta` needs `--retained` (exit 64). Since 4.4: `--allocated` adds what was allocated of each row
+  between the two snapshots, estimated from the allocation trace of the monitoring run during which both were captured (found in their
+  session; exit 1 with the reason when there is none), with `--sort allocated`; stderr has the totals and an `allocations` command line for
+  the interval. `trend <dump> <dump> [<dump>...] [--group] [--filter] [--sort bytes-delta|count-delta|growth-steps|name]
   [--top N | --all] [--format table|csv|json]` puts 2 to 20 dumps side by side, oldest first: bytes in each, the change
   first to last, and the steps a row grew in (dumps of one kind only; a dump given twice exits 64).
   `instances <dump> --type <name> [--module <file>] [--filter <0xprefix|/regex/|text>] [--sort bytes|address|generation|value|retained]

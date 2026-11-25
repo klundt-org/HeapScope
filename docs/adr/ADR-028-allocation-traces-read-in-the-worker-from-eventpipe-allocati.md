@@ -36,3 +36,16 @@
   there (it opens with what came before, and a note); while reading samples, the file is refused. Damage within an event's
   bounds is not noticed. Look at the check again when TraceEvent (DEVELOPER.md 2 says how) or the runtime's format changes. 4.3's live reader needs it resumable: the
   walk keeps its place in a file that grows, and only whole, checked blocks reach TraceEvent.
+- Amended in 4.4 (the join, "allocated between"): a sample keeps its tick's type id, which is the type's method table, so two full dumps
+  of the traced process are joined to a trace whatever the names, where the type there has the tick's name without its generic arguments
+  (an unloaded type's address may be another's later: then the other dump's type of that name, or no row). A gcdump has no method tables: it is joined by name, in the
+  one form both can be brought to (`TypeNameForms.FromRuntimeEvent`, then `AsGcDumpName`; the runtime's events name a nested type by
+  its innermost name, as a gcdump does). A name that types of several modules share in a gcdump, or that the whole trace has for several method tables, goes to no row:
+  a collection may have left objects of one of them only. The answer says how many bytes that is, as for types without an object in
+  either snapshot. What remains: one type alone of a name, sampled while the other has the objects, which the note says may happen.
+  One clock: a snapshot's record has the time of its heap (`SessionSnapshot.HeapUtc`: a full dump's last
+  write, a gcdump's first heap node, both in the target's pause), and the trace's start is the same machine's clock. From there
+  a trace counts a counter that drifts against the clock and, on Linux and macOS, stops while the machine sleeps: a run records how far
+  the two moved apart (`SessionRun.ClockShiftSeconds`), and from a second on the note says it. The interval is half open, so it is the one the Allocations page
+  shows for the same seconds. Linked only within a monitoring run: the run of the session during which both were captured, by process
+  and time, the latest that ended. A run whose end is not recorded is refused: it may still record.

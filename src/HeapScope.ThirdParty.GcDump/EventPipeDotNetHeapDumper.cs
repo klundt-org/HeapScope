@@ -114,8 +114,9 @@ namespace Microsoft.Diagnostics.Tools.GCDump
         /// <param name="log">A writer that supports concurrent writes. This method may log from multiple tasks.</param>
         /// <param name="timeout"></param>
         /// <param name="dotNetInfo"></param>
+        /// <param name="walked">HeapScope change (CHANGES.md): called once with the time of the first heap node reported, while the target is paused.</param>
         /// <returns></returns>
-        public static bool DumpFromEventPipe(CancellationToken ct, int processId, string diagnosticPort, MemoryGraph memoryGraph, TextWriter log, int timeout, DotNetHeapInfo dotNetInfo)
+        public static bool DumpFromEventPipe(CancellationToken ct, int processId, string diagnosticPort, MemoryGraph memoryGraph, TextWriter log, int timeout, DotNetHeapInfo dotNetInfo, Action<DateTime> walked = null)
         {
             DateTime start = DateTime.Now;
             Func<TimeSpan> getElapsed = () => DateTime.Now - start;
@@ -134,7 +135,10 @@ namespace Microsoft.Diagnostics.Tools.GCDump
                 log.WriteLine("{0,5:n1}s: Creating type table flushing task", getElapsed().TotalSeconds);
 
                 using (EventPipeSessionController typeFlushSession = new(processId, diagnosticPort, new List<EventPipeProvider> {
-                    new("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational)
+                    new("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational),
+
+                    // HeapScope change (CHANGES.md): the runtime provider too, without the type keyword, so the table is flushed beside other sessions.
+                    new("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, (long)ClrTraceEventParser.Keywords.GC)
                 }, false, log: log))
                 {
                     log.WriteLine("{0,5:n1}s: Flushing the type table", getElapsed().TotalSeconds);
@@ -207,6 +211,13 @@ namespace Microsoft.Diagnostics.Tools.GCDump
                     }
 
                     dumpState.EventPipeDataPresent = true;
+
+                    // HeapScope change (CHANGES.md): when the heap was walked.
+                    if (gcNum >= 0)
+                    {
+                        walked?.Invoke(data.TimeStamp);
+                        walked = null;
+                    }
 
                     if ((getElapsed() - lastEventPipeUpdate).TotalMilliseconds > 500)
                     {

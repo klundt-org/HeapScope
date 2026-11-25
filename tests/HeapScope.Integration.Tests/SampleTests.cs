@@ -23,6 +23,9 @@
 
 using System.Globalization;
 using HeapScope.Analysis.Allocations;
+using HeapScope.Application.Jobs;
+using HeapScope.Application.Monitoring;
+using HeapScope.Application.Sessions;
 using HeapScope.Capture;
 using HeapScope.Core.Allocations;
 using HeapScope.Integration.Tests.Infrastructure;
@@ -124,6 +127,41 @@ public sealed class SampleTests : IDisposable
         var rows = new AllocationFilter(burst.FromMs, burst.ToMs, trace.Types.ToList().IndexOf("HeapScope.Sample.ReportRow"));
         var stack = AllocationProfile.TopStacks(trace, rows, 1, Ct).Single();
         AllocationProfile.FramesOf(trace, stack.Node).Select(f => trace.Frames[f]).ShouldContain(f => f.Contains("AllocationBursts.BuildReport", StringComparison.Ordinal));
+    }
+
+    /// <summary>Sprint 4.4: the lesson's steps. What a comparison shows growing is not what was allocated most between the two.</summary>
+    [Fact]
+    public async Task The_churn_scenario_shows_its_answer_only_in_what_was_allocated_between()
+    {
+        using var sample = await FixtureProcess.StartSampleAsync("--scenarios", "Churn");
+        var library = new SessionLibrary(_root.File("churn"));
+        var capture = new CaptureService(new ProcessDiscovery(), new DumpCapturer(), library, new JobTracker(TimeProvider.System));
+        var recording = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dumps = new List<string>();
+        await using (var run = new MonitorService(capture).Start(
+            sample.ProcessId,
+            new MonitorOptions(TimeSpan.FromSeconds(1), MonitorRules.None, RecordAllocations: true),
+            r => r.TraceStarted += (_, _) => recording.TrySetResult()))
+        {
+            await recording.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+            dumps.Add((await capture.StartCapture(sample.ProcessId, kind: HeapScope.Contracts.SnapshotKindDto.GcDump).Result).Path);
+            await Task.Delay(TimeSpan.FromSeconds(5), Ct);
+            dumps.Add((await capture.StartCapture(sample.ProcessId, kind: HeapScope.Contracts.SnapshotKindDto.GcDump).Result).Path);
+            run.Stop();
+            await run.Completion;
+        }
+
+        async Task<string> TopAsync(string sort)
+        {
+            using var diff = ChildProcess.Start(TestPaths.CliExe, "diff", dumps[0], dumps[1], "--allocated", "--filter", "HeapScope.Sample", "--sort", sort, "--top", "1", "--format", "json");
+            (await diff.WaitForExitAsync(TimeSpan.FromMinutes(2))).ShouldBeTrue();
+            diff.Process.ExitCode.ShouldBe(0, diff.Output);
+            using var json = System.Text.Json.JsonDocument.Parse(diff.StandardOutput);
+            return json.RootElement.GetProperty("Rows")[0].GetProperty("Name").GetString()!;
+        }
+
+        (await TopAsync("bytes-delta")).ShouldBe("HeapScope.Sample.Trade");
+        (await TopAsync("allocated")).ShouldBe("HeapScope.Sample.ExchangeRate");
     }
 
     // Sprint 3.13 task 5: the app's service reads the real sample's catalog, starts it, knows it as a sample and stops it.

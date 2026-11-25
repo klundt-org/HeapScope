@@ -113,7 +113,7 @@ internal static class TraceReads
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static TraceSample Sample(GCAllocationTickTraceData data) =>
-        new(data.TypeName, data.CallStackIndex(), data.TimeStampRelativeMSec, data.AllocationAmount64, data.AllocationKind);
+        new(data.TypeName, data.CallStackIndex(), data.TimeStampRelativeMSec, data.AllocationAmount64, data.AllocationKind, data.TypeID);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static int ProcessId(GCAllocationTickTraceData data) => data.ProcessID;

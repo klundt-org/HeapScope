@@ -241,6 +241,13 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
             }
 
             query.Apply();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // What was applied asked again (Compare, whose trace was closed meanwhile): the newer query has the view.
+                rows.Cancel();
+                return;
+            }
+
             Rows.Cancel();
             Rows = rows;
             Status = query.Handle.Info.TotalCount == 0 ? EmptyText : null;

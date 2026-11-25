@@ -58,7 +58,10 @@ public sealed record TraceRecording(string Path, long Bytes, TimeSpan Duration, 
 /// </summary>
 public static class TraceRecorder
 {
-    private const long RuntimeDefaultKeywords = 0x14C14FCCBD;
+    // dotnet-trace's defaults without the type keyword (0x80000): while a session has it, the runtime never describes a type again, so
+    // every gcdump but the first had types without a name (sprint 4.4; see CHANGES.md of HeapScope.ThirdParty.GcDump).
+    private const long RuntimeDefaultKeywords = 0x14C14FCCBD & ~TypeKeyword;
+    private const long TypeKeyword = 0x80000;
     private const long GcKeyword = 0x1;
     private const long LoaderKeyword = 0x8;
     private const long JitKeyword = 0x10;

@@ -7,7 +7,7 @@ The [README](../README.md) shows what HeapScope does. This guide covers how each
 
 HeapScope ships with a small .NET process of its own, the sample, with memory problems planted on purpose. Each problem is
 a scenario: a static cache that only grows, event handlers never removed, timers never stopped, async methods that never
-finish, a finalizer backlog, wasted memory, large objects, steady allocation from one call site and allocations in bursts, among others. Because
+finish, a finalizer backlog, wasted memory, large objects, steady allocation from one call site, allocations in bursts and allocations that are dropped again, among others. Because
 HeapScope knows what each one planted, you can practice on it and be told whether you found it.
 
 - **The Learn page** (low on the left, Ctrl+7) lists the lessons, one per scenario. Choose one and press Start lesson: its
@@ -38,6 +38,7 @@ The lessons, scenario by scenario, and where each one's answer shows:
 | Large arrays on the large object heap | LargeObjects | Inspections, Large arrays |
 | Where allocations come from | SteadyAllocation | Record allocations; the Allocations page's Types and Back traces |
 | What a burst allocates | AllocationBursts | Live, Record allocations ticked: the types of an interval dragged over one burst |
+| What was allocated between two snapshots | Churn | Live, Record allocations ticked, and two gcdumps: Compare, Allocated between |
 
 The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once from one
 HeapScope window or command, and stops when HeapScope closes. A growing sample stops growing when its heap reaches 512 MB;
@@ -82,6 +83,16 @@ notes who can capture whom.
   gcdumps, since a full dump counts garbage not yet collected. That GC moves objects, so skip it when you match them by
   address. `--growth-of` a heap kind needs full dumps, since a gcdump records no generations. `trend` compares several
   dumps.
+- **Allocated between two snapshots.** Two snapshots say what is there now and was not, not what was allocated and is gone again. When
+  both were captured while one run on the Live page recorded allocations, tick Allocated between in Compare: each row says about how
+  many bytes of its types were allocated between the two, estimated from samples (about one per 100 KB), and the note says how much was
+  allocated in all. An empty cell means no sample, not no allocation. "Show where it was allocated" in a row's menu opens the
+  Allocations page at that time and type. Stop the run first: its trace is read when it is complete. Types
+  without an object in either snapshot have no row: the note says their bytes, and the Allocations page has them. A gcdump is joined by
+  type name, which for a nested type lacks the declaring type: a name several types share has no row, and a row can hold what another
+  type of its name allocated. At each end of the interval about 100 KB per GC heap is on either side, so with Server GC
+  a short interval is rough.
+  On the command line: `diff --allocated`.
 - **Reading the Retainers chart.** Each bar is what the bar above it keeps alive, and its width is how much. The two band
   colors only separate the levels; a selected bar and its path turn amber. Most bars are too narrow for a label, so hover
   for a bar's name and size. Click selects a bar, and a double-click shows the tree below it. Bars too narrow to point at

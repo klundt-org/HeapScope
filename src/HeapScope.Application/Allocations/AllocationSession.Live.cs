@@ -115,7 +115,7 @@ public sealed partial class AllocationSession
                 await worker.InvokeAsync((service, ct) => service.EndLiveTraceAsync(opened.TraceId, ct), CancellationToken.None).ConfigureAwait(false);
             }
         }
-        catch (Workers.WorkerOperationException ex) when (ex.ErrorCode == HeapScopeErrorCode.TraceNotLoaded)
+        catch (Workers.WorkerOperationException ex) when (ex.ErrorCode == HeapScopeErrorCode.TraceNotLoaded && !handle.IsClosed)
         {
             // Another worker answered: the one that followed it stopped while it caught up.
             throw new Workers.WorkerCrashedException($"The analysis worker stopped while it followed {System.IO.Path.GetFileName(handle.Path)} again.", ex);
