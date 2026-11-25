@@ -148,7 +148,7 @@ public sealed class CacheRebuildTests : IDisposable
         phases.Seen.ShouldContain("Opening the older index cache");
     }
 
-    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader version 4 changed.
+    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader versions 4 and 5 changed.
     [Fact]
     public void The_older_cache_note_matches_the_current_loader_version()
     {

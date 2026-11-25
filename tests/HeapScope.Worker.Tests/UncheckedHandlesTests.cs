@@ -74,16 +74,27 @@ public sealed class UncheckedHandlesTests : IDisposable
     }
 
     [Theory]
-    [InlineData(true, false, "the baseline")]
+    [InlineData(true, false, "the baseline before.dmp")]
     [InlineData(false, true, "this snapshot")]
-    public async Task Growth_against_a_baseline_seen_differently_is_refused(bool current, bool baseline, string side) =>
+    [InlineData(false, false, "this snapshot")]
+    public async Task Growth_with_a_side_that_lacks_handles_is_refused(bool current, bool baseline, string side) =>
         (await Should.ThrowAsync<RequestRefusedException>(() => GrowthAsync(current, baseline))).Message.ShouldContain("GC handles could be checked for " + side);
+
+    [Fact]
+    public async Task Growth_between_two_that_have_them_all_is_measured() =>
+        (await GrowthAsync(current: true, baseline: true))?.ShouldNotContain("GC handles");
 
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public async Task Growth_seen_alike_is_measured_and_says_what_it_does_not_count(bool handlesChecked, bool noted) =>
-        ((await GrowthAsync(handlesChecked, handlesChecked))?.Contains("Not all GC handles", StringComparison.Ordinal) ?? false).ShouldBe(noted);
+    public async Task A_detector_over_reachable_objects_says_what_it_may_not_count(bool handlesChecked, bool noted)
+    {
+        var snapshot = await OpenAsync("one.dmp", handlesChecked);
+        var (result, _, _, lease, _) = await _services.GetRequiredService<InspectionRunner>().RunAsync(new InspectionRequest(snapshot.SnapshotId, "type-growth"), null, Ct);
+        lease.Dispose();
+
+        result.Note.ShouldNotBeNull().Contains("may not all be counted", StringComparison.Ordinal).ShouldBe(noted);
+    }
 
     private async Task<string?> GrowthAsync(bool current, bool baseline)
     {

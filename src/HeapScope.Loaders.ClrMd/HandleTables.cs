@@ -146,14 +146,14 @@ internal static class HandleTables
         }
 
         // Shown as none, the heap count leaves no handle; shown as one of several, it leaves some.
-        bool Drives(ulong place) => Count(place, 0) == 0 && (heaps == 1 || Count(place, 1) is > 0 and var some && some <= known.Length);
+        bool Drives(ulong place) => Count(place, 0, most: 1) == 0 && (heaps == 1 || Count(place, 1, most: int.MaxValue) is > 0 and var some && some <= known.Length);
 
-        int Count(ulong place, int shown)
+        int Count(ulong place, int shown, int most)
         {
             try
             {
                 reader.Show(place, shown);
-                return Handles().Count();
+                return Handles().Take(most).Count();
             }
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException) && walks <= MostWalks)
             {

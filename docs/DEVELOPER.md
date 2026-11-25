@@ -244,6 +244,10 @@ dotnet test --solution HeapScope.sln
   downloads and logs a warning. Both reach the worker on its command line only.
 - Worker GC heaps: half the logical processors by default, so the worker cannot starve the UI; override with
   `--Worker:GcHeapCount <n>` (UI), the `Worker__GcHeapCount` environment variable, or `DOTNET_GCHeapCount` (hexadecimal).
+- A Server GC dump that ends the worker while its GC handles are read: `--Worker:SecondHandleWalk false` (UI) or `Worker__SecondHandleWalk=false`
+  loads it without the second walk (ADR-010); its handles then count as not checked, also after the walk is on
+  again, until `heapscope-cli open <dump> --rebuild`. A ClrMD or runtime upgrade must pass
+  `HandleTablesTests` and `build/check-handles.sh`.
 - Run the worker standalone (for debugging): `dotnet run --project src/HeapScope.Worker -- --pipe <name>`
   (without `--parent-pid` it does not watch a parent; add `--enable-test-hooks` for the crash and hang hooks).
   Attach a client with `dotnet run --project src/HeapScope.Cli -- worker ping --pipe <name>`, or set

@@ -301,5 +301,7 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   name; a refusal has the same line with what it refused. Compare also logs a refused or unread trace as said, what it sorted by
   instead, that a closed trace unticked the box, and the row and interval behind "Show where it was allocated".
 - GC handles (peer review 4.5): a load's and an open's line say how they were read (`GC handles Recovered: 8 heaps, 24 tables walked, 24
-  processors, 6549 handles added (walked again at 0x..., the walk ends at 24 tables; 0 handles of no object dropped)`), `Complete` with
-  why, or `Unknown` with why; caches from before say "not recorded".
+  processors, 6549 handles added (2725 by the runtime's own walk, walked again at 0x... (3 places, 1 drive the walk, 1 can be the heap
+  count), ending at 25 tables; added ... by kind; ... not used; 9 walks, 0.1 s)`), `Complete`, or `Unknown` with the reason: the first doubt with
+  the count tried and what it gave, or an exception with the method it came from. Caches from before say "not recorded". A detector over
+  reachable objects logs its note, and a refused baseline is logged as every refusal is. The walk is a phase of its own, "handles".

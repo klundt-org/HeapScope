@@ -54,10 +54,14 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.2.1 | Patch: damaged gcdumps and traces | Closed | 2026-11-24 | sprint-4.2.1 |
 | 4.3 | Live session | Closed | 2026-11-25 | sprint-4.3 |
 | 4.4 | Allocated between two snapshots | Closed | 2026-11-25 | sprint-4.4 |
-| 4.5 | Peer review | In Progress | | |
-| 4.6 | Analysis tabs | Planned | | |
-| 4.7 | Sunburst | Planned | | |
-| 4.8 | WPF leak detectors (optional) | Planned | | |
+| 4.5 | Peer review | Closed | 2026-11-25 | sprint-4.5 |
+| 4.6 | Right answers | Planned | | |
+| 4.7 | Runtimes, Linux and large heaps | Planned | | |
+| 4.8 | Ready to release | Planned | | |
+| 4.9 | Workspaces | Planned | | |
+| 4.10 | Analysis tabs | Planned | | |
+| 4.11 | Sunburst | Planned | | |
+| 4.12 | WPF leak detectors (optional) | Planned | | |
 
 ---
 
@@ -94,7 +98,8 @@ Owner decisions, 2026-11-18:
 - No Mac to test on: macOS is built and checked on Linux as far as it can be, and marked untested, like the macOS packages.
 - The same autonomy as Phase 3: green sprint PRs are merged and tagged and the next sprint starts; costly or irreversible
   steps, user-facing wording and releases still go to the owner. At the end of the phase, stop and report.
-- Releases after 4.2 (capture everywhere), after 4.4 (the live session and Compare) and at the end of the phase.
+- Releases after 4.2 (capture everywhere), after 4.4 (the live session and Compare) and at the end of the phase. 2026-11-25: 4.5.0 is released
+  in place of 4.4.0, as a pre-release, and its CLI goes to nuget.org; the first full release comes after 4.8 and a trial by people outside.
 - A peer review after 4.4, before the UI-heavy sprints, like 3.5's.
 - The checks by hand (DEVELOPER.md 5) are automated as far as they can be, first, in 4.1.
 
@@ -107,30 +112,20 @@ Owner decisions, 2026-11-18:
 | 4.3 | Live session | L | Allocations streamed beside the Live timeline from a trace read while it grows (ADR-037), and snapshots faster than a full dump. |
 | 4.4 | Allocated between two snapshots | M | In Compare, from the trace recorded between them (from 2.5; ADR-028). |
 | 4.5 | Peer review | M | A review of the phase so far, like 3.5's; its fixes plan the next sprints. |
-| 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
-| 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
-| 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+| 4.6 | Right answers | L | Peer review 4.5 (the split agreed by the owner on 2026-11-25): H2, H3, H4, H9, H10, H11, H16, H19, M6 to M9, Compare's retained columns when only one side's GC handles were checked, and a cached load whose handles could not be checked tried again when its cause is gone. |
+| 4.7 | Runtimes, Linux and large heaps | L | Peer review 4.5: H1, H5 to H8, H12, M11. |
+| 4.8 | Ready to release | L | Peer review 4.5: H14, H15, H17, M1 to M5, M13, M14; then a trial by people outside, then the first full release. |
+| 4.9 | Workspaces | L | Peer review 4.5: H13 and M15, what analysis tabs need. |
+| 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
+| 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
+| 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
 
 ---
 
 ## Sprint 4.5: Peer review
 
-**Goal:** what must change, be refactored or be proven before the first full release and the UI-heavy sprints, from reviewers who read
-the whole code base as outsiders, ranked, each finding checked in the code.
-
-**Tasks**
-1. [x] Five reviewers read the code base at sprint 4.4 (not a diff), each its area: solution architect, senior developer, CLR and GC
-   specialist, support engineer, and DevSecOps (build, packages, CI, supply chain, threat surface). Each also says what stands between
-   this and a first full release.
-2. [x] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
-   `docs/reviews/peer-review-4.5.md`.
-3. [x] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
-4. [ ] A proposed split into sprints, for the owner to decide; the Backlog updated.
-5. [ ] The owner's 4.4 wording and release notes answers folded in, if they came.
-
-**Decisions**
-- Like 3.5's: the review changes no code but for Critical findings. Decided autonomously.
-- The split into sprints is the owner's decision, so the sprint ends by asking. Decided autonomously.
+Closed 2026-11-25; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/peer-review-4.5.md](reviews/peer-review-4.5.md). ADR-010, ADR-034 and ADR-041 are amended for it.
 
 ---
 

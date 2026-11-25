@@ -43,7 +43,7 @@ for type in HandleHeld HandleValue; do
   jq -e --argjson n "$expected" '.TotalObjects == $n and (.Rows | length) == $n and all(.Rows[]; .Retained != null and .Retained > 0)' "$work/$type.json" > /dev/null \
     || { echo "Known answer failed: $expected reachable objects of $type"; jq '{TotalObjects, Reached: ([.Rows[] | select(.Retained != null)] | length)}' "$work/$type.json"; exit 1; }
 done
-walk=$(grep -rhoE "GC handles [A-Z][a-z]+: [^;]*;[^;]*" "$work/log" | head -1)
+walk=$(grep -rhoE "GC handles [A-Z][a-z]+: [^;]*;[^;]*" "$work/log" | head -1 || true)
 echo "$walk"
 case "$walk" in
   "GC handles Recovered"*) ;;

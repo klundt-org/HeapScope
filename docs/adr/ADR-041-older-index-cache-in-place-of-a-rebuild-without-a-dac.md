@@ -36,4 +36,6 @@
   after the open, from the snapshot), ADR-036 (the older cache is read with the same signature check; nothing unsigned opens).
 - Amended in 4.5: loader version 5 reads GC handles that an older cache lacks (Server GC processes with fewer heaps than processors) and the
   references to the LoaderAllocator of 3.12, so the note says what such a cache can lack, not only the process name. The oldest version
-  that may open stays 3.
+  that may open stays 3. Such a cache lacks
+  the fact `HandlesChecked`, so the unreachable set is refused on every full dump opened from one. The process name is still the one answer
+  that is read again.

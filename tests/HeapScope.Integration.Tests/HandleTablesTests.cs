@@ -77,6 +77,15 @@ public sealed class HandleTablesTests(ITestOutputHelper output)
         {
             CheckLoaded(dump, processorsKnown, expected, own, server, heaps);
         }
+
+        if (heaps == "2")
+        {
+            // Turned off, nothing is said to be whole.
+            var off = new ClrMdDumpLoader(new ClrMdLoaderOptions { SecondHandleWalk = false }).Load(dump, cancellationToken: Ct);
+            using var graph = off.Graph;
+            off.Diagnostics.Handles!.Outcome.ShouldBe(HandleWalkOutcome.Unknown);
+            off.Info.Facts.HasFlag(HeapScope.Core.SnapshotFacts.HandlesChecked).ShouldBeFalse();
+        }
     }
 
     private void CheckLoaded(string dump, bool processorsKnown, int expected, int own, string server, string heaps)

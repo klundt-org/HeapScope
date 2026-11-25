@@ -72,11 +72,12 @@ Users:
 - **H17 The sudo advice on Linux does not work as written** (SE): `secure_path`, root's library, and a dump owned by the service. S to M.
 
 Supply chain and release:
-- **H18 Secret scanning and push protection are off** (DSO; verified), probably since the move to the org. S, owner.
+- **H18 Secret scanning and push protection are off** (DSO; verified), probably since the move to the org. S, owner. The owner turned on secret
+  scanning and CodeQL on 2026-11-25; push protection was still off then.
 - **H19 The nightly fuzz failed 15 of its first 23 nights and nobody acted** (DSO; verified; the records name three). Fixed in 4.2.1; nothing
   would tell of the next. S.
 - **H20 nuget.org has 3.13.2 while INSTALL names it first** (DSO; verified), without the untrusted-input fixes of 4.2.1. Upload now (owner); a
-  publish job (M).
+  publish job (M). Owner, 2026-11-25: 4.5.0 is uploaded, not 4.2.1, which has C1.
 
 ## Moderate
 
@@ -119,7 +120,26 @@ Reviewed by the CLR and GC specialist on 2026-11-25. The approach was judged rig
 about what it claimed (Complete without proof, Recovered for a partial walk, one bad handle discarding all after it), four
 Moderate (the recorded processors as a bound, memory on millions of handles, static storage rooted twice, Unknown as a note only) and
 three Low, all fixed and measured again: with DATAS at 8 heaps 785 of 2,400 by the runtime's own walk and all by HeapScope's; with 2
-heaps 192 and 206, all found, with the processors known and unknown. Below .NET 10 it is untested like the rest (H1).
+heaps 192 and 206, all found, with the processors known and unknown. Below .NET 10 it is untested like the rest (H1). A fourth round found
+two Moderate (a place that changes nothing taken as the count; the CI check could pass without testing), both fixed.
+
+Reviewed by the other three for their areas on 2026-11-25:
+- Support engineer: 1 High (every other answer still called such objects garbage) and 5 Moderate (no step out of a kept doubt, no reason
+  in the log, no counts by kind, a wrong step after an older cache, a note without a step).
+- Solution architect: 1 High (growth measured between a snapshot that lacks handles and one that has them) and 5 Moderate (the same
+  contradiction; the fact's polarity and two sources; no ADR; no way to turn the walk off; documents).
+- Senior developer: 6 Moderate (the contradiction; the search's cost neither bounded nor measured; one heap untested; cancellation in one walk of
+  three; failures swallowed; pure rules only in the heavy job) and Low ones.
+
+All fixed: `UnreachableNote(SnapshotInfo)`, the positive fact `HandlesChecked` as the one rule, detectors' notes and a refused baseline (unless both sides have it)
+(`UncheckedHandlesTests`), reasons, counts, walks and seconds in the log, `Worker:SecondHandleWalk`, at most 1,024 walks, every walk
+cancellable, a pinned one-heap case (103 of 2,400 by the runtime's own walk, all found), the pure rules and readers tested on every system
+(Loaders.ClrMd.Tests), ADR-010 amended. Left for 4.6: Compare's retained columns when only one side has the fact (the result needs a field
+for it). Confirmed by all four on 2026-11-25. The confirmations left two Moderate (growth between two snapshots that both
+lack handles; a step, "Rebuild", that the app does not have), fixed as above and in the note, and Low ones. Fixed of these: the fact's bit
+(5, since 4 meant the opposite in this sprint's first commits), a silent exit of check-handles.sh, whole walks to learn "none", a test of the
+walk turned off. Left: the walk limit is no time limit, and what a limit stops is not kept; a cached `Unknown` is not tried again by itself
+(Backlog, with 4.6).
 
 ## Done well
 
@@ -127,9 +147,10 @@ Layering that is enforced and real; the reopen protocol; result sets and leases;
 refusals on Linux; deletion that plans, confirms and follows no link; pinned actions, read-only tokens, no vulnerable package;
 dominators, retained sizes and the object walk as the CLR has them; the sampled figures said to be estimates.
 
-## Proposed split (the owner decides)
+## The split (the owner agreed on 2026-11-25)
 
-1. **4.6 Right answers**: H2, H3, H4, H9, H10, H11, H16, H19, M6 to M9, and the owner's settings (H18, H20).
+1. **4.6 Right answers**: H2, H3, H4, H9, H10, H11, H16, H19, M6 to M9, Compare's retained columns (above), and the owner's
+   settings (H18, H20).
 2. **4.7 Runtimes, Linux and large heaps**: H1, H5 to H8, H12, M11.
 3. **4.8 Ready to release**: H14, H15, H17, M1 to M5, M13, M14; then a trial by people outside, then the first full release.
 4. **4.9 Workspaces** (H13, M15), **4.10 Analysis tabs**, **4.11 Sunburst** (M16), **4.12 WPF leak detectors** (M12).

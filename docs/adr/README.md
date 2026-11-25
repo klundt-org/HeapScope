@@ -14,7 +14,7 @@ section 13 links here).
 - [ADR-007](ADR-007-out-of-process-worker.md) Out-of-process worker (amended by ADR-025)
 - [ADR-008](ADR-008-headless-core-and-cli.md) Headless core and CLI
 - [ADR-009](ADR-009-application-stack.md) Application stack
-- [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries (amended in sprint 3.12: the loader's own object walk)
+- [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries (amended in 3.12: the loader's own object walk, and in 4.5: the second walk of GC handles)
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene
 - [ADR-012](ADR-012-git.md) Git
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth
@@ -38,13 +38,13 @@ section 13 links here).
 - [ADR-031](ADR-031-similar-retention-and-the-key-paths-diagram.md) Similar Retention and the key paths diagram (added in sprint 3.2)
 - [ADR-032](ADR-032-objects-of-two-snapshots-matched-by-address.md) Objects of two snapshots matched by address (added in sprint 3.3, amends ADR-018; amended by ADR-041)
 - [ADR-033](ADR-033-one-capture-per-process-at-a-time-runs-recorded-in-their-ses.md) One capture per process at a time; runs recorded in their session (added in sprint 3.4)
-- [ADR-034](ADR-034-runtime-leak-detectors-and-the-unreachable-set.md) Runtime leak detectors and the unreachable set (added in sprint 3.5)
+- [ADR-034](ADR-034-runtime-leak-detectors-and-the-unreachable-set.md) Runtime leak detectors and the unreachable set (added in sprint 3.5, amended in 4.5)
 - [ADR-035](ADR-035-a-dac-next-to-a-dump-is-loaded-only-once-trusted.md) A DAC next to a dump is loaded only once trusted (added in sprint 3.6, amends ADR-017; amended by ADR-041)
 - [ADR-036](ADR-036-index-caches-signed-with-a-per-user-key.md) Index caches signed with a per-user key (added in sprint 3.7; amended by ADR-041)
 - [ADR-037](ADR-037-live-sources.md) Live sources (added in sprint 3.8, amends ADR-023)
 - [ADR-038](ADR-038-skiasharp-native-library-without-the-dng-sdk.md) SkiaSharp's native library without the DNG SDK (added 2026-10-30, outside a sprint)
 - [ADR-039](ADR-039-distribution.md) Distribution (added in sprint 3.9, amends ADR-025; amended by ADR-042)
 - [ADR-040](ADR-040-visual-design.md) Visual design (added in sprint 3.10)
-- [ADR-041](ADR-041-older-index-cache-in-place-of-a-rebuild-without-a-dac.md) An older index cache in place of a rebuild without a DAC (added in sprint 3.12, amends ADR-006, ADR-032, ADR-035 and ADR-036)
+- [ADR-041](ADR-041-older-index-cache-in-place-of-a-rebuild-without-a-dac.md) An older index cache in place of a rebuild without a DAC (added in sprint 3.12, amended in 4.5, amends ADR-006, ADR-032, ADR-035 and ADR-036)
 - [ADR-042](ADR-042-tutorial-sample-and-lessons-as-catalogs.md) The tutorial: a shipped sample and lessons, both catalogs (added in sprint 3.13, amends ADR-039)
 - [ADR-043](ADR-043-dump-values-in-logs-by-consent.md) Dump values in logs, by consent (added in sprint 3.13.2)

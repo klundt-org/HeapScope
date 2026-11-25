@@ -185,7 +185,7 @@ internal sealed class SnapshotKinds
             // An older cache, which recorded no walk, has its own note (SnapshotOpener.OlderCacheNote).
             if (metadata.Handles is not null && !HandlesChecked(metadata.Info))
             {
-                notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, open the dump with Rebuild.");
+                notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, run heapscope-cli open with --rebuild on this dump.");
             }
 
             if (metadata.Info.Facts.HasFlag(SnapshotFacts.CaptureTimeFromFile))

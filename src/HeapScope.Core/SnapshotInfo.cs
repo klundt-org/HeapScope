@@ -78,5 +78,5 @@ public enum SnapshotFacts
     /// A full dump's GC handles are all there (peer review 4.5). Without it, as in a cache from before loader version 5, an object held
     /// only by a handle can look unreachable. A gcdump does not need it.
     /// </summary>
-    HandlesChecked = 1 << 4,
+    HandlesChecked = 1 << 5,
 }

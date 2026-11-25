@@ -47,7 +47,7 @@ Sprint 3.11:
 
 ## Open
 
-Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
+Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.6 to 4.9 to it.
 
 **High**
 - The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
@@ -368,6 +368,9 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   group-only column; the tree's Retained column has the "Exactly this much" note, `ValueBoundTexts.Exact`, for every row; M6).
 
 **Low**
+- From peer review 4.5 (2026-11-25; its High and Moderate findings are planned as sprints 4.6 to 4.12): its Low findings and what its fixes
+  left: a time limit for the second walk of GC handles, and the handles it found kept when a limit stops it
+  ([reviews/peer-review-4.5.md](reviews/peer-review-4.5.md)).
 - Visual design, left out of sprint 3.10 (product owner, 2026-11-04; ADR-040): inline data bars in grids, dimmed namespaces
   in type names, a collapsible snapshot rail, the icicle chart colored by application versus framework code.
 - WinForms specific leak inspections.
