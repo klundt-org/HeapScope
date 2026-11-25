@@ -138,4 +138,7 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   Windows, under HeapScope's data folder elsewhere since 3.7, 0700) and deletes it when the read ends, failed or canceled; nothing is written next to the
   trace. A worker killed mid-read leaves its `.etlx`: the next worker deletes those over an hour old that no reader
   holds, and logs it; a canceled recording's file is deleted, and the session sweep removes `*.nettrace.partial` files.
+  Since 4.3 a monitoring run writes its trace under its final name (the user's alone from its creation, as before), beside a
+  partial file with the names of the methods compiled so far, which its end deletes and the sweep would. The worker that follows
+  it writes nothing.
   Methods are named from the trace's own events, never a symbol server (ADR-017).

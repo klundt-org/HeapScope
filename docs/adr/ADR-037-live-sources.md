@@ -73,3 +73,17 @@
   - The recording carries a System.Runtime counter every second: without it the runtime keeps a thread's last samples when it
     goes idle, for seconds.
   - A heap-only dump stops the process 2.5 times as long as a full dump, so no new kind of snapshot is added.
+- Amended in 4.3 (as built):
+  - The worker reads only whole objects of the file that `TraceFileCheck` has walked (`LiveTraceStream`), so a growing file is
+    checked as a finished one is; where the recording ends inside an object, the reader ends with the one before it.
+  - Samples are added up by stretch of time, type, stack and kind (`LiveAllocations`): stretches of a second, doubling when a
+    run has more than 1,800 of them or too many entries; stacks and types past the limits are added up under "other", counted
+    and said. A live trace is an `AllocationTrace` whose entries stand for more than one sample, so the queries, trees and views
+    of a finished one answer for it. 160 MB are reserved while it is read.
+  - Its identity across a worker restart is the recording's own start, which the file states, and not the file's creation time,
+    which some file systems do not keep.
+  - The methods compiled before are named by the partial file of a rundown-only session that is deleted when the recording ends;
+    the finished file has its own rundown. Monitoring runs record this way (`TraceRecorder.RecordLiveAsync`); the Processes page and
+    the command line keep the partial file and its rename.
+  - Choosing an interval is asking again, not a push: the Live page asks twice a second where the trace stands, and for the
+    timeline and types at most every two seconds. Call stacks are asked for on demand.

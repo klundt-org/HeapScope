@@ -274,7 +274,7 @@ public static class InfoTexts
         "then says what the two size rules do after firing: below fires again once the heap falls under 90 percent of the threshold, once never fires again, and step raises the threshold by its own amount.\n" +
         "at most is the most snapshots the rules may take in a run; empty means no limit. Get snapshot and failed captures do not count.\n" +
         "as gcdumps makes this run's snapshots gcdumps, with only objects and references, instead of full dumps. Each one runs a full garbage collection in the process.\n" +
-        "Record allocations records sampled allocations with call stacks for the whole run, up to 1 GB. After the run, press Open allocations under Past runs.";
+        "Record allocations records sampled allocations with call stacks for the whole run, up to 1 GB, and shows them below the chart while it runs. After the run, press Open allocations under Past runs.";
 
     /// <summary>Live: Past runs heading.</summary>
     public const string LivePastRuns =
@@ -287,7 +287,7 @@ public static class InfoTexts
         "The chart stacks the heap areas as of the last collection, with what was allocated since then on top. A dashed line marks a snapshot and a dotted line a forced collection.\n" +
         "The line above it is the latest sample: the heap now, the heap after the last collection and its parts, bytes allocated, collections per generation, and the last collection's share of time.";
 
-    /// <summary>Live: Allocations heading (sprint 4.3, a draft for the owner).</summary>
+    /// <summary>Live: Allocations heading (sprint 4.3).</summary>
     public const string LiveAllocations =
         "What the process has allocated since the recording started, while it runs. Sizes are estimates from samples, about one for every 100 KB allocated.\n" +
         "Drag across the bars to choose an interval; a click shows the whole run again. The types are those of the interval, the 20 that allocated the most.\n" +

@@ -287,7 +287,7 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
                 ?? throw new InvalidOperationException($"The process {pid} is not among the .NET processes the Live page lists.");
             live.WriteTimeline = false;
             // Under a data folder that was moved, the run records its allocations, and a picture shows them (sprint 4.3).
-            var records = HeapScope.Core.HeapScopeFolders.Default.Source == HeapScope.Core.HeapScopeFolders.EnvironmentVariable;
+            var records = HeapScope.Application.Sessions.MovedDataFolder.IsMoved;
             live.RecordRuns = records;
             live.RecordAllocations = records;
             await live.StartCommand.ExecuteAsync(null);

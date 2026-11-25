@@ -200,7 +200,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   per handle for all its waiters) and `ResultQuery` (a query whose rows come back as a result set) [P5];
   `Events/SafeEvents` (events raised after state is final, outside locks, a throwing listener logged) [P9];
   `Presentation/` (column access by name, the texts and the monitor rules parser both front ends use) [P18];
-  `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed) and `RunRecord`, a file per type
+  `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed; since 4.3 live, `LiveTraceFile` and `TraceEnded` tell who follows it) and `RunRecord`, a file per type
   [P11]; `Sessions/SessionFileCheck` (a session's file, or which check refused it) [3.7 review M2].
   `Workers/` (`WorkerHost`, `IWorkerClient`, exceptions, log forwarding), `Jobs/JobTracker`,
   `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's setting and its
@@ -261,7 +261,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   retained size with its immediate dominator as a link in the Retention tab [2.3]; `InspectionsViewModel` (tiles,
   fragmentation bars, rows as `CellRowItem`s, the generic row of any result set since 2.4) [1.6]; `LiveViewModel` and
   `SnapshotCard` [1.7], since 4.3 monitoring alone over `LiveRunState` (what the page shows of a run), with
-  `LivePastRunsViewModel` and `LiveRunFilesViewModel`; `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
+  `LivePastRunsViewModel`, `LiveRunFilesViewModel` and `LiveAllocationsViewModel` (what the process allocates, as it does); `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
   of the app is a target the Snapshots page routes), `RetainersViewModel` (the dominator tree grid with
   `DominatorRowItem`, the trail as `TrailItem`s, the icicle with `IcicleGeometry`), `RetainedBySetViewModel`,
   `ColumnGroups`, and `GridQueryViewModel.OnRowsApplied` (what refers to new rows runs after they are bound) [2.4].

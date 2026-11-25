@@ -79,7 +79,8 @@ dotnet test --solution HeapScope.sln
   method (the package's commit may not be public), above all everything in EventPipe reading; what both read from sound
   traces and from thousands of damaged copies, by hash; the `allocations` benchmark; running out of memory under
   `DOTNET_GCHeapHardLimit` (the conversion's words are matched); and the gate, whose integration tests capture a gcdump,
-  watch counters and trigger a collection. Record it in the sprint's review file (`docs/reviews/sprint-4.2.1.md` is the
+  watch counters and trigger a collection, and (4.3) read call stacks while recording: `EventStackReader` checks the layout of
+  TraceEvent's event record, and a changed one gives no stacks, which `LiveTraceStreamTests` fails on. Record it in the sprint's review file (`docs/reviews/sprint-4.2.1.md` is the
   first). The check's comment, the notices and the table in ARCHITECTURE.md name the version.
 - GitHub Actions are pinned by full commit hash (sprint 3.7), and since 2026-11-17 the repository requires it (Settings,
   Actions: "Require actions to be pinned to a full-length commit SHA"), so an action named by tag or branch fails the run.
@@ -256,6 +257,8 @@ dotnet test --solution HeapScope.sln
   `retainers`, `11-compare` as `compare` and `13-live` as `live`, each with `-light` and `-dark`.
 - Live smoke run: `HeapScope --smoke-live 1800` charts 1,800 made-up samples on the Live page as fast as it can
   (no process, no timeline file) and exits with the same codes as the other smoke runs.
+  `HeapScope --smoke-live-process <pid>` (4.3) watches a real .NET process for 30 s, records its allocations and checks the
+  Live page's allocations and call stacks. It records into a session, so it needs `HEAPSCOPE_DATA_FOLDER`.
 - UI smoke run: `HeapScope --smoke-synthetic 5000000` runs a synthetic job, checks dispatcher lag and exits
   (0 ok, 3 lag over the gate, 4 job failed, 5 the first window took over 30 s, 6 a grid walked its whole row list);
   details in ARCHITECTURE.md 8. `HeapScope --smoke-open <dump>`
@@ -341,6 +344,8 @@ dotnet test --solution HeapScope.sln
   When a run stops, a row shows its timeline file with Open (the system's app for CSV), Show in folder (Explorer and
   Finder select the file; elsewhere the folder opens) and Delete (asks first; the run's snapshots are kept). The log
   says which was used and how it went, never the path.
+  With Record allocations ticked (sprint 4.3) a panel below the chart shows what the process allocates as it does: bars over
+  time, where dragging chooses an interval, the interval's types, and call stacks on demand.
   Since 3.4: Get snapshot captures the process now as one of the run's snapshots; Force GC asks first (the target
   pauses, finalizers do not run), then runs a full blocking collection in it (a dotted line on the chart, only when its
   end was seen; .NET 5 or later); "Record allocations" records an allocation trace for the whole run, up to 1 GB or

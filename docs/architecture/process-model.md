@@ -221,7 +221,8 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   short trace that names the methods compiled before; `LiveTraceDescriptor`), `QueryLiveTraceAsync` (`LiveTraceDto`: a version
   that grows with each sample, the recording's start, how far it was read, its delay, what was left out, and why reading
   stopped), `EndLiveTraceAsync` (the recording ended and its file is closed). The queries of a finished trace answer for a live
-  one, for what was read so far: an interval counts whole stretches (`LiveTraceDto.BucketSeconds`) by their start.
+  one, for what was read so far: an interval counts whole stretches (`LiveTraceDto.BucketSeconds`) by their start. A live trace
+  holds its memory reservation until it is read to its end.
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

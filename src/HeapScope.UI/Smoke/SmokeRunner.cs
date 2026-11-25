@@ -233,9 +233,9 @@ internal sealed class SmokeRunner(IServiceProvider services)
     {
         var services = _services;
         var logger = services.GetRequiredService<ILogger<SmokeRunner>>();
-        if (HeapScope.Core.HeapScopeFolders.Default.Source != HeapScope.Core.HeapScopeFolders.EnvironmentVariable)
+        if (!HeapScope.Application.Sessions.MovedDataFolder.IsMoved)
         {
-            logger.LogError("Smoke live process: set {Variable}, this run records into a session", HeapScope.Core.HeapScopeFolders.EnvironmentVariable);
+            logger.LogError("Smoke live process: set {Variable}, this run records into a session", HeapScope.Application.Sessions.MovedDataFolder.Variable);
             return SmokeVerdict.Phase(completed: false, TimeSpan.Zero, TimeSpan.Zero);
         }
 

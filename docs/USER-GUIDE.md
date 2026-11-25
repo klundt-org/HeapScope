@@ -7,7 +7,7 @@ The [README](../README.md) shows what HeapScope does. This guide covers how each
 
 HeapScope ships with a small .NET process of its own, the sample, with memory problems planted on purpose. Each problem is
 a scenario: a static cache that only grows, event handlers never removed, timers never stopped, async methods that never
-finish, a finalizer backlog, wasted memory, large objects, and steady allocation from one call site, among others. Because
+finish, a finalizer backlog, wasted memory, large objects, steady allocation from one call site and allocations in bursts, among others. Because
 HeapScope knows what each one planted, you can practice on it and be told whether you found it.
 
 - **The Learn page** (low on the left, Ctrl+7) lists the lessons, one per scenario. Choose one and press Start lesson: its
@@ -37,6 +37,7 @@ The lessons, scenario by scenario, and where each one's answer shows:
 | Memory wasted by shape | Waste | Inspections, Empty and Oversized collections: what the collections hold |
 | Large arrays on the large object heap | LargeObjects | Inspections, Large arrays |
 | Where allocations come from | SteadyAllocation | Record allocations; the Allocations page's Types and Back traces |
+| What a burst allocates | AllocationBursts | Live, Record allocations ticked: the types of an interval dragged over one burst |
 
 The sample runs as you, never as administrator (HeapScope refuses while it runs elevated), at most three at once from one
 HeapScope window or command, and stops when HeapScope closes. A growing sample stops growing when its heap reaches 512 MB;
@@ -87,6 +88,11 @@ notes who can capture whom.
   are grouped into one bar, "+N smaller", that says how many it holds and their size. The tree below has them (expand a
   group or a "more" row if they are not shown); deeper in the chart, a double-click on the bar above them focuses on it, and
   the tree then has them.
+- **Live allocations.** Tick Record allocations under Snapshot rules before Start, and the Live page shows below its chart what
+  the process allocates while it runs, usually less than a second behind it: bars over time, the 20 types allocated most, and, when
+  you tick Show call stacks, where. Drag across the bars to choose an interval; a click shows the whole run again. Sizes are
+  estimates from samples, about one for every 100 KB allocated. In a long run the bars stand for longer stretches. The trace is
+  recorded as before, and Open allocations opens it with everything once the run stopped.
 - **Live workflow.** When a process cannot be monitored, a warning says why: it runs elevated or as another user, so
   run HeapScope as administrator. A warning also appears when no samples arrive after about 10 seconds (or three
   intervals, if longer), since a process can turn off the runtime events Live reads; Get snapshot still works then. The Live page takes a snapshot of the monitored process now (Get snapshot) and forces a full

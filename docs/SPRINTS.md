@@ -140,18 +140,23 @@ says what to do first: the Live page's view model is 796 lines with three concer
    gives the same totals as the finished one; names that arrive late; a file that stops growing; a damaged file.
 5. [x] The worker contract: open a live trace, "what changed since", "the recording ended"; one protocol bump; the identity of a
    live trace across a worker restart. Tests: contract, restart, and refusal tests.
-6. [ ] The Live page: allocations by type beside the timeline for the selected range, stacks on demand, and the delay shown when
+6. [x] The Live page: allocations by type beside the timeline for the selected range, stacks on demand, and the delay shown when
    it grows; the Allocations page opens the same file afterwards. Wording drafted for the owner. Tests: view models, views,
    and the live smoke run with the UI's longest single operation.
 7. [x] The faster snapshot, only if task 1 shows it is worth it: it does not (Findings), so nothing is added.
-8. [ ] The sample's scenario and lesson (ADR-042's extension contract) for the live session; drafts for the owner.
-9. [ ] Docs: ADR-037 amended, ARCHITECTURE and its pages, DEVELOPER, USER-GUIDE, info-text.md, Backlog.
+8. [x] The sample's scenario and lesson (ADR-042's extension contract) for the live session; drafts for the owner.
+9. [x] Docs: ADR-037 amended, ARCHITECTURE and its pages, DEVELOPER, USER-GUIDE, info-text.md, Backlog.
 
 **Decisions**
 - The gates come first, and a failed gate stops the sprint for the owner. Decided autonomously.
 - The Live view model split precedes the feature, as the refactor analysis asks. Decided autonomously.
 - "Snapshots faster than a full dump" starts as a measurement of the heap-only dump; what is built follows the numbers, and if
   nothing beats a gcdump clearly, nothing is added. Decided autonomously.
+- Monitoring runs always record live, in the app and wherever else; the Processes page's recording and `trace` keep their partial
+  file. The live panel shows for runs that record allocations, which stays the user's choice. Decided autonomously.
+- A live trace's queries are a finished trace's, over entries that stand for several samples, in place of new queries. Decided
+  autonomously.
+- Its identity across a worker restart is the recording's start (ADR-037 said creation time). Decided autonomously.
 - Streaming stays request and answer, no push (ADR-037). Aggregates only; the file stays the record. Decided by ADR-037.
 
 **Findings**
@@ -214,6 +219,13 @@ says what to do first: the Live page's view model is 796 lines with three concer
   | a cold program | 208,791 | 160 / 210 / 225 ms | 293 ms | 84 MB | 1,904 of 11,116,357 |
 
   Both gates are met on Windows and Linux; ADR-037 is amended. macOS is not measured (no Mac).
+- Task 4: a recording of LeakyApi under load replayed in pieces of 1 MB and of 100,003 bytes gives the finished reader's types,
+  stacks by name, counts and bytes exactly. 1,500 damaged copies (seed 43) read live as well: none fails as HeapScope's error.
+- Task 5: followed across a killed worker, a recording ends with the finished file's samples, bytes and lost events.
+- Task 6: `--smoke-live-process` on LeakyApi under load: 612 to 921 samples in 30 s, figures 0.25 to 0.30 s behind, stacks asked
+  for every second. On a real window the longest UI operation was 30 to 35 ms in 3 of 5 runs and 160 and 168 ms in 2, with no
+  processor time used by the UI thread in that stall. `--smoke-live`, without the panel, has the same stall (139 ms in 1 of 6),
+  and the panel headless has none (27 to 33 ms in 6 of 6): it is the window's, not the panel's, and in the Backlog.
 
 ---
 

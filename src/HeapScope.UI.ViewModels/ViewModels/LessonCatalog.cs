@@ -32,7 +32,7 @@ namespace HeapScope.UI.ViewModels;
 public static class LessonCatalog
 {
     /// <summary>The catalog's version (review M4): raised when a lesson is added or its steps or question change.</summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     private const string Capture = "On the Processes page, select the sample's row (it says Sample in the Kind column) and choose Capture dump (leave As gcdump unticked). When it asks to open the dump, say yes: the dump opens on the Snapshots page.";
     private const string ByRetained = "On the Snapshots page, tick Retained sizes, type Fixtures.Leaks in the filter and sort by Retained. The first time, working out retained sizes can take a minute; the bar above the grid moves until it is done.";
@@ -187,6 +187,20 @@ public static class LessonCatalog
             ],
             "Which of the sample's types is allocated most?",
             "SteadyAllocation"),
+        new(
+            "allocation-bursts",
+            "What a burst allocates",
+            "Watch allocations live and choose an interval to see what a burst is made of.",
+            ["AllocationBursts"],
+            false,
+            LessonPage.Live,
+            [
+                "On the Live page, choose the process heapscope-sample, open Snapshot rules, tick Record allocations and press Start.",
+                "Wait until the bars under Allocations show two tall groups, about ten seconds apart. The Types list is of the whole run: note its top row.",
+                "Drag across one tall group of bars. The Types list is now of that interval: find the sample's type nearest the top, and tick Show call stacks to see where it is allocated.",
+            ],
+            "Which of the sample's types is allocated most during a burst?",
+            "AllocationBursts"),
     ];
 
     /// <summary>The scenarios without a lesson, with the reason (ADR-042: each feature adds its lesson or says why not).</summary>

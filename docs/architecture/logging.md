@@ -210,6 +210,12 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   change, the other snapshot, how many of the inner set's objects it kept and the survivors in all; a trend logs its
   snapshots in order, grouping, rows and the first rows' growth; the CLI's growth gate logs what it checked (total or a
   heap kind, per row or summed) and how many rows exceeded.
+- Live traces (sprint 4.3): the run logs the trace it writes and whether the methods compiled so far could be named; the worker
+  logs a live trace's path, readers' versions, memory and names file when it opens, where it stands every minute (at Debug) and
+  at its end (samples, bytes, types, stretch, entries, lost events, unnamed frames, what is past the limits, why there are no
+  stacks or names, what the check walked, why it stopped); the page logs each interval chosen and the figures at the end. The
+  stacks shown are logged as a finished trace's are; the timeline and types, asked for every two seconds, at Debug. The finished
+  file is the record a contested figure is checked against.
 - Live workflow (sprint 3.4): a forced collection logs the target, whether its end was seen and the time; a refused
   capture or collection logs what it was, why it was asked and what was running; a run logs its id at the start, the
   allocation trace's path, size and length, and each time it is recorded in its session (snapshots, forced collections);
