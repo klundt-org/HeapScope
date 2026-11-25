@@ -43,6 +43,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 {
     private const int CheckInterval = 1 << 16;
 
+    /// <summary>The detail of the strong handle that holds the static fields; PathRoots has its wording.</summary>
+    private const string StaticStorage = "static storage";
+
     private readonly ClrMdLoaderOptions _options = options ?? new ClrMdLoaderOptions();
 
     /// <summary>
@@ -141,7 +144,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump). A phase of its own since 3.12 (R5).
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
-        var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath) : null, cancellationToken);
+        var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath) : null, progress, cancellationToken);
         var weakHandles = AddDependentHandlesAndCollectWeak(runtime, builder, cancellationToken);
         foreach (var handle in handles.LeftOut)
         {
@@ -152,7 +155,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         var references = meter.End("references");
 
         progress?.Report(new LoadProgress("Reading roots", 0, null));
-        AddGcRoots(heap, target.DataReader, builder, cancellationToken);
+        AddGcRoots(heap, target.DataReader, builder, [.. handles.LeftOut.Where(static h => h.Kind == ClrHandleKind.Strong && h.Object != 0).Select(static h => h.Object)], cancellationToken);
         foreach (var address in weakHandles)
         {
             builder.AddRoot(address, RootKind.WeakHandle, RootFlags.None);
@@ -177,7 +180,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             header is { } h ? h.CapturedAtUtc : new DateTimeOffset(File.GetLastWriteTimeUtc(fullPath), TimeSpan.Zero),
             freeBytes,
             SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
-                | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None));
+                | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
+                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.HandlesUnchecked : SnapshotFacts.None));
 
         // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
         var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
@@ -535,8 +539,11 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                 }
 
                 break;
-            case ClrHandleKind.Strong or ClrHandleKind.SizedRef:
-                builder.AddRoot(handle.Object, RootKind.StrongHandle, RootFlags.Retaining);
+            case ClrHandleKind.SizedRef:
+                builder.AddRoot(handle.Object, RootKind.Other, RootFlags.Retaining, nameof(ClrRootKind.SizedRefHandle));
+                break;
+            case ClrHandleKind.Strong:
+                // With the others, where the static storage among them is told apart.
                 break;
         }
     }
@@ -663,12 +670,12 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         }
     }
 
-    private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, CancellationToken cancellationToken)
+    private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, IReadOnlyList<ulong> leftOut, CancellationToken cancellationToken)
     {
         // The static storage bucket is reported both as a strong handle and (on .NET 9 and 10) as a StaticVar root;
         // it is kept once (decision 3).
-        var strongHandleObjects = new HashSet<ulong>();
-        var staticStorage = new List<ulong>();
+        var strongHandles = new List<(ulong Address, RootFlags Flags)>(leftOut.Select(static a => (a, RootFlags.Retaining)));
+        var staticStorage = new HashSet<ulong>();
         var count = 0;
         foreach (var root in heap.EnumerateRoots())
         {
@@ -706,8 +713,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     staticStorage.Add(address);
                     break;
                 case ClrRootKind.StrongHandle:
-                    strongHandleObjects.Add(address);
-                    builder.AddRoot(address, RootKind.StrongHandle, flags);
+                    strongHandles.Add((address, flags));
                     break;
                 case ClrRootKind.PinnedHandle:
                     builder.AddRoot(address, RootKind.PinnedHandle, flags | RootFlags.Pinned);
@@ -733,12 +739,14 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             }
         }
 
+        foreach (var (address, flags) in strongHandles)
+        {
+            builder.AddRoot(address, RootKind.StrongHandle, flags, staticStorage.Remove(address) ? StaticStorage : null);
+        }
+
         foreach (var address in staticStorage)
         {
-            if (strongHandleObjects.Add(address))
-            {
-                builder.AddRoot(address, RootKind.StrongHandle, RootFlags.Retaining, "static storage");
-            }
+            builder.AddRoot(address, RootKind.StrongHandle, RootFlags.Retaining, StaticStorage);
         }
     }
 

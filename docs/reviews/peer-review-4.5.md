@@ -115,7 +115,11 @@ used it on their own services. Owner decisions: signing, macOS, what "full" prom
 
 ## The fix of C1, reviewed
 
-(after the review)
+Reviewed by the CLR and GC specialist on 2026-11-25. The approach was judged right and unlikely to add a wrong handle; three High findings
+about what it claimed (Complete without proof, Recovered for a partial walk, one bad handle discarding all after it), four
+Moderate (the recorded processors as a bound, memory on millions of handles, static storage rooted twice, Unknown as a note only) and
+three Low, all fixed and measured again: with DATAS at 8 heaps 785 of 2,400 by the runtime's own walk and all by HeapScope's; with 2
+heaps 192 and 206, all found, with the processors known and unknown. Below .NET 10 it is untested like the rest (H1).
 
 ## Done well
 

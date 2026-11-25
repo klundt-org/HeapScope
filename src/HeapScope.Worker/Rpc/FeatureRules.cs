@@ -115,6 +115,11 @@ internal static class FeatureRules
             return noGarbage;
         }
 
+        if (snapshot.Info.Facts.HasFlag(SnapshotFacts.HandlesUnchecked))
+        {
+            return "Not all GC handles of this Server GC process could be checked, so live objects could look unreachable. Capture a gcdump to see what is alive.";
+        }
+
         // References were lost reading this dump: live objects would show as garbage (section 5.2, as ADR-032).
         return SnapshotAccess.IsComplete(snapshot)
             ? null

@@ -176,9 +176,9 @@ internal sealed class SnapshotKinds
                 notes.Add("Parts of the managed heap could not be read from this dump, so some objects may be missing and counts are not exact. The dump may be truncated or damaged; capture another full dump if results look wrong.");
             }
 
-            if (metadata.Handles is { Outcome: HandleWalkOutcome.Unknown })
+            if (metadata.Info.Facts.HasFlag(SnapshotFacts.HandlesUnchecked))
             {
-                notes.Add("This process used Server GC, whose number of heaps can change, and not all of its GC handles could be checked: objects held only by a handle can look unreachable here.");
+                notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. A gcdump is not affected.");
             }
 
             if (metadata.Info.Facts.HasFlag(SnapshotFacts.CaptureTimeFromFile))

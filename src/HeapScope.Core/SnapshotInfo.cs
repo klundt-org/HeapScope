@@ -73,4 +73,7 @@ public enum SnapshotFacts
     /// a Linux or macOS core file records none), so a copy of the file can change it.
     /// </summary>
     CaptureTimeFromFile = 1 << 3,
+
+    /// <summary>Not all GC handles could be checked (peer review 4.5), so an object held only by one can look unreachable.</summary>
+    HandlesUnchecked = 1 << 4,
 }

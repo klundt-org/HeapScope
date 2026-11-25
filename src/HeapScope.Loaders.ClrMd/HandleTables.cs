@@ -22,6 +22,7 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Globalization;
+using HeapScope.Core;
 using HeapScope.Core.Loading;
 using Microsoft.Diagnostics.Runtime;
 
@@ -36,34 +37,46 @@ internal readonly record struct LeftOutHandle(ulong Address, ClrHandleKind Kind,
 /// processor and the debugging library walks one per heap the process has at that moment; since DATAS (on by default in .NET 9 and 10
 /// with Server GC) the heap count goes up and down, so a handle made while there were more heaps was left out, with everything only
 /// it holds (a quarter of 12,000, measured at 18 of 24 heaps). The walk is repeated with a reader that shows a larger heap count for
-/// its length, and every handle it adds is checked; a count past the tables fails and is not used.
+/// its length. That number is found by what it does: shown as none it leaves no handle. A count past the tables fails and is not used, and
+/// a handle whose objects are none of the heap's is dropped. Complete is said only of a walk that reached the last table.
 /// </summary>
 internal static class HandleTables
 {
     /// <summary>More heaps than any target has, for a dump that does not record its processors.</summary>
     private const int MostHeaps = 1024;
 
+    /// <summary>The most processors a Windows dump records: those of one group.</summary>
+    private const int ProcessorGroup = 64;
+
     /// <summary>The handles left out, and what was done, for the log.</summary>
     internal sealed record Result(IReadOnlyList<LeftOutHandle> LeftOut, HandleWalk Walk);
 
     /// <param name="processors">The processors the dump records, or null.</param>
-    public static Result Read(ClrRuntime runtime, string? dacPath, int? processors, CancellationToken cancellationToken)
+    public static Result Read(ClrRuntime runtime, string? dacPath, int? processors, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
-        var heaps = runtime.Heap.IsServer ? runtime.Heap.SubHeaps.Length : 1;
-        if (!runtime.Heap.IsServer || dacPath is null)
+        // Windows records the processors of one group, 64 at most: that many may be fewer than the process had.
+        var limit = processors is >= ProcessorGroup ? null : processors;
+        if (!runtime.Heap.IsServer)
         {
-            // Workstation GC has one heap and one table; a runtime without a DAC file has no second target.
-            return new Result([], new HandleWalk(runtime.Heap.IsServer ? HandleWalkOutcome.Unknown : HandleWalkOutcome.Complete, heaps, heaps, processors, 0, "no second walk"));
+            // Workstation GC has one heap and one table.
+            return new Result([], new HandleWalk(HandleWalkOutcome.Complete, 1, 1, processors, 0, "workstation GC, one table"));
         }
 
-        if (processors is { } known && heaps >= known)
+        var heaps = runtime.Heap.SubHeaps.Length;
+        if (heaps >= limit)
         {
             return new Result([], new HandleWalk(HandleWalkOutcome.Complete, heaps, heaps, processors, 0, "a heap for each processor"));
         }
 
+        if (dacPath is null)
+        {
+            return new Result([], new HandleWalk(HandleWalkOutcome.Unknown, heaps, heaps, processors, 0, "no second walk without the DAC's file"));
+        }
+
         try
         {
-            return Walk(runtime, dacPath, heaps, processors, cancellationToken);
+            progress?.Report(new LoadProgress("Reading GC handles", 0, null));
+            return Walk(runtime, dacPath, heaps, limit, processors, cancellationToken);
         }
         catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
@@ -71,68 +84,88 @@ internal static class HandleTables
         }
     }
 
-    private static Result Walk(ClrRuntime runtime, string dacPath, int heaps, int? processors, CancellationToken cancellationToken)
+    private static Result Walk(ClrRuntime runtime, string dacPath, int heaps, int? limit, int? processors, CancellationToken cancellationToken)
     {
         var reader = new HeapCountReader(runtime.DataTarget.DataReader);
         using var target = new DataTarget(reader, new DataTargetOptions { FileLocator = LocalOnlyFileLocator.Instance });
-        using var second = target.ClrVersions[0].CreateRuntime(dacPath, ignoreMismatch: true);
-        var known = Handles(second, cancellationToken);
-
-        // The heap count is a number of the GC's module that the walk reads: patching anything else changes nothing.
+        var clr = target.ClrVersions[0];
+        using var second = clr.CreateRuntime(dacPath, ignoreMismatch: true);
         reader.Watch(heaps);
         second.FlushCachedData();
-        _ = Handles(second, cancellationToken);
+        ulong[] known = [.. second.EnumerateHandles().Select(static h => h.Address).Distinct().Order()];
+
+        // The heap count is a number of the runtime's own module, or of its GC's, that the walk reads.
         var modules = target.DataReader.EnumerateModules().Where(static m => Path.GetFileName(m.FileName) is { } name
-            && (name.Contains("coreclr", StringComparison.OrdinalIgnoreCase) || name.Contains("clrgc", StringComparison.OrdinalIgnoreCase)));
-        var candidates = reader.Seen().Where(a => modules.Any(m => a >= m.ImageBase && a < m.ImageBase + (ulong)Math.Max(0, m.ImageSize))).ToList();
-        Dictionary<ulong, LeftOutHandle>? best = null;
-        var counted = heaps;
-        foreach (var candidate in candidates)
+            && (name.Contains("coreclr", StringComparison.OrdinalIgnoreCase) || name.Contains("clrgc", StringComparison.OrdinalIgnoreCase))).Append(clr.ModuleInfo).ToList();
+        var candidates = reader.Seen().Where(a => modules.Any(m => a >= m.ImageBase && a < m.ImageBase + (ulong)Math.Max(0, m.ImageSize))).Order().ToList();
+        if (candidates.Where(Drives).Select(static a => (ulong?)a).FirstOrDefault() is not { } counted)
         {
-            var (found, count) = Largest(candidate);
-            if (found is not null && found.Count > (best?.Count ?? 0))
+            return new Result([], new HandleWalk(HandleWalkOutcome.Unknown, heaps, heaps, processors, 0, string.Create(CultureInfo.InvariantCulture, $"none of {candidates.Count} places is the heap count")));
+        }
+
+        var (found, tables) = Largest();
+        var outcome = Judge(tables, limit, found.LeftOut.Count);
+        return new Result(
+            found.LeftOut,
+            new HandleWalk(outcome, heaps, tables, processors, found.LeftOut.Count, string.Create(CultureInfo.InvariantCulture, $"walked again at 0x{counted:x}, the walk ends at {tables} tables; {found.Dropped} handles of no object dropped")));
+
+        // Shown as none, the heap count leaves no handle: nothing else does.
+        bool Drives(ulong candidate) => Count(candidate, 0) == 0;
+
+        int Count(ulong candidate, int shown)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
             {
-                (best, counted) = (found, count);
+                reader.Show(candidate, shown);
+                second.FlushCachedData();
+                return second.EnumerateHandles().Take(1).Count();
+            }
+            catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
+            {
+                return -1;
+            }
+            finally
+            {
+                reader.ShowNothing();
             }
         }
 
-        if (best is null)
+        // The largest count that works, from the processors where they are known: past them too, as long as it adds handles.
+        (Found Found, int Tables) Largest()
         {
-            return new Result([], new HandleWalk(HandleWalkOutcome.Unknown, heaps, heaps, processors, 0, string.Create(CultureInfo.InvariantCulture, $"{candidates.Count} places hold the heap count, none could be raised")));
-        }
-
-        LeftOutHandle[] leftOut = [.. best.Values.Where(h => !known.ContainsKey(h.Address)).OrderBy(h => h.Address)];
-        return new Result(leftOut, new HandleWalk(leftOut.Length > 0 ? HandleWalkOutcome.Recovered : HandleWalkOutcome.Complete, heaps, counted, processors, leftOut.Length, "walked again"));
-
-        // The handles at the largest heap count that works: the processors where they are known, else found by doubling and halving.
-        (Dictionary<ulong, LeftOutHandle>? Found, int Count) Largest(ulong candidate)
-        {
-            if (processors is { } limit && At(candidate, limit) is { } all)
+            var works = heaps;
+            var best = new Found([], 0);
+            if (limit is { } all && At(all) is { } atAll)
             {
-                return (all, limit);
+                (best, works) = (atAll, all);
+                if (At(Math.Min(all * 2, MostHeaps)) is not { } past || past.LeftOut.Count <= best.LeftOut.Count)
+                {
+                    return (best, works);
+                }
+
+                (best, works) = (past, Math.Min(all * 2, MostHeaps));
             }
 
-            var (works, fails) = (heaps, Math.Min(processors ?? MostHeaps, MostHeaps) + 1);
-            var found = At(candidate, heaps);
+            var fails = MostHeaps + 1;
             for (var step = 1; works + step < fails; step *= 2)
             {
-                if (At(candidate, works + step) is { } more)
+                if (At(works + step) is { } more)
                 {
-                    (found, works) = (more, works + step);
+                    (best, works) = (more, works + step);
                 }
                 else
                 {
                     fails = works + step;
-                    break;
                 }
             }
 
             while (fails - works > 1)
             {
                 var middle = works + ((fails - works) / 2);
-                if (At(candidate, middle) is { } more)
+                if (At(middle) is { } more)
                 {
-                    (found, works) = (more, middle);
+                    (best, works) = (more, middle);
                 }
                 else
                 {
@@ -140,20 +173,44 @@ internal static class HandleTables
                 }
             }
 
-            return (found, works);
+            return (best, works);
         }
 
-        // The handles with the count shown, or null when it does not work: the walk fails, loses a handle, or gives one of no object.
-        Dictionary<ulong, LeftOutHandle>? At(ulong candidate, int count)
+        // The handles with the count shown, or null when it does not work: the walk fails, loses a handle, or gives mostly no handles.
+        Found? At(int count)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var leftOut = new List<LeftOutHandle>();
+            var (kept, dropped, read) = (0, 0, 0);
             try
             {
-                reader.Show(candidate, count);
+                reader.Show(counted, count);
                 second.FlushCachedData();
-                var handles = Handles(second, cancellationToken);
-                reader.ShowNothing();
-                return known.Keys.All(handles.ContainsKey) && handles.Values.All(h => known.ContainsKey(h.Address) || IsHandle(h)) ? handles : null;
+                foreach (var handle in second.EnumerateHandles())
+                {
+                    if ((++read & 0xFFFF) == 0)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+
+                    if (Array.BinarySearch(known, handle.Address) >= 0)
+                    {
+                        kept++;
+                    }
+                    else
+                    {
+                        var (target, dependent) = (handle.Object.Address, handle.Dependent.Address);
+                        if (Enum.IsDefined(handle.HandleKind) && IsObject(target) && IsObject(dependent))
+                        {
+                            leftOut.Add(new LeftOutHandle(handle.Address, handle.HandleKind, target, dependent, handle.IsStrong));
+                        }
+                        else if (Enum.IsDefined(handle.HandleKind))
+                        {
+                            // A kind ClrMD does not name is no root of HeapScope's either (weak interior pointers since .NET 9).
+                            dropped++;
+                        }
+                    }
+                }
             }
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
             {
@@ -163,27 +220,16 @@ internal static class HandleTables
             {
                 reader.ShowNothing();
             }
+
+            return kept < known.Length || dropped > leftOut.Count ? null : new Found(leftOut, dropped);
         }
 
-        bool IsHandle(LeftOutHandle handle) =>
-            Enum.IsDefined(handle.Kind)
-            && (handle.Object == 0 || runtime.Heap.GetObject(handle.Object) is { IsValid: true })
-            && (handle.Dependent == 0 || runtime.Heap.GetObject(handle.Dependent) is { IsValid: true });
+        bool IsObject(ulong address) => address == 0 || runtime.Heap.GetObject(address) is { IsValid: true };
     }
 
-    private static Dictionary<ulong, LeftOutHandle> Handles(ClrRuntime runtime, CancellationToken cancellationToken)
-    {
-        var handles = new Dictionary<ulong, LeftOutHandle>();
-        foreach (var handle in runtime.EnumerateHandles())
-        {
-            if ((handles.Count & 0xFFFF) == 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-            }
+    /// <summary>What is said of a walk that found the heap count: whole when it reached every table there can be.</summary>
+    internal static HandleWalkOutcome Judge(int tables, int? limit, int added) =>
+        tables < limit ? HandleWalkOutcome.Unknown : added > 0 ? HandleWalkOutcome.Recovered : HandleWalkOutcome.Complete;
 
-            handles[handle.Address] = new LeftOutHandle(handle.Address, handle.HandleKind, handle.Object.Address, handle.Dependent.Address, handle.IsStrong);
-        }
-
-        return handles;
-    }
+    private sealed record Found(IReadOnlyList<LeftOutHandle> LeftOut, int Dropped);
 }

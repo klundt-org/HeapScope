@@ -34,3 +34,6 @@
 - Amends: ADR-006 (an older cache can open, with a note, instead of always being rebuilt), ADR-032 (an older cache's
   process name is read again, so the identity rule matches as before), ADR-035 (a DAC that needs trust can also be trusted
   after the open, from the snapshot), ADR-036 (the older cache is read with the same signature check; nothing unsigned opens).
+- Amended in 4.5: loader version 5 reads GC handles that an older cache lacks (Server GC processes with fewer heaps than processors) and the
+  references to the LoaderAllocator of 3.12, so the note says what such a cache can lack, not only the process name. The oldest version
+  that may open stays 3.

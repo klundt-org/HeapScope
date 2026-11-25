@@ -81,12 +81,29 @@ public sealed class HandleTablesTests(ITestOutputHelper output)
             .Count(o => graph.Types.GetName(graph.TypeIndices[o]) == typeof(HandleValue).FullName && reachable.IsReachable(o))
             .ShouldBe(expected);
 
+        if (heaps == "2" && Environment.ProcessorCount > 2)
+        {
+            // Handles of more threads than tables walked: the case is real on this machine.
+            walk.Added.ShouldBeGreaterThan(0);
+        }
+
         // The whole point: the walk as the runtime does it has fewer when the heaps changed.
         using var plain = DumpAnalysis.Open(dump);
         var own = plain.Runtime.EnumerateHandles().Count(h => h.HandleKind == ClrHandleKind.Strong && h.Object.Type?.Name == typeof(HandleHeld).FullName);
         output.WriteLine($"the runtime's own walk has {own} of {expected}");
         (own < expected).ShouldBe(walk.Outcome == HandleWalkOutcome.Recovered);
     }
+
+    /// <summary>What is said of a walk: whole only when it reached every table there can be.</summary>
+    [Theory]
+    [InlineData(24, 24, 5, HandleWalkOutcome.Recovered)]
+    [InlineData(24, 24, 0, HandleWalkOutcome.Complete)]
+    [InlineData(18, 24, 5, HandleWalkOutcome.Unknown)]
+    [InlineData(18, 24, 0, HandleWalkOutcome.Unknown)]
+    [InlineData(25, null, 5, HandleWalkOutcome.Recovered)]
+    [InlineData(25, null, 0, HandleWalkOutcome.Complete)]
+    public void A_walk_that_stopped_before_the_last_table_is_not_complete(int tables, int? limit, int added, HandleWalkOutcome expected) =>
+        HandleTables.Judge(tables, limit, added).ShouldBe(expected);
 
     private static int Rooted(HeapGraph graph, RootKind kind, string type) =>
         Enumerable.Range(0, graph.Roots.Count)

@@ -300,3 +300,6 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   types without an object, method tables that are another type's in the dumps, each with its largest five, and gcdump types without a
   name; a refusal has the same line with what it refused. Compare also logs a refused or unread trace as said, what it sorted by
   instead, that a closed trace unticked the box, and the row and interval behind "Show where it was allocated".
+- GC handles (peer review 4.5): a load's and an open's line say how they were read (`GC handles Recovered: 8 heaps, 24 tables walked, 24
+  processors, 6549 handles added (walked again at 0x..., the walk ends at 24 tables; 0 handles of no object dropped)`), `Complete` with
+  why, or `Unknown` with why; caches from before say "not recorded".

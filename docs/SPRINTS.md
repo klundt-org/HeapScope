@@ -124,7 +124,7 @@ the whole code base as outsiders, ranked, each finding checked in the code.
    this and a first full release.
 2. [x] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
    `docs/reviews/peer-review-4.5.md`.
-3. [ ] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
+3. [x] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
 4. [ ] A proposed split into sprints, for the owner to decide; the Backlog updated.
 5. [ ] The owner's 4.4 wording and release notes answers folded in, if they came.
 

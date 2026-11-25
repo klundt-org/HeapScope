@@ -103,7 +103,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   shared with the loader, runtime creation failures wrapped with a next step) [1.5]; `MinidumpHeader` [1.2, 1.8];
   `CoreFileHeader` (a Linux or macOS core cut short: program headers or load commands, or a segment's file range, past
   the end of the file; such a core loses CompleteGraph and ExactCounts like a truncated minidump), a core's capture time
-  from the file's write time marked `SnapshotFacts.CaptureTimeFromFile` with a note, loader version 3 [2.3.5]; `ClrMdDumpLoader.ProcessNameOf`: the executable's path the dump records, else its modules, and which rule chose it, loader version 4 [3.10];
+  from the file's write time marked `SnapshotFacts.CaptureTimeFromFile` with a note, loader version 3 [2.3.5]; `ClrMdDumpLoader.ProcessNameOf`: the executable's path the dump records, else its modules, and which rule chose it, loader version 4 [3.10]; `HandleTables` and `HeapCountReader`: the GC handles the runtime's walk leaves out, loader version 5 [4.5];
   `UnixLocalPath` (the local path rule on Linux and macOS: the mount holding the path, links resolved) [2.3.5];
   `DacLocator` and `LocalOnlyFileLocator` (the matching DAC from local folders only, ADR-017, section 6.3) [0.1, 1.2];
   a DAC next to the dump only once trusted by its SHA-256 and loaded from a private copy (`BesideDumpDirectories`,
