@@ -53,7 +53,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.2 | Capture on macOS | Closed | 2026-11-23 | sprint-4.2 |
 | 4.2.1 | Patch: damaged gcdumps and traces | Closed | 2026-11-24 | sprint-4.2.1 |
 | 4.3 | Live session | Closed | 2026-11-25 | sprint-4.3 |
-| 4.4 | Allocated between two snapshots | Planned | | |
+| 4.4 | Allocated between two snapshots | In Progress | | |
 | 4.5 | Peer review | Planned | | |
 | 4.6 | Analysis tabs | Planned | | |
 | 4.7 | Sunburst | Planned | | |
@@ -110,6 +110,42 @@ Owner decisions, 2026-11-18:
 | 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.4: Allocated between two snapshots
+
+**Goal:** comparing two snapshots of one monitoring run that recorded its allocations, Compare says what was allocated between them, by
+type, and one step leads to where.
+
+**Starting point.** A comparison says what is there now and was not (New, matched by address, so a moved object counts too); it says
+nothing of what was allocated and is gone again, or where. A run that records allocations has both snapshots and the trace in its
+session (`SessionRun`: `SnapshotIds`, `Trace`), each with a time; ADR-028 left out joining them, since it needs one clock and one
+name for a type.
+
+**Tasks**
+1. [ ] Measured before building: how a capture's recorded time lies to the trace's (the target is paused while a dump is written), and
+   how much of the sampled bytes join a diff row by name, for full dumps and gcdumps (generics, arrays, nested types, names in two
+   modules). If names do not join for most of the bytes, stop and report. Proof: the numbers in Findings and ADR-028's amendment.
+2. [ ] Which trace lies between two snapshots: the run of one session that holds both and a trace, the interval, and a reason when
+   there is none (another process, another run, no trace, a trace that ended before). Tests: each reason; a received session's
+   paths.
+3. [ ] One name for a type: the trace's names brought to the snapshots' form in one place, tested against real dumps. Tests: table and
+   integration.
+4. [ ] The worker: a diff with a trace and an interval gets Allocated columns (estimates), with the sampled bytes that no row took;
+   one protocol bump. Tests: contract, worker, a real run.
+5. [ ] Compare: a check box like New and dead objects, the note that says what the figures are, and a step from a row to the
+   Allocations page with the interval and type chosen. Wording drafted for the owner. Tests: view models, views.
+6. [ ] The command line: `diff --allocated`, with the trace found in the session or named. Tests: CLI.
+7. [ ] The sample's scenario and lesson (ADR-042), or why not; drafts for the owner.
+8. [ ] Docs: ADR-028 amended, ARCHITECTURE pages, DEVELOPER, USER-GUIDE, info-text.md, the CLI's README, Backlog.
+
+**Decisions**
+- Only a trace of the same monitoring run is linked. A trace recorded on the Processes page between two captures is not looked for: its
+  session does not say what it belongs to. Decided autonomously.
+- Figures are estimates and marked so, as everywhere; rows without a sample say nothing rather than zero bytes. Decided autonomously.
+- A type name in several modules is shown once per name with a note, since the tick has no module. Decided autonomously; revisited if
+  task 1 shows the tick's type id can tell them apart cheaply.
 
 ---
 
