@@ -28,7 +28,7 @@ namespace HeapScope.Core.Loading;
 /// </summary>
 /// <param name="Heaps">GC heaps the process had when it was dumped.</param>
 /// <param name="Tables">Handle tables walked.</param>
-/// <param name="Processors">Processors the dump records, when it does: no process has more tables.</param>
+/// <param name="Processors">Processors the dump records, when it does: of one processor group, so a process can have more tables.</param>
 /// <param name="Added">Handles the runtime's own walk left out.</param>
 /// <param name="How">What was done, in words for the log.</param>
 public sealed record HandleWalk(HandleWalkOutcome Outcome, int Heaps, int Tables, int? Processors, int Added, string How);

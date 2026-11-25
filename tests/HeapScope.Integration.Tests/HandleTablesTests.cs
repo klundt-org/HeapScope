@@ -94,16 +94,47 @@ public sealed class HandleTablesTests(ITestOutputHelper output)
         (own < expected).ShouldBe(walk.Outcome == HandleWalkOutcome.Recovered);
     }
 
-    /// <summary>What is said of a walk: whole only when it reached every table there can be.</summary>
+    /// <summary>What is said of a walk: whole only when it ended where the tables do, past the processors.</summary>
     [Theory]
-    [InlineData(24, 24, 5, HandleWalkOutcome.Recovered)]
-    [InlineData(24, 24, 0, HandleWalkOutcome.Complete)]
-    [InlineData(18, 24, 5, HandleWalkOutcome.Unknown)]
-    [InlineData(18, 24, 0, HandleWalkOutcome.Unknown)]
-    [InlineData(25, null, 5, HandleWalkOutcome.Recovered)]
-    [InlineData(25, null, 0, HandleWalkOutcome.Complete)]
-    public void A_walk_that_stopped_before_the_last_table_is_not_complete(int tables, int? limit, int added, HandleWalkOutcome expected) =>
-        HandleTables.Judge(tables, limit, added).ShouldBe(expected);
+    [InlineData(24, 24, 5, false, HandleWalkOutcome.Recovered)]
+    [InlineData(25, 24, 0, false, HandleWalkOutcome.Complete)]
+    [InlineData(18, 24, 5, false, HandleWalkOutcome.Unknown)]
+    [InlineData(25, null, 5, false, HandleWalkOutcome.Recovered)]
+    [InlineData(25, null, 0, false, HandleWalkOutcome.Complete)]
+    [InlineData(25, null, 5, true, HandleWalkOutcome.Unknown)]
+    public void A_walk_that_stopped_before_the_last_table_is_not_complete(int tables, int? processors, int added, bool doubt, HandleWalkOutcome expected) =>
+        HandleTables.Judge(tables, processors, added, doubt).ShouldBe(expected);
+
+    /// <summary>The search on a made-up process of <paramref name="tables"/> tables, two handles in each past its 4 heaps.</summary>
+    [Theory]
+    [InlineData(24, 24)]
+    [InlineData(24, null)]
+    [InlineData(80, 48)]
+    [InlineData(4, 4)]
+    [InlineData(4, null)]
+    [InlineData(1, null)]
+    [InlineData(16, 24)]
+    public void The_search_ends_at_the_last_table(int tables, int? processors)
+    {
+        var heaps = Math.Min(4, tables);
+        var (best, works, doubt) = HandleTables.Search(heaps, processors, count => count <= tables ? Works((count - heaps) * 2) : new(HandleTables.AttemptOutcome.End, HandleTables.Found.None));
+
+        (best.LeftOut.Count, works, doubt).ShouldBe(((tables - heaps) * 2, tables, false));
+    }
+
+    [Fact]
+    public void A_walk_that_fails_otherwise_than_past_the_tables_leaves_a_doubt()
+    {
+        var (best, works, doubt) = HandleTables.Search(4, null, count => count <= 7 ? Works(count) : new(HandleTables.AttemptOutcome.Doubt, HandleTables.Found.None));
+        (best.LeftOut.Count, works, doubt).ShouldBe((7, 7, true));
+
+        // A larger count with fewer handles is not a better one.
+        (_, works, doubt) = HandleTables.Search(4, null, count => Works(count <= 7 ? count : 1));
+        (works, doubt).ShouldBe((7, true));
+    }
+
+    private static HandleTables.Attempt Works(int handles) =>
+        new(HandleTables.AttemptOutcome.Works, new HandleTables.Found([.. Enumerable.Range(1, handles).Select(static i => new LeftOutHandle((ulong)i, ClrHandleKind.Strong, 0, 0, true))], 0));
 
     private static int Rooted(HeapGraph graph, RootKind kind, string type) =>
         Enumerable.Range(0, graph.Roots.Count)

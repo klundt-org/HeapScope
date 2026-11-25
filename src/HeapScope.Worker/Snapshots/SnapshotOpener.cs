@@ -163,7 +163,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                     fellBack = true;
                     try
                     {
-                        metadata = WithCurrentProcessName(path, metadata);
+                        metadata = WithUncheckedHandles(WithCurrentProcessName(path, metadata));
                         refused = Refuse(path, ex, notes: null);
                         notes.Add(OlderCacheNote(DacRefusals.Cause(ex)));
                         dacProblem = ex;
@@ -498,6 +498,12 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             return metadata;
         }
     }
+
+    /// <summary>A full dump's cache from before loader version 5 can lack GC handles (peer review 4.5): what is unreachable is not told from it.</summary>
+    private static IndexCacheMetadata WithUncheckedHandles(IndexCacheMetadata metadata) =>
+        metadata.Info.Kind == SnapshotKind.FullDump && metadata.LoaderVersion < 5
+            ? metadata with { Info = metadata.Info with { Facts = metadata.Info.Facts | SnapshotFacts.HandlesUnchecked } }
+            : metadata;
 
     /// <summary>
     /// The older cache, opened after a rebuild failed for want of a DAC, or null when it cannot be opened any more (the caller

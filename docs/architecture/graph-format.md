@@ -156,9 +156,9 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
   library walks one per GC heap, so with fewer heaps than processors (DATAS, `GCHeapCount`) handles were left out (measured on 24
   processors: 785 of 2,400 at 8 heaps, 200 at 2). `HandleTables` walks again through a second target whose reader
   (`HeapCountReader`) shows a larger heap count for the walk's length. The count's place is a 32-bit number of the runtime's or GC's
-  module that the walk reads and that, shown as 0, leaves no handle. The largest count that works is the dump's processors (64 recorded
-  count as not known), else found by doubling and halving; one that loses a handle or gives mostly none of the heap's objects does not
-  work. What is added: strong, pinned, async pinned, live ref-counted and sized handles as roots, dependent ones as edges, weak ones as
+  module that the walk reads and that, shown as 0, leaves no handle and, as 1 of several, some. The largest count that works is found from
+  the dump's processors by doubling and halving (a dump records one processor group's, a core file none): past the tables the walk gives
+  nothing. Any other failure leaves a doubt, which is `Unknown`. What is added: strong, pinned, async pinned, live ref-counted and sized handles as roots, dependent ones as edges, weak ones as
   weak roots. When it cannot be told (`HandleWalkOutcome.Unknown`, the fact `HandlesUnchecked`) a note says so and the unreachable set is
   refused.
 - Modules compiled as debuggable code are recorded (cache metadata `DebuggableModules`) and shown as a note.

@@ -117,7 +117,7 @@ internal static class FeatureRules
 
         if (snapshot.Info.Facts.HasFlag(SnapshotFacts.HandlesUnchecked))
         {
-            return "Not all GC handles of this Server GC process could be checked, so live objects could look unreachable. Capture a gcdump to see what is alive.";
+            return "Not all GC handles of this dump could be checked (its notes say why), so live objects could look unreachable. Capture a gcdump to see what is alive.";
         }
 
         // References were lost reading this dump: live objects would show as garbage (section 5.2, as ADR-032).

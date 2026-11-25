@@ -400,7 +400,7 @@ Drafts for the owner (peer review 4.5, the GC handles of Server GC processes). `
 | Page | Where | Text | Status |
 |---|---|---|---|
 | Snapshot | Notes, when handles cannot be checked | HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. A gcdump is not affected. | draft |
-| Snapshot | Unreachable objects, refused then | Not all GC handles of this Server GC process could be checked, so live objects could look unreachable. Capture a gcdump to see what is alive. | draft |
+| Snapshot | Unreachable objects, refused then | Not all GC handles of this dump could be checked (its notes say why), so live objects could look unreachable. Capture a gcdump to see what is alive. | draft |
 | Snapshot | Notes, an older index cache in place of a rebuild (its middle sentence, approved 2026-11-13 as "The one thing this version reads differently, the process name, was read again from the dump.") | It can lack what this version reads: in Server GC processes and collectible assemblies, objects held only by a GC handle or by a type can look unreachable. The process name was read again from the dump. | draft |
 
 ## Evidence: the per-setting drafts

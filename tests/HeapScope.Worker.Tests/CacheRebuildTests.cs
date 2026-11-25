@@ -134,6 +134,7 @@ public sealed class CacheRebuildTests : IDisposable
 
         // Loader version 4 changed only the process name: the older cache's is replaced by the one read from the dump.
         opened.ProcessName.ShouldBe("LeakyConsole");
+        opened.Availability!.Single(a => a.Feature == SnapshotFeatureIds.UnreachableSet).Unavailable.ShouldNotBeNull("an older cache can lack GC handles (peer review 4.5)").ShouldContain("GC handles");
         (await File.ReadAllBytesAsync(cache, Ct)).ShouldBe(before, "the older cache is read, never written");
         var older = string.Create(CultureInfo.InvariantCulture, $"loader version {ClrMdDumpLoader.CurrentVersion - 1}");
         var current = string.Create(CultureInfo.InvariantCulture, $"current loader version {ClrMdDumpLoader.CurrentVersion}");

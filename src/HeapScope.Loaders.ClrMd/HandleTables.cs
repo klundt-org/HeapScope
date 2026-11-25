@@ -45,8 +45,8 @@ internal static class HandleTables
     /// <summary>More heaps than any target has, for a dump that does not record its processors.</summary>
     private const int MostHeaps = 1024;
 
-    /// <summary>The most processors a Windows dump records: those of one group.</summary>
-    private const int ProcessorGroup = 64;
+    /// <summary>Handles of no object a walk may give and still be one: a damaged object, not a place that is no table.</summary>
+    private const int MostBadHandles = 16;
 
     /// <summary>The handles left out, and what was done, for the log.</summary>
     internal sealed record Result(IReadOnlyList<LeftOutHandle> LeftOut, HandleWalk Walk);
@@ -54,8 +54,6 @@ internal static class HandleTables
     /// <param name="processors">The processors the dump records, or null.</param>
     public static Result Read(ClrRuntime runtime, string? dacPath, int? processors, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
-        // Windows records the processors of one group, 64 at most: that many may be fewer than the process had.
-        var limit = processors is >= ProcessorGroup ? null : processors;
         if (!runtime.Heap.IsServer)
         {
             // Workstation GC has one heap and one table.
@@ -63,11 +61,6 @@ internal static class HandleTables
         }
 
         var heaps = runtime.Heap.SubHeaps.Length;
-        if (heaps >= limit)
-        {
-            return new Result([], new HandleWalk(HandleWalkOutcome.Complete, heaps, heaps, processors, 0, "a heap for each processor"));
-        }
-
         if (dacPath is null)
         {
             return new Result([], new HandleWalk(HandleWalkOutcome.Unknown, heaps, heaps, processors, 0, "no second walk without the DAC's file"));
@@ -76,7 +69,7 @@ internal static class HandleTables
         try
         {
             progress?.Report(new LoadProgress("Reading GC handles", 0, null));
-            return Walk(runtime, dacPath, heaps, limit, processors, cancellationToken);
+            return Walk(runtime, dacPath, heaps, processors, cancellationToken);
         }
         catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
@@ -84,7 +77,7 @@ internal static class HandleTables
         }
     }
 
-    private static Result Walk(ClrRuntime runtime, string dacPath, int heaps, int? limit, int? processors, CancellationToken cancellationToken)
+    private static Result Walk(ClrRuntime runtime, string dacPath, int heaps, int? processors, CancellationToken cancellationToken)
     {
         var reader = new HeapCountReader(runtime.DataTarget.DataReader);
         using var target = new DataTarget(reader, new DataTargetOptions { FileLocator = LocalOnlyFileLocator.Instance });
@@ -97,29 +90,33 @@ internal static class HandleTables
         // The heap count is a number of the runtime's own module, or of its GC's, that the walk reads.
         var modules = target.DataReader.EnumerateModules().Where(static m => Path.GetFileName(m.FileName) is { } name
             && (name.Contains("coreclr", StringComparison.OrdinalIgnoreCase) || name.Contains("clrgc", StringComparison.OrdinalIgnoreCase))).Append(clr.ModuleInfo).ToList();
-        var candidates = reader.Seen().Where(a => modules.Any(m => a >= m.ImageBase && a < m.ImageBase + (ulong)Math.Max(0, m.ImageSize))).Order().ToList();
-        if (candidates.Where(Drives).Select(static a => (ulong?)a).FirstOrDefault() is not { } counted)
+        var places = reader.Seen().Where(a => modules.Any(m => a >= m.ImageBase && a < m.ImageBase + (ulong)Math.Max(0, m.ImageSize))).Order().ToList();
+        var driving = places.Where(Drives).ToList();
+        if (known.Length == 0 || driving.Count == 0)
         {
-            return new Result([], new HandleWalk(HandleWalkOutcome.Unknown, heaps, heaps, processors, 0, string.Create(CultureInfo.InvariantCulture, $"none of {candidates.Count} places is the heap count")));
+            return new Result([], new HandleWalk(HandleWalkOutcome.Unknown, heaps, heaps, processors, 0, string.Create(CultureInfo.InvariantCulture, $"none of {places.Count} places is the heap count ({known.Length} handles)")));
         }
 
-        var (found, tables) = Largest();
-        var outcome = Judge(tables, limit, found.LeftOut.Count);
+        var (counted, search) = driving.Select(a => (Place: a, Search: Search(heaps, processors, count => At(a, count)))).MaxBy(static s => s.Search.Best.LeftOut.Count);
+        var leftOut = search.Best.LeftOut;
+        var outcome = Judge(search.Tables, processors, leftOut.Count, search.Doubt || (leftOut.Count == 0 && driving.Count > 1));
         return new Result(
-            found.LeftOut,
-            new HandleWalk(outcome, heaps, tables, processors, found.LeftOut.Count, string.Create(CultureInfo.InvariantCulture, $"walked again at 0x{counted:x}, the walk ends at {tables} tables; {found.Dropped} handles of no object dropped")));
+            leftOut,
+            new HandleWalk(outcome, heaps, search.Tables, processors, leftOut.Count, string.Create(
+                CultureInfo.InvariantCulture,
+                $"walked again at 0x{counted:x} ({driving.Count} of {places.Count} places), the walk ends at {search.Tables} tables{(search.Doubt ? ", in doubt" : string.Empty)}; {search.Best.Dropped} handles of no object dropped")));
 
-        // Shown as none, the heap count leaves no handle: nothing else does.
-        bool Drives(ulong candidate) => Count(candidate, 0) == 0;
+        // Shown as none, the heap count leaves no handle; shown as one of several, it leaves some.
+        bool Drives(ulong place) => Count(place, 0) == 0 && (heaps == 1 || Count(place, 1) is > 0 and var some && some <= known.Length);
 
-        int Count(ulong candidate, int shown)
+        int Count(ulong place, int shown)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                reader.Show(candidate, shown);
+                reader.Show(place, shown);
                 second.FlushCachedData();
-                return second.EnumerateHandles().Take(1).Count();
+                return second.EnumerateHandles().Count();
             }
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
             {
@@ -131,60 +128,15 @@ internal static class HandleTables
             }
         }
 
-        // The largest count that works, from the processors where they are known: past them too, as long as it adds handles.
-        (Found Found, int Tables) Largest()
-        {
-            var works = heaps;
-            var best = new Found([], 0);
-            if (limit is { } all && At(all) is { } atAll)
-            {
-                (best, works) = (atAll, all);
-                if (At(Math.Min(all * 2, MostHeaps)) is not { } past || past.LeftOut.Count <= best.LeftOut.Count)
-                {
-                    return (best, works);
-                }
-
-                (best, works) = (past, Math.Min(all * 2, MostHeaps));
-            }
-
-            var fails = MostHeaps + 1;
-            for (var step = 1; works + step < fails; step *= 2)
-            {
-                if (At(works + step) is { } more)
-                {
-                    (best, works) = (more, works + step);
-                }
-                else
-                {
-                    fails = works + step;
-                }
-            }
-
-            while (fails - works > 1)
-            {
-                var middle = works + ((fails - works) / 2);
-                if (At(middle) is { } more)
-                {
-                    (best, works) = (more, middle);
-                }
-                else
-                {
-                    fails = middle;
-                }
-            }
-
-            return (best, works);
-        }
-
-        // The handles with the count shown, or null when it does not work: the walk fails, loses a handle, or gives mostly no handles.
-        Found? At(int count)
+        // The handles with the count shown. Past the tables the walk gives nothing; anything else that fails leaves a doubt.
+        Attempt At(ulong place, int count)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var leftOut = new List<LeftOutHandle>();
             var (kept, dropped, read) = (0, 0, 0);
             try
             {
-                reader.Show(counted, count);
+                reader.Show(place, count);
                 second.FlushCachedData();
                 foreach (var handle in second.EnumerateHandles())
                 {
@@ -196,40 +148,101 @@ internal static class HandleTables
                     if (Array.BinarySearch(known, handle.Address) >= 0)
                     {
                         kept++;
+                        continue;
+                    }
+
+                    var (held, dependent) = (handle.Object.Address, handle.Dependent.Address);
+                    if (!Enum.IsDefined(handle.HandleKind))
+                    {
+                        // A kind ClrMD does not name is no root of HeapScope's either (weak interior pointers since .NET 9).
+                    }
+                    else if (IsObject(held) && IsObject(dependent))
+                    {
+                        leftOut.Add(new LeftOutHandle(handle.Address, handle.HandleKind, held, dependent, handle.IsStrong));
                     }
                     else
                     {
-                        var (target, dependent) = (handle.Object.Address, handle.Dependent.Address);
-                        if (Enum.IsDefined(handle.HandleKind) && IsObject(target) && IsObject(dependent))
-                        {
-                            leftOut.Add(new LeftOutHandle(handle.Address, handle.HandleKind, target, dependent, handle.IsStrong));
-                        }
-                        else if (Enum.IsDefined(handle.HandleKind))
-                        {
-                            // A kind ClrMD does not name is no root of HeapScope's either (weak interior pointers since .NET 9).
-                            dropped++;
-                        }
+                        dropped++;
                     }
                 }
             }
             catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
             {
-                return null;
+                return new Attempt(AttemptOutcome.Doubt, Found.None);
             }
             finally
             {
                 reader.ShowNothing();
             }
 
-            return kept < known.Length || dropped > leftOut.Count ? null : new Found(leftOut, dropped);
+            return kept == 0 ? new Attempt(AttemptOutcome.End, Found.None)
+                : kept < known.Length || (dropped > MostBadHandles && dropped > leftOut.Count) ? new Attempt(AttemptOutcome.Doubt, Found.None)
+                : new Attempt(AttemptOutcome.Works, new Found(leftOut, dropped));
         }
 
         bool IsObject(ulong address) => address == 0 || runtime.Heap.GetObject(address) is { IsValid: true };
     }
 
-    /// <summary>What is said of a walk that found the heap count: whole when it reached every table there can be.</summary>
-    internal static HandleWalkOutcome Judge(int tables, int? limit, int added) =>
-        tables < limit ? HandleWalkOutcome.Unknown : added > 0 ? HandleWalkOutcome.Recovered : HandleWalkOutcome.Complete;
+    /// <summary>
+    /// The largest heap count that works, from the dump's processors where it records them and by doubling and halving from there:
+    /// a process can have more tables than one processor group has processors. A count with fewer handles than a smaller one is in doubt.
+    /// </summary>
+    internal static (Found Best, int Tables, bool Doubt) Search(int heaps, int? processors, Func<int, Attempt> at)
+    {
+        var (best, works, fails, doubt) = (Found.None, heaps, MostHeaps + 1, false);
+        if (processors > heaps)
+        {
+            Try(Math.Min(processors.Value, MostHeaps));
+        }
 
-    private sealed record Found(IReadOnlyList<LeftOutHandle> LeftOut, int Dropped);
+        for (var step = 1; works + step < fails; step *= 2)
+        {
+            Try(works + step);
+        }
+
+        while (fails - works > 1)
+        {
+            Try(works + ((fails - works) / 2));
+        }
+
+        return (best, works, doubt);
+
+        void Try(int count)
+        {
+            var attempt = at(count);
+            if (attempt.Outcome == AttemptOutcome.Works && attempt.Found.LeftOut.Count >= best.LeftOut.Count)
+            {
+                (best, works) = (attempt.Found, count);
+            }
+            else
+            {
+                fails = count;
+                doubt = attempt.Outcome != AttemptOutcome.End;
+            }
+        }
+    }
+
+    /// <summary>What is said of a walk that found the heap count: whole when it ended where the tables do, past the processors.</summary>
+    internal static HandleWalkOutcome Judge(int tables, int? processors, int added, bool doubt) =>
+        doubt || tables < processors ? HandleWalkOutcome.Unknown : added > 0 ? HandleWalkOutcome.Recovered : HandleWalkOutcome.Complete;
+
+    internal enum AttemptOutcome
+    {
+        /// <summary>The walk gave every known handle.</summary>
+        Works,
+
+        /// <summary>The walk gave nothing: past the tables.</summary>
+        End,
+
+        /// <summary>The walk failed, lost some, or gave mostly no handles.</summary>
+        Doubt,
+    }
+
+    internal readonly record struct Attempt(AttemptOutcome Outcome, Found Found);
+
+    /// <summary>The handles a walk added, and those it gave whose objects are none of the heap's.</summary>
+    internal sealed record Found(IReadOnlyList<LeftOutHandle> LeftOut, int Dropped)
+    {
+        public static Found None { get; } = new([], 0);
+    }
 }
