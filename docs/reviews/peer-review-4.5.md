@@ -73,7 +73,7 @@ Users:
 
 Supply chain and release:
 - **H18 Secret scanning and push protection are off** (DSO; verified), probably since the move to the org. S, owner. The owner turned on secret
-  scanning and CodeQL on 2026-11-25; push protection was still off then.
+  scanning and CodeQL on 2026-11-25 (push protection: the API still said off); CodeQL runs from `codeql.yml` since, with one rule off (DEVELOPER.md 7).
 - **H19 The nightly fuzz failed 15 of its first 23 nights and nobody acted** (DSO; verified; the records name three). Fixed in 4.2.1; nothing
   would tell of the next. S.
 - **H20 nuget.org has 3.13.2 while INSTALL names it first** (DSO; verified), without the untrusted-input fixes of 4.2.1. Upload now (owner); a
