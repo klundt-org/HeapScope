@@ -200,7 +200,9 @@ says what to do first: the Live page's view model is 796 lines with three concer
 - Damaged files: 15,000 damaged copies of a small trace (5 seeds), each read with and without the stack access: it adds no
   failure seen. What a trace states is checked since 4.2.1 (`TraceFileCheck`, ADR-028); the live reader needs that check to keep
   its place in a file that grows (task 4).
-- Still open in task 1: Linux, and the probe again on TraceEvent 4.0.2. ADR-037 is amended when they are done.
+- The probe again on TraceEvent 4.0.2 (2026-11-24, 10 s flat out): 175,213 samples, every stack the one TraceLog gave, every frame
+  named, delay p50 185, p95 242 and max 267 ms, reading and folding 200 ms, peak working set 57 MB: as on 4.0.0.
+- Still open in task 1: Linux. ADR-037 is amended when it is done.
 
 ---
 
