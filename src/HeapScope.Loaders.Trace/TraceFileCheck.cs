@@ -35,7 +35,8 @@ namespace HeapScope.Loaders.Trace;
 /// where TraceEvent stops (a file cut short, another tag) the walk stops, and what it accepts here it has been shown to fit.
 /// Descriptions are read from their own blocks only: in version 4 TraceEvent 4.0.2 takes none from a block of events (an event
 /// whose description is not known, 0 included, is an error there), and it reads every type the check accepts, at any depth
-/// (its source at 10e5d27, the commit the package is built from). Any other version is refused, since nothing checks it.
+/// (4.0.0's source at 10e5d27, the commit that package is built from; the compiled code that reads blocks and descriptions is
+/// the same in 4.0.2, but for a stop asked for between blocks). Any other version is refused, since nothing checks it.
 /// Look at it again when TraceEvent or the runtime's format changes.
 /// </summary>
 internal static class TraceFileCheck

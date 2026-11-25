@@ -29,8 +29,8 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   is checked too (in range, described, a pseudo node). Traces were the exception until 4.2.1: `TraceFileCheck` walks the blocks
   of a nettrace version 4 file (any other version is refused), bounds each block's size and, in the event descriptions, every
   field count and how deep types nest, before TraceEvent reads the file. Events' own contents, stacks and sequence points are
-  left to TraceEvent, which checks the bounds of the values it reads from an event (since 4.0.2) and whose errors on them are
-  refusals and not HeapScope's (`TraceReads`). Crafted contents within those
+  left to TraceEvent, which since 4.0.2 refuses to read a value past its event's end. Its errors are never HeapScope's (`TraceReads`):
+  while converting, one ends the trace, which opens with what came before and a note; after that, the file is refused. Crafted contents within those
   bounds cost memory in proportion to the file (ADR-028). Mutation tests
   run in every CI run and nightly with more iterations (`fuzz.yml`).
 - The tutorial's sample (sprint 3.13, ADR-042) is HeapScope's own process, started as the user and refused while HeapScope

@@ -127,7 +127,7 @@ tracing and symbol lookup. Nothing in HeapScope calls them, and since sprint 3.6
 
 | Package | Version | License | Copyright |
 |---|---|---|---|
-| xunit.v3 | 4.0.2 | Apache-2.0 | .NET Foundation |
+| xunit.v3 | 4.0.3 | Apache-2.0 | .NET Foundation |
 | Shouldly | 4.3.0 | BSD-3-Clause | Jake Ginnivan, Joseph Woodward, Simon Cropp and contributors |
 | Microsoft.CodeAnalysis.CSharp (DenseHeap fixture) | 5.9.0 | MIT | Microsoft Corporation |
 | Avalonia.BuildServices (build time, via Avalonia; its telemetry task is disabled by `Directory.Build.targets`) | 11.3.2 | MIT | The AvaloniaUI Project |

@@ -333,6 +333,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
 - From the 4.2.1 review (decided autonomously): traces of nettrace version 6 (newer tools write it; refused since 4.2.1, as
   nothing checks them): extend the check and test it against a recorded one. One handle held from the check to the conversion.
   The `allocations` benchmark before and after a change of the sample loop, recorded each time.
+  The tools that compared two TraceEvent versions (compiled code, sound and damaged traces) kept in `perf/`, and TraceEvent left
+  out of Dependabot's group.
 - From the 2.5 review (decided autonomously): extract one flattened-tree builder (children order, batches, "more"
   rows, the row limit) and one set of tree keys and limits in Contracts from the dominator and allocation trees when a
   third tree arrives (2.6 or Compare's link), with their view models' shared parts (M5); progress on the timeline,

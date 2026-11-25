@@ -8,8 +8,11 @@
 - On macOS the same commands are built, on Linux, and nobody has run them on a Mac: if a capture fails, take a dump with
   dotnet-dump and open it with heapscope-cli. A full dump may need an application signed to allow it; a gcdump does not.
 - heapscope-cli list shows every process with its mark; the app hides those it cannot capture (4.1.1).
-- heapscope-cli allocations refuses a damaged trace before reading it, with the byte and the reason, and analyze refuses a
-  damaged gcdump as one (4.2.1). Traces of format version 4, which the .NET runtime writes, are read; another version is
-  refused with a message.
+- heapscope-cli allocations refuses a trace that states more than it holds before reading it, with the byte and the reason,
+  and says so when there is too little memory to read a trace. A trace with a damaged event can open with what came before it
+  and a note, so it can show fewer samples than before; record it again if it matters (4.2.1).
+- heapscope-cli allocations reads traces of format version 4, which the .NET runtime writes; another version is refused with
+  a message (4.2.1).
+- Every command that opens a gcdump refuses a damaged one as damaged (4.2.1).
 
 All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md

@@ -80,6 +80,9 @@ public sealed class TraceReadsTests
     public void Only_some_types_of_error_can_be_the_files()
     {
         TraceReads.CanBeTheFiles(new FormatException()).ShouldBeTrue();
+
+        // TraceEvent's error for a value that ends past its event, since 4.0.2.
+        TraceReads.CanBeTheFiles(new InvalidDataException()).ShouldBeTrue();
         TraceReads.CanBeTheFiles(new EndOfStreamException()).ShouldBeTrue();
         TraceReads.CanBeTheFiles(new IndexOutOfRangeException()).ShouldBeTrue();
         TraceReads.CanBeTheFiles(new IOException()).ShouldBeFalse();

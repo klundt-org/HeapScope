@@ -228,7 +228,8 @@ damaged trace is refused as a damaged gcdump is: with a reason, within bounds, a
    stricter by the review). Tests: `GcDumpTests`, failing before the fix; 48,000 damaged files over 8 seeds.
 2. [x] `TraceFileCheck` walks a trace's blocks before TraceEvent reads them and refuses sizes, field counts, nesting and types
    the format cannot hold, and any version but 4. Tests: `TraceFileCheckTests`; recorded traces walked to their end.
-3. [x] An error TraceEvent throws on the file's events is a refusal (`TraceReads`); the disk, access and memory are not the
+3. [x] An error TraceEvent throws on the file's events is the file's (`TraceReads`): a refusal, or while converting the trace's
+   end, with a note; the disk, access and memory are not the
    file's; running out of memory is reported; amounts no process allocates are refused. Tests: `TraceReadsTests`,
    `AllocationTraceTests`.
 4. [x] Damaged traces in the heavy tests and the nightly fuzz job. Tests: `CraftedTraceTests`; 15,000 over 6 seeds.

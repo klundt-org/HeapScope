@@ -73,6 +73,14 @@ dotnet test --solution HeapScope.sln
   a major version comes in a PR of its own. It skips major versions of `Microsoft.Extensions.*` and `System.*`, which
   follow the .NET 10 runtime until a deliberate move.
   Dependabot security updates are on too (since 2026-11-17): a PR when a package has a known vulnerability and a fix.
+- A TraceEvent update is a change of its own (sprint 4.2.1), taken out of Dependabot's grouped PR by hand until the
+  Backlog item is done: `TraceFileCheck` follows
+  its reading (ADR-028). Compare the two packages' files, dependencies and signature; the compiled code of both, method by
+  method (the package's commit may not be public), above all everything in EventPipe reading; what both read from sound
+  traces and from thousands of damaged copies, by hash; the `allocations` benchmark; running out of memory under
+  `DOTNET_GCHeapHardLimit` (the conversion's words are matched); and the gate, whose integration tests capture a gcdump,
+  watch counters and trigger a collection. Record it in the sprint's review file (`docs/reviews/sprint-4.2.1.md` is the
+  first). The check's comment, the notices and the table in ARCHITECTURE.md name the version.
 - GitHub Actions are pinned by full commit hash (sprint 3.7), and since 2026-11-17 the repository requires it (Settings,
   Actions: "Require actions to be pinned to a full-length commit SHA"), so an action named by tag or branch fails the run.
   Dependabot's action updates keep the hash and the version in the comment beside it.
