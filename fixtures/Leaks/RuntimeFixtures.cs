@@ -68,6 +68,14 @@ public static class RuntimeFixtures
         }
 
         s_collectible.AddRange(CollectibleCounters(count));
+
+        // Statics the loader must name (peer review 4.5 H3): of a closed generic type, and inside a struct.
+        for (var i = 0; i < count; i++)
+        {
+            GenericStatics<int>.Items.Add(new GenericStaticEntry(i));
+            StructStatics.Add(new StructStaticEntry(i));
+        }
+
         s_literal = FrozenLiteral;
         s_localThread = StartParked(ParkWithLocal, "HeapScope fixture local root");
         s_interiorThread = StartParked(ParkWithInteriorPointer, "HeapScope fixture interior root");
@@ -167,4 +175,33 @@ public sealed class StackRootedObject(int id)
 public struct InteriorElement
 {
     public long Value;
+}
+
+/// <summary>A closed generic type's static (peer review 4.5 H3): ClrMD lists no statics of generic instantiations.</summary>
+public static class GenericStatics<T>
+{
+    public static readonly List<GenericStaticEntry> Items = [];
+}
+
+/// <summary>Held by <see cref="GenericStatics{T}"/> of int only.</summary>
+public sealed class GenericStaticEntry(int id)
+{
+    public int Id { get; } = id;
+}
+
+/// <summary>A static struct holding a reference (peer review 4.5 H3): the runtime boxes it in its static storage.</summary>
+public static class StructStatics
+{
+    private static readonly StructStaticHolder s_holder = new([]);
+
+    public static void Add(StructStaticEntry entry) => s_holder.Items.Add(entry);
+}
+
+/// <summary>A struct with a reference field, held in a static.</summary>
+public readonly record struct StructStaticHolder(List<StructStaticEntry> Items);
+
+/// <summary>Held by the list inside <see cref="StructStatics"/>.</summary>
+public sealed class StructStaticEntry(int id)
+{
+    public int Id { get; } = id;
 }

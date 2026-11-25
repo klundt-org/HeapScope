@@ -141,7 +141,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 5. [x] H2: a detector that could not read objects says so: the result carries its counts (scanned, unread), the front ends show "not
    checked" for what was unread, and a detector that could read none of what it needs is a refusal. Tests per detector with fields
    missing; the CLI's and the app's text.
-6. [ ] H3: the static storage bucket keeps its "static storage" detail always; statics of closed generic types and boxed struct statics
+6. [x] H3: the static storage bucket keeps its "static storage" detail always; statics of closed generic types and boxed struct statics
    are named where ClrMD can read them; the growing static collections detector notes storage slots no static field names. Tests on a
    fixture with `Cache<T>` statics and a struct static.
 7. [ ] H16: the CLI has a boundary around its start: a mistake in `appsettings.json` is said with the file, the line and how to write a

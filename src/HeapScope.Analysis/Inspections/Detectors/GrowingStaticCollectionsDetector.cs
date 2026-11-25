@@ -111,12 +111,20 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         }
 
         var ordered = rows.OrderByDescending(r => r.Growth ?? r.Collection.Count).ThenBy(r => r.Field, StringComparer.Ordinal).ToArray();
+        var unnamed = Unnamed(context.Graph, Readers.Of(context), ct);
         var note = baseline is null
             ? string.Create(CultureInfo.InvariantCulture, $"No baseline snapshot: these are the application's static collections of at least {MinLarge:N0} elements (the framework's own are left out); whether they grow is unknown. Choose an earlier snapshot of the same process as the baseline (in the CLI, --baseline) to see growth.")
             : BaselineWarning(context.Info, context.Baseline!.Info);
+        if (unnamed > 0)
+        {
+            // Peer review 4.5 H3: statics of closed generic types are in the runtime's storage, but no static field names them.
+            var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unnamed:N0} collections in the runtime's storage of static fields have no field HeapScope can name (statics of generic types), so they were not checked.");
+            note = note is null ? notChecked : note + " " + notChecked;
+        }
+
         var basis = string.Create(
             CultureInfo.InvariantCulture,
-            $"{current.Count} static collections counted{(baseline is null ? string.Empty : $", {baseline.Count} in the baseline")}; {skipped}; reported: {Describe(ordered)}; largest growth below the thresholds: {Describe(nearMisses.OrderByDescending(r => r.Growth).Take(5))}");
+            $"{unnamed} collections in static storage without a named field; {current.Count} static collections counted{(baseline is null ? string.Empty : $", {baseline.Count} in the baseline")}; {skipped}; reported: {Describe(ordered)}; largest growth below the thresholds: {Describe(nearMisses.OrderByDescending(r => r.Growth).Take(5))}");
         return new InspectionResult(
             ordered.Length,
             ordered.Sum(r => r.Collection.Bytes),
@@ -156,6 +164,42 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         var text = DetectorGraph.Listed(rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Field} {r.Collection.Type} {r.Collection.Count}{(r.Before is { } before ? $" (was {before})" : string.Empty)}")));
         return text.Length == 0 ? "none" : text;
     }
+
+    /// <summary>The collections the runtime's static storage holds that no static field root names (statics of generic types).</summary>
+    internal static long Unnamed(HeapGraph graph, IObjectReader reader, CancellationToken cancellationToken)
+    {
+        var named = new HashSet<int>();
+        var storage = new List<int>();
+        foreach (var root in graph.Roots.Roots.Span)
+        {
+            if (root.Kind == RootKind.StaticField)
+            {
+                named.Add(root.ObjectIndex);
+            }
+            else if (root.Kind == RootKind.StrongHandle && graph.Strings[root.DetailId] == StaticStorage)
+            {
+                storage.Add(root.ObjectIndex);
+            }
+        }
+
+        var counted = new HashSet<int>();
+        foreach (var bucket in storage.Distinct())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var held in graph.GetReferences(bucket))
+            {
+                if (!named.Contains(held) && counted.Add(held) && Count(graph, reader, held, graph.Types.GetName(graph.TypeIndices[held]), cancellationToken) is null)
+                {
+                    counted.Remove(held);
+                }
+            }
+        }
+
+        return counted.Count;
+    }
+
+    /// <summary>The detail of the runtime's static storage roots (the loader's).</summary>
+    private const string StaticStorage = "static storage";
 
     /// <summary>The collections static fields hold, by "DeclaringType.field", with their element counts.</summary>
     internal static Dictionary<string, Collection> Collections(HeapGraph graph, IObjectReader reader, CancellationToken cancellationToken, Exclusions skipped)

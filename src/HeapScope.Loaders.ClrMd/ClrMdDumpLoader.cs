@@ -53,12 +53,13 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// sprint 2.3.5: core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
     /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists. 5
     /// since peer review 4.5: the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
-    /// LoaderAllocator references of 3.12 for caches written before them.
+    /// LoaderAllocator references of 3.12 for caches written before them. 6 since sprint 4.6: struct statics with references are named by
+    /// their field (peer review 4.5 H3), not only as the runtime's static storage.
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     /// <summary>
     /// Checks, without loading it, that the DAC the dump needs may be loaded (sprint 3.6 review H1), for a dump opened from
@@ -758,6 +759,27 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
     private static string ThreadSuffix(ClrRoot root) => ThreadDetail(root) is { } detail ? ", " + detail : string.Empty;
 
+    /// <summary>
+    /// The box of a struct static whose data lies at <paramref name="data"/>: the object one method table before it, or the one the slot
+    /// points to, of the field's own type only; none otherwise.
+    /// </summary>
+    private static ClrObject BoxOf(ClrHeap heap, ulong data, ClrType type)
+    {
+        if (data == 0)
+        {
+            return default;
+        }
+
+        var before = heap.GetObject(data - (ulong)heap.Runtime.DataTarget.DataReader.PointerSize);
+        if (before.IsValid && before.Type?.MethodTable == type.MethodTable)
+        {
+            return before;
+        }
+
+        var pointed = heap.Runtime.DataTarget.DataReader.ReadPointer(data) is var address and not 0 ? heap.GetObject(address) : default;
+        return pointed.IsValid && pointed.Type?.MethodTable == type.MethodTable ? pointed : default;
+    }
+
     private static int AddStaticFieldRoots(ClrRuntime runtime, HeapGraphBuilder builder, CancellationToken cancellationToken)
     {
         var added = 0;
@@ -785,12 +807,15 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     var flags = type.IsCollectible ? RootFlags.None : RootFlags.Retaining;
                     foreach (var field in type.StaticFields)
                     {
-                        if (!field.IsObjectReference || !field.IsInitialized(domain))
+                        if (!field.IsInitialized(domain))
                         {
                             continue;
                         }
 
-                        var value = field.ReadObject(domain);
+                        // A struct with references is boxed in the runtime's static storage (peer review 4.5 H3): its box is the root.
+                        var value = field.IsObjectReference ? field.ReadObject(domain)
+                            : field.IsValueType && field.Type is { ContainsPointers: true } structType ? BoxOf(runtime.Heap, field.GetAddress(domain), structType)
+                            : default;
                         if (value.IsNull || !value.IsValid)
                         {
                             continue;
