@@ -24,7 +24,11 @@
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// The interval a live trace's query counted (sprint 4.3): the one asked for, outward to whole stretches, which grow in a long
-/// recording.
+/// What a live trace's answer counted (sprint 4.3): the interval asked for, outward to whole stretches, which grow in a long
+/// recording, and as of when. Questions asked within a second may be answered from one view, so it can be a little older than the
+/// trace's state.
 /// </summary>
-public sealed record AllocationIntervalDto(double FromSeconds, double? ToSeconds);
+/// <param name="Version">The version of the trace it counted (<see cref="LiveTraceDto.Version"/>).</param>
+/// <param name="AsOfSeconds">How long the recording was by then.</param>
+/// <param name="StretchSeconds">How long one stretch was.</param>
+public sealed record AllocationIntervalDto(double FromSeconds, double? ToSeconds, long Version, double AsOfSeconds, double StretchSeconds);

@@ -68,6 +68,29 @@ stacks (L3); the counters' share of the trace limit in the guide (L5); the comma
 (senior-dev L7); "Close this trace and open it again" on the Live page, and no next step for a file that cannot be opened
 (support-engineer).
 
+## The confirmations
+
+All four checked c2458a7. H1 to H6, M1 to M3, M5 to M14 and M16 to M20 confirmed (M17's end wording and M4, M15 not), and these found:
+
+- N1 High (all four) A view answers for a second, but the page took the trace's version for what it showed, so final types could miss a
+  second of samples. Fixed: the answers say the version, seconds and stretch they are of. Test:
+  `Figures_a_little_older_than_the_trace_are_asked_for_again`.
+- N2 High (senior-dev; solution-architect, Moderate) After following stopped, a drag labeled the old figures with a new interval. Fixed:
+  the interval the figures are of stays, and the stacks say why there are none. Test: in `A_worker_that_stops_each_time_...`.
+- N3 High for a crafted trace (solution-architect; gc-specialist, senior-dev, Moderate) Past the entry limit with many types, stacks were
+  given up again at every sample, and entries grew. Fixed: once, and then the time is given up too. Test:
+  `Many_types_over_many_stretches_give_up_the_stacks_once_and_then_the_time`.
+- N4 Moderate (gc-specialist, senior-dev) After too little memory, the last renaming could fail again and end the worker. Fixed: only after
+  a clean end, guarded.
+- N5 Moderate (solution-architect) A worker that stopped while it caught up ended the following. Fixed: it counts as a stop.
+- N6 Moderate (support-engineer) The note's line was written at each change of a number. Fixed: when which notes are shown changes.
+- N7 Moderate (support-engineer, M17) The end line called a whole recording stopped early. Fixed: by what was read.
+- N8 Moderate (senior-dev, M15) The bursts were counted in ticks, so a loaded machine could turn the lesson's answer. Fixed: by time.
+- Low, fixed: the longest delay per line, stacks and names said when known, the give-up text, the unnamed note at the end, lost events
+  at the tail, methods left out of a names file, frame text bounded (solution-architect N5), the stacks' answer no longer moves the
+  interval (gc-specialist N7), the interval test, a recording once started is never deleted. Not fixed: overlaps in a names file
+  resolved by address; names one by one at the end when none were recorded; a capture that starts during the names session.
+
 ## Markdown sweep
 
 (after the confirmations)

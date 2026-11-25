@@ -115,6 +115,9 @@ internal sealed class LiveMethodNames
         }
     }
 
+    /// <summary>Counts methods that were not even offered.</summary>
+    public void LeaveOut(long count) => LeftOut += count;
+
     public string? Find(ulong address)
     {
         var at = _starts.BinarySearch(address);

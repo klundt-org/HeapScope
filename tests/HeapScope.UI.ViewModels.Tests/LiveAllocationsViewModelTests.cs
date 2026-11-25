@@ -261,7 +261,7 @@ public sealed class LiveAllocationsViewModelTests
         _live.Selection = new TimeInterval(3, 5);
 
         // The stretches are two seconds by the time it is asked.
-        Service.LiveInterval = new AllocationIntervalDto(2, 6);
+        Service.LiveInterval = new AllocationIntervalDto(2, 6, 4, 10, 2);
         State(s => s with { BucketSeconds = 2 });
         await TickAsync();
 
@@ -269,6 +269,24 @@ public sealed class LiveAllocationsViewModelTests
         var asked = Service.TypeQueries.Count;
         await TickAsync();
         Service.TypeQueries.Count.ShouldBe(asked, "what was shown is not asked for again");
+    }
+
+    [Fact]
+    public async Task Figures_a_little_older_than_the_trace_are_asked_for_again()
+    {
+        // The worker answers questions asked together from one view, of version 90 here, while the trace is at 100.
+        await FollowAsync();
+        Service.LiveInterval = new AllocationIntervalDto(0, null, 90, 9, 1);
+        State(s => s with { Version = 100, Samples = 100 });
+        await TickAsync();
+        var asked = Service.TypeQueries.Count;
+
+        Service.LiveInterval = new AllocationIntervalDto(0, null, 100, 10, 1);
+        _live.End();
+        State(s => s with { Completed = true });
+        await TickAsync(ends: true);
+
+        Service.TypeQueries.Count.ShouldBe(asked + 1, "the end is not settled with figures that miss ten samples");
     }
 
     [Fact]
@@ -315,9 +333,13 @@ public sealed class LiveAllocationsViewModelTests
 
         _live.Note!.ShouldStartWith("The analysis worker stopped each time it followed this recording");
         _live.Types.Count.ShouldBe(2, "what was shown stays");
+
+        // Nobody answers any more: the figures keep the interval they are of, and the stacks say why there are none.
         _live.Selection = new TimeInterval(1, 2);
+        (_live.Selection, _live.Interval).ShouldBe((null, "The whole run so far"));
         _live.ShowStacks = true;
         Service.StackQueries.ShouldBeEmpty();
+        _live.StacksStatus.ShouldBe(_live.Note);
     }
 
     [Fact]
@@ -339,7 +361,7 @@ public sealed class LiveAllocationsViewModelTests
             await TickAsync(ends: i == LiveAllocationsViewModel.MostCrashes - 1);
         }
 
-        _live.Note.ShouldBe("The worker stopped.");
+        _live.Note!.ShouldStartWith("The analysis worker stopped each time it followed this recording");
     }
 
     [Fact]

@@ -182,7 +182,7 @@ internal sealed class AllocationRecording : IAsyncDisposable
                 _processId,
                 Path,
                 _time.GetElapsedTime(_startedAt, _endedAt).TotalSeconds,
-                trace.IsFaulted ? "it failed" : _stop.IsCancellationRequested ? "it was stopped" : "it ended by itself");
+                trace.IsFaulted ? "it failed" : trace is { IsCompletedSuccessfully: true, Result.Problem: { } error } ? "it ended by an error (" + error + ")" : _stop.IsCancellationRequested ? "it was stopped" : "it ended by itself");
             _ended?.Invoke(Path!);
         }
 

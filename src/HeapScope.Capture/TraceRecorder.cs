@@ -172,7 +172,7 @@ public static class TraceRecorder
         }
         catch
         {
-            if (created)
+            if (created && !recording)
             {
                 TryDelete(fullPath);
             }

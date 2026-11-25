@@ -55,6 +55,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
     private Dictionary<(int Parent, int Frame), int> _nodes = [];
     private List<Dictionary<Key, Amount>> _buckets = [];
     private long _typeText;
+    private long _frameText;
     private int _entries;
     private bool _stacksFolded;
     private int _addressVersion;
@@ -136,14 +137,14 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         }
 
         Put(_buckets[bucket], new Key(type, leaf, kind), new Amount(bytes, 1));
-        while (_entries > limits.MaxEntries && _buckets.Count > limits.FewestBuckets)
+        while (_entries > limits.MaxEntries && _buckets.Count > (_stacksFolded ? 1 : limits.FewestBuckets))
         {
             Widen("there are more entries than are kept");
         }
 
-        if (_entries > limits.MaxEntries)
+        if (_entries > limits.MaxEntries && !_stacksFolded)
         {
-            // Time is kept to a degree, so the stacks are what there is too much of.
+            // Time is kept to a degree, so the stacks are what there is too much of; after them, the time goes too.
             FoldStacks();
             past = true;
         }
@@ -272,7 +273,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
             // Past the limit only what is known already is followed: no frame is made for a stack that is not kept.
             var full = _stackFrames.Count >= limits.MaxStackNodes;
             var frame = Frame(stack[i], create: !full);
-            if (full && (frame < 0 || !_nodes.ContainsKey((node, frame))))
+            if (frame < 0 || (full && !_nodes.ContainsKey((node, frame))))
             {
                 past = true;
                 return Node(-1, FrameId(OtherStacks));
@@ -284,7 +285,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         return node;
     }
 
-    /// <summary>The frame of an address, or -1 when it would have to be made.</summary>
+    /// <summary>The frame of an address, or -1 when it would have to be made and is not to be.</summary>
     private int Frame(ulong address, bool create)
     {
         if (_frameOfAddress.TryGetValue(address, out var frame))
@@ -296,7 +297,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         {
             if (!_frameIds.TryGetValue(name, out frame))
             {
-                if (!create)
+                if (!create || _frameText + name.Length > limits.MaxFrameText)
                 {
                     return -1;
                 }
@@ -341,6 +342,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
             id = _frames.Count;
             _frames.Add(name);
             _frameIds.Add(name, id);
+            _frameText += name.Length;
         }
 
         return id;

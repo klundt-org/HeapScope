@@ -161,8 +161,8 @@ public sealed class LiveWorkflowTests
         run.Stop();
         await run.Completion;
 
-        // The first gap may hold the recording's start, which restarts the timer.
-        at.Zip(at.Skip(1), static (a, b) => b - a).Skip(1).ShouldAllBe(gap => gap > TimeSpan.FromSeconds(2));
+        // The first gap may hold the recording's start, which restarts the timer; a late sample makes one gap longer and the next shorter.
+        ((at[^1] - at[1]) / (at.Count - 2)).ShouldBeGreaterThan(TimeSpan.FromSeconds(2));
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

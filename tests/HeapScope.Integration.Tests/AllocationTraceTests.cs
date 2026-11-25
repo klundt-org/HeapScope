@@ -515,7 +515,7 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         var tree = await Should.ThrowAsync<WorkerOperationException>(() => _session.QueryTreeAsync(live, AllocationScope.All, AllocationTreeKindDto.BackTraces, [], null, null, Ct));
         tree.ErrorCode.ShouldBe(HeapScopeErrorCode.InvalidArgument);
         var types = await _session.QueryTypesAsync(live, new AllocationScope(0.5, 1.5), Ct);
-        types.Result.Interval.ShouldBe(new AllocationIntervalDto(0, 2), "whole stretches");
+        types.Result.Interval.ShouldBe(new AllocationIntervalDto(0, 2, state.Version, state.DurationSeconds, 1), "whole stretches");
         (await _session.QueryTimelineAsync(live, 1.5, Ct)).BucketSeconds.ShouldBe(2);
         (await _session.QueryTypesAsync(finished, new AllocationScope(0.5, 1.5), Ct)).Result.Interval.ShouldBeNull("a finished trace counts what is asked");
         var id = live.Descriptor.TraceId;

@@ -32,6 +32,7 @@ namespace HeapScope.Loaders.Trace;
 /// <param name="MaxFrames">Addresses whose frame is remembered between samples.</param>
 /// <param name="MaxUnnamed">Addresses without a name that are told apart.</param>
 /// <param name="MaxTypeText">Characters of type names.</param>
+/// <param name="MaxFrameText">Characters of the method names in stacks, those of methods that are gone included.</param>
 internal sealed record LiveAllocationLimits(
     double BucketMs = 1000,
     int MaxBuckets = 1800,
@@ -41,7 +42,8 @@ internal sealed record LiveAllocationLimits(
     int MaxFrames = 100_000,
     int MaxUnnamed = 20_000,
     int MaxTypes = 50_000,
-    int MaxTypeText = 4_000_000)
+    int MaxTypeText = 4_000_000,
+    int MaxFrameText = 16_000_000)
 {
     /// <summary>
     /// The memory a live trace reserves while it is read: what it keeps at the limits (98 MB with two views), the folding and

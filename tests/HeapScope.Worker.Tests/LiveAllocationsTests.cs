@@ -210,6 +210,23 @@ public sealed class LiveAllocationsTests
     }
 
     [Fact]
+    public void Many_types_over_many_stretches_give_up_the_stacks_once_and_then_the_time()
+    {
+        var notices = new List<string>();
+        var live = new LiveAllocations(_names, new LiveAllocationLimits(MaxEntries: 200, FewestBuckets: 8, MaxTypes: 100), notices.Add);
+        for (var i = 0; i < 20_000; i++)
+        {
+            live.Add(i % 16 * 1000, "T" + (i % 97), 10, AllocationKind.Small, [(ulong)(0x1000 + i)]);
+            live.Entries.ShouldBeLessThanOrEqualTo(201);
+        }
+
+        notices.Count(n => n.StartsWith("the call stacks", StringComparison.Ordinal)).ShouldBe(1);
+        notices.Count.ShouldBeLessThan(8);
+        var trace = live.View(s_info);
+        (trace.SampleBytes.Sum(), Enumerable.Range(0, trace.SampleCount).Sum(trace.CountOf)).ShouldBe((200_000L, 20_000));
+    }
+
+    [Fact]
     public void An_interval_of_a_live_trace_is_counted_in_whole_stretches()
     {
         var view = new LiveTraceView(Live().View(s_info), 2000, 1, false);

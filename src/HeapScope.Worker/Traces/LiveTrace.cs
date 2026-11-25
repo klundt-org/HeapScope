@@ -124,7 +124,9 @@ internal sealed class LiveTrace : IDisposable
         }
 
         await _log.DisposeAsync().ConfigureAwait(false);
-        Log(_reader.Ended ? "at its recording's end" : Volatile.Read(ref _disposed) == 1 ? "closed before its recording's end" : "stopped before its recording's end");
+        Log(_reader.Peek().Problem is not null ? "stopped before its recording's end"
+            : _reader.ReadToEnd || _reader.Ended ? "at its recording's end"
+            : "closed before its recording's end");
 
         // What it keeps is part of the worker's memory from here on, as an open trace's is.
         _reservation.Dispose();
@@ -133,8 +135,8 @@ internal sealed class LiveTrace : IDisposable
     /// <summary>What a figure shown while recording rests on: the rules, how far the file was read, and what was left out.</summary>
     private void Log(string when)
     {
-        // The delay is the page's to ask for: not asked here.
-        var s = _reader.Peek();
+        // The delay since the last line; the page's own is left for it to ask.
+        var s = _reader.Report();
         _logger.LogInformation(
             "Live trace {Id} ({Path}) {When}: {Samples} samples of {Bytes} bytes in {Types} types over {Seconds:N1} s, stretches of {Bucket:N0} ms, {Entries} entries, {Nodes} stack nodes, {Methods} methods ({Named} named before, {LeftOut} left out), {Lost} lost events, {NoStack} without a stack, {Unnamed} with unnamed frames, {Past} past the limits, longest delay {Delay:N0} ms, {Read} bytes read; stacks {Stacks}, names {Names}; {Checked}; {Problem} {Detail}",
             Id,

@@ -73,6 +73,9 @@ internal sealed class LiveTraceStream : Stream
     /// <summary>Whether the reader has been handed everything the file held when it last looked.</summary>
     public bool CaughtUp { get; private set; }
 
+    /// <summary>Whether it ever waited at the end of what the file held.</summary>
+    public bool HasCaughtUp { get; private set; }
+
     /// <summary>Bytes handed out.</summary>
     public long BytesRead => Interlocked.Read(ref _position);
 
@@ -194,7 +197,7 @@ internal sealed class LiveTraceStream : Stream
             return;
         }
 
-        CaughtUp = true;
+        (CaughtUp, HasCaughtUp) = (true, true);
         _stop.WaitHandle.WaitOne(s_poll);
     }
 

@@ -66,7 +66,8 @@ public sealed record AllocationTimelineRequest(Guid TraceId, double BucketSecond
 public sealed record AllocationBucketDto(double StartSeconds, long Bytes, int Samples);
 
 /// <param name="BucketSeconds">The stretch asked for; of a live trace, outward to a multiple of its own.</param>
-public sealed record AllocationTimelineResult(IReadOnlyList<AllocationBucketDto> Buckets, double BucketSeconds, double DurationSeconds);
+/// <param name="Interval">What was counted, for a live trace.</param>
+public sealed record AllocationTimelineResult(IReadOnlyList<AllocationBucketDto> Buckets, double BucketSeconds, double DurationSeconds, AllocationIntervalDto? Interval = null);
 
 /// <summary>The types allocated in an interval (seconds since the trace started; no end means to the end of the trace).</summary>
 public sealed record AllocationTypesRequest(Guid TraceId, double FromSeconds = 0, double? ToSeconds = null);

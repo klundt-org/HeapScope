@@ -92,7 +92,8 @@ internal sealed class AllocationTraceHandler(
             var result = new AllocationTimelineResult(
                 [.. buckets.Select(b => new AllocationBucketDto(b.StartMs / 1000, b.Bytes, b.Samples))],
                 bucketSeconds,
-                open.Trace.Info.DurationMs / 1000);
+                open.Trace.Info.DurationMs / 1000,
+                Interval(open, AllocationFilter.All));
             Logger.Log(
                 LevelOf(request.TraceId),
                 "Allocation timeline of trace {Id}: {Buckets} stretches of {Seconds} s, busiest {Busiest}",
@@ -253,9 +254,9 @@ internal sealed class AllocationTraceHandler(
     }
 
     /// <summary>The interval a live trace's query counted, for whoever shows it.</summary>
-    private static AllocationIntervalDto? Interval(OpenTrace open, AllocationFilter filter) => open.Live is null
-        ? null
-        : new AllocationIntervalDto(filter.FromMs / 1000, double.IsPositiveInfinity(filter.ToMs) ? null : filter.ToMs / 1000);
+    private static AllocationIntervalDto? Interval(OpenTrace open, AllocationFilter filter) => open.Live is { } live
+        ? new AllocationIntervalDto(filter.FromMs / 1000, double.IsPositiveInfinity(filter.ToMs) ? null : filter.ToMs / 1000, live.Version, open.Trace.Info.DurationMs / 1000, live.StretchMs / 1000)
+        : null;
 
     /// <summary>As of when a live trace answered: its node numbers are of that moment, its frames hold in the finished trace.</summary>
     private static string AsOf(OpenTrace open) => open.Live is { } live

@@ -40,9 +40,11 @@ internal static class AllocationBursts
     private static readonly TimeSpan s_first = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan s_every = TimeSpan.FromSeconds(10);
 
+    /// <summary>By time, as the heartbeats are: on a busy machine both allocate less, in the same proportion.</summary>
+    private static readonly TimeSpan s_burst = TimeSpan.FromSeconds(2.5);
+
     private const int HeartbeatsPerTick = 4_000;
     private const int RowsPerTick = 7_000;
-    private const int TicksPerBurst = 160;
     private const int TickMs = 15;
 
     private static int s_started;
@@ -75,7 +77,7 @@ internal static class AllocationBursts
         while (true)
         {
             var started = Environment.TickCount64;
-            for (var i = 0; i < TicksPerBurst; i++)
+            while (Environment.TickCount64 - started < s_burst.TotalMilliseconds)
             {
                 s_sink += BuildReport(RowsPerTick);
                 Thread.Sleep(TickMs);

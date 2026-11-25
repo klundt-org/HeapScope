@@ -59,6 +59,8 @@ public sealed class LiveTraceReader : IDisposable
     private string? _namesProblem;
     private int _namedBefore;
     private int _methods;
+    private long _unnamed;
+    private readonly Action<string>? _notice;
     private volatile bool _ended;
     private int _processId;
     private string? _processName;
@@ -81,6 +83,7 @@ public sealed class LiveTraceReader : IDisposable
     {
         _path = path;
         _namesPath = namesPath;
+        _notice = notice;
         _namesProblem = namesPath is null ? "none recorded" : null;
         _allocations = new LiveAllocations(_names, limits, notice);
         (_stacks, _stackProblem) = EventStackReader.Create();
@@ -119,6 +122,9 @@ public sealed class LiveTraceReader : IDisposable
     /// <summary>Whether the recording was said to have ended.</summary>
     public bool Ended => _ended;
 
+    /// <summary>Whether the file was read to its own end: the trace is whole.</summary>
+    public bool ReadToEnd => _stream.Checked?.End == TraceCheckResult.Whole;
+
     /// <summary>The recording ended and its file is closed: the reader finishes what it holds.</summary>
     public void End() => _ended = true;
 
@@ -129,6 +135,17 @@ public sealed class LiveTraceReader : IDisposable
         {
             var status = Peek();
             _delayMs = null;
+            return status;
+        }
+    }
+
+    /// <summary>As <see cref="Peek"/>, the longest delay counted anew from here: for the log.</summary>
+    public LiveTraceStatus Report()
+    {
+        lock (_gate)
+        {
+            var status = Peek();
+            _longestDelayMs = 0;
             return status;
         }
     }
@@ -152,7 +169,7 @@ public sealed class LiveTraceReader : IDisposable
                 _names.LeftOut,
                 _lost,
                 _allocations.WithoutStack,
-                _allocations.Unnamed(),
+                _unnamed,
                 _allocations.PastLimits,
                 _delayMs,
                 _longestDelayMs,
@@ -200,7 +217,7 @@ public sealed class LiveTraceReader : IDisposable
                 _durationMs,
                 _lost,
                 _allocations.WithoutStack,
-                _allocations.Unnamed(),
+                _unnamed,
                 _hasRundown);
             _view = new LiveTraceView(_allocations.View(info), _allocations.BucketMs, _allocations.Version, _completed);
             _viewAt = Environment.TickCount64;
@@ -230,12 +247,15 @@ public sealed class LiveTraceReader : IDisposable
                 _view = null;
             }
 
+            // A walk over everything kept: with the folding, not at every question.
+            _unnamed = _allocations.Unnamed();
             _renamedAt = Environment.TickCount64;
         }
     }
 
     private void Run()
     {
+        var clean = false;
         try
         {
             if (_namesPath is { } namesPath)
@@ -247,9 +267,18 @@ public sealed class LiveTraceReader : IDisposable
                 }
             }
 
+            _notice?.Invoke(string.Create(CultureInfo.InvariantCulture, $"stacks {_stackProblem ?? "are read"}; {_namedBefore} methods compiled before are named ({_namesProblem ?? "all that were recorded"})"));
+
             using var source = TraceReads.OpenLive(_stream);
             TraceReads.Subscribe(source, OnTick, OnMethod, OnUnload, OnEvent);
             TraceReads.Process(source);
+            lock (_gate)
+            {
+                // Some are only seen at the end.
+                _lost = TraceReads.Lost(source);
+                clean = true;
+            }
+
             if (_stream.Refusal is { } refusal)
             {
                 Stopped(refusal.Message, _stream.RefusalDetail);
@@ -288,14 +317,40 @@ public sealed class LiveTraceReader : IDisposable
         }
         finally
         {
+            Complete(clean);
+        }
+    }
+
+    /// <summary>
+    /// Reading is over, however it ended. The last names are taken only after a clean end: after an error, such as too little memory,
+    /// it could fail again, and an error that leaves this thread would end the worker.
+    /// </summary>
+    private void Complete(bool clean)
+    {
+        try
+        {
             lock (_gate)
             {
-                _allocations.Rename();
-                _view = null;
-
+                if (clean)
+                {
+                    _allocations.Rename();
+                    _unnamed = _allocations.Unnamed();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Volatile.Write(ref _failure, ex);
+            Stopped("Following the recording failed. The trace itself is still recorded; details are in the log.", TraceReads.Origin(ex));
+        }
+        finally
+        {
+            lock (_gate)
+            {
                 // What names the addresses is over with: an unnamed frame stays one.
                 _methods = _names.Count;
                 _names.Clear();
+                _view = null;
                 _completed = true;
             }
 
@@ -328,7 +383,12 @@ public sealed class LiveTraceReader : IDisposable
 
             var delay = Math.Max(0, (DateTime.UtcNow - sample.Utc).TotalMilliseconds);
             _delayMs = Math.Max(_delayMs ?? 0, delay);
-            _longestDelayMs = Math.Max(_longestDelayMs, delay);
+            if (_stream.HasCaughtUp)
+            {
+                // Until then it meets what the file held before, as old as that is.
+                _longestDelayMs = Math.Max(_longestDelayMs, delay);
+            }
+
             _allocations.Add(sample.TimeMs, sample.TypeName, sample.Bytes, sample.Kind, stack);
         }
     }
@@ -373,15 +433,21 @@ public sealed class LiveTraceReader : IDisposable
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var source = TraceReads.OpenLive(stream);
             var methods = new List<(ulong, uint, string)>();
+            var (text, leftOut) = (0L, 0L);
             TraceReads.Subscribe(
                 source,
                 null,
                 (start, size, name) =>
                 {
                     _stop.Token.ThrowIfCancellationRequested();
-                    if (methods.Count < LiveMethodNames.MaxMethods)
+                    text += name.Length;
+                    if (methods.Count < LiveMethodNames.MaxMethods && text * 2 <= LiveMethodNames.MaxTextBytes)
                     {
                         methods.Add((start, size, name));
+                    }
+                    else
+                    {
+                        leftOut++;
                     }
                 },
                 null,
@@ -390,6 +456,7 @@ public sealed class LiveTraceReader : IDisposable
             lock (_gate)
             {
                 _names.AddAll(methods);
+                _names.LeaveOut(leftOut);
             }
 
             return TraceReads.Lost(source) is > 0 and var lost
