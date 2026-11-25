@@ -77,7 +77,8 @@ Supply chain and release:
 - **H19 The nightly fuzz failed 15 of its first 23 nights and nobody acted** (DSO; verified; the records name three). Fixed in 4.2.1; nothing
   would tell of the next. S.
 - **H20 nuget.org has 3.13.2 while INSTALL names it first** (DSO; verified), without the untrusted-input fixes of 4.2.1. Upload now (owner); a
-  publish job (M). Owner, 2026-11-25: 4.5.0 is uploaded, not 4.2.1, which has C1.
+  publish job (M). The owner uploaded 4.2.1 on 2026-11-25; 4.5.0, which fixes C1, follows its
+  release.
 
 ## Moderate
 
