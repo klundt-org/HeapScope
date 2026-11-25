@@ -25,6 +25,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HeapScope.Application.Allocations;
 using HeapScope.Application.Monitoring;
 using HeapScope.Application.Presentation;
 using HeapScope.Application.Sessions;
@@ -106,7 +107,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     private bool _warnedNoSamples;
 
-    public LiveViewModel(MonitorService monitor, ICaptureService capture, IUiDispatcher dispatcher, ILogger<LiveViewModel>? logger = null, IUserInteraction? interaction = null, AllocationsViewModel? allocations = null)
+    public LiveViewModel(MonitorService monitor, ICaptureService capture, IUiDispatcher dispatcher, ILogger<LiveViewModel>? logger = null, IUserInteraction? interaction = null, AllocationsViewModel? allocations = null, AllocationSession? live = null)
     {
         _interaction = interaction;
         _monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
@@ -115,6 +116,15 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         _logger = logger ?? NullLogger<LiveViewModel>.Instance;
         Files = new LiveRunFilesViewModel(Shown, interaction, allocations, _logger);
         PastRuns = new LivePastRunsViewModel(capture, Shown, Files, _logger);
+        Allocations = new LiveAllocationsViewModel(live, _logger);
+        Shown.PropertyChanged += (_, e) =>
+        {
+            // A past run's chart has no live allocations beside it: Open allocations opens its trace.
+            if (e.PropertyName == nameof(LiveRunState.PastRunShown) && Shown.PastRunShown is not null)
+            {
+                Allocations.Close();
+            }
+        };
     }
 
     /// <summary>What the page shows of the run being watched, or of a past one.</summary>
@@ -125,6 +135,9 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>The current session's past runs.</summary>
     public LivePastRunsViewModel PastRuns { get; }
+
+    /// <summary>What the process being watched allocates, when the run records it.</summary>
+    public LiveAllocationsViewModel Allocations { get; }
 
     public ObservableCollection<ProcessRow> Processes { get; } = [];
 
@@ -235,6 +248,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
         Shown.Clear();
         Files.Show(timeline: null, trace: null);
+        Allocations.Close();
         HighGcPressure = false;
         Latest = null;
         var options = new MonitorOptions(
@@ -268,6 +282,8 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
                     attached.Captured += (_, capture) => _dispatcher.Post(() => OnCaptured(attached, capture));
                     attached.GcForced += (_, forced) => _dispatcher.Post(() => OnGcForced(attached, forced));
                     attached.TraceStopped += (_, message) => _dispatcher.Post(() => OnTraceStopped(attached, message));
+                    attached.TraceStarted += (_, trace) => _dispatcher.Post(() => OnTraceStarted(attached, trace));
+                    attached.TraceEnded += (_, _) => _dispatcher.Post(() => OnTraceEnded(attached));
                 });
             });
         }
@@ -409,6 +425,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Allocations.Close();
         if (_run is { } run)
         {
             await run.DisposeAsync();
@@ -468,6 +485,22 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         if (ReferenceEquals(run, _run))
         {
             Shown.Status = message;
+        }
+    }
+
+    private void OnTraceStarted(MonitorRun run, LiveTraceFile trace)
+    {
+        if (ReferenceEquals(run, _run))
+        {
+            Allocations.Follow(trace.Path, trace.NamesPath);
+        }
+    }
+
+    private void OnTraceEnded(MonitorRun run)
+    {
+        if (ReferenceEquals(run, _run))
+        {
+            Allocations.End();
         }
     }
 

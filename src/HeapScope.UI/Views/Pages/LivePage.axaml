@@ -160,6 +160,64 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
     </ScrollViewer>
+    <!-- Sprint 4.3: what the process allocates while the run records it, below the chart. -->
+    <Border x:Name="LiveAllocationsPanel" DockPanel.Dock="Bottom" Height="300" Margin="0,6,0,0" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="8,4"
+            IsVisible="{Binding Allocations.IsShown}">
+      <DockPanel DataContext="{Binding Allocations}" x:DataType="vm:LiveAllocationsViewModel">
+        <WrapPanel DockPanel.Dock="Top">
+          <TextBlock Text="Allocations" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <ctl:InfoIcon Text="{x:Static vm:InfoTexts.LiveAllocations}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <TextBlock x:Name="LiveDelay" Text="{Binding Delay}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,12,0"
+                     IsVisible="{Binding Delay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Text="{Binding Interval}" Classes="subtle" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <Button Classes="compact" Content="Whole run" Command="{Binding WholeRunCommand}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <CheckBox Content="Show call stacks" IsChecked="{Binding ShowStacks, Mode=TwoWay}" VerticalAlignment="Center" />
+        </WrapPanel>
+        <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Note}" TextWrapping="Wrap" Classes="subtle" />
+        <ctl:AllocationTimeline DockPanel.Dock="Top" x:Name="LiveAllocationTimeline" Height="56" Margin="0,4"
+                                Buckets="{Binding Buckets}" BucketSeconds="{Binding BucketSeconds}" DurationSeconds="{Binding DurationSeconds}"
+                                Selection="{Binding Selection, Mode=TwoWay}" />
+        <Grid ColumnDefinitions="2*,6,3*">
+          <DataGrid x:Name="LiveTypesGrid" ctl:GridExports.ExportName="LiveAllocatedTypes" Grid.Column="0" ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType, Mode=TwoWay}" CanUserSortColumns="False" IsReadOnly="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Type" x:DataType="vm:LiveTypeItem" Binding="{Binding Name, Mode=OneWay}" Width="*" MinWidth="160" />
+              <DataGridTextColumn Header="Bytes" x:DataType="vm:LiveTypeItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CellStyleClasses="number" />
+              <DataGridTextColumn Header="%" x:DataType="vm:LiveTypeItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+              <DataGridTextColumn Header="Samples" x:DataType="vm:LiveTypeItem" Binding="{Binding Samples, StringFormat='{}{0:N0}', Mode=OneWay}" Width="80" CellStyleClasses="number" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <GridSplitter Grid.Column="1" ResizeDirection="Columns" IsVisible="{Binding ShowStacks}" />
+          <DockPanel Grid.Column="2" IsVisible="{Binding ShowStacks}">
+            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,2">
+              <TextBlock Text="Top call stacks of" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <TextBlock Text="{Binding StacksOf}" FontWeight="SemiBold" VerticalAlignment="Center" MaxWidth="300" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+              <Button Classes="compact" Content="All types" Command="{Binding AllTypesCommand}" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <Button Classes="compact" ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Command="{Binding RefreshStacksCommand}" VerticalAlignment="Center" />
+            </WrapPanel>
+            <ctl:NoteText DockPanel.Dock="Top" Text="{Binding StacksStatus}" Classes="subtle" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="3*,6,2*">
+              <DataGrid x:Name="LiveStacksGrid" ctl:GridExports.ExportName="LiveAllocationStacks" Grid.Column="0" ItemsSource="{Binding Stacks}" SelectedItem="{Binding SelectedStack, Mode=TwoWay}" CanUserSortColumns="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Bytes" x:DataType="vm:AllocationStackItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="100" CellStyleClasses="number" />
+                  <DataGridTextColumn Header="%" x:DataType="vm:AllocationStackItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+                  <DataGridTextColumn Header="Allocated in" x:DataType="vm:AllocationStackItem" Binding="{Binding Top, Mode=OneWay}" Width="*" MinWidth="200" />
+                </DataGrid.Columns>
+              </DataGrid>
+              <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+              <ListBox Grid.Column="2" x:Name="LiveFramesList" ItemsSource="{Binding SelectedFrames}">
+                <ListBox.Styles>
+                  <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="6,2" />
+                    <Setter Property="MinHeight" Value="22" />
+                  </Style>
+                </ListBox.Styles>
+              </ListBox>
+            </Grid>
+          </DockPanel>
+        </Grid>
+      </DockPanel>
+    </Border>
     <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="4">
       <Grid>
         <ctl:EmptyState Icon="Live" Text="{Binding EmptyText}" IsVisible="{Binding Shown.ShowEmptyState}" />

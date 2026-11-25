@@ -76,10 +76,12 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
     public Task<AllocationTimelineResult> QueryAllocationTimelineAsync(AllocationTimelineRequest request, CancellationToken cancellationToken) =>
         Task.FromResult(new AllocationTimelineResult([new(0, 300, 3), new(5, 100, 1)], 5, 10));
 
+    public List<IReadOnlyList<string?>> TypeRows { get; set; } = [["System.Byte[]", "300", "3", "75"], ["System.String", "100", "1", "25"]];
+
     public Task<AllocationTypesResult> QueryAllocationTypesAsync(AllocationTypesRequest request, CancellationToken cancellationToken)
     {
         TypeQueries.Add(request);
-        List<IReadOnlyList<string?>> rows = [["System.Byte[]", "300", "3", "75"], ["System.String", "100", "1", "25"]];
+        var rows = TypeRows;
         var id = Guid.NewGuid();
         _sets[id] = rows;
         return Task.FromResult(new AllocationTypesResult(new ResultSetInfo(id, rows.Count, AllocationTypeColumnsList), 400, 4));

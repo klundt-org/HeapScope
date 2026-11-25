@@ -563,6 +563,41 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await WaitUntilAsync(() => !_live.IsRunning);
     }
 
+    /// <summary>Sprint 4.3: a run that records allocations is followed while it does; a past run's chart has none beside it.</summary>
+    [Fact]
+    public async Task A_run_s_recording_is_followed_until_it_ends_and_a_past_run_puts_it_away()
+    {
+        async Task<TraceResult> Recorder(AllocationRecordingRequest request, CancellationToken ct)
+        {
+            request.Started(new global::HeapScope.Capture.LiveTraceStart(request.Path, "names", null, TimeSpan.Zero));
+            await Task.Delay(Timeout.Infinite, ct).ContinueWith(_ => { }, TaskScheduler.Default);
+            await File.WriteAllBytesAsync(request.Path, new byte[64], CancellationToken.None);
+            return new TraceResult(request.Path, 64, TimeSpan.FromSeconds(1), StoppedEarly: true);
+        }
+
+        var worker = new FakeWorkerClient();
+        var session = new HeapScope.Application.Allocations.AllocationSession(worker, new JobTracker(TimeProvider.System), new TraceService(), _capture.Library);
+        await using var live = new LiveViewModel(new MonitorService(_capture, _feed, allocations: Recorder), _capture, new ImmediateUiDispatcher(), interaction: _interaction, live: session);
+        live.Allocations.Wait = static (_, ct) => Task.Delay(10, ct);
+        await live.RefreshCommand.ExecuteAsync(null);
+        live.SelectedProcess = live.Processes.Single();
+        live.RecordAllocations = true;
+
+        await live.StartCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => worker.Service.LiveOpened.Count == 1);
+        (live.Allocations.IsShown, worker.Service.LiveOpened[0].NamesPath).ShouldBe((true, "names"));
+        await _feed.SendAsync(100 * Mb, timeInGc: 2);
+        worker.Service.LiveEnded.ShouldBeEmpty();
+
+        live.StopCommand.Execute(null);
+        await live.Run!.Completion;
+        await WaitUntilAsync(() => worker.Service.LiveEnded.Count == 1 && !live.IsRunning && live.PastRuns.Runs.Count == 1);
+        live.Allocations.IsShown.ShouldBeTrue("its figures stay");
+
+        await live.PastRuns.OpenPastRunCommand.ExecuteAsync(live.PastRuns.Runs.Single());
+        live.Allocations.IsShown.ShouldBeFalse();
+    }
+
     /// <summary>A run a new one replaces is disposed (peer review P11), and the new one is the page's.</summary>
     [Fact]
     public async Task A_replaced_run_is_disposed()

@@ -221,7 +221,7 @@ public sealed class InfoIconTests(UiSession ui)
                 .Select(File.ReadAllText));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).ToList();
 
-        texts.Count.ShouldBe(56);
+        texts.Count.ShouldBe(57);
         foreach (var text in texts)
         {
             sources.ShouldContain("InfoTexts." + text.Name, customMessage: text.Name);

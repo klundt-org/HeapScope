@@ -320,6 +320,28 @@ text. `MacFactsTests` checks the rows below and those but the sample refusal (`S
 | Capture (macOS) | A pid that is not found: no TMPDIR | Process {pid} keeps its diagnostics socket in /tmp (its TMPDIR is not set), and HeapScope looks in {our folder}. Start HeapScope with TMPDIR=/tmp, then capture it again. | approved 2026-11-23 |
 | README, INSTALL, USER-GUIDE, the CLI's README | The macOS passages | (as committed in sprint 4.2) | approved 2026-11-23 |
 
+## Sprint 4.3 additions
+
+Drafts for the owner (sprint 4.3, the live session). `LiveAllocationsViewModelTests` checks the messages and `ViewTests` the icon.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Live | Allocations heading, info icon | What the process has allocated since the recording started, while it runs. Sizes are estimates from samples, about one for every 100 KB allocated.<br>Drag across the bars to choose an interval; a click shows the whole run again. The types are those of the interval, the 20 that allocated the most.<br>Show call stacks lists where the selected type, or all types, were allocated. It shows them as of that moment; Refresh brings them up to date.<br>The figures are usually less than a second behind the process, and more when it is very busy. The finished trace has everything: press Open allocations under Past runs. | draft |
+| Live | Allocations: controls | Allocations; Whole run; Show call stacks; Top call stacks of {type, or all types}; All types; Refresh | draft |
+| Live | Allocations: before the first sample | Waiting for the first allocation sample. | draft |
+| Live | Allocations: summary | About {size} allocated in {N} samples, {N} types, {N} s. | draft |
+| Live | Allocations: the interval | The whole run so far / From {N} s to {N} s | draft |
+| Live | Allocations: the delay, from 2 s | These figures are {N} s behind the process. | draft |
+| Live | Allocations: stacks status | Finding the top call stacks... / As of {time}. Refresh brings them up to date. / No allocation was sampled in this interval. | draft |
+| Live | Allocations: no stacks | Call stacks cannot be shown while recording. The finished trace has them. | draft |
+| Live | Allocations: dropped events | The runtime dropped {N} events, so the figures are low. | draft |
+| Live | Allocations: past the limits | {N} samples are added up under other types or stacks. The finished trace has them all. | draft |
+| Live | Allocations: reading stopped | {reason} The figures stop there. Reasons: {file} could not be read as it was recorded ({error}). / {file} states ...: the file may be damaged. / There is too little memory to follow the recording. The trace itself is still recorded. / Following the recording failed. The trace itself is still recorded; details are in the log. / {file} became shorter while it was read. Open the finished trace again. | draft |
+| Live | Allocations: not enough memory to follow | Following the recording needs about {N} MB, and the analysis worker has {N} MB left of its memory budget. Close other traces or snapshots and start again. The recording goes on: its trace can be opened when it ends. | draft |
+| Live | Allocations: an error of HeapScope's | The live allocations failed. Details are in the log. / The call stacks failed. Details are in the log. | draft |
+| Live | Type and frame names | [other types], [other stacks] | draft |
+| Live | Snapshot rules icon, its Record allocations line (Table 2) | Record allocations records sampled allocations with call stacks for the whole run, up to 1 GB, and shows them below the chart while it runs. After the run, press Open allocations under Past runs. | draft, not in the app yet |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

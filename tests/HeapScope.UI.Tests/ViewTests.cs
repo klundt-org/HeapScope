@@ -494,6 +494,44 @@ public sealed class ViewTests(UiSession ui) : IDisposable
         });
     }
 
+    /// <summary>Sprint 4.3: the live allocations take their place below the chart, with their bars, types and stacks, and bind cleanly.</summary>
+    [Fact]
+    public async Task The_live_page_shows_what_the_process_allocates_below_the_chart()
+    {
+        await ui.RunAsync(() =>
+        {
+            var capture = new FakeCaptureService(_folder, new JobTracker(TimeProvider.System));
+            var live = new LiveViewModel(new MonitorService(capture, new SyntheticCounterSource(0, perSecond: 1)), capture, ImmediateUiDispatcher.Instance);
+            ui.ClearBindingErrors();
+            var page = new LivePage { DataContext = live };
+            var window = new Window { Content = page, Width = 1200, Height = 900 };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var panel = page.FindControl<Border>("LiveAllocationsPanel").ShouldNotBeNull();
+            panel.IsVisible.ShouldBeFalse("only for a run that records");
+
+            live.Allocations.IsShown = true;
+            live.Allocations.Summary = "About 400 B";
+            live.Allocations.Delay = "These figures are 4 s behind the process.";
+            live.Allocations.Buckets = [new(0, 300, 3), new(1, 100, 1)];
+            live.Allocations.DurationSeconds = 2;
+            live.Allocations.Types.Add(new LiveTypeItem("System.Byte[]"));
+            live.Allocations.ShowStacks = true;
+            live.Allocations.Stacks.Add(new AllocationStackItem(1, 300, 75, 3, ["App.Grow", "App.Main"]));
+            Dispatcher.UIThread.RunJobs();
+
+            panel.Bounds.Height.ShouldBe(300);
+            window.GetVisualDescendants().OfType<Controls.TimelineChart>().ShouldHaveSingleItem().Bounds.Height.ShouldBeGreaterThan(100, "the chart keeps its place");
+            page.FindControl<Controls.AllocationTimeline>("LiveAllocationTimeline").ShouldNotBeNull().Bounds.Width.ShouldBeGreaterThan(500);
+            panel.GetVisualDescendants().OfType<DataGrid>().Select(g => g.Name).ShouldBe(["LiveTypesGrid", "LiveStacksGrid"]);
+            page.FindControl<TextBlock>("LiveDelay").ShouldNotBeNull().IsEffectivelyVisible.ShouldBeTrue();
+            window.GetVisualDescendants().OfType<Controls.InfoIcon>().Where(i => i.IsEffectivelyVisible).Select(i => i.Text).ShouldContain(InfoTexts.LiveAllocations);
+            ui.BindingErrors.ShouldBeEmpty();
+            window.Close();
+            return Task.CompletedTask;
+        });
+    }
+
     /// <summary>A refused run lasts milliseconds: the page must keep saying why, with no prompt to choose a process under it.</summary>
     [Fact]
     public async Task The_live_page_shows_a_warning_in_place_of_the_empty_prompt()

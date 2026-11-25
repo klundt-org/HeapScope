@@ -287,6 +287,13 @@ public static class InfoTexts
         "The chart stacks the heap areas as of the last collection, with what was allocated since then on top. A dashed line marks a snapshot and a dotted line a forced collection.\n" +
         "The line above it is the latest sample: the heap now, the heap after the last collection and its parts, bytes allocated, collections per generation, and the last collection's share of time.";
 
+    /// <summary>Live: Allocations heading (sprint 4.3, a draft for the owner).</summary>
+    public const string LiveAllocations =
+        "What the process has allocated since the recording started, while it runs. Sizes are estimates from samples, about one for every 100 KB allocated.\n" +
+        "Drag across the bars to choose an interval; a click shows the whole run again. The types are those of the interval, the 20 that allocated the most.\n" +
+        "Show call stacks lists where the selected type, or all types, were allocated. It shows them as of that moment; Refresh brings them up to date.\n" +
+        "The figures are usually less than a second behind the process, and more when it is very busy. The finished trace has everything: press Open allocations under Past runs.";
+
     /// <summary>The Types options in a set, where only Group by and Generations show.</summary>
     public const string TypesOptionsInSet =
         "Group by adds up the rows by type, namespace, assembly or interface. Interface needs a full dump, and a type counts under each interface it implements, so those rows overlap.\n" +
