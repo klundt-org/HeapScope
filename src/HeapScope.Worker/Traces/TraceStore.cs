@@ -56,6 +56,7 @@ internal sealed class TraceStore
     private static readonly TimeSpan s_sweepAge = TimeSpan.FromHours(1);
 
     private readonly ConcurrentDictionary<Guid, OpenTrace> _traces = new();
+    private readonly ConcurrentDictionary<Guid, LiveTrace> _live = new();
     private readonly SnapshotStore _snapshots;
     private readonly string _etlx;
     private readonly ILogger<TraceStore> _logger;
@@ -84,7 +85,7 @@ internal sealed class TraceStore
         });
     }
 
-    public int Count => _traces.Count;
+    public int Count => _traces.Count + _live.Count;
 
     /// <summary>The memory a read of a file of <paramref name="fileBytes"/> reserves.</summary>
     public static long ReadReservation(long fileBytes) => ReadFixedBytes + (fileBytes * ReadBytesPerFileByte);
@@ -202,8 +203,58 @@ internal sealed class TraceStore
             info.ConversionIssues);
     }
 
+    /// <summary>Follows a trace while it is recorded (sprint 4.3, ADR-037).</summary>
+    public LiveTraceDescriptor OpenLive(OpenLiveTraceRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrEmpty(request.Path);
+        var path = Path.GetFullPath(request.Path);
+        var id = Guid.NewGuid();
+        var reservation = _snapshots.ReserveWorking(
+            LiveTraceReader.ReservedBytes,
+            "Following the recording",
+            "Close other traces or snapshots and start again. The recording goes on: its trace can be opened when it ends.");
+        LiveTrace live;
+        try
+        {
+            live = new LiveTrace(id, path, request.NamesPath is { Length: > 0 } names ? Path.GetFullPath(names) : null, reservation, _logger);
+        }
+        catch
+        {
+            reservation.Dispose();
+            throw;
+        }
+
+        _live[id] = live;
+        _logger.LogInformation(
+            "Following the trace {Id} ({Path}) with live reader {Reader}, check {Check}, TraceEvent {TraceEvent}, {Reserved} bytes reserved; names from {Names}",
+            id,
+            path,
+            LiveTraceReader.Version,
+            AllocationTraceReader.CheckVersion,
+            AllocationTraceReader.LibraryVersion,
+            LiveTraceReader.ReservedBytes,
+            request.NamesPath ?? "none");
+        return new LiveTraceDescriptor(id, path, live.State());
+    }
+
+    /// <summary>The live trace, or null when it is not open; refused when the trace is not live.</summary>
+    public LiveTrace? TryGetLive(Guid traceId) => _live.TryGetValue(traceId, out var live) ? live
+        : _traces.ContainsKey(traceId) ? throw new RequestRefusedException("This trace is not being recorded. Open a live trace to follow one.")
+        : null;
+
+    public bool IsLive(Guid traceId) => _live.ContainsKey(traceId);
+
     public bool Close(Guid traceId)
     {
+        if (_live.TryRemove(traceId, out var live))
+        {
+            live.Dispose();
+            MemoryReservations.Collect();
+            _logger.LogInformation("Stopped following the trace {Id} ({Path})", traceId, live.Path);
+            return true;
+        }
+
         if (!_traces.TryRemove(traceId, out var open))
         {
             return false;
@@ -214,7 +265,7 @@ internal sealed class TraceStore
         return true;
     }
 
-    public OpenTrace? TryGet(Guid traceId) => _traces.TryGetValue(traceId, out var open) ? open : null;
+    public OpenTrace? TryGet(Guid traceId) => _traces.TryGetValue(traceId, out var open) ? open : _live.TryGetValue(traceId, out var live) ? live.View() : null;
 
     /// <summary>What an open trace keeps: its samples, stack tree and names.</summary>
     private static long KeptBytes(AllocationTrace trace) =>
@@ -225,8 +276,11 @@ internal sealed class TraceStore
 }
 
 /// <summary>An open trace with its type ids by name.</summary>
-internal sealed class OpenTrace(string path, AllocationTrace trace)
+internal sealed class OpenTrace(string path, AllocationTrace trace, bool isLive = false)
 {
+    /// <summary>What was read so far of a trace that is still recorded, or was when it was read.</summary>
+    public bool IsLive { get; } = isLive;
+
     public string Path { get; } = path;
 
     public AllocationTrace Trace { get; } = trace;

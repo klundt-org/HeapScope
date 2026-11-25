@@ -36,9 +36,10 @@ namespace HeapScope.Application.Allocations;
 /// <summary>An allocation trace open in this session (sprint 2.5).</summary>
 public sealed class TraceHandle : IWorkerResource
 {
-    internal TraceHandle(TraceDescriptor descriptor, int generation)
+    internal TraceHandle(TraceDescriptor descriptor, int generation, LiveTraceSource? live = null)
     {
         Path = descriptor.Path;
+        Live = live;
         _read = new Read(descriptor, generation);
     }
 
@@ -54,6 +55,9 @@ public sealed class TraceHandle : IWorkerResource
     public TraceDescriptor Descriptor => _read.Descriptor;
 
     public bool IsClosed { get; internal set; }
+
+    /// <summary>Set for a trace that is followed while it is recorded (sprint 4.3).</summary>
+    internal LiveTraceSource? Live { get; }
 
     internal int Generation => _read.Generation;
 
@@ -102,7 +106,7 @@ public sealed record AllocationScope(double FromSeconds = 0, double? ToSeconds =
 /// the session folder, and the queries over an interval. A trace is read again after a worker restart (seconds, from the
 /// trace file; nothing is cached).
 /// </summary>
-public sealed class AllocationSession(IWorkerClient worker, JobTracker jobs, TraceService recorder, SessionLibrary library, TimeProvider? timeProvider = null, ILogger<AllocationSession>? logger = null)
+public sealed partial class AllocationSession(IWorkerClient worker, JobTracker jobs, TraceService recorder, SessionLibrary library, TimeProvider? timeProvider = null, ILogger<AllocationSession>? logger = null)
 {
     /// <summary>How long Record allocations records unless stopped earlier.</summary>
     public static readonly TimeSpan DefaultRecording = TimeSpan.FromSeconds(30);
@@ -299,6 +303,12 @@ public sealed class AllocationSession(IWorkerClient worker, JobTracker jobs, Tra
         if (handle.FileChanged)
         {
             throw Changed(handle);
+        }
+
+        if (handle.Live is { } live)
+        {
+            await ReopenLiveAsync(handle, live, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
         var previous = handle.Descriptor;

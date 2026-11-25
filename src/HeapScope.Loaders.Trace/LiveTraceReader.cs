@@ -116,8 +116,17 @@ public sealed class LiveTraceReader : IDisposable
     {
         lock (_gate)
         {
-            var delay = _delayMs;
+            var status = Peek();
             _delayMs = null;
+            return status;
+        }
+    }
+
+    /// <summary>As <see cref="Status"/>, the delay left for the next one to ask.</summary>
+    public LiveTraceStatus Peek()
+    {
+        lock (_gate)
+        {
             return new LiveTraceStatus(
                 _allocations.Version,
                 _durationMs,
@@ -132,7 +141,7 @@ public sealed class LiveTraceReader : IDisposable
                 _allocations.WithoutStack,
                 _allocations.Unnamed(),
                 _allocations.PastLimits,
-                delay,
+                _delayMs,
                 _stream.CaughtUp,
                 _completed,
                 _stream.BytesRead,

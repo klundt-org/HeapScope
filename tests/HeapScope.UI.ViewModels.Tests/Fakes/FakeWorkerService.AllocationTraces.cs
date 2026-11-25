@@ -43,6 +43,30 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
         return OpenTraceGate is { } gate ? gate.Task.ContinueWith(_ => descriptor, TaskScheduler.Default) : Task.FromResult(descriptor);
     }
 
+    /// <summary>What a live trace answers (sprint 4.3); a test changes it as the recording goes on.</summary>
+    public LiveTraceDto LiveState { get; set; } = new(0, 42, "App", DateTimeOffset.UnixEpoch, 0, 1, 0, 0, 0, 0, 0, 0, 0, null, true, false, true, null);
+
+    public List<OpenLiveTraceRequest> LiveOpened { get; } = [];
+
+    public List<Guid> LiveEnded { get; } = [];
+
+    public Exception? LiveFailure { get; set; }
+
+    public Task<LiveTraceDescriptor> OpenLiveTraceAsync(OpenLiveTraceRequest request, CancellationToken cancellationToken)
+    {
+        LiveOpened.Add(request);
+        return LiveFailure is { } failure ? Task.FromException<LiveTraceDescriptor>(failure) : Task.FromResult(new LiveTraceDescriptor(Guid.NewGuid(), request.Path, LiveState));
+    }
+
+    public Task<LiveTraceDto> QueryLiveTraceAsync(LiveTraceRequest request, CancellationToken cancellationToken) =>
+        LiveFailure is { } failure ? Task.FromException<LiveTraceDto>(failure) : Task.FromResult(LiveState);
+
+    public Task EndLiveTraceAsync(Guid traceId, CancellationToken cancellationToken)
+    {
+        LiveEnded.Add(traceId);
+        return Task.CompletedTask;
+    }
+
     public Task CloseTraceAsync(Guid traceId, CancellationToken cancellationToken)
     {
         TracesClosed.Add(traceId);

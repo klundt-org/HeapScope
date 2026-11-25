@@ -138,7 +138,7 @@ says what to do first: the Live page's view model is 796 lines with three concer
 4. [x] A streaming reader in Loaders.Trace: tails the file, keeps aggregates (types and sizes per time bucket; stacks folded by
    module and offset, named when names are known), bounded in memory and reserved. Tests: a growing file replayed in pieces
    gives the same totals as the finished one; names that arrive late; a file that stops growing; a damaged file.
-5. [ ] The worker contract: open a live trace, "what changed since", "the recording ended"; one protocol bump; the identity of a
+5. [x] The worker contract: open a live trace, "what changed since", "the recording ended"; one protocol bump; the identity of a
    live trace across a worker restart. Tests: contract, restart, and refusal tests.
 6. [ ] The Live page: allocations by type beside the timeline for the selected range, stacks on demand, and the delay shown when
    it grows; the Allocations page opens the same file afterwards. Wording drafted for the owner. Tests: view models, views,
