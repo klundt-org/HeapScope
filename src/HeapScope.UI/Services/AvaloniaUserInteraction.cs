@@ -26,6 +26,7 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using HeapScope.UI.Views;
+using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.Services;
 
@@ -33,7 +34,7 @@ namespace HeapScope.UI.Services;
 /// The system's file picker and HeapScope's own question window (sprint 2.3.6: Avalonia has no message box). Both are
 /// asynchronous: the UI thread keeps running while they are open.
 /// </summary>
-public sealed class AvaloniaUserInteraction(Func<Window?> owner) : IUserInteraction
+public sealed class AvaloniaUserInteraction(Func<Window?> owner, ILogger<AvaloniaUserInteraction>? logger = null) : IUserInteraction
 {
     private static readonly FilePickerFileType[] s_dumpTypes =
     [
@@ -133,9 +134,10 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner) : IUserInteract
             // Explorer and Finder select the file; elsewhere the folder opens. Explorer's exit code means nothing, so it
             // is not awaited. The path is one argument (Windows paths hold no quotes). Both programs by their full paths: a bare name
             // is looked for in the current folder first, where a file of that name may lie beside a dump (peer review 4.5).
-            if (OperatingSystem.IsWindows())
+            // Without a Windows folder the path would be the bare name.
+            if (OperatingSystem.IsWindows() && Environment.GetFolderPath(Environment.SpecialFolder.Windows) is { Length: > 0 } windows)
             {
-                using var _ = Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), "/select,\"" + path + "\"") { UseShellExecute = false });
+                using var _ = Process.Start(new ProcessStartInfo(Path.Combine(windows, "explorer.exe"), "/select,\"" + path + "\"") { UseShellExecute = false });
                 return true;
             }
 
@@ -145,8 +147,9 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner) : IUserInteract
                 return true;
             }
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (System.ComponentModel.Win32Exception ex)
         {
+            logger?.LogWarning("The folder of a file could not be shown ({Error}): {Message}", ex.NativeErrorCode, ex.Message);
             return false;
         }
 

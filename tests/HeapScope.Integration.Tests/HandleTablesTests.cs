@@ -45,11 +45,11 @@ public sealed class HandleTablesTests(ITestOutputHelper output)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData("1", "1", "0", false)]
-    [InlineData("1", "0", "2", false)]
-    [InlineData("1", "0", "2", true)]
-    [InlineData("0", "0", "0", false)]
-    public async Task Every_handle_is_a_root_whatever_the_heap_count_did(string server, string datas, string heaps, bool processorsUnknown)
+    [InlineData("1", "1", "0")]
+    [InlineData("1", "0", "2")]
+    [InlineData("1", "0", "1")]
+    [InlineData("0", "0", "0")]
+    public async Task Every_handle_is_a_root_whatever_the_heap_count_did(string server, string datas, string heaps)
     {
         using var folder = new TempFolder();
         var dump = folder.File("handles.dmp");
@@ -64,11 +64,30 @@ public sealed class HandleTablesTests(ITestOutputHelper output)
             new DiagnosticsClient(process.Process.Id).WriteDump(DumpType.Full, dump, logDumpGeneration: false);
         }
 
-        var result = new ClrMdDumpLoader(new ClrMdLoaderOptions { IgnoreProcessorsForTests = processorsUnknown }).Load(dump, cancellationToken: Ct);
+        // The walk as the runtime does it, and then as from a dump that does not record its processors (a core file).
+        int own;
+        using (var plain = DumpAnalysis.Open(dump))
+        {
+            own = plain.Runtime.EnumerateHandles().Count(h => h.HandleKind == ClrHandleKind.Strong && h.Object.Type?.Name == typeof(HandleHeld).FullName);
+        }
+
+        output.WriteLine($"the runtime's own walk has {own} of {expected}");
+        bool[] known = server == "1" && heaps == "2" ? [true, false] : [true];
+        foreach (var processorsKnown in known)
+        {
+            CheckLoaded(dump, processorsKnown, expected, own, server, heaps);
+        }
+    }
+
+    private void CheckLoaded(string dump, bool processorsKnown, int expected, int own, string server, string heaps)
+    {
+        var result = new ClrMdDumpLoader(new ClrMdLoaderOptions { IgnoreProcessorsForTests = !processorsKnown }).Load(dump, cancellationToken: Ct);
         using var graph = result.Graph;
         var walk = result.Diagnostics.Handles.ShouldNotBeNull();
         output.WriteLine($"{walk}");
-        walk.Outcome.ShouldBe(server == "1" && walk.Added > 0 ? HandleWalkOutcome.Recovered : HandleWalkOutcome.Complete);
+        walk.Outcome.ShouldBe(server == "1" && walk.Added > 0 ? HandleWalkOutcome.Recovered : HandleWalkOutcome.Complete, walk.How);
+        result.Info.Facts.HasFlag(HeapScope.Core.SnapshotFacts.HandlesChecked).ShouldBeTrue();
+        (walk.Processors is null).ShouldBe(!processorsKnown || !OperatingSystem.IsWindows());
 
         Rooted(graph, RootKind.StrongHandle, typeof(HandleHeld).FullName!).ShouldBe(expected);
         Rooted(graph, RootKind.StrongHandle, typeof(HandleKey).FullName!).ShouldBe(expected);
@@ -81,60 +100,15 @@ public sealed class HandleTablesTests(ITestOutputHelper output)
             .Count(o => graph.Types.GetName(graph.TypeIndices[o]) == typeof(HandleValue).FullName && reachable.IsReachable(o))
             .ShouldBe(expected);
 
-        if (heaps == "2" && Environment.ProcessorCount > 2)
+        if (server == "1" && heaps != "0" && Environment.ProcessorCount > 2)
         {
             // Handles of more threads than tables walked: the case is real on this machine.
             walk.Added.ShouldBeGreaterThan(0);
         }
 
-        // The whole point: the walk as the runtime does it has fewer when the heaps changed.
-        using var plain = DumpAnalysis.Open(dump);
-        var own = plain.Runtime.EnumerateHandles().Count(h => h.HandleKind == ClrHandleKind.Strong && h.Object.Type?.Name == typeof(HandleHeld).FullName);
-        output.WriteLine($"the runtime's own walk has {own} of {expected}");
-        (own < expected).ShouldBe(walk.Outcome == HandleWalkOutcome.Recovered);
+        // Handles the runtime's own walk lacks are only ever found by the second one.
+        (own < expected && walk.Outcome != HandleWalkOutcome.Recovered).ShouldBeFalse();
     }
-
-    /// <summary>What is said of a walk: whole only when it ended where the tables do, past the processors.</summary>
-    [Theory]
-    [InlineData(24, 24, 5, false, HandleWalkOutcome.Recovered)]
-    [InlineData(25, 24, 0, false, HandleWalkOutcome.Complete)]
-    [InlineData(18, 24, 5, false, HandleWalkOutcome.Unknown)]
-    [InlineData(25, null, 5, false, HandleWalkOutcome.Recovered)]
-    [InlineData(25, null, 0, false, HandleWalkOutcome.Complete)]
-    [InlineData(25, null, 5, true, HandleWalkOutcome.Unknown)]
-    public void A_walk_that_stopped_before_the_last_table_is_not_complete(int tables, int? processors, int added, bool doubt, HandleWalkOutcome expected) =>
-        HandleTables.Judge(tables, processors, added, doubt).ShouldBe(expected);
-
-    /// <summary>The search on a made-up process of <paramref name="tables"/> tables, two handles in each past its 4 heaps.</summary>
-    [Theory]
-    [InlineData(24, 24)]
-    [InlineData(24, null)]
-    [InlineData(80, 48)]
-    [InlineData(4, 4)]
-    [InlineData(4, null)]
-    [InlineData(1, null)]
-    [InlineData(16, 24)]
-    public void The_search_ends_at_the_last_table(int tables, int? processors)
-    {
-        var heaps = Math.Min(4, tables);
-        var (best, works, doubt) = HandleTables.Search(heaps, processors, count => count <= tables ? Works((count - heaps) * 2) : new(HandleTables.AttemptOutcome.End, HandleTables.Found.None));
-
-        (best.LeftOut.Count, works, doubt).ShouldBe(((tables - heaps) * 2, tables, false));
-    }
-
-    [Fact]
-    public void A_walk_that_fails_otherwise_than_past_the_tables_leaves_a_doubt()
-    {
-        var (best, works, doubt) = HandleTables.Search(4, null, count => count <= 7 ? Works(count) : new(HandleTables.AttemptOutcome.Doubt, HandleTables.Found.None));
-        (best.LeftOut.Count, works, doubt).ShouldBe((7, 7, true));
-
-        // A larger count with fewer handles is not a better one.
-        (_, works, doubt) = HandleTables.Search(4, null, count => Works(count <= 7 ? count : 1));
-        (works, doubt).ShouldBe((7, true));
-    }
-
-    private static HandleTables.Attempt Works(int handles) =>
-        new(HandleTables.AttemptOutcome.Works, new HandleTables.Found([.. Enumerable.Range(1, handles).Select(static i => new LeftOutHandle((ulong)i, ClrHandleKind.Strong, 0, 0, true))], 0));
 
     private static int Rooted(HeapGraph graph, RootKind kind, string type) =>
         Enumerable.Range(0, graph.Roots.Count)

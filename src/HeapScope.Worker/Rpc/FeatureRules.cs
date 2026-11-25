@@ -115,9 +115,9 @@ internal static class FeatureRules
             return noGarbage;
         }
 
-        if (snapshot.Info.Facts.HasFlag(SnapshotFacts.HandlesUnchecked))
+        if (!SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info))
         {
-            return "Not all GC handles of this dump could be checked (its notes say why), so live objects could look unreachable. Capture a gcdump to see what is alive.";
+            return "Not all GC handles could be checked for this snapshot, so live objects could look unreachable. The snapshot's notes say what to do.";
         }
 
         // References were lost reading this dump: live objects would show as garbage (section 5.2, as ADR-032).

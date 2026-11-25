@@ -27,9 +27,6 @@ namespace HeapScope.Core.Loading;
 /// <summary>Whether a full dump's GC handles are all there.</summary>
 public enum HandleWalkOutcome
 {
-    /// <summary>Not recorded: a cache from before it was.</summary>
-    NotRecorded = 0,
-
     /// <summary>The runtime's own walk had them all.</summary>
     Complete = 1,
 

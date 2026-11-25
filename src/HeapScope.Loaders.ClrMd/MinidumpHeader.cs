@@ -177,7 +177,7 @@ public readonly record struct MinidumpHeader(uint Signature, DateTimeOffset? Cap
     }
 
     /// <summary>The processors the dump's SystemInfo stream records, or null when it has none.</summary>
-    public static int? Processors(string path)
+    public static int? Processors(string path, CancellationToken cancellationToken = default)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(stream);
@@ -191,6 +191,11 @@ public readonly record struct MinidumpHeader(uint Signature, DateTimeOffset? Cap
         var directory = reader.ReadUInt32();
         for (var i = 0u; i < streams && directory + ((i + 1L) * 12) <= stream.Length; i++)
         {
+            if ((i & 0xFFFF) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             stream.Position = directory + (i * 12L);
             var type = reader.ReadUInt32();
             var size = reader.ReadUInt32();

@@ -69,7 +69,10 @@ internal sealed class HeapCountReader(IDataReader reader) : IDataReader
 
     public bool GetThreadContext(uint threadID, uint contextFlags, Span<byte> context) => reader.GetThreadContext(threadID, contextFlags, context);
 
-    public void FlushCachedData() => reader.FlushCachedData();
+    /// <summary>Nothing: a dump does not change, and the number shown is put in after the reader's own cache, which the load uses.</summary>
+    public void FlushCachedData()
+    {
+    }
 
     public int Read(ulong address, Span<byte> buffer)
     {

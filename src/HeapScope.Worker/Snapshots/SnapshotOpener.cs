@@ -163,7 +163,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                     fellBack = true;
                     try
                     {
-                        metadata = WithUncheckedHandles(WithCurrentProcessName(path, metadata));
+                        metadata = WithCurrentProcessName(path, metadata);
                         refused = Refuse(path, ex, notes: null);
                         notes.Add(OlderCacheNote(DacRefusals.Cause(ex)));
                         dacProblem = ex;
@@ -264,7 +264,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             metadata.UnreadableObjects,
             Recorded(metadata.IncompleteSegments),
             Recorded(metadata.StaticFieldRoots),
-            Describe(metadata.Handles),
+            Describe(metadata.Handles, info.Kind),
             (metadata.Dac?.Path ?? (metadata.Dac is not null ? "symbol server" : info.Kind == SnapshotKind.FullDump ? "not recorded (index cache from before 2.3.7)" : "none (a gcdump needs none)"))
                 + (snapshot.TryGetService<ValueReadsRefused>(out _) ? ", recorded when the cache was written and not usable now" : string.Empty),
             metadata.Dac?.Rule ?? "-",
@@ -405,7 +405,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             diagnostics.IncompleteSegments,
             diagnostics.StaticFieldRoots,
             diagnostics.DebuggableModules.Count,
-            Describe(diagnostics.Handles));
+            Describe(diagnostics.Handles, metadata.Info.Kind));
 
         // Nothing else may reference the built graph, or the mapped transition below cannot free it.
         loaded = null;
@@ -499,12 +499,6 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         }
     }
 
-    /// <summary>A full dump's cache from before loader version 5 can lack GC handles (peer review 4.5): what is unreachable is not told from it.</summary>
-    private static IndexCacheMetadata WithUncheckedHandles(IndexCacheMetadata metadata) =>
-        metadata.Info.Kind == SnapshotKind.FullDump && metadata.LoaderVersion < 5
-            ? metadata with { Info = metadata.Info with { Facts = metadata.Info.Facts | SnapshotFacts.HandlesUnchecked } }
-            : metadata;
-
     /// <summary>
     /// The older cache, opened after a rebuild failed for want of a DAC, or null when it cannot be opened any more (the caller
     /// then reports the rebuild's failure). The failed load's memory is returned to the system first, so the two never stack
@@ -580,8 +574,8 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         }
     }
 
-    private static string Describe(HandleWalk? walk) => walk is null
-        ? "not recorded"
+    private static string Describe(HandleWalk? walk, SnapshotKind kind) => walk is null
+        ? (kind == SnapshotKind.FullDump ? "not recorded" : "none (not a full dump)")
         : string.Create(CultureInfo.InvariantCulture, $"{walk.Outcome}: {walk.Heaps} heaps, {walk.Tables} tables walked, {walk.Processors?.ToString(CultureInfo.InvariantCulture) ?? "unknown"} processors, {walk.Added} handles added ({walk.How})");
 
     private void AddDataQualityNotes(HeapGraph graph, IndexCacheMetadata metadata, List<string> notes)

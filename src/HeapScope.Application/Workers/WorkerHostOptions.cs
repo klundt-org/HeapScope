@@ -66,6 +66,12 @@ public sealed class WorkerHostOptions
     public bool AllowMicrosoftSymbolServer { get; set; }
 
     /// <summary>
+    /// Whether a load walks the GC handles of a Server GC process a second time (<c>Worker:SecondHandleWalk</c>, default on; peer
+    /// review 4.5). Off is for a dump that ends the worker there: its handles then count as not checked.
+    /// </summary>
+    public bool SecondHandleWalk { get; set; } = true;
+
+    /// <summary>
     /// Server GC heaps (and GC threads) of the worker (<c>Worker:GcHeapCount</c>). Default: half the logical processors,
     /// so the worker's blocking collections cannot occupy every core and starve the UI thread (measured in sprint 1.3:
     /// 550 to 760 ms of input lag while a Medium snapshot opened with 24 heaps on 24 cores, under 200 ms with 12, at the

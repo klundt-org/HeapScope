@@ -90,7 +90,7 @@ internal sealed class RetentionHandler(
                     }
 
                     var noReader = reader is null ? FeatureRules.ExplainMissing(SnapshotCapabilities.FieldValues, snapshot) : null;
-                    return RetentionMapping.ObjectPaths(snapshot.Graph, tree, reader, noReader, SnapshotAccess.IsComplete(snapshot), info, cancellationToken, snapshot.Info.Kind);
+                    return RetentionMapping.ObjectPaths(snapshot.Graph, tree, reader, noReader, SnapshotAccess.IsComplete(snapshot), info, snapshot.Info, cancellationToken);
                 },
                 cancellationToken).ConfigureAwait(false);
 
@@ -143,7 +143,7 @@ internal sealed class RetentionHandler(
                 if (matched == 0)
                 {
                     // Answered before the tree is built for nothing (2.1 review M8).
-                    return new TypePathsResult([], 0, 0, 0, 0, 0, 0, 0, SnapshotAccess.IsComplete(snapshot), 0, RetentionMapping.UnreachableNote(snapshot.Info.Kind));
+                    return new TypePathsResult([], 0, 0, 0, 0, 0, 0, 0, SnapshotAccess.IsComplete(snapshot), 0, RetentionMapping.UnreachableNote(snapshot.Info));
                 }
             }
 
@@ -168,7 +168,7 @@ internal sealed class RetentionHandler(
                 (long)set.OtherBytes,
                 SnapshotAccess.IsComplete(snapshot),
                 treeSeconds,
-                RetentionMapping.UnreachableNote(snapshot.Info.Kind));
+                RetentionMapping.UnreachableNote(snapshot.Info));
 
             // The key paths as shown, with their roots (sprint 2.3.7 review H3).
             Logger.LogInformation(
@@ -207,7 +207,7 @@ internal sealed class RetentionHandler(
                 idom >= 0 ? graph.Addresses[idom] : 0,
                 idom >= 0 ? graph.Types.GetName(graph.TypeIndices[idom]) : null,
                 idom == DominatorTree.VirtualRoot,
-                RetentionMapping.UnreachableNote(snapshot.Info.Kind),
+                RetentionMapping.UnreachableNote(snapshot.Info),
                 info,
                 SnapshotAccess.IsComplete(snapshot));
         });
@@ -499,7 +499,7 @@ internal sealed class RetentionHandler(
                 groups.LimitedMembers,
                 SnapshotAccess.IsComplete(snapshot),
                 stopwatch.Elapsed.TotalSeconds,
-                RetentionMapping.UnreachableNote(snapshot.Info.Kind));
+                RetentionMapping.UnreachableNote(snapshot.Info));
 
             // What the view rests on (decision 7): the set, the groups, and the largest groups with the paths shown; every
             // listed group at Debug (the 3.2 review), numbered as the app and the CLI number them.
@@ -596,7 +596,7 @@ internal sealed class RetentionHandler(
             // Why, for this kind of snapshot, and where to go instead (the 2.4 review).
             throw new RequestRefusedException(string.Create(
                 CultureInfo.InvariantCulture,
-                $"0x{address:x} is not in the dominator tree. {RetentionMapping.UnreachableNote(snapshot.Info.Kind)} It retains nothing; the biggest retainers show the tree from the top."));
+                $"0x{address:x} is not in the dominator tree. {RetentionMapping.UnreachableNote(snapshot.Info)} It retains nothing; the biggest retainers show the tree from the top."));
         }
 
         return (tree, info);

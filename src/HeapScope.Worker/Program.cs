@@ -158,6 +158,11 @@ logger.LogInformation("Worker versions: {Versions}", WorkerVersions.Describe());
 // The index cache signer is loaded now, once the log exists, so its outcome and a failure are on record (3.7 review H4).
 host.Services.GetRequiredService<HeapScope.Storage.IndexCacheSigner>();
 
+if (!options.SecondHandleWalk)
+{
+    logger.LogWarning("The second walk of GC handles is off (Worker:SecondHandleWalk): Server GC dumps loaded now count their handles as not checked");
+}
+
 if (options.AllowMicrosoftSymbolServer)
 {
     logger.LogWarning("Symbol server downloads are on (Symbols:AllowMicrosoftSymbolServer): a missing DAC may be downloaded from Microsoft's symbol server, which sends module identifiers (never dump contents)");

@@ -98,6 +98,12 @@ public sealed record ClrMdLoaderOptions
     /// </summary>
     public string? TrustedDacCopyFolder { get; init; }
 
+    /// <summary>
+    /// Whether the GC handles of a Server GC process are walked a second time (configuration <c>Worker:SecondHandleWalk</c>, default on;
+    /// peer review 4.5). Off, they count as not checked: for a dump the walk cannot get through.
+    /// </summary>
+    public bool SecondHandleWalk { get; init; } = true;
+
     /// <summary>Reads GC handles as from a dump that does not record its processors (a core file), for tests.</summary>
     internal bool IgnoreProcessorsForTests { get; init; }
 }

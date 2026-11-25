@@ -36,13 +36,19 @@ export FIXTURE_ARGS="--leak none --handles-under-load 200"
 bash "$here/fixture-dump.sh" "$work/handles.dmp" "cli=$cli"
 unset DOTNET_gcServer DOTNET_GCHeapCount DOTNET_GCDynamicAdaptationMode
 export Logging__File__Directory="$work/log"
-expected=$(grep -oE 'HANDLES [0-9]+' "$work/fixture.log" | cut -d' ' -f2)
+expected=$(grep -oE 'HANDLES [0-9]+' "$work/fixture.log" | cut -d' ' -f2 || true)
 [ -n "$expected" ] || { echo "The fixture did not say how many handles it made"; exit 1; }
 for type in HandleHeld HandleValue; do
   "$cli" instances "$work/handles.dmp" --type "Fixtures.Leaks.$type" --retained --all --format json > "$work/$type.json"
   jq -e --argjson n "$expected" '.TotalObjects == $n and (.Rows | length) == $n and all(.Rows[]; .Retained != null and .Retained > 0)' "$work/$type.json" > /dev/null \
     || { echo "Known answer failed: $expected reachable objects of $type"; jq '{TotalObjects, Reached: ([.Rows[] | select(.Retained != null)] | length)}' "$work/$type.json"; exit 1; }
 done
-grep -rhoE "GC handles [A-Z][a-z]+: [^;]*;[^;]*" "$work/log" | head -1 || true
+walk=$(grep -rhoE "GC handles [A-Z][a-z]+: [^;]*;[^;]*" "$work/log" | head -1)
+echo "$walk"
+case "$walk" in
+  "GC handles Recovered"*) ;;
+  "GC handles Complete"*) [ "$(nproc)" -le 2 ] || { echo "Nothing was left out, so nothing was checked"; exit 1; } ;;
+  *) echo "The walk of the GC handles is in doubt"; exit 1 ;;
+esac
 rm -f "$work"/handles.dmp*
 echo "All $expected objects held by GC handles are reached, and those held by dependent handles."

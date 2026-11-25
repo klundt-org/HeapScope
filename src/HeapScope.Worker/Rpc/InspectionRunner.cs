@@ -81,6 +81,13 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                     throw new RequestRefusedException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: {unusable} Choose a full dump of the same process, captured earlier.");
                 }
 
+                // What only one side could see whole is no growth (peer review 4.5).
+                if (inspection.UsesReachable && HandlesChecked(earlier) != HandlesChecked(snapshot))
+                {
+                    var side = HandlesChecked(earlier) ? "this snapshot" : "the baseline";
+                    throw new RequestRefusedException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: not all GC handles could be checked for {side} (see its notes), so objects held only by a handle would be counted on one side only.");
+                }
+
                 earlier.TryGetService<IObjectReader>(out var baselineReader);
                 var baselineReachable = inspection.UsesReachable ? await derived.GetReachableAsync(id, cancellationToken).ConfigureAwait(false) : null;
                 baseline = new InspectionBaseline(earlier.Graph, earlier.Info, baselineReader, baselineReachable);
@@ -118,6 +125,11 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             }
 
             throttled.Flush();
+            if (inspection.UsesReachable && !HandlesChecked(snapshot))
+            {
+                const string Unchecked = "Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle are not counted.";
+                result = result with { Note = result.Note is null ? Unchecked : result.Note + " " + Unchecked };
+            }
 
             // The rule and what the answer rests on (sprint 2.3.7 review H3, M5); the guard logs the totals too.
             logger.LogInformation(
@@ -149,4 +161,6 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             throw;
         }
     }
+
+    private static bool HandlesChecked(ISnapshot snapshot) => Snapshots.SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info);
 }

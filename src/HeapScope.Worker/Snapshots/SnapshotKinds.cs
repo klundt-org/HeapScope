@@ -75,8 +75,14 @@ internal abstract class SnapshotKindHandler
     /// <summary>Whether this kind holds every object, garbage not yet collected included.</summary>
     public bool HoldsGarbage => WhyNoGarbage is null;
 
-    /// <summary>What "no root reaches it" means for an object of this kind (review M3).</summary>
-    public abstract string UnreachableNote { get; }
+    /// <summary>
+    /// Whether the GC handles of a snapshot of this kind are all there, as far as its loader can tell
+    /// (<see cref="SnapshotFacts.HandlesChecked"/>): otherwise an object held only by one can look unreachable.
+    /// </summary>
+    public virtual bool HandlesChecked(SnapshotInfo info) => true;
+
+    /// <summary>What "no root reaches it" means for an object of a snapshot of this kind (review M3).</summary>
+    public abstract string UnreachableNote(SnapshotInfo info);
 
     /// <summary>
     /// Why objects of this kind cannot be matched by address with another snapshot's (ADR-032), or null when they keep
@@ -176,9 +182,10 @@ internal sealed class SnapshotKinds
                 notes.Add("Parts of the managed heap could not be read from this dump, so some objects may be missing and counts are not exact. The dump may be truncated or damaged; capture another full dump if results look wrong.");
             }
 
-            if (metadata.Handles is { Outcome: HandleWalkOutcome.Unknown })
+            // An older cache, which recorded no walk, has its own note (SnapshotOpener.OlderCacheNote).
+            if (metadata.Handles is not null && !HandlesChecked(metadata.Info))
             {
-                notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. A gcdump is not affected.");
+                notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, open the dump with Rebuild.");
             }
 
             if (metadata.Info.Facts.HasFlag(SnapshotFacts.CaptureTimeFromFile))
@@ -192,7 +199,11 @@ internal sealed class SnapshotKinds
 
         public override string? WhyNoGarbage => null;
 
-        public override string UnreachableNote => "No root reaches it: it is garbage not yet collected, or held only weakly (weak handles, weak references).";
+        public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
+
+        public override string UnreachableNote(SnapshotInfo info) => HandlesChecked(info)
+            ? "No root reaches it: it is garbage not yet collected, or held only weakly (weak handles, weak references)."
+            : "No root HeapScope could read reaches it. Not all GC handles could be checked for this snapshot (see its notes), so it may still be alive.";
 
         public override string? WhyNoObjectIdentity => null;
 
@@ -204,6 +215,7 @@ internal sealed class SnapshotKinds
         {
             DacFolder = options.DacFolder,
             AllowMicrosoftSymbolServer = options.AllowMicrosoftSymbolServer,
+            SecondHandleWalk = options.SecondHandleWalk,
             DacChosen = dacChosen,
             IsTrustedDac = trustedDacs.ContainsKey,
             TrustedDacCopyFolder = options.Folders.DacCopies,
@@ -243,7 +255,7 @@ internal sealed class SnapshotKinds
             "A gcdump holds only what survived its collection, so the garbage of the process is not in it. Open a full dump (.dmp) to see the garbage it still holds.";
 
         // Without weak handles in a gcdump, an unreached survivor points to a root the gcdump did not record.
-        public override string UnreachableNote =>
+        public override string UnreachableNote(SnapshotInfo info) =>
             "No recorded root reaches it. A gcdump holds only objects that survived its collection, so a root that holds it was not recorded (the gcdump may be sampled or incomplete).";
 
         public override string? WhyNoObjectIdentity =>

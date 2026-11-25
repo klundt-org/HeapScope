@@ -66,8 +66,8 @@ internal static class RetentionMapping
     public static bool IsFrameworkType(HeapGraph graph, int type) =>
         HeapScope.Analysis.FrameworkTypes.IsFrameworkStep(graph.Types.GetName(type), graph.Types.GetModule(type));
 
-    /// <summary>What "no root reaches it" means for a snapshot of <paramref name="kind"/>, as its kind handler words it.</summary>
-    public static string UnreachableNote(SnapshotKind kind) => Snapshots.SnapshotKinds.Describe(kind).UnreachableNote;
+    /// <summary>What "no root reaches it" means for this snapshot, as its kind handler words it.</summary>
+    public static string UnreachableNote(SnapshotInfo info) => Snapshots.SnapshotKinds.Describe(info.Kind).UnreachableNote(info);
 
     public static PathRootDto Root(HeapGraph graph, PathRoot root) =>
         new(root.IsFrozen ? RootKindDto.Other : root.Root.Kind.ToDto(), root.IsFrozen, PathRoots.Describe(root, PathRoots.Detail(graph, root)));
@@ -97,8 +97,8 @@ internal static class RetentionMapping
         string? noReaderNote,
         bool completeGraph,
         ReverseIndexInfo index,
-        CancellationToken cancellationToken,
-        SnapshotKind kind = SnapshotKind.FullDump)
+        SnapshotInfo snapshot,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(tree);
@@ -129,7 +129,7 @@ internal static class RetentionMapping
             completeGraph,
             index,
             truncated,
-            UnreachableNote(kind));
+            UnreachableNote(snapshot));
     }
 
     /// <summary>The roots found, grouped like a type's key paths: same root kind (and field) and same folded type sequence.</summary>

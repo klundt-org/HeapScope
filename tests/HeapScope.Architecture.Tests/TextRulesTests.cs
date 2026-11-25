@@ -74,7 +74,7 @@ public class TextRulesTests
     public void Programs_are_started_by_their_full_paths() =>
         Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*.cs", SearchOption.AllDirectories)
             .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)))
-            .Where(f => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(f), @"(ProcessStartInfo|Process\.Start)\(""[^""/\\]+"""))
+            .Where(f => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(f), @"((ProcessStartInfo|Process\.Start)\(\s*|(?<!string )FileName\s*=\s*)""[^""/\\]+"""))
             .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
             .ShouldBeEmpty();
 

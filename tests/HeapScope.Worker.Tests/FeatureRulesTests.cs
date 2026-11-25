@@ -34,7 +34,7 @@ namespace HeapScope.Worker.Tests;
 /// </summary>
 public sealed class FeatureRulesTests : IDisposable
 {
-    private const SnapshotFacts AllFacts = SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations;
+    private const SnapshotFacts AllFacts = SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations | SnapshotFacts.HandlesChecked;
 
     private readonly SnapshotKinds _kinds = new(new WorkerOptions("pipe", null));
     private readonly List<ISnapshot> _opened = [];
@@ -60,6 +60,19 @@ public sealed class FeatureRulesTests : IDisposable
 
         list[SnapshotFeatureIds.UnreachableSet].ShouldNotBeNull().ShouldContain("object graph is incomplete");
         list.Where(f => f.Key != SnapshotFeatureIds.UnreachableSet).ShouldAllBe(f => f.Value == null);
+    }
+
+    // Peer review 4.5: an older cache, or a Server GC dump whose handle tables could not all be read.
+    [Fact]
+    public void A_full_dump_whose_handles_were_not_all_checked_offers_no_unreachable_set_and_calls_nothing_garbage()
+    {
+        var snapshot = FullDump(SnapshotCapabilities.FullDump, AllFacts & ~SnapshotFacts.HandlesChecked);
+
+        var list = FeatureRules.List(snapshot).ToDictionary(f => f.Feature, f => f.Unavailable);
+
+        list[SnapshotFeatureIds.UnreachableSet].ShouldNotBeNull().ShouldStartWith("Not all GC handles could be checked");
+        list.Where(f => f.Key != SnapshotFeatureIds.UnreachableSet).ShouldAllBe(f => f.Value == null);
+        SnapshotKinds.Describe(SnapshotKind.FullDump).UnreachableNote(snapshot.Info).ShouldContain("may still be alive");
     }
 
     [Fact]
@@ -120,8 +133,8 @@ public sealed class FeatureRulesTests : IDisposable
         var gcdump = SnapshotKinds.Describe(SnapshotKind.GcDump);
 
         (full.HoldsGarbage, gcdump.HoldsGarbage).ShouldBe((true, false));
-        full.UnreachableNote.ShouldContain("garbage not yet collected");
-        gcdump.UnreachableNote.ShouldContain("No recorded root");
+        full.UnreachableNote(new SnapshotInfo(SnapshotKind.FullDump, "a.dmp", Facts: AllFacts)).ShouldContain("garbage not yet collected");
+        gcdump.UnreachableNote(new SnapshotInfo(SnapshotKind.GcDump, "a.gcdump")).ShouldContain("No recorded root");
         full.WhyNoObjectIdentity.ShouldBeNull();
         gcdump.WhyNoObjectIdentity.ShouldNotBeNull().ShouldStartWith("New and dead objects need two full dumps");
     }

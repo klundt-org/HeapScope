@@ -144,15 +144,16 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump). A phase of its own since 3.12 (R5).
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
-        var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath) : null, progress, cancellationToken);
+        var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath, cancellationToken) : null, !_options.SecondHandleWalk, progress, cancellationToken);
         var weakHandles = AddDependentHandlesAndCollectWeak(runtime, builder, cancellationToken);
         foreach (var handle in handles.LeftOut)
         {
             Add(handle, builder, weakHandles);
         }
 
+        var handleTime = meter.End("handles");
         AddReferences(heap, builder, clrTypes, progress, cancellationToken);
-        var references = meter.End("references");
+        var references = handleTime + meter.End("references");
 
         progress?.Report(new LoadProgress("Reading roots", 0, null));
         AddGcRoots(heap, target.DataReader, builder, [.. handles.LeftOut.Where(static h => h.Kind == ClrHandleKind.Strong && h.Object != 0).Select(static h => h.Object)], cancellationToken);
@@ -181,7 +182,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             freeBytes,
             SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
                 | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
-                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.HandlesUnchecked : SnapshotFacts.None));
+                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked));
 
         // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
         var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
