@@ -31,12 +31,20 @@ namespace HeapScope.UI.ViewModels.Tests;
 /// <summary>The fake worker's HeapQueries (<see cref="IHeapQueryService"/>).</summary>
 internal sealed partial class FakeWorkerService : IHeapQueryService
 {
+    /// <summary>When set, type summaries, diffs and trends fail with it.</summary>
+    public Exception? QueryFailure { get; set; }
+
     public async Task<TypeSummaryResult> QueryTypeSummaryAsync(TypeSummaryRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         SummaryQueries.Add(request);
         if (request.IncludeRetained && RetainedFailure is { } failure)
         {
             throw failure;
+        }
+
+        if (QueryFailure is { } refused)
+        {
+            throw refused;
         }
 
         if (SummaryGate is { } gate)
@@ -185,6 +193,11 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
     public async Task<TypeDiffResult> QueryTypeDiffAsync(TypeDiffRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         DiffQueries.Add(request);
+        if (QueryFailure is { } refused)
+        {
+            throw refused;
+        }
+
         if (SummaryGate is { } gate)
         {
             await gate.Task.WaitAsync(cancellationToken);
@@ -251,6 +264,11 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
     public Task<TypeTrendResult> QueryTypeTrendAsync(TypeTrendRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         TrendQueries.Add(request);
+        if (QueryFailure is { } refused)
+        {
+            return Task.FromException<TypeTrendResult>(refused);
+        }
+
         var n = request.SnapshotIds.Count;
         var invariant = System.Globalization.CultureInfo.InvariantCulture;
         ResultColumn[] columns =

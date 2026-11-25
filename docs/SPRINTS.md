@@ -128,7 +128,7 @@ Owner decisions, 2026-11-18:
 way there: the High and Moderate findings of [peer review 4.5](reviews/peer-review-4.5.md) planned here, with what its fixes left.
 
 **Tasks**
-1. [ ] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
+1. [x] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
    heap bar and notes cleared first, also when the new query fails; Trend falls back to its default sort for a column gone; Compare and
    Trend show the busy bar. Tests: a query of B that fails shows nothing of A, in Types, Compare and Trend; Trend after a close.
 2. [ ] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced

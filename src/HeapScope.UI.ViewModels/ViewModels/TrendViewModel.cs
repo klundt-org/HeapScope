@@ -112,6 +112,11 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         }
     }
 
+    // Whether a sort column is one a trend of this many snapshots has.
+    private static bool Exists(string column, int snapshots) =>
+        System.Text.RegularExpressions.Regex.Match(column, "^(?:Objects|Bytes)([0-9]+)$") is not { Success: true } perSnapshot
+        || int.Parse(perSnapshot.Groups[1].Value, CultureInfo.InvariantCulture) <= snapshots;
+
     /// <summary>Ticks or unticks a snapshot; the change queries again.</summary>
     [RelayCommand]
     private void Toggle(TrendSnapshotItem? item)
@@ -150,7 +155,7 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         OnPropertyChanged(nameof(Hint));
         if (CanQuery)
         {
-            Requery();
+            Requery(subjectChanged: true);
         }
         else if (_started)
         {
@@ -174,7 +179,15 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         OrderNote = byOpenOrder ? "A snapshot records no capture time (only its file's), so the trend runs in the order the snapshots were opened." : null;
         var finished = false;
         var progress = new Progress<JobProgress>(p => Status = finished || cancellationToken.IsCancellationRequested ? Status : ReferrersText.Progress(p));
-        var trend = await _session.QueryTypeTrendAsync([.. ordered.Select(s => s.Handle)], groupBy, Filter, SortColumn, Descending, progress, cancellationToken);
+        // A snapshot's column that is gone (one of the snapshots was unticked or closed) sorts by the change instead (peer review 4.5 H4).
+        var sortColumn = SortColumn is { } asked && !Exists(asked, ordered.Count) ? TypeTrendColumns.BytesDelta : SortColumn;
+        if (sortColumn != SortColumn)
+        {
+            Logger.LogInformation("Trend: sorted by {Used}, as a trend of {Count} snapshots has no {Asked}", sortColumn, ordered.Count, SortColumn);
+            SortColumn = sortColumn;
+        }
+
+        var trend = await _session.QueryTypeTrendAsync([.. ordered.Select(s => s.Handle)], groupBy, Filter, sortColumn, Descending, progress, cancellationToken);
         finished = true;
         var result = trend.Result;
         return new GridQuery<CellRowItem>(

@@ -118,9 +118,18 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     /// <summary>Whether a column is first sorted largest first; names and text sort ascending.</summary>
     protected virtual bool SortsDescendingFirst(string column) => true;
 
-    /// <summary>Runs the query again with the current settings (a no-op when there is nothing to query).</summary>
-    protected void Requery()
+    /// <summary>
+    /// Runs the query again with the current settings (a no-op when there is nothing to query). With
+    /// <paramref name="subjectChanged"/> (another snapshot, pair or set of snapshots; peer review 4.5 H4) nothing of the old subject is
+    /// shown meanwhile, nor after the new query fails: a filter or sort change keeps the rows until the answer comes.
+    /// </summary>
+    protected void Requery(bool subjectChanged = false)
     {
+        if (subjectChanged)
+        {
+            ClearResults();
+        }
+
         if (!CanQuery)
         {
             return;

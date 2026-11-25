@@ -79,6 +79,7 @@
     </WrapPanel>
     <TextBlock DockPanel.Dock="Top" Text="{Binding Totals}" Classes="subtle" TextWrapping="Wrap" Margin="0,0,8,6" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" />
+    <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding GroupNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding IdentityNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding RetainedNote}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
@@ -210,6 +211,7 @@
         <TextBlock Text="{Binding Totals}" VerticalAlignment="Center" Margin="12,0,0,0" Classes="subtle" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Totals}" />
       </WrapPanel>
       <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" />
+      <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
       <DataGrid x:Name="TrendGrid" ctl:GridExports.ExportName="Trend" CanUserSortColumns="True"
                 ctl:GridBehaviors.ResultColumns="{Binding Columns}"
                 ctl:GridBehaviors.Rows="{Binding Rows}"

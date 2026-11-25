@@ -325,6 +325,47 @@ public sealed class CompareViewModelTests : IDisposable
         trend.Hint.ShouldNotBeNull().ShouldContain("Tick two or more");
     }
 
+    // Peer review 4.5 H4: another pair whose comparison fails shows nothing of the pair before; a trend's sort by a snapshot's column
+    // that is gone falls back to the change.
+    [Fact]
+    public async Task Another_pair_whose_comparison_fails_shows_nothing_of_the_one_before()
+    {
+        await OpenBothAsync();
+        Compare.Rows.Count.ShouldBeGreaterThan(0);
+        _worker.Service.QueryFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Not enough memory.", null);
+
+        Compare.SwapCommand.Execute(null);
+        await Compare.QueryTask;
+
+        (Compare.Rows.Count, Compare.Totals, Compare.Status).ShouldBe((0, (string?)null, "Not enough memory."));
+    }
+
+    [Fact]
+    public async Task A_trend_sorted_by_a_snapshot_that_is_gone_sorts_by_the_change_and_a_failed_one_shows_nothing()
+    {
+        _worker.Service.TrendRows.Add(("App.Leak", [1, 3, 5]));
+        foreach (var name in new[] { "first.dmp", "second.dmp", "third.dmp" })
+        {
+            await _snapshots.OpenPathAsync(Dump(name));
+        }
+
+        var trend = Compare.Trend;
+        Compare.IsTrendShown = true;
+        await WaitUntilAsync(() => _worker.Service.TrendQueries.Count == 1);
+        await trend.QueryTask;
+        trend.SortByCommand.Execute(TypeTrendColumns.Bytes(3));
+        await trend.QueryTask;
+
+        trend.Choices[2].IsIncluded = false;
+        await trend.QueryTask;
+        (_worker.Service.TrendQueries[^1].SortColumn, trend.SortColumn).ShouldBe((TypeTrendColumns.BytesDelta, TypeTrendColumns.BytesDelta));
+
+        _worker.Service.QueryFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Not enough memory.", null);
+        trend.Choices[2].IsIncluded = true;
+        await trend.QueryTask;
+        (trend.Rows.Count, trend.Totals, trend.Status).ShouldBe((0, (string?)null, "Not enough memory."));
+    }
+
     [Fact]
     public async Task Snapshots_from_different_session_folders_compare_like_any_two()
     {

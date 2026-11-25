@@ -720,7 +720,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
         if (CanQuery)
         {
-            Requery();
+            Requery(subjectChanged: true);
         }
         else
         {

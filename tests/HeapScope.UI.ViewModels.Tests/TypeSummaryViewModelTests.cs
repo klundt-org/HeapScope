@@ -315,6 +315,23 @@ public sealed class TypeSummaryViewModelTests : IDisposable
         }
     }
 
+    // Peer review 4.5 H4: the rows, totals and heap bar of A are not shown under B, not even when B's query fails.
+    [Fact]
+    public async Task Another_snapshot_whose_query_fails_shows_nothing_of_the_one_before()
+    {
+        await ShowAsync();
+        _types.Rows.Count.ShouldBeGreaterThan(0);
+        var other = Path.Combine(_folder, "other.dmp");
+        await File.WriteAllBytesAsync(other, [2], Ct);
+        var handle = await _session.StartOpen(other).Result;
+        _worker.Service.QueryFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Not enough memory.", null);
+
+        _types.Show(handle);
+        await _types.QueryTask;
+
+        (_types.Rows.Count, _types.Totals, _types.HeapKinds.Count, _types.Status).ShouldBe((0, (string?)null, 0, "Not enough memory."));
+    }
+
     private async Task ShowAsync() => await (await StartShowAsync()).QueryTask;
 
     private async Task<TypeSummaryViewModel> StartShowAsync()

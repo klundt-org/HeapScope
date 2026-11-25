@@ -403,7 +403,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         }
 
         OfferGroupings(snapshot.Descriptor.IsAvailable(SnapshotFeatureIds.InterfaceGrouping));
-        Requery();
+        Requery(subjectChanged: true);
     }
 
     protected override void OnCleared() => HeapKinds = [];
