@@ -180,7 +180,7 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         var why = d.WhyUnavailable(SnapshotFeatureIds.FieldValues).ShouldNotBeNull();
         why.ShouldStartWith($"Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET {d.RuntimeVersion} runtime was not found.");
         d.WhyUnavailable(SnapshotFeatureIds.StringValues).ShouldBe(why);
-        d.Notes.ShouldContain($"Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: the DAC (Data Access Component) of this dump's .NET {d.RuntimeVersion} runtime was not found. The one thing this version reads differently, the process name, was read again from the dump. Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache.");
+        d.Notes.ShouldContain($"Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: the DAC (Data Access Component) of this dump's .NET {d.RuntimeVersion} runtime was not found. It can lack what this version reads: in Server GC processes and collectible assemblies, objects held only by a GC handle or by a type can look unreachable. The process name was read again from the dump. Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache.");
 
         // The graph answers: types, an object's references, referrers and paths.
         (await SummaryAsync(session, handle)).TotalCount.ShouldBeGreaterThan(0);

@@ -395,17 +395,16 @@ The sample's scenario and its lesson, approved too (`LessonCatalogTests` checks 
 
 ## Sprint 4.5 additions
 
-The GC handles of Server GC processes (peer review 4.5). The owner approved the drafts on 2026-11-25; the last reviews changed some, which
-are drafts again. `CacheRebuildTests`, `FeatureRulesTests` and `UncheckedHandlesTests` check that they are shown.
+The GC handles of Server GC processes (peer review 4.5). Approved by the owner on 2026-11-25, as the last reviews left them. `CacheRebuildTests`, `FeatureRulesTests` and `UncheckedHandlesTests` check that they are shown.
 
 | Page | Where | Text | Status |
 |---|---|---|---|
-| Snapshot | Notes, when handles cannot be checked | HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, run heapscope-cli open with --rebuild on this dump. | draft (its last two sentences, instead of "A gcdump is not affected.") |
-| Snapshot | Unreachable objects, refused then, and for an older index cache | Not all GC handles could be checked for this snapshot, so live objects could look unreachable. The snapshot's notes say what to do. | draft (changed by the review) |
+| Snapshot | Notes, when handles cannot be checked | HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, run heapscope-cli open with --rebuild on this dump. | approved 2026-11-25 |
+| Snapshot | Unreachable objects, refused then, and for an older index cache | Not all GC handles could be checked for this snapshot, so live objects could look unreachable. The snapshot's notes say what to do. | approved 2026-11-25 |
 | Snapshot | Notes, an older index cache in place of a rebuild (its middle sentence, approved 2026-11-13 as "The one thing this version reads differently, the process name, was read again from the dump.") | It can lack what this version reads: in Server GC processes and collectible assemblies, objects held only by a GC handle or by a type can look unreachable. The process name was read again from the dump. | approved 2026-11-25 |
-| Why alive, retained bytes, dominator tree, Similar Retention | An object no root reaches, then | No root HeapScope could read reaches it. Not all GC handles could be checked for this snapshot (see its notes), so it may still be alive. | draft (from the review) |
-| Inspections | Note of a detector that counts reachable objects, then | Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted. | draft (from the review) |
-| Inspections | Growing types, then | Growth cannot be measured: not all GC handles could be checked for {this snapshot, the baseline (file)} (see its notes), so objects held only by a handle could be counted on one side only. {Choose no baseline. Choose another baseline, or none.} | draft (from the review) |
+| Why alive, retained bytes, dominator tree, Similar Retention | An object no root reaches, then | No root HeapScope could read reaches it. Not all GC handles could be checked for this snapshot (see its notes), so it may still be alive. | approved 2026-11-25 |
+| Inspections | Note of a detector that counts reachable objects, then | Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted. | approved 2026-11-25 |
+| Inspections | Growing types, then | Growth cannot be measured: not all GC handles could be checked for {this snapshot, the baseline (file)} (see its notes), so objects held only by a handle could be counted on one side only. {Choose no baseline. Choose another baseline, or none.} | approved 2026-11-25 |
 
 ## Evidence: the per-setting drafts
 
