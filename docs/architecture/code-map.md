@@ -260,7 +260,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   types and instances grids (off by default, carried from the types grid into a type's objects) and the object's
   retained size with its immediate dominator as a link in the Retention tab [2.3]; `InspectionsViewModel` (tiles,
   fragmentation bars, rows as `CellRowItem`s, the generic row of any result set since 2.4) [1.6]; `LiveViewModel` and
-  `SnapshotCard` [1.7]; `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
+  `SnapshotCard` [1.7], since 4.3 monitoring alone over `LiveRunState` (what the page shows of a run), with
+  `LivePastRunsViewModel` and `LiveRunFilesViewModel`; `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
   of the app is a target the Snapshots page routes), `RetainersViewModel` (the dominator tree grid with
   `DominatorRowItem`, the trail as `TrailItem`s, the icicle with `IcicleGeometry`), `RetainedBySetViewModel`,
   `ColumnGroups`, and `GridQueryViewModel.OnRowsApplied` (what refers to new rows runs after they are bound) [2.4].
@@ -282,7 +283,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   Sprint 3.3: Compare's New and Dead, retained and per-generation columns (`ColumnGroups.Identity`), a row's new, dead
   or survived objects as sets, and `TrendViewModel` (the ticked open snapshots, oldest first, as a dynamic-column grid).
   Sprint 3.4 to 3.6: deleting snapshots and sessions and the cleanup of old sessions (`SnapshotsViewModel`,
-  `PageViewModels`), past runs and forced collections on `LiveViewModel` (`PastRunItem`), and the DAC trust question in
+  `PageViewModels`), past runs and forced collections on the Live page (`PastRunItem`), and the DAC trust question in
   `SnapshotsViewModel`.
   Sprint 3.11: opening a dump again refreshes its row in place (`SnapshotItemViewModel.Reload`, `SnapshotsViewModel.ShowOpened`)
   and runs Compare and Trend again when they use it (`CompareViewModel.Reopened`, `TrendViewModel.Reopened`); `InfoTexts` and

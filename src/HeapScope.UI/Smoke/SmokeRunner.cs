@@ -208,14 +208,14 @@ internal sealed class SmokeRunner(IServiceProvider services)
 
         await IdleAsync();
         await Task.Delay(500);
-        var completed = live.Samples.Count == Math.Min(count, LiveViewModel.WindowSamples) && !live.IsRunning;
+        var completed = live.Shown.Samples.Count == Math.Min(count, LiveRunState.WindowSamples) && !live.IsRunning;
         var feed = phases.End("live feed", cold: false);
         logger.LogInformation(
             "Smoke live: {Count:N0} samples in {Seconds:N1} s, {Kept:N0} charted ({Status}), {Measured}",
             count,
             stopwatch.Elapsed.TotalSeconds,
-            live.Samples.Count,
-            live.RunWarning ?? live.Status ?? "ok",
+            live.Shown.Samples.Count,
+            live.Shown.RunWarning ?? live.Shown.Status ?? "ok",
             feed.Measured);
         return SmokeVerdict.Phase(completed, feed.MaxOperation, feed.MaxLag);
     }

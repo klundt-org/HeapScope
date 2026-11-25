@@ -96,31 +96,31 @@
           </StackPanel>
         </Expander.Header>
         <WrapPanel>
-                  <ComboBox x:Name="PastRuns" Width="420" ItemsSource="{Binding PastRuns}" VerticalAlignment="Center">
+                  <ComboBox x:Name="PastRuns" Width="420" ItemsSource="{Binding PastRuns.Runs}" VerticalAlignment="Center">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:PastRunItem">
                 <TextBlock Text="{Binding Title}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <Button Content="Show" Margin="6,0,0,0" Command="{Binding OpenPastRunCommand}" CommandParameter="{Binding #PastRuns.SelectedItem}" VerticalAlignment="Center" />
-          <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="6,0,0,0" Command="{Binding RefreshRunsCommand}" VerticalAlignment="Center" />
-          <Button Content="Open allocations" Margin="16,0,0,0" Command="{Binding OpenTraceCommand}" VerticalAlignment="Center" />
+          <Button Content="Show" Margin="6,0,0,0" Command="{Binding PastRuns.OpenPastRunCommand}" CommandParameter="{Binding #PastRuns.SelectedItem}" VerticalAlignment="Center" />
+          <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="6,0,0,0" Command="{Binding PastRuns.RefreshRunsCommand}" VerticalAlignment="Center" />
+          <Button Content="Open allocations" Margin="16,0,0,0" Command="{Binding Files.OpenTraceCommand}" VerticalAlignment="Center" />
         </WrapPanel>
       </Expander>
-      <Border Classes="info" IsVisible="{Binding RunWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-        <SelectableTextBlock x:Name="RunWarningText" TextWrapping="Wrap" Text="{Binding RunWarning}" />
+      <Border Classes="info" IsVisible="{Binding Shown.RunWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <SelectableTextBlock x:Name="RunWarningText" TextWrapping="Wrap" Text="{Binding Shown.RunWarning}" />
       </Border>
-      <ctl:NoteText Text="{Binding PastRunShown}" TextWrapping="Wrap" Margin="0,0,0,4" Classes="subtle" />
-      <ctl:NoteText Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,4" />
-      <WrapPanel Margin="0,0,0,6" IsVisible="{Binding HasTimeline}">
+      <ctl:NoteText Text="{Binding Shown.PastRunShown}" TextWrapping="Wrap" Margin="0,0,0,4" Classes="subtle" />
+      <ctl:NoteText Text="{Binding Shown.Status}" TextWrapping="Wrap" Margin="0,0,0,4" />
+      <WrapPanel Margin="0,0,0,6" IsVisible="{Binding Files.HasTimeline}">
         <TextBlock Text="Timeline:" VerticalAlignment="Center" Margin="0,0,6,0"
                    ToolTip.Tip="One row per sample (heap sizes, GC counts, time in GC) and one per snapshot, as CSV. Counters only, none of the process's data." />
-        <SelectableTextBlock Text="{Binding TimelinePath}" VerticalAlignment="Center" Margin="0,0,8,0" />
-        <Button Content="Open" Command="{Binding OpenTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0"
+        <SelectableTextBlock Text="{Binding Files.TimelinePath}" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Button Content="Open" Command="{Binding Files.OpenTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0"
                 ToolTip.Tip="Open the timeline in the app for CSV files, such as a spreadsheet." />
-        <Button ctl:ButtonIcon.Icon="OpenFile" Content="Show in folder" Command="{Binding ShowTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <Button ctl:ButtonIcon.Icon="Delete" Content="Delete..." Command="{Binding DeleteTimelineCommand}" VerticalAlignment="Center"
+        <Button ctl:ButtonIcon.Icon="OpenFile" Content="Show in folder" Command="{Binding Files.ShowTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <Button ctl:ButtonIcon.Icon="Delete" Content="Delete..." Command="{Binding Files.DeleteTimelineCommand}" VerticalAlignment="Center"
                 ToolTip.Tip="Deletes the timeline file after asking, and the run's snapshots are kept. That run can no longer be shown under Past runs." />
       </WrapPanel>
       <DockPanel Margin="0,0,0,6">
@@ -143,8 +143,8 @@
       </StackPanel>
     </StackPanel>
     <ScrollViewer DockPanel.Dock="Right" Width="300" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto"
-                  IsVisible="{Binding Snapshots.Count, Converter={x:Static ctl:SignConverters.HasItems}}">
-      <ItemsControl ItemsSource="{Binding Snapshots}">
+                  IsVisible="{Binding Shown.Snapshots.Count, Converter={x:Static ctl:SignConverters.HasItems}}">
+      <ItemsControl ItemsSource="{Binding Shown.Snapshots}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:SnapshotCard">
             <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,0,6">
@@ -153,7 +153,7 @@
                 <TextBlock Text="{Binding Summary}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" Classes="subtle" />
                 <Button ctl:ButtonIcon.Icon="OpenFile" Classes="compact" Content="Show in folder" Margin="0,4,0,0" HorizontalAlignment="Left"
                         IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        Command="{Binding $parent[ItemsControl].((vm:LiveViewModel)DataContext).ShowSnapshotCommand}" CommandParameter="{Binding}" />
+                        Command="{Binding $parent[ItemsControl].((vm:LiveViewModel)DataContext).Files.ShowSnapshotCommand}" CommandParameter="{Binding}" />
               </StackPanel>
             </Border>
           </DataTemplate>
@@ -162,8 +162,8 @@
     </ScrollViewer>
     <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="4">
       <Grid>
-        <ctl:EmptyState Icon="Live" Text="{Binding EmptyText}" IsVisible="{Binding ShowEmptyState}" />
-        <ctl:TimelineChart x:Name="Chart" Samples="{Binding Samples}" RunStart="{Binding ChartStart}" Markers="{Binding Markers}" GcMarkers="{Binding GcMarkers}" Version="{Binding ChartVersion}" />
+        <ctl:EmptyState Icon="Live" Text="{Binding EmptyText}" IsVisible="{Binding Shown.ShowEmptyState}" />
+        <ctl:TimelineChart x:Name="Chart" Samples="{Binding Shown.Samples}" RunStart="{Binding Shown.ChartStart}" Markers="{Binding Shown.Markers}" GcMarkers="{Binding Shown.GcMarkers}" Version="{Binding Shown.ChartVersion}" />
       </Grid>
     </Border>
   </DockPanel>

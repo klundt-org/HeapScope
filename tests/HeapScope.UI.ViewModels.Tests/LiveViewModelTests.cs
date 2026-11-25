@@ -118,7 +118,7 @@ public sealed class LiveViewModelTests : IAsyncDisposable
     public async Task Start_needs_a_process_and_valid_rules()
     {
         await _live.StartCommand.ExecuteAsync(null);
-        _live.Status.ShouldBe("Pick a process to monitor.");
+        _live.Shown.Status.ShouldBe("Pick a process to monitor.");
 
         await _live.RefreshCommand.ExecuteAsync(null);
         _live.SelectedProcess = _live.Processes.Single();
@@ -143,7 +143,7 @@ public sealed class LiveViewModelTests : IAsyncDisposable
             }
 
             await _live.StartCommand.ExecuteAsync(null);
-            (_live.Status, _live.IsRunning).ShouldBe((message, false), $"{field} = {text}");
+            (_live.Shown.Status, _live.IsRunning).ShouldBe((message, false), $"{field} = {text}");
         }
     }
 
@@ -158,38 +158,38 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await _live.StartCommand.ExecuteAsync(null);
         await _feed.SendAsync(100 * Mb, timeInGc: 2);
         await _live.GetSnapshotCommand.ExecuteAsync(null);
-        _live.Status.ShouldBe("Snapshot taken.");
+        _live.Shown.Status.ShouldBe("Snapshot taken.");
         await _live.ForceGcCommand.ExecuteAsync(null);
-        _live.Status!.ShouldStartWith("A full garbage collection ran");
+        _live.Shown.Status!.ShouldStartWith("A full garbage collection ran");
         await _feed.SendAsync(120 * Mb, timeInGc: 2);
         _capture.Busy.Add(42);
         await _live.ForceGcCommand.ExecuteAsync(null);
-        _live.Status!.ShouldContain("Wait for it to finish");
+        _live.Shown.Status!.ShouldContain("Wait for it to finish");
         _capture.Busy.Clear();
         _interaction.Answer = false;
         await _live.ForceGcCommand.ExecuteAsync(null);
         _interaction.Answer = true;
         _interaction.Questions.ShouldContain(q => q.Contains("Finalizers do not run", StringComparison.Ordinal), "asked first, with what it does to the target");
 
-        (_live.Snapshots.ShouldHaveSingleItem().Rule, _live.Markers.Count, _live.GcMarkers.Count, _capture.ForcedGcs.Count).ShouldBe(("manual", 1, 1, 1));
+        (_live.Shown.Snapshots.ShouldHaveSingleItem().Rule, _live.Shown.Markers.Count, _live.Shown.GcMarkers.Count, _capture.ForcedGcs.Count).ShouldBe(("manual", 1, 1, 1));
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
-        await WaitUntilAsync(() => !_live.IsRunning && _live.PastRuns.Count == 1);
+        await WaitUntilAsync(() => !_live.IsRunning && _live.PastRuns.Runs.Count == 1);
 
-        var past = _live.PastRuns.ShouldHaveSingleItem();
+        var past = _live.PastRuns.Runs.ShouldHaveSingleItem();
         past.Title.ShouldContain("app 42, 1 snapshots");
         await _live.StartCommand.ExecuteAsync(null);
-        _live.OpenPastRunCommand.CanExecute(past).ShouldBeFalse("not while monitoring");
+        _live.PastRuns.OpenPastRunCommand.CanExecute(past).ShouldBeFalse("not while monitoring");
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
         await WaitUntilAsync(() => !_live.IsRunning);
 
-        await _live.OpenPastRunCommand.ExecuteAsync(past);
+        await _live.PastRuns.OpenPastRunCommand.ExecuteAsync(past);
 
-        _live.Samples.Count.ShouldBe(2);
-        (_live.Markers.Count, _live.GcMarkers.Count, _live.Snapshots.Count).ShouldBe((1, 1, 1));
-        _live.PastRunShown.ShouldBe(past.Title);
-        _live.Status!.ShouldStartWith("Showing a past run");
+        _live.Shown.Samples.Count.ShouldBe(2);
+        (_live.Shown.Markers.Count, _live.Shown.GcMarkers.Count, _live.Shown.Snapshots.Count).ShouldBe((1, 1, 1));
+        _live.Shown.PastRunShown.ShouldBe(past.Title);
+        _live.Shown.Status!.ShouldStartWith("Showing a past run");
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class LiveViewModelTests : IAsyncDisposable
 
         await _live.StartCommand.ExecuteAsync(null);
         await _feed.SendAsync(600 * Mb, timeInGc: 2);
-        await WaitUntilAsync(() => _live.Snapshots.Count == 1);
+        await WaitUntilAsync(() => _live.Shown.Snapshots.Count == 1);
         _live.StopCommand.Execute(null);
 
         _capture.Kinds.ShouldBe([SnapshotKindDto.GcDump]);
@@ -219,11 +219,11 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await live.StartCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => !live.IsRunning);
 
-        live.RunWarning.ShouldNotBeNull().ShouldContain("cannot monitor it");
-        live.RunWarning!.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user and" : OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
-        live.RunWarning!.ShouldNotContain("dump");
-        live.Status.ShouldBeNull("the warning says it; a second line would repeat it");
-        live.ShowEmptyState.ShouldBeFalse();
+        live.Shown.RunWarning.ShouldNotBeNull().ShouldContain("cannot monitor it");
+        live.Shown.RunWarning!.ShouldContain(OperatingSystem.IsMacOS() ? "Run HeapScope as that user and" : OperatingSystem.IsLinux() ? "Run HeapScope as that user, or as root (sudo)" : "Run HeapScope as administrator");
+        live.Shown.RunWarning!.ShouldNotContain("dump");
+        live.Shown.Status.ShouldBeNull("the warning says it; a second line would repeat it");
+        live.Shown.ShowEmptyState.ShouldBeFalse();
     }
 
     /// <summary>The trace is refused too then, and "the run goes on without it" would be false under a run that was refused.</summary>
@@ -241,8 +241,8 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await live.StartCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => !live.IsRunning);
 
-        live.RunWarning.ShouldNotBeNull().ShouldContain("cannot monitor it");
-        live.Status.ShouldBeNull();
+        live.Shown.RunWarning.ShouldNotBeNull().ShouldContain("cannot monitor it");
+        live.Shown.Status.ShouldBeNull();
     }
 
     /// <summary>A process can turn off the events the counters come from: the page says so instead of waiting in silence.</summary>
@@ -252,25 +252,26 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         _live.EmptyText.ShouldBe(PlatformHints.LiveEmpty);
         var raised = new List<string?>();
         _live.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        _live.Shown.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
         await StartLiveAsync();
         _live.EmptyText.ShouldBe("Waiting for the first sample.");
-        _live.ShowEmptyState.ShouldBeTrue();
+        _live.Shown.ShowEmptyState.ShouldBeTrue();
         raised.ShouldContain(nameof(LiveViewModel.EmptyText), "or the page would keep saying choose a process");
         raised.Clear();
         _delays.ShouldHaveSingleItem().Wait.ShouldBe(TimeSpan.FromSeconds(10));
-        _live.RunWarning.ShouldBeNull();
+        _live.Shown.RunWarning.ShouldBeNull();
         _delays[0].Done.SetResult();
 
-        _live.RunWarning!.ShouldStartWith("No samples from app after 10 s");
-        _live.RunWarning!.ShouldContain("Get snapshot still works");
-        raised.ShouldContain(nameof(LiveViewModel.ShowEmptyState));
-        _live.ShowEmptyState.ShouldBeFalse();
+        _live.Shown.RunWarning!.ShouldStartWith("No samples from app after 10 s");
+        _live.Shown.RunWarning!.ShouldContain("Get snapshot still works");
+        raised.ShouldContain(nameof(LiveRunState.ShowEmptyState));
+        _live.Shown.ShowEmptyState.ShouldBeFalse();
         _live.IsRunning.ShouldBeTrue();
 
         await _feed.SendAsync(100 * Mb, timeInGc: 2);
-        await WaitUntilAsync(() => _live.RunWarning is null);
-        _live.HasSamples.ShouldBeTrue();
+        await WaitUntilAsync(() => _live.Shown.RunWarning is null);
+        _live.Shown.HasSamples.ShouldBeTrue();
 
         await StopLiveAsync();
         _live.EmptyText.ShouldBe(PlatformHints.LiveEmpty);
@@ -293,13 +294,13 @@ public sealed class LiveViewModelTests : IAsyncDisposable
     {
         await StartLiveAsync();
         _delays[0].Done.SetResult();
-        _live.RunWarning.ShouldNotBeNull();
+        _live.Shown.RunWarning.ShouldNotBeNull();
 
         await StopLiveAsync();
 
-        _live.RunWarning.ShouldBeNull();
-        _live.Status!.ShouldStartWith("Stopped after 0 samples");
-        _live.ShowEmptyState.ShouldBeTrue();
+        _live.Shown.RunWarning.ShouldBeNull();
+        _live.Shown.Status!.ShouldStartWith("Stopped after 0 samples");
+        _live.Shown.ShowEmptyState.ShouldBeTrue();
     }
 
     [Fact]
@@ -308,17 +309,17 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await StartLiveAsync();
         await StopLiveAsync();
         _delays[0].Done.SetResult();
-        _live.RunWarning.ShouldBeNull("the run stopped");
+        _live.Shown.RunWarning.ShouldBeNull("the run stopped");
 
         await StartLiveAsync();
         _delays.Count.ShouldBe(2);
         await StopLiveAsync();
         await StartLiveAsync();
         _delays[1].Done.SetResult();
-        _live.RunWarning.ShouldBeNull("that wait was another run's");
+        _live.Shown.RunWarning.ShouldBeNull("that wait was another run's");
 
         _delays[2].Done.SetResult();
-        _live.RunWarning.ShouldNotBeNull("this run's own wait");
+        _live.Shown.RunWarning.ShouldNotBeNull("this run's own wait");
         await StopLiveAsync();
     }
 
@@ -327,15 +328,15 @@ public sealed class LiveViewModelTests : IAsyncDisposable
     {
         await StartLiveAsync();
         _delays[0].Done.SetResult();
-        _live.RunWarning.ShouldNotBeNull();
+        _live.Shown.RunWarning.ShouldNotBeNull();
         await StopLiveAsync();
-        _live.RunWarning = "From the last run.";
+        _live.Shown.RunWarning = "From the last run.";
         _live.Above = "lots";
 
         await _live.StartCommand.ExecuteAsync(null);
 
-        _live.RunWarning.ShouldBeNull();
-        _live.Status!.ShouldStartWith("Above:");
+        _live.Shown.RunWarning.ShouldBeNull();
+        _live.Shown.Status!.ShouldStartWith("Above:");
     }
 
     [Fact]
@@ -348,24 +349,24 @@ public sealed class LiveViewModelTests : IAsyncDisposable
 
         await _live.StartCommand.ExecuteAsync(null);
         _live.IsRunning.ShouldBeTrue();
-        _live.Status!.ShouldContain("rules: above 500 MB");
+        _live.Shown.Status!.ShouldContain("rules: above 500 MB");
         await _feed.SendAsync(100 * Mb, timeInGc: 2);
         await _feed.SendAsync(600 * Mb, timeInGc: 30);
-        await WaitUntilAsync(() => _live.Snapshots.Count == 1);
+        await WaitUntilAsync(() => _live.Shown.Snapshots.Count == 1);
         await _feed.SendAsync(700 * Mb, timeInGc: 30);
 
-        _live.Samples.Select(s => s.HeapAfterGcBytes).ShouldBe([100 * Mb, 600 * Mb, 700 * Mb]);
-        _live.ChartVersion.ShouldBeGreaterThanOrEqualTo(4, "a redraw per sample and per snapshot");
+        _live.Shown.Samples.Select(s => s.HeapAfterGcBytes).ShouldBe([100 * Mb, 600 * Mb, 700 * Mb]);
+        _live.Shown.ChartVersion.ShouldBeGreaterThanOrEqualTo(4, "a redraw per sample and per snapshot");
         _live.Latest!.ShouldContain("after the last GC 700");
         _live.HighGcPressure.ShouldBeTrue("(2 + 30 + 30) / 3 is over 10 percent");
-        var card = _live.Snapshots.ShouldHaveSingleItem("once: one snapshot");
+        var card = _live.Shown.Snapshots.ShouldHaveSingleItem("once: one snapshot");
         (card.Rule, card.Error).ShouldBe(("above 500 MB", null));
-        _live.Markers.ShouldHaveSingleItem().ShouldBe(_live.Samples[1].At);
+        _live.Shown.Markers.ShouldHaveSingleItem().ShouldBe(_live.Shown.Samples[1].At);
 
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
         await WaitUntilAsync(() => !_live.IsRunning);
-        _live.Status!.ShouldStartWith("Stopped after 3 samples and 1 snapshots.");
+        _live.Shown.Status!.ShouldStartWith("Stopped after 3 samples and 1 snapshots.");
         _live.StartCommand.CanExecute(null).ShouldBeTrue();
     }
 
@@ -375,30 +376,30 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         await _live.RefreshCommand.ExecuteAsync(null);
         _live.SelectedProcess = _live.Processes.Single();
         await _live.StartCommand.ExecuteAsync(null);
-        _live.HasTimeline.ShouldBeFalse("not while running");
+        _live.Files.HasTimeline.ShouldBeFalse("not while running");
         await _feed.SendAsync(100 * Mb, timeInGc: 2);
-        await WaitUntilAsync(() => _live.Samples.Count == 1);
+        await WaitUntilAsync(() => _live.Shown.Samples.Count == 1);
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
         await WaitUntilAsync(() => !_live.IsRunning);
 
-        var path = _live.TimelinePath.ShouldNotBeNull();
+        var path = _live.Files.TimelinePath.ShouldNotBeNull();
         File.Exists(path).ShouldBeTrue();
-        _live.Status!.ShouldNotContain(path, Case.Insensitive, "the path has its own row");
-        await _live.OpenTimelineCommand.ExecuteAsync(null);
-        await _live.ShowTimelineCommand.ExecuteAsync(null);
+        _live.Shown.Status!.ShouldNotContain(path, Case.Insensitive, "the path has its own row");
+        await _live.Files.OpenTimelineCommand.ExecuteAsync(null);
+        await _live.Files.ShowTimelineCommand.ExecuteAsync(null);
         (_interaction.Opened.Single(), _interaction.Shown.Single()).ShouldBe((path, path));
 
         _interaction.Answer = false;
-        await _live.DeleteTimelineCommand.ExecuteAsync(null);
+        await _live.Files.DeleteTimelineCommand.ExecuteAsync(null);
         File.Exists(path).ShouldBeTrue("declined");
         _interaction.Questions.Single().ShouldContain(Path.GetFileName(path));
 
         _interaction.Answer = true;
-        await _live.DeleteTimelineCommand.ExecuteAsync(null);
+        await _live.Files.DeleteTimelineCommand.ExecuteAsync(null);
         File.Exists(path).ShouldBeFalse();
-        (_live.TimelinePath, _live.HasTimeline, _live.Status).ShouldBe((null, false, "Timeline deleted."));
-        _live.OpenTimelineCommand.CanExecute(null).ShouldBeFalse();
+        (_live.Files.TimelinePath, _live.Files.HasTimeline, _live.Shown.Status).ShouldBe((null, false, "Timeline deleted."));
+        _live.Files.OpenTimelineCommand.CanExecute(null).ShouldBeFalse();
     }
 
     [Fact]
@@ -409,19 +410,19 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         _live.Above = "500MB";
         await _live.StartCommand.ExecuteAsync(null);
         await _feed.SendAsync(600 * Mb, timeInGc: 2);
-        await WaitUntilAsync(() => _live.Snapshots.Count == 1);
+        await WaitUntilAsync(() => _live.Shown.Snapshots.Count == 1);
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
 
-        var card = _live.Snapshots.Single();
+        var card = _live.Shown.Snapshots.Single();
         var path = card.Path.ShouldNotBeNull();
-        await _live.ShowSnapshotCommand.ExecuteAsync(card);
+        await _live.Files.ShowSnapshotCommand.ExecuteAsync(card);
         _interaction.Shown.ShouldBe([path]);
 
         File.Delete(path);
-        await _live.ShowSnapshotCommand.ExecuteAsync(card);
+        await _live.Files.ShowSnapshotCommand.ExecuteAsync(card);
         _interaction.Shown.Count.ShouldBe(1);
-        _live.Status.ShouldBe("That snapshot file is no longer there.");
+        _live.Shown.Status.ShouldBe("That snapshot file is no longer there.");
     }
 
     [Fact]
@@ -431,16 +432,16 @@ public sealed class LiveViewModelTests : IAsyncDisposable
         _live.SelectedProcess = _live.Processes.Single();
         await _live.StartCommand.ExecuteAsync(null);
         await _feed.SendAsync(100 * Mb, timeInGc: 2);
-        await WaitUntilAsync(() => _live.Samples.Count == 1);
+        await WaitUntilAsync(() => _live.Shown.Samples.Count == 1);
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
         await WaitUntilAsync(() => !_live.IsRunning);
-        File.Delete(_live.TimelinePath.ShouldNotBeNull());
+        File.Delete(_live.Files.TimelinePath.ShouldNotBeNull());
 
-        await _live.OpenTimelineCommand.ExecuteAsync(null);
+        await _live.Files.OpenTimelineCommand.ExecuteAsync(null);
 
         _interaction.Opened.ShouldBeEmpty();
-        (_live.HasTimeline, _live.Status).ShouldBe((false, "The timeline file is no longer there."));
+        (_live.Files.HasTimeline, _live.Shown.Status).ShouldBe((false, "The timeline file is no longer there."));
     }
 
     [Fact]
@@ -538,27 +539,44 @@ public sealed class LiveViewModelTests : IAsyncDisposable
     {
         var raised = new List<string?>();
         _live.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
-        _live.HasSamples.ShouldBeFalse();
+        _live.Shown.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        _live.Shown.HasSamples.ShouldBeFalse();
         await _live.RefreshCommand.ExecuteAsync(null);
         _live.SelectedProcess = _live.Processes.Single();
 
         await _live.StartCommand.ExecuteAsync(null);
         await _feed.SendAsync(100 * Mb, timeInGc: 2);
-        await WaitUntilAsync(() => _live.Samples.Count == 1);
+        await WaitUntilAsync(() => _live.Shown.Samples.Count == 1);
 
-        _live.HasSamples.ShouldBeTrue();
-        raised.ShouldContain(nameof(LiveViewModel.HasSamples), "a list does not notify, so this must");
-        _live.ChartStart.ShouldBe(_live.Samples[0].At);
+        _live.Shown.HasSamples.ShouldBeTrue();
+        raised.ShouldContain(nameof(LiveRunState.HasSamples), "a list does not notify, so this must");
+        _live.Shown.ChartStart.ShouldBe(_live.Shown.Samples[0].At);
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
         await WaitUntilAsync(() => !_live.IsRunning);
 
         await _live.StartCommand.ExecuteAsync(null);
-        _live.HasSamples.ShouldBeFalse("a new run starts empty");
-        _live.ChartStart.ShouldBeNull();
+        _live.Shown.HasSamples.ShouldBeFalse("a new run starts empty");
+        _live.Shown.ChartStart.ShouldBeNull();
         _live.StopCommand.Execute(null);
         await _live.Run!.Completion;
         await WaitUntilAsync(() => !_live.IsRunning);
+    }
+
+    /// <summary>A run a new one replaces is disposed (peer review P11), and the new one is the page's.</summary>
+    [Fact]
+    public async Task A_replaced_run_is_disposed()
+    {
+        await StartLiveAsync();
+        var first = _live.Run!;
+        await StopLiveAsync();
+        first.Stop();
+
+        await StartLiveAsync();
+
+        _live.Run.ShouldNotBeSameAs(first);
+        Should.Throw<ObjectDisposedException>(first.Stop);
+        await StopLiveAsync();
     }
 
     [Fact]

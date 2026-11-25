@@ -510,7 +510,7 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             var empty = window.GetVisualDescendants().OfType<Controls.EmptyState>().ShouldHaveSingleItem();
             (warning.IsEffectivelyVisible, empty.IsVisible, empty.Text).ShouldBe((false, true, PlatformHints.LiveEmpty));
 
-            live.RunWarning = "Refused.";
+            live.Shown.RunWarning = "Refused.";
             Dispatcher.UIThread.RunJobs();
 
             (warning.IsEffectivelyVisible, warning.Text, empty.IsVisible).ShouldBe((true, "Refused.", false));

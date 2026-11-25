@@ -129,8 +129,9 @@ says what to do first: the Live page's view model is 796 lines with three concer
    session at the start names methods compiled before it. Also the pause and size of a dump with the heap only
    (`DumpType.WithHeap`) against a full dump and a gcdump, and whether HeapScope opens it. On a quiet machine. If a gate
    fails, stop and report before building. Proof: the numbers in ADR-037's amendment.
-2. [ ] The Live view model split (Backlog 3.8 P11): live monitoring, past runs, timeline actions over one chart state; replaced
-   runs disposed; no file reads on the UI thread. No behavior change. Tests: the existing Live tests, plus one per concern.
+2. [x] The Live view model split (Backlog 3.8 P11): live monitoring, past runs, the run's files over one state (`LiveRunState`);
+   replaced runs disposed; no file reads on the UI thread. No behavior change, but a past run still being read is not shown
+   over a run that started meanwhile. Tests: the existing Live tests, plus one per concern.
 3. [ ] The live file: each chunk of the session's stream written as it arrives, under its final name, owner-only, shared for
    reading and deleting; `AllocationRecording` says when it ended, after the flush. Tests: a reader beside the writer, an end
    in mid-chunk, a canceled run.

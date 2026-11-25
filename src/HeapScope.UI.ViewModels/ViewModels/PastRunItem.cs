@@ -1,0 +1,33 @@
+// HeapScope
+// Copyright (C) 2026 Ray Klundt
+// https://github.com/klundt-org/HeapScope
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, version 3 only, with additional terms
+// under Section 7 of that license.
+//
+// Additional terms, including attribution requirements, apply.
+// See the ADDITIONAL-TERMS.md file distributed with this program.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program (see the LICENSE file). If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// Commercial licenses are available. See COMMERCIAL.md.
+
+using System.Globalization;
+using HeapScope.Application.Sessions;
+
+namespace HeapScope.UI.ViewModels;
+
+/// <summary>A monitoring run of the current session, listed to reopen (sprint 3.4).</summary>
+public sealed record PastRunItem(SessionRun Run, string Folder)
+{
+    public string Title => string.Create(CultureInfo.CurrentCulture, $"{Run.StartedUtc.ToLocalTime():g}: {Run.ProcessName ?? "process"} {Run.ProcessId}, {Run.SnapshotIds.Count} snapshots{(Run.EndedUtc is { } end ? $", {(end - Run.StartedUtc).TotalMinutes:N0} min" : ", not ended")}{(Run.Trace is null ? string.Empty : ", allocations")}");
+}
