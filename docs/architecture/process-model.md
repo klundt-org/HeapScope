@@ -79,7 +79,7 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   `RequestRefusedException` (Core; the worker's own request checks) is `InvalidArgument`: any other exception, an
   `ArgumentException` from a bug included, is unexpected, logged as an error with its stack and an id (the trace id, or a new one when there is none), and
   the user sees a fixed message with that id, never the exception's own text. The client's message stays plain and the
-  log keeps the details. The front ends catch `WorkerException`, the base of the three worker exception types. The UI
+  log keeps the details. The front ends catch `WorkerException`, the base of the worker exception types (with `AllocationsUnavailableException` of 4.4: the trace of a question about snapshots cannot be used). The UI
   adds last-chance handlers (dispatcher, app domain, unobserved tasks) that log and show a plain message; the
   CLI command boundary prints a plain message and logs the stack trace.
 - Worker stderr is captured by the client and forwarded into the client's log (category `Worker`), so the

@@ -35,7 +35,7 @@ Each change is marked with a `HeapScope change` comment.
    checked the same way and must cover every node (3.7 review H8). Both constructors set the limit, and every read starts
    by setting it. The debug assertions on a node's child count and child index are removed: both come from the file, and
    the loader refuses them (3.7 review H7).
-6. `EventPipeDotNetHeapDumper.cs`, `DumpFromEventPipe`: an optional callback gets the time of the first heap node reported, when the
+6. `EventPipeDotNetHeapDumper.cs`, `DumpFromEventPipe`: an optional callback gets the time of the first heap node its collection reported, when the
    target is paused, so a gcdump's time is its heap's and not its file's (sprint 4.4).
 7. `EventPipeDotNetHeapDumper.cs`, `DumpFromEventPipe`: the session that flushes the type table enables the runtime provider too (GC
    keyword, no types). The runtime describes each type once for as long as a session has the type keyword, and forgets what it

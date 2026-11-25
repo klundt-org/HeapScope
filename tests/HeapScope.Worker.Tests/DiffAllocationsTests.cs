@@ -116,6 +116,7 @@ public sealed class DiffAllocationsTests : IDisposable
     [Theory]
     [InlineData(-9, -4, "The recording started 4.0 s after the later snapshot")]
     [InlineData(14, 20, "The recording ended 4.0 s before the earlier snapshot")]
+    [InlineData(5, 5, "The two snapshots are of the same moment")]
     public async Task An_interval_outside_the_recording_is_refused(int from, int to, string expected) =>
         (await Should.ThrowAsync<Exception>(() => DiffAsync(Trace(), from, to))).Message.ShouldContain(expected);
 

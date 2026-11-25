@@ -123,6 +123,20 @@ public sealed class AllocationJoinTests
         totals.TopOtherType.ShouldHaveSingleItem().ShouldBe((new AllocatedType("Plugin3.Late", 0x20, 7, 1), "Plugin2.Cache"));
     }
 
+    /// <summary>The exact name on either side is taken before one that only differs in its generic arguments.</summary>
+    [Fact]
+    public void The_exact_name_is_taken_before_one_of_other_arguments()
+    {
+        var (before, after) = (new SyntheticGraphBuilder(), new SyntheticGraphBuilder());
+        before.Object("List<Plugin1.Row>", 40, module: "A.dll", methodTable: 0x20);
+        after.Object("List<Plugin2.Cache>", 40, module: "A.dll", methodTable: 0x20);
+
+        var (rows, _) = Diff(before, after, [new("List`1[Plugin1.Row]", 0x20, 300, 3)]);
+
+        rows["List<Plugin1.Row>"].ShouldBe((300, 3));
+        rows["List<Plugin2.Cache>"].Bytes.ShouldBeNull();
+    }
+
     /// <summary>Names are compared without their generic arguments: the runtime's events and a dump order a declaring type's differently.</summary>
     [Theory]
     [InlineData("Entry<System.String, Lib.Multi+ValueSet<System.String, App.X>>[]", "Entry[]")]

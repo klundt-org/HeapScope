@@ -298,18 +298,24 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     // The rows are asked for with the trace: without it they could not be loaded again.
     private void OnTracesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (_readingTrace == 0 && _allocated is { } shown && _allocations!.Traces.All(t => t.Trace != shown.Trace))
+        if (_readingTrace == 0 && ShowAllocated && _allocated is { } shown && _allocations!.Traces.All(t => t.Trace != shown.Trace))
         {
-            Logger.LogInformation("Compare: the allocation trace {Trace} was closed, so Allocated between is unticked", shown.Trace.Path);
-            _allocated = null;
-            _untickedNote = AllocatedBetweenTexts.TraceClosed;
-            ShowAllocated = false;
+            Untick(shown.Trace, AllocatedBetweenTexts.TraceClosed);
         }
+    }
+
+    // The trace cannot be asked any more: the comparison is shown without it, and why.
+    private void Untick(TraceHandle trace, string note)
+    {
+        Logger.LogInformation("Compare: Allocated between is unticked, as the allocation trace {Trace} cannot be used; said as: {Note}", trace.Path, note);
+        _allocated = null;
+        _untickedNote = note;
+        ShowAllocated = false;
     }
 
     protected override void OnCleared()
     {
-        (_allocated, AllocatedShown, AllocatedNote) = (null, false, null);
+        (_allocated, AllocatedShown, AllocatedNote, _untickedNote) = (null, false, null, null);
         base.OnCleared();
     }
 
@@ -353,13 +359,12 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
             row.AllocatedBytes,
             row.AllocatedSamples,
             row.AllocatedType ?? "several, so every type is shown");
-        if (!_allocations.ShowInterval(allocated.Trace, allocated.Interval, row.AllocatedType))
+        var note = row.AllocatedType is not { } traced ? AllocatedBetweenTexts.EveryType
+            : row.TypeName?.Contains('+', StringComparison.Ordinal) == true ? AllocatedBetweenTexts.EveryOfName(traced)
+            : null;
+        if (!_allocations.ShowInterval(allocated.Trace, allocated.Interval, row.AllocatedType, note))
         {
             Status = AllocatedBetweenTexts.TraceClosed;
-        }
-        else if (row.AllocatedType is null)
-        {
-            Status = AllocatedBetweenTexts.EveryType;
         }
     }
 
@@ -383,7 +388,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
             return (null, found.Reason, 0);
         }
 
-        _readingTrace++;
+        Interlocked.Increment(ref _readingTrace);
         try
         {
             return (await _allocations.OpenBesideAsync(path, found.FromUtc, found.ToUtc, cancellationToken), found.NoHeapTime ? AllocatedBetweenTexts.NoHeapTime : null, found.ClockShiftSeconds);
@@ -396,7 +401,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         }
         finally
         {
-            _readingTrace--;
+            Interlocked.Decrement(ref _readingTrace);
         }
     }
 
@@ -537,6 +542,13 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
                     : ShowRetained && groupBy == TypeGrouping.Interface ? "Interface rows have no retained sizes: a type counts under each interface it implements. Group by type, namespace or assembly to see them." : null;
                 HasGenerations = result.KindDeltas is not null;
                 _allocated = allocations is { } a && result.Allocations is { } shown ? (a.Trace, new TimeInterval(shown.FromSeconds, shown.ToSeconds)) : null;
+                if (allocations is { Trace.IsClosed: true } closed)
+                {
+                    // Closed after the worker answered.
+                    Untick(closed.Trace, AllocatedBetweenTexts.TraceClosed);
+                    return;
+                }
+
                 AllocatedShown = result.Allocations is not null;
                 AllocatedNote = result.Allocations is { } info
                     ? AllocatedBetweenTexts.Summary(info, Format.Bytes, CultureInfo.CurrentCulture, clockShift) + (allocatedNote is { } heapTime ? " " + heapTime : string.Empty)
@@ -545,7 +557,21 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
                 CultureInfo.CurrentCulture,
                 $"{result.Rows.TotalCount:N0} of {result.UnfilteredRows:N0} {Plural(groupBy)} ({result.NewRows:N0} new, {result.GoneRows:N0} gone); matching rows {Format.SignedBytes(result.MatchingBytesDelta)}; heap {Format.SignedBytes(result.CurrentBytes - result.BaselineBytes)}, {SignedCount(result.CurrentObjects - result.BaselineObjects)} objects ({scope}{(result.ExactCounts ? string.Empty : "; estimated: a snapshot is sampled or incomplete")})");
             },
-            onError => DiffRowItem.CreateList(diff.Rows, result.Rows, onError, Logger));
+            onError => DiffRowItem.CreateList(
+                diff.Rows,
+                result.Rows,
+                ex =>
+                {
+                    if (ex is AllocationsUnavailableException && allocations is { } used && ShowAllocated)
+                    {
+                        Untick(used.Trace, ex.Message);
+                    }
+                    else
+                    {
+                        onError(ex);
+                    }
+                },
+                Logger));
     }
 
     // A refusal of the question may be about the trace: without it, anything else is refused again and shown.
@@ -675,6 +701,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     // How the pair was chosen, for the log line that backs up a disputed comparison (sprint 2.3.7 review H3).
     private void OnPairChanged(string reason = "picked by the user")
     {
+        _untickedNote = null;
         OnPropertyChanged(nameof(Hint));
         if (Baseline is { } baseline && Current is { } current)
         {

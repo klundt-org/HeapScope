@@ -51,6 +51,11 @@ public static class AllocatedBetweenTexts
 
     public const string TraceClosed = "The allocation trace was closed on the Allocations page. Tick Allocated between again to open it.";
 
+    public static string Unreadable(string reason) => "The session of these snapshots cannot be read (" + reason + "), so no recorded run is known to lie between them.";
+
+    /// <summary>On the Allocations page, for a row of a nested type: the trace has only its innermost name.</summary>
+    public static string EveryOfName(string name) => "The trace names a nested type by its own name only, so this shows every type named " + name + ", which can be more than the row in Compare.";
+
     public static string NotRecorded(string note) => "The monitoring run of these snapshots has no allocation trace: " + note;
 
     /// <summary>What was counted, and what no row holds.</summary>
@@ -65,7 +70,7 @@ public static class AllocatedBetweenTexts
         };
         if (info.AbsentBytes > 0)
         {
-            parts.Add(string.Create(culture, $"{bytes(info.AbsentBytes)} of it in {info.AbsentTypes:N0} types without an object in either snapshot, so without a row."));
+            parts.Add(string.Create(culture, $"{bytes(info.AbsentBytes)} of it in {info.AbsentTypes:N0} types {(info.UnnamedTypes > 0 ? "not found" : "without an object")} in either snapshot, so without a row."));
         }
 
         if (info.SharedNameBytes > 0)

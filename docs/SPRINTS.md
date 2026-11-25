@@ -159,10 +159,11 @@ name for a type.
 - Time. The recorded time of a full dump lay 3 to 160 ms after the target's pause (up to 220 MB at the rate DenseHeap allocates), that
   of a gcdump 3 to 6 s after (170 MB of LeakyApi's, up to 1,860 MB of DenseHeap's). A dump's own time has whole seconds only. Now: a full
   dump's last write and a gcdump's first heap node, within the pause or at most 3 ms after it (0 to 1.9 MB).
-- Names. Of the sampled bytes between two full dumps, 78 to 83% join by name and 97.5 to 100% by the tick's type id; the rest are types
-  without an object in either dump. The runtime's events name a nested type by its innermost name, as a gcdump does: between gcdumps 81
-  to 92% join by name, and the rest are types that left nothing behind (Activity, log scopes, compiler temporaries). Names several
-  modules share: 0 to 0.4%.
+- Names. Of the sampled bytes between two full dumps, 61 to 83% join by name and 74 to 100% by the tick's type id; the rest are types
+  without an object in either dump (74%: both dumps just after a collection, of a compiler's temporaries). The runtime's events name a
+  nested type by its innermost name, as a gcdump does: between gcdumps 80 to 95% join by name, and the rest are types that left nothing
+  behind (Activity, log scopes, compiler temporaries). Names several modules share: 0 to 0.4%; names the trace has for several types,
+  which the review left without a row: 1.1%.
 - Every gcdump but the first that was captured while a trace recorded had types without a name (it said that it was incomplete). The
   runtime describes a type once while a session has its type keyword, and forgets only when the keyword is turned off, which the flush
   before a gcdump did not do beside another session. So since 3.4, when runs could record allocations, the second gcdump of such a run

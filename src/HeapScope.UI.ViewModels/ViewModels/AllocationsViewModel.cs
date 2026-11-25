@@ -142,18 +142,29 @@ public sealed partial class AllocationsViewModel : ObservableObject
             await CloseAsync(stale);
         }
 
-        if (Find(path) is not { } tab)
-        {
-            var handle = await _session.OpenOnceAsync(path, cancellationToken);
-            tab = Find(path) ?? Add(handle);
-            Selected ??= tab;
-        }
-
+        // The tab comes with the trace, also when the question no longer waits for it: what is open can be closed here.
+        var opened = OpenTabAsync(path);
+        _ = opened.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        var tab = await opened.WaitAsync(cancellationToken);
         return new DiffAllocations(_session, tab.Trace, fromUtc, toUtc);
     }
 
+    private async Task<AllocationTraceViewModel> OpenTabAsync(string path)
+    {
+        if (Find(path) is { } open)
+        {
+            return open;
+        }
+
+        var handle = await _session.OpenOnceAsync(path, CancellationToken.None);
+        var tab = Find(path) ?? Add(handle);
+        Selected ??= tab;
+        return tab;
+    }
+
     /// <summary>Shows an interval of an open trace, of one type or every type, and this page. False when the trace was closed.</summary>
-    public bool ShowInterval(TraceHandle handle, TimeInterval interval, string? typeName)
+    /// <param name="note">What to say about it on this page.</param>
+    public bool ShowInterval(TraceHandle handle, TimeInterval interval, string? typeName, string? note = null)
     {
         ArgumentNullException.ThrowIfNull(handle);
         if (Traces.FirstOrDefault(t => t.Trace == handle) is not { } tab)
@@ -163,6 +174,7 @@ public sealed partial class AllocationsViewModel : ObservableObject
 
         Selected = tab;
         tab.Narrow(interval, typeName);
+        Status = note;
         TraceShown?.Invoke(this, EventArgs.Empty);
         return true;
     }

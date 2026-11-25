@@ -160,37 +160,17 @@ public sealed class AllocationJoin
             Target target;
             if (type.MethodTable != 0 && (currentTables.ContainsKey(type.MethodTable) || baselineTables.ContainsKey(type.MethodTable)))
             {
-                string? inSnapshot = null;
-                if (Is(currentGraph, currentTables, out var t))
+                var (inCurrent, inBaseline) = (At(currentGraph, currentTables, type.MethodTable), At(baselineGraph, baselineTables, type.MethodTable));
+                var (asCurrent, asBaseline) = (Match(inCurrent?.Name, form), Match(inBaseline?.Name, form));
+                if (asCurrent == NameMatch.None && asBaseline == NameMatch.None)
                 {
-                    target = new Target(true, t, string.Empty, Shared: false);
-                }
-                else if (Is(baselineGraph, baselineTables, out t))
-                {
-                    target = new Target(false, t, string.Empty, Shared: false);
-                }
-                else
-                {
-                    other.Add((type, inSnapshot!));
+                    other.Add((type, (inCurrent ?? inBaseline)!.Value.Name));
                     absent.Add(type);
                     continue;
                 }
 
+                target = asCurrent >= asBaseline ? new Target(true, inCurrent!.Value.Type, string.Empty, Shared: false) : new Target(false, inBaseline!.Value.Type, string.Empty, Shared: false);
                 byTable += type.Bytes;
-
-                // Whether the snapshot's type at the tick's method table is the tick's: by the name without its generic arguments, which
-                // the runtime's events and a dump order differently where a declaring type has some. An unnamed type is taken for it.
-                bool Is(HeapGraph graph, Dictionary<ulong, int> tables, out int index)
-                {
-                    if (!tables.TryGetValue(type.MethodTable, out index))
-                    {
-                        return false;
-                    }
-
-                    var name = graph.Types.GetName(index);
-                    inSnapshot ??= name;
-                    return name.StartsWith("<unknown", StringComparison.Ordinal) || WithoutArguments(TypeNameForms.AsGcDumpName(name)) == WithoutArguments(form);
-                }
             }
             else if (names.TryGetValue(form, out target))
             {
@@ -234,6 +214,18 @@ public sealed class AllocationJoin
             currentSamples,
             currentNames);
     }
+
+    private static (int Type, string Name)? At(HeapGraph graph, Dictionary<ulong, int> tables, ulong methodTable) =>
+        tables.TryGetValue(methodTable, out var type) ? (type, graph.Types.GetName(type)) : null;
+
+    // Whether the snapshot's type at the tick's method table is the tick's: by its name, or by the name without its generic arguments,
+    // which the runtime's events and a dump order differently where a declaring type has some. An unnamed type is taken for it last.
+    private static NameMatch Match(string? name, string form) =>
+        name is null ? NameMatch.None
+        : name.StartsWith("<unknown", StringComparison.Ordinal) ? NameMatch.Unnamed
+        : TypeNameForms.AsGcDumpName(name) is var inSnapshot && inSnapshot == form ? NameMatch.Exact
+        : WithoutArguments(inSnapshot) == WithoutArguments(form) ? NameMatch.WithoutArguments
+        : NameMatch.None;
 
     /// <summary>A name as the trace records it, in the one form both are compared in.</summary>
     private static string Form(string recorded) => TypeNameForms.AsGcDumpName(TypeNameForms.FromRuntimeEvent(recorded));
@@ -314,6 +306,14 @@ public sealed class AllocationJoin
         }
 
         return unnamed;
+    }
+
+    private enum NameMatch
+    {
+        None,
+        Unnamed,
+        WithoutArguments,
+        Exact,
     }
 
     private readonly record struct Target(bool IsCurrent, int Type, string Module, bool Shared);

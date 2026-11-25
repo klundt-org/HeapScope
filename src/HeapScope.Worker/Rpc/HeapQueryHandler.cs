@@ -566,7 +566,13 @@ internal sealed class HeapQueryHandler(
             }
         }
 
-        if (to <= from || from > info.DurationMs || until <= 0)
+        if (until <= asked)
+        {
+            Logger.LogInformation("Allocations between {Question}: refused, the heaps are of the same moment", question);
+            throw new RequestRefusedException("The two snapshots are of the same moment, so nothing was allocated between them. Choose two different ones.");
+        }
+
+        if (asked > info.DurationMs || until <= 0)
         {
             Logger.LogInformation("Allocations between {Question}: refused, the recording does not lie between them", question);
             throw new RequestRefusedException(until <= 0
@@ -579,7 +585,9 @@ internal sealed class HeapQueryHandler(
             () =>
             {
                 var allocated = AllocationJoin.Types(open.Trace, new AllocationFilter(from, to), cancellationToken);
-                var shared = AllocationJoin.SharedNames(open.Trace, cancellationToken);
+
+                // Only a gcdump is joined by name.
+                var shared = baseline.Info.Kind == SnapshotKind.GcDump || current.Info.Kind == SnapshotKind.GcDump ? open.SharedNames : new HashSet<string>();
                 return (allocated, AllocationJoin.Join(allocated, shared, baseline.Graph, baselineAggregation, current.Graph, currentAggregation, cancellationToken));
             },
             cancellationToken).ConfigureAwait(false);

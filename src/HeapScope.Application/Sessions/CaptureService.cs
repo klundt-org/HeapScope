@@ -315,7 +315,7 @@ public sealed class CaptureService : ICaptureService
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // The snapshot is valid; only the record failed.
-                _logger.LogWarning(ex, "The capture {Path} could not be recorded in its session", path);
+                _logger.LogWarning(ex, "The capture {Path}, its heap as of {HeapUtc} ({HeapSource}), could not be recorded in its session", path, heap?.Utc.ToString("O", CultureInfo.InvariantCulture) ?? "unknown", heap?.Source ?? "the runtime's events did not say");
                 var warning = $"The snapshot was written, but the session could not be updated: {ex.Message}";
                 return new CaptureResult(path, size, ToEntry(process), null, notPrivate is null ? warning : warning + " " + notPrivate, kind);
             }

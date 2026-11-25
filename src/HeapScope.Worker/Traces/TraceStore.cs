@@ -288,6 +288,11 @@ internal sealed class TraceStore
 /// <summary>An open trace with its type ids by name.</summary>
 internal sealed class OpenTrace(string path, AllocationTrace trace, LiveTraceView? live = null)
 {
+    private readonly Lazy<IReadOnlySet<string>> _sharedNames = new(() => HeapScope.Analysis.Allocations.AllocationJoin.SharedNames(trace));
+
+    /// <summary>The names several types share (<see cref="HeapScope.Analysis.Allocations.AllocationJoin.SharedNames"/>), found once when a gcdump is first joined.</summary>
+    public IReadOnlySet<string> SharedNames => _sharedNames.Value;
+
     /// <summary>The view of a live trace this is, with the width of its stretches; null for a finished trace.</summary>
     public LiveTraceView? Live { get; } = live;
 

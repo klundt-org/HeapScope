@@ -153,6 +153,38 @@ public sealed class CompareAllocatedTests : IDisposable
         (Service.TracesOpened.Count, _allocations.Traces.Count).ShouldBe((1, 1));
     }
 
+    /// <summary>A read nobody waits for any more still gets its tab, where it can be closed.</summary>
+    [Fact]
+    public async Task A_read_that_is_not_waited_for_gets_its_tab()
+    {
+        await OpenBothAsync(recorded: true);
+        Service.OpenTraceGate = new TaskCompletionSource();
+        Compare.ShowAllocated = true;
+        await WaitUntilAsync(() => Service.TracesOpened.Count == 1);
+
+        Compare.ShowAllocated = false;
+        await WaitUntilAsync(() => Service.DiffQueries.Count == 2);
+        Service.OpenTraceGate.SetResult();
+
+        await WaitUntilAsync(() => _allocations.Traces.Count == 1);
+        Compare.AllocatedShown.ShouldBeFalse();
+    }
+
+    /// <summary>The page the step leads to says what it shows more than the row.</summary>
+    [Fact]
+    public async Task A_nested_type_s_row_says_that_the_page_shows_every_type_of_its_name()
+    {
+        Service.DiffRows.Clear();
+        Service.DiffRows.Add(["App.One+Scope", "", "2", "5", "3", "80", "200", "120", "1", "1", "App.One+Scope", "App.dll"]);
+        Service.DiffRows.Add(["App.Cache", "", "1", "2", "1", "50", "100", "50", "1", "1", "App.Cache", "App.dll"]);
+        await OpenBothAsync(recorded: true);
+        await TickAsync();
+
+        Compare.ShowWhereAllocatedCommand.Execute((await RowsAsync())[0]);
+
+        _allocations.Status.ShouldBe(AllocatedBetweenTexts.EveryOfName("Traced"));
+    }
+
     /// <summary>Review H1: a tab read before the file was complete is not the file's any more.</summary>
     [Fact]
     public async Task A_trace_that_changed_since_it_was_read_is_read_again()

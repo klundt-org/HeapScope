@@ -100,6 +100,11 @@ public sealed class AllocatedBetweenTests : IDisposable
         Run(run, ended: 60, trace: null, note: "The process exited.");
         Reason(first, second).ShouldBe(AllocatedBetweenTexts.NotRecorded("The process exited."));
 
+        // A received session's words stay on one line of the log.
+        Run(run, ended: 60, trace: null, note: "line\n2026-11-25 12:00:00 [INF] forged" + new string('x', 500));
+        AllocatedBetween.Find(first, second).Evidence.ShouldNotContain("\n");
+        Reason(first, second)!.Length.ShouldBeLessThan(500);
+
         // A received session's paths are not followed out of its folder.
         Run(run, ended: 60, trace: Path.Combine("..", "..", "run.nettrace"));
         Reason(first, second)!.ShouldContain("outside its session folder");
@@ -139,7 +144,7 @@ public sealed class AllocatedBetweenTests : IDisposable
         File.WriteAllText(Path.Combine(_folder, "session.json"), "{ damaged");
         var read = SessionLibrary.Read(_folder);
 
-        Reason(first, second).ShouldBe($"{read.Reason} {read.NextStep}");
+        Reason(first, second).ShouldBe(AllocatedBetweenTexts.Unreadable(read.Reason!));
     }
 
     [Fact]
@@ -152,7 +157,7 @@ public sealed class AllocatedBetweenTests : IDisposable
             .ShouldBe("About 4000 B allocated between the snapshots (40 samples, 10.5 s), collected objects included.");
         AllocatedBetweenTexts.Summary(whole with { AskedFromSeconds = -1.5, AskedToSeconds = 22, AbsentBytes = 10, AbsentTypes = 2, SharedNameBytes = 5, LostEvents = 3, NameBytes = 20, UnnamedTypes = 4, ConversionIssues = 1 }, Bytes, CultureInfo.InvariantCulture, -2.5).ShouldBe(
             "About 4000 B allocated between the snapshots (40 samples, 10.5 s), collected objects included."
-            + " 10 B of it in 2 types without an object in either snapshot, so without a row."
+            + " 10 B of it in 2 types not found in either snapshot, so without a row."
             + " 5 B of type names that several types share, which a gcdump cannot tell apart, so without a row."
             + " 20 B of it is matched by name only, as a gcdump has nothing else: it names a nested type without its declaring type, so a row can hold what another type of its name allocated."
             + " 4 types of a gcdump here have no name (another tool may have traced the process), so what was allocated of them has no row."

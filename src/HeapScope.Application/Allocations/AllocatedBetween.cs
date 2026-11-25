@@ -61,18 +61,18 @@ public sealed record AllocatedBetween(string? TracePath, Guid RunId, DateTimeOff
         if (read.Session is not { } session)
         {
             return read.Status == SessionReadStatus.Unreadable
-                ? None(string.Join(" ", new[] { read.Reason, read.NextStep }.Where(static t => t is not null)), $"the session of {folder} could not be read: {read.Reason}")
+                ? None(AllocatedBetweenTexts.Unreadable(read.Reason ?? "no reason was given"), $"the session of {folder} could not be read: {read.Reason}")
                 : None(AllocatedBetweenTexts.NotOneSession, $"{folder} has no session");
         }
 
         if (SnapshotAt(session, baselinePath) is not { } baseline)
         {
-            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the baseline");
+            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the baseline among its {session.Document.Snapshots.Count} snapshots on this machine ({session.Document.UnknownSnapshots.Count} of a newer version set aside)");
         }
 
         if (SnapshotAt(session, currentPath) is not { } current)
         {
-            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the current snapshot");
+            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the current snapshot among its {session.Document.Snapshots.Count} snapshots on this machine ({session.Document.UnknownSnapshots.Count} of a newer version set aside)");
         }
 
         var heaps = string.Create(CultureInfo.InvariantCulture, $"baseline {Describe(baseline)}, current {Describe(current)}{(Heap(baseline) <= Heap(current) ? string.Empty : ", in reverse order")}");
@@ -82,8 +82,9 @@ public sealed record AllocatedBetween(string? TracePath, Guid RunId, DateTimeOff
         // A process id stays one process for as long as a run watches it: the run ends when the process does. A run whose end was not
         // recorded (HeapScope ended first) says nothing about what came after, so a later run that ended is taken before it.
         var left = runs.Select(r => (Run: r, Why: WhyNot(r, baseline, current, from, to))).ToList();
-        var evidence = heaps + "; runs: " + (runs.Count == 0 ? "none" : string.Join("; ", left.OrderByDescending(r => r.Run.StartedUtc).Take(LoggedRuns).Select(r => Describe(r.Run, r.Why)))
-            + (runs.Count > LoggedRuns ? string.Create(CultureInfo.InvariantCulture, $"; {runs.Count - LoggedRuns} more") : string.Empty));
+        var evidence = heaps + "; runs: " + (runs.Count == 0 ? "none" : string.Join("; ", left.OrderBy(r => r.Why is not null).ThenBy(r => r.Run.ProcessId != baseline.ProcessId).ThenBy(r => (r.Run.StartedUtc - from).Duration()).Take(LoggedRuns).Select(r => Describe(r.Run, r.Why)))
+            + (runs.Count > LoggedRuns ? string.Create(CultureInfo.InvariantCulture, $"; {runs.Count - LoggedRuns} more") : string.Empty)
+            + (session.Document.UnknownRuns.Count == 0 ? string.Empty : string.Create(CultureInfo.InvariantCulture, $"; {session.Document.UnknownRuns.Count} of a newer version set aside")));
         var matching = left.Where(r => r.Why is null).Select(r => r.Run).OrderByDescending(r => r.StartedUtc).ToList();
         if (matching.Count == 0)
         {
@@ -92,16 +93,16 @@ public sealed record AllocatedBetween(string? TracePath, Guid RunId, DateTimeOff
 
         if (matching.FirstOrDefault(r => r.EndedUtc is not null && r.Trace is not null) is not { } run)
         {
-            var reason = matching.Where(r => r.EndedUtc is not null).Select(r => r.TraceNote is { } note ? AllocatedBetweenTexts.NotRecorded(note) : AllocatedBetweenTexts.NoTrace).FirstOrDefault()
+            var reason = matching.Where(r => r.EndedUtc is not null).Select(r => Plain(r.TraceNote) is { } note ? AllocatedBetweenTexts.NotRecorded(note) : AllocatedBetweenTexts.NoTrace).FirstOrDefault()
                 ?? (matching.Any(r => r.Trace is not null) ? AllocatedBetweenTexts.NotEnded : AllocatedBetweenTexts.NoTrace);
             return None(reason, evidence);
         }
 
         var check = Session.RunFiles(session.Folder, run).Trace;
-        evidence += string.Create(CultureInfo.InvariantCulture, $"; taken run {run.Id}, clock shift {run.ClockShiftSeconds?.ToString("F3", CultureInfo.InvariantCulture) ?? "not recorded"} s");
+        evidence += string.Create(CultureInfo.InvariantCulture, $"; taken {Describe(run, null)}, clock shift {run.ClockShiftSeconds?.ToString("F3", CultureInfo.InvariantCulture) ?? "not recorded"} s");
         return check.Path is { } trace
             ? new AllocatedBetween(trace, run.Id, from, to, baseline.HeapUtc is null || current.HeapUtc is null, null, evidence) { ClockShiftSeconds = run.ClockShiftSeconds ?? 0 }
-            : None(check.Describe("The run's allocation trace"), $"{evidence}; its trace {run.Trace} was refused ({check.Refusal})");
+            : None(check.Describe("The run's allocation trace"), $"{evidence}; its trace {Plain(run.Trace)} was refused ({check.Refusal})");
     }
 
     private static AllocatedBetween None(string reason, string evidence) => new(null, Guid.Empty, default, default, false, reason, evidence);
@@ -120,7 +121,11 @@ public sealed record AllocatedBetween(string? TracePath, Guid RunId, DateTimeOff
 
     private static string Describe(SessionRun run, string? why) => string.Create(
         CultureInfo.InvariantCulture,
-        $"{run.Id} of process {run.ProcessId}, {run.StartedUtc:O} to {(run.EndedUtc is { } end ? end.ToString("O", CultureInfo.InvariantCulture) : "not ended")}, trace {run.Trace ?? "none"}{(run.TraceNote is { } note ? $" ({note})" : string.Empty)}: {why ?? "fits"}");
+        $"{run.Id} of process {run.ProcessId}, {run.StartedUtc:O} to {(run.EndedUtc is { } end ? end.ToString("O", CultureInfo.InvariantCulture) : "not ended")}, trace {Plain(run.Trace) ?? "none"}{(Plain(run.TraceNote) is { } note ? $" ({note})" : string.Empty)}: {why ?? "fits"}");
+
+    // A session may be someone else's: what it says stays on one line of the log, and short.
+    private static string? Plain(string? recorded) =>
+        recorded is null ? null : new string([.. recorded.Take(300).Select(static c => char.IsControl(c) ? ' ' : c)]);
 
     private static SessionSnapshot? SnapshotAt(Session session, string path) =>
         session.Document.Snapshots.FirstOrDefault(s => Session.IsLocal(session.PathOf(s)) && PathIdentity.Same(Path.GetFullPath(session.PathOf(s)), Path.GetFullPath(path)));

@@ -298,14 +298,22 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         Lazy<TrackedJob<TraceHandle>>? opening;
         lock (_gate)
         {
+            // Read since it was looked for above.
+            if (_traces.FirstOrDefault(t => t.Live is null && PathIdentity.Same(t.Path, fullPath) && t.IsFileAsRead()) is { } now)
+            {
+                return now;
+            }
+
             if (!_opening.TryGetValue(fullPath, out opening))
             {
                 _opening.Add(fullPath, opening = new Lazy<TrackedJob<TraceHandle>>(() =>
                 {
                     var job = StartOpen(fullPath);
                     _ = job.Result.ContinueWith(
-                        _ =>
+                        t =>
                         {
+                            // Seen, for when nobody waits for it any more: the job has its failure.
+                            _ = t.Exception;
                             lock (_gate)
                             {
                                 _opening.Remove(fullPath);

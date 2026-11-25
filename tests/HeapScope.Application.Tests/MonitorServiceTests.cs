@@ -44,6 +44,28 @@ public sealed class MonitorServiceTests : IDisposable
         _capture = new RecordingCaptureService(_root, new JobTracker(TimeProvider.System));
     }
 
+    /// <summary>Sprint 4.4: a machine that slept, or whose clock was set, during the run.</summary>
+    [Fact]
+    public async Task A_run_records_how_far_the_clock_moved_against_the_counter()
+    {
+        var time = new ShiftingTime();
+        var run = new MonitorService(_capture, _feed, timeProvider: time).Start(42, new MonitorOptions(TimeSpan.FromSeconds(1), MonitorRules.None));
+        SessionLibrary.TryRead(run.SessionFolder!)!.Document.Runs!.Single().ClockShiftSeconds.ShouldBeNull("not while it runs");
+        time.Shift = TimeSpan.FromSeconds(600);
+
+        run.Stop();
+        await run.Completion;
+
+        SessionLibrary.TryRead(run.SessionFolder!)!.Document.Runs!.Single().ClockShiftSeconds.ShouldNotBeNull().ShouldBe(600, tolerance: 1);
+    }
+
+    private sealed class ShiftingTime : TimeProvider
+    {
+        public TimeSpan Shift { get; set; }
+
+        public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + Shift;
+    }
+
     /// <summary>On a busy machine a Stop can arrive while the session is still starting: no trace, no false failure, and it says so.</summary>
     [Fact]
     public async Task A_stop_while_the_trace_is_still_starting_says_there_is_no_trace_and_why()
