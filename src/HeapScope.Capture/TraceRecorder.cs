@@ -255,17 +255,10 @@ public static class TraceRecorder
         var elapsed = Task.Delay(duration, cancellationToken);
         var first = await Task.WhenAny(copy, elapsed).ConfigureAwait(false);
         var stoppedEarly = first == copy || cancellationToken.IsCancellationRequested;
-        if (first != copy)
+        // A target that does not answer the stop (frozen in a debugger) has its session let go, which ends the copy (peer review 4.5 H9).
+        if (first != copy && !await SessionStop.StopAsync(session).ConfigureAwait(false))
         {
-            try
-            {
-                await session.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or EndOfStreamException or IOException)
-            {
-                // The process exited as the recording ended; what was recorded is kept.
-                stoppedEarly = true;
-            }
+            stoppedEarly = true;
         }
 
         // A stopped session ends its stream after the rundown; one that never ends (the target hung) must not

@@ -220,7 +220,7 @@ public static class CounterMonitor
             using (cancellationToken.Register(() =>
             {
                 Volatile.Write(ref stopping, 1);
-                _ = StopQuietlyAsync(session);
+                _ = SessionStop.StopAsync(session);
             }))
             {
                 await reading.ConfigureAwait(false);
@@ -262,27 +262,6 @@ public static class CounterMonitor
 
         value = Convert.ToDouble(raw, CultureInfo.InvariantCulture);
         return true;
-    }
-
-    /// <summary>
-    /// Stops the session; a target that does not answer within 5 seconds (frozen in a debugger) has its session disposed,
-    /// which ends the stream, so stopping never hangs (review of 1.7).
-    /// </summary>
-    private static async Task StopQuietlyAsync(EventPipeSession session)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        try
-        {
-            await session.StopAsync(timeout.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            session.Dispose();
-        }
-        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or EndOfStreamException or IOException or ObjectDisposedException)
-        {
-            // The process exited, or the session already ended: the stream is over either way.
-        }
     }
 
     internal static Exception Translate(int processId, Exception ex)

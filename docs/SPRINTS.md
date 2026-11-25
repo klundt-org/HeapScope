@@ -131,7 +131,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 1. [x] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
    heap bar and notes cleared first, also when the new query fails; Trend falls back to its default sort for a column gone; Compare and
    Trend show the busy bar. Tests: a query of B that fails shows nothing of A, in Types, Compare and Trend; Trend after a close.
-2. [ ] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced
+2. [x] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced
    collection and the counters; closing the app waits a bounded time for its host, logs what it waited for and always shuts down.
    Tests: the helper with a stop that never answers; a recording and a forced collection of a suspended process end.
 3. [ ] H10: a job's work starts on the thread pool, never on the caller's (UI) thread, and so does starting a worker. Test: work that

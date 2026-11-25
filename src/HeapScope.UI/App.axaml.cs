@@ -45,6 +45,7 @@ namespace HeapScope.UI;
 public sealed partial class App : Avalonia.Application
 {
     private static readonly TimeSpan s_stopTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan s_disposeTimeout = TimeSpan.FromSeconds(15);
 
     private readonly string[] _args;
     private IClassicDesktopStyleApplicationLifetime? _desktop;
@@ -275,13 +276,15 @@ public sealed partial class App : Avalonia.Application
             var logger = host.Services.GetService<ILogger<App>>();
             try
             {
-                if (host is IAsyncDisposable asyncDisposable)
+                // Bounded (peer review 4.5 H9): a run whose target does not answer must not keep HeapScope running without a window.
+                var disposing = host is IAsyncDisposable asyncDisposable ? asyncDisposable.DisposeAsync().AsTask() : Task.Run(host.Dispose);
+                if (await Task.WhenAny(disposing, Task.Delay(s_disposeTimeout)) != disposing)
                 {
-                    await asyncDisposable.DisposeAsync();
+                    logger?.LogWarning("Host dispose did not end in {Seconds} s; HeapScope ends without waiting for it", s_disposeTimeout.TotalSeconds);
                 }
                 else
                 {
-                    host.Dispose();
+                    await disposing;
                 }
             }
             catch (Exception ex)
