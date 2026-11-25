@@ -390,6 +390,43 @@ public sealed class GcDumpTests(AllLeaksGcDump shared) : IClassFixture<AllLeaksG
         GcDumpLoader.IsSampled(dump).ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Sprint 4.4: the runtime describes each type once while a session of its provider is open, so every gcdump but the first of a
+    /// recording had types without a name.
+    /// </summary>
+    [Theory]
+    [InlineData(TraceProfile.Allocations)]
+    [InlineData(TraceProfile.Gc)]
+    [InlineData(TraceProfile.Cpu)]
+    public async Task Each_gcdump_beside_a_recording_names_its_types(TraceProfile profile)
+    {
+        using var folder = new TempFolder();
+        // One that allocates: an idle process writes nothing to tell that its session has started.
+        using var fixture = await FixtureProcess.StartSampleAsync("--scenarios", "StaticCache,SteadyAllocation");
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var trace = folder.File("beside.nettrace");
+        var recording = TraceRecorder.RecordAsync(fixture.ProcessId, trace, profile, TimeSpan.FromMinutes(5), stop.Token);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        while (!Directory.EnumerateFiles(folder.Path, TraceRecorder.PartialPattern(trace)).Any(static f => new FileInfo(f).Length > 0))
+        {
+            DateTime.UtcNow.ShouldBeLessThan(deadline, "the recording started");
+            await Task.Delay(50, Ct);
+        }
+
+        for (var i = 1; i <= 2; i++)
+        {
+            var path = folder.File($"beside-{i}.gcdump");
+            await new GcDumpCapturer().CaptureAsync(AllLeaksGcDump.Process(fixture.ProcessId), path, null, null, Ct);
+            var result = new GcDumpLoader().Load(path, cancellationToken: Ct);
+            result.Capabilities.HasFlag(SnapshotCapabilities.CompleteGraph).ShouldBeTrue($"gcdump {i}");
+            GraphQueries.CountTypes(result.Graph)["Fixtures.Leaks.StaticCacheEntry"].ShouldBeGreaterThan(0, $"gcdump {i}");
+            result.Graph.Dispose();
+        }
+
+        await stop.CancelAsync();
+        await recording;
+    }
+
     [Fact]
     public async Task Canceling_a_gcdump_capture_leaves_no_file()
     {
