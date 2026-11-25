@@ -81,6 +81,13 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                     throw new RequestRefusedException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: {unusable} Choose a full dump of the same process, captured earlier.");
                 }
 
+                // What a dump lacks depends on its heap count at that moment, so two that lack some differ too (peer review 4.5).
+                if (inspection.UsesReachable && !(HandlesChecked(earlier) && HandlesChecked(snapshot)))
+                {
+                    var (side, step) = HandlesChecked(snapshot) ? ($"the baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)}", "Choose another baseline, or none.") : ("this snapshot", "Choose no baseline.");
+                    throw new RequestRefusedException($"Growth cannot be measured: not all GC handles could be checked for {side} (see its notes), so objects held only by a handle could be counted on one side only. {step}");
+                }
+
                 earlier.TryGetService<IObjectReader>(out var baselineReader);
                 var baselineReachable = inspection.UsesReachable ? await derived.GetReachableAsync(id, cancellationToken).ConfigureAwait(false) : null;
                 baseline = new InspectionBaseline(earlier.Graph, earlier.Info, baselineReader, baselineReachable);
@@ -118,6 +125,11 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             }
 
             throttled.Flush();
+            if (inspection.UsesReachable && !HandlesChecked(snapshot))
+            {
+                const string Unchecked = "Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted.";
+                result = result with { Note = result.Note is null ? Unchecked : result.Note + " " + Unchecked };
+            }
 
             // The rule and what the answer rests on (sprint 2.3.7 review H3, M5); the guard logs the totals too.
             logger.LogInformation(
@@ -149,4 +161,6 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             throw;
         }
     }
+
+    private static bool HandlesChecked(ISnapshot snapshot) => Snapshots.SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info);
 }

@@ -176,6 +176,45 @@ public readonly record struct MinidumpHeader(uint Signature, DateTimeOffset? Cap
         return false;
     }
 
+    /// <summary>The processors the dump's SystemInfo stream records, or null when it has none.</summary>
+    public static int? Processors(string path, CancellationToken cancellationToken = default)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var reader = new BinaryReader(stream);
+        if (stream.Length < Length)
+        {
+            return null;
+        }
+
+        stream.Position = 8;
+        var streams = reader.ReadUInt32();
+        var directory = reader.ReadUInt32();
+        for (var i = 0u; i < streams && directory + ((i + 1L) * 12) <= stream.Length; i++)
+        {
+            if ((i & 0xFFFF) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            stream.Position = directory + (i * 12L);
+            var type = reader.ReadUInt32();
+            var size = reader.ReadUInt32();
+            var rva = reader.ReadUInt32();
+            if (type == SystemInfoStream && size >= 8 && rva + 8L <= stream.Length)
+            {
+                // ProcessorArchitecture, ProcessorLevel, ProcessorRevision (two bytes each), then NumberOfProcessors (one byte, so a
+                // machine with more than 255 records what fits).
+                stream.Position = rva + 6L;
+                return reader.ReadByte() is > 0 and < byte.MaxValue and var processors ? processors : null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>MINIDUMP_STREAM_TYPE of the system's description.</summary>
+    private const uint SystemInfoStream = 7;
+
     /// <summary>MINIDUMP_STREAM_TYPE of the full-memory list.</summary>
     private const uint Memory64ListStream = 9;
 

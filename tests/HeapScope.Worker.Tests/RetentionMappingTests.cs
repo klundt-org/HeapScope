@@ -35,6 +35,7 @@ namespace HeapScope.Worker.Tests;
 public sealed class RetentionMappingTests : IDisposable
 {
     private static readonly ReverseIndexInfo s_index = new(false, SnapshotMemoryMode.InMemory, 0, 0, true);
+    private static readonly SnapshotInfo s_info = new(SnapshotKind.FullDump, "a.dmp", Facts: SnapshotFacts.HandlesChecked);
 
     private readonly HeapGraph _graph;
     private readonly ReverseReferences _reverse;
@@ -73,7 +74,7 @@ public sealed class RetentionMappingTests : IDisposable
             [_key.Address] = "[3].key",
         });
 
-        var result = RetentionMapping.ObjectPaths(_graph, tree, reader, null, true, s_index, Ct);
+        var result = RetentionMapping.ObjectPaths(_graph, tree, reader, null, true, s_index, s_info, Ct);
 
         result.Reachable.ShouldBeTrue();
         var byType = result.Nodes.ToDictionary(n => n.TypeName);
@@ -100,13 +101,15 @@ public sealed class RetentionMappingTests : IDisposable
         using var graph = builder.Build();
         using var reverse = ReverseReferences.Build(graph, cancellationToken: Ct);
 
-        var withPaths = RetentionMapping.ObjectPaths(_graph, RetentionSearch.Find(_graph, _reverse, _value.Id, cancellationToken: Ct), null, "Field values are not stored in a gcdump.", false, s_index, Ct);
-        var unreachable = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, garbage.Id, cancellationToken: Ct), null, "no reader", true, s_index, Ct);
+        var withPaths = RetentionMapping.ObjectPaths(_graph, RetentionSearch.Find(_graph, _reverse, _value.Id, cancellationToken: Ct), null, "Field values are not stored in a gcdump.", false, s_index, s_info, Ct);
+        var unreachable = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, garbage.Id, cancellationToken: Ct), null, "no reader", true, s_index, s_info, Ct);
 
         withPaths.FieldsNote.ShouldBe("Field values are not stored in a gcdump.");
         withPaths.CompleteGraph.ShouldBeFalse();
         withPaths.Nodes.Single(n => n.TypeName == "App.Key").ViaDependentHandle.ShouldBeTrue();
         (unreachable.Reachable, unreachable.Nodes.Count, unreachable.KeyPaths.Count, unreachable.FieldsNote).ShouldBe((false, 1, 0, (string?)null));
+        unreachable.UnreachableNote.ShouldContain("garbage not yet collected");
+        RetentionMapping.UnreachableNote(s_info with { Facts = SnapshotFacts.None }).ShouldNotContain("garbage");
     }
 
     [Fact]
@@ -139,8 +142,8 @@ public sealed class RetentionMappingTests : IDisposable
         using var graph = builder.Build();
         using var reverse = ReverseReferences.Build(graph, cancellationToken: Ct);
 
-        var list = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, cancellationToken: Ct), null, null, true, s_index, Ct);
-        var mixed = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, mixedTarget.Id, cancellationToken: Ct), null, null, true, s_index, Ct);
+        var list = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, cancellationToken: Ct), null, null, true, s_index, s_info, Ct);
+        var mixed = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, mixedTarget.Id, cancellationToken: Ct), null, null, true, s_index, s_info, Ct);
 
         list.Nodes.Select(n => (n.TypeName, n.Folded)).ShouldBe([("App.Target", 0), ("App.Node", 99_999), ("App.Head", 0)]);
         list.Nodes[2].Root!.Description.ShouldBe("Static field App.s_head");
@@ -160,13 +163,13 @@ public sealed class RetentionMappingTests : IDisposable
         using var graph = builder.Build();
         using var reverse = ReverseReferences.Build(graph, cancellationToken: Ct);
 
-        var result = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, local.Id, cancellationToken: Ct), null, null, true, s_index, Ct);
+        var result = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, local.Id, cancellationToken: Ct), null, null, true, s_index, s_info, Ct);
 
         var node = result.Nodes.ShouldHaveSingleItem();
         node.Root!.Kind.ShouldBe(RootKindDto.ThreadStack);
         result.RootNodeIds.ShouldBe([0]);
         result.UnreachableNote.ShouldContain("garbage");
-        RetentionMapping.UnreachableNote(SnapshotKind.GcDump).ShouldContain("recorded root");
+        RetentionMapping.UnreachableNote(new SnapshotInfo(SnapshotKind.GcDump, "a.gcdump")).ShouldContain("recorded root");
     }
 
     [Fact]
@@ -184,7 +187,7 @@ public sealed class RetentionMappingTests : IDisposable
         using var graph = builder.Build();
         using var reverse = ReverseReferences.Build(graph, cancellationToken: Ct);
 
-        var result = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, cancellationToken: Ct), null, null, true, s_index, Ct);
+        var result = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, cancellationToken: Ct), null, null, true, s_index, s_info, Ct);
 
         // Each root's chain of shown nodes holds exactly what it shows.
         foreach (var rootId in result.RootNodeIds)
@@ -224,7 +227,7 @@ public sealed class RetentionMappingTests : IDisposable
         using var graph = builder.Build();
         using var reverse = ReverseReferences.Build(graph, cancellationToken: Ct);
 
-        var objectPaths = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, cancellationToken: Ct), null, null, true, s_index, Ct);
+        var objectPaths = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, cancellationToken: Ct), null, null, true, s_index, s_info, Ct);
         var tree = RootPathTree.Build(graph, cancellationToken: Ct);
         var typePath = RetentionMapping.KeyPath(graph, KeyPaths.ForTypes(graph, tree, TypeGroups.MatchTypes(graph, "App.Target", null, out _), cancellationToken: Ct).Paths.ShouldHaveSingleItem());
 
@@ -256,7 +259,7 @@ public sealed class RetentionMappingTests : IDisposable
         using var graph = builder.Build();
         using var reverse = ReverseReferences.Build(graph, cancellationToken: Ct);
 
-        var result = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, maxRoots: 50, cancellationToken: Ct), null, null, true, s_index, Ct);
+        var result = RetentionMapping.ObjectPaths(graph, RetentionSearch.Find(graph, reverse, target.Id, maxRoots: 50, cancellationToken: Ct), null, null, true, s_index, s_info, Ct);
 
         result.Truncated.ShouldBeTrue();
         result.StoppedEarly.ShouldBeTrue();

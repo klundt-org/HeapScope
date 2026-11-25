@@ -134,6 +134,7 @@ public sealed class CacheRebuildTests : IDisposable
 
         // Loader version 4 changed only the process name: the older cache's is replaced by the one read from the dump.
         opened.ProcessName.ShouldBe("LeakyConsole");
+        opened.Availability!.Single(a => a.Feature == SnapshotFeatureIds.UnreachableSet).Unavailable.ShouldNotBeNull("an older cache can lack GC handles (peer review 4.5)").ShouldContain("GC handles");
         (await File.ReadAllBytesAsync(cache, Ct)).ShouldBe(before, "the older cache is read, never written");
         var older = string.Create(CultureInfo.InvariantCulture, $"loader version {ClrMdDumpLoader.CurrentVersion - 1}");
         var current = string.Create(CultureInfo.InvariantCulture, $"current loader version {ClrMdDumpLoader.CurrentVersion}");
@@ -147,13 +148,13 @@ public sealed class CacheRebuildTests : IDisposable
         phases.Seen.ShouldContain("Opening the older index cache");
     }
 
-    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader version 4 changed.
+    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader versions 4 and 5 changed.
     [Fact]
     public void The_older_cache_note_matches_the_current_loader_version()
     {
         ClrMdDumpLoader.CurrentVersion.ShouldBe(
-            4,
-            "a new loader version changes more than the process name: reword SnapshotOpener.OlderCacheNote and WithCurrentProcessName, or raise OldestFallbackLoaderVersion (ADR-041)");
+            5,
+            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4), or raise OldestFallbackLoaderVersion (ADR-041)");
     }
 
     [Fact]

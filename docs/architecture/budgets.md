@@ -104,6 +104,8 @@ leaking 20 requests of 2,000 items shows a GC heap rise of more than 10 MB withi
 now climbed about 14 MB a second between collections while the after-GC size changed only at each GC. The Live smoke
 run charts 1,800 samples (a full 30-minute window) in about 29 s with a longest dispatcher operation of 18 to 26 ms;
 3,600 samples (an hour, the window sliding) stayed at 29 ms.
+The second walk of GC handles (sprint 4.5, Server GC with 2 heaps on 24 processors): 0.1 s for 9,600 handles, 7.1 s for 1.9 million, a
+load phase of its own ("handles").
 Live allocations (sprint 4.3, the numbers in the sprint's Findings): figures 0.25 to 0.30 s behind LeakyApi under load, the Live
 page's longest operation 27 to 35 ms beside the stall of BACKLOG.md that its smoke run has without them too; a live trace at its limits keeps 75 MB, 98 MB with
 two views, and answers a view in 6 ms.

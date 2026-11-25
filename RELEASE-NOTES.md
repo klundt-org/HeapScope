@@ -21,6 +21,17 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.5.0: GC handles of Server GC processes (sprint 4.5)
+
+- **Wrong until now**: in full dumps of Server GC processes with fewer heaps than processors (most ASP.NET Core services, since
+  the heap count changes by itself on .NET 9 and 10), objects held only by a GC handle could look unreachable, and so could
+  everything they hold: they retained nothing, why alive found no path, and leak detectors left them out. This was so in every
+  version. HeapScope now reads all handles, and rebuilds its index cache when you open such a dump again.
+- **When it cannot tell** whether it has all handles, a note says so, unreachable objects are not listed, and nothing is called garbage.
+- **Show in folder** starts Explorer, or Finder, by its full path. Before, a program named explorer.exe in the current folder could
+  run instead.
+- **Limit**: tested on .NET 10 only. Older caches opened without the dump's runtime (DAC) still lack them, and a note says so.
+
 ## 4.4.0: Allocated between two snapshots (sprint 4.4)
 
 - **What was allocated between two snapshots**: when both were captured while one run on the Live page recorded allocations, tick

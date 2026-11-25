@@ -73,4 +73,10 @@ public enum SnapshotFacts
     /// a Linux or macOS core file records none), so a copy of the file can change it.
     /// </summary>
     CaptureTimeFromFile = 1 << 3,
+
+    /// <summary>
+    /// A full dump's GC handles are all there (peer review 4.5). Without it, as in a cache from before loader version 5, an object held
+    /// only by a handle can look unreachable. A gcdump does not need it.
+    /// </summary>
+    HandlesChecked = 1 << 5,
 }

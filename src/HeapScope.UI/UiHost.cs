@@ -109,7 +109,7 @@ internal static class UiHost
             dispatcher, sp.GetRequiredService<ILogger<DispatcherWatchdog>>(), options.IsSmokeRun ? DispatcherWatchdog.SmokeProbeInterval : null));
         builder.Services.AddSingleton<IUserInteraction>(sp => options.IsSmokeRun
             ? new AutomaticUserInteraction()
-            : new AvaloniaUserInteraction(() => sp.GetService<MainWindow>()));
+            : new AvaloniaUserInteraction(() => sp.GetService<MainWindow>(), sp.GetService<ILogger<AvaloniaUserInteraction>>()));
         builder.Services.AddHeapScopeViewModels();
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<ViewPrewarmer>();

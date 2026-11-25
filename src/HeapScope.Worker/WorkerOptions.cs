@@ -70,6 +70,9 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// <summary>Opt-in: let ClrMD download a missing DAC from Microsoft's symbol server (<c>--allow-symbol-server true</c>).</summary>
     public bool AllowMicrosoftSymbolServer { get; init; }
 
+    /// <summary>Whether GC handles of Server GC processes are walked a second time (<c>--second-handle-walk</c>).</summary>
+    public bool SecondHandleWalk { get; init; } = true;
+
     /// <summary>The lowest level the worker logs (<c>--log-level</c>; the client passes its file log's level).</summary>
     public LogLevel LogLevel { get; init; } = LogLevel.Information;
 
@@ -83,6 +86,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
         ["--parent-pid"] = $"{SectionName}:ParentPid",
         ["--dac-folder"] = $"{SymbolsSectionName}:DacFolder",
         ["--allow-symbol-server"] = $"{SymbolsSectionName}:AllowMicrosoftSymbolServer",
+        ["--second-handle-walk"] = $"{SectionName}:SecondHandleWalk",
         ["--log-level"] = $"{SectionName}:LogLevel",
         ["--data-folder"] = $"{SectionName}:DataFolder",
         ["--settings-folder"] = $"{SectionName}:SettingsFolder",
@@ -127,6 +131,14 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             return false;
         }
 
+        var rawSecond = section["SecondHandleWalk"];
+        var second = true;
+        if (rawSecond is not null && !bool.TryParse(rawSecond, out second))
+        {
+            error = $"Invalid --second-handle-walk '{rawSecond}': expected true or false.";
+            return false;
+        }
+
         var rawLevel = section["LogLevel"];
         var level = LogLevel.Information;
         if (rawLevel is not null && (!Enum.TryParse(rawLevel, ignoreCase: true, out level) || level is < LogLevel.Trace or > LogLevel.Critical))
@@ -142,6 +154,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             DataFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["DataFolder"]) ? null : configuration.GetSection(SectionName)["DataFolder"],
             SettingsFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["SettingsFolder"]) ? null : configuration.GetSection(SectionName)["SettingsFolder"],
             AllowMicrosoftSymbolServer = allow,
+            SecondHandleWalk = second,
         };
         error = null;
         return true;

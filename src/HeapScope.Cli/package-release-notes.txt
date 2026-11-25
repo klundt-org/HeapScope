@@ -1,5 +1,7 @@
-4.4.0: capture on Linux, and on macOS untested (4.2.0); damaged traces and gcdumps refused (4.2.1).
+4.5.0: GC handles of Server GC processes; capture on Linux, and on macOS untested (4.2.0); damaged traces and gcdumps refused (4.2.1).
 
+- Full dumps of Server GC processes with fewer heaps than processors lacked GC handles in every earlier version, so live objects
+  could look unreachable and be left out by inspect, retained and paths. Open such dumps again: their index cache is rebuilt (4.5.0).
 - heapscope-cli list, capture (full dumps and gcdumps), monitor and trace now run on Linux, as on Windows. Another user's
   process needs heapscope-cli run as that user, or with sudo; as root, a full dump of another user's process goes to a
   folder that user can write (--out), since the runtime writes it as that user.

@@ -22,3 +22,6 @@
   Backlog). Pooled `ValueTask` boxes have no task state and are not counted; methods compiled with .NET 10's opt-in
   runtime async have no box. Objects finalized between two snapshots are not reported: it needs the address match
   (ADR-032) of the baseline's finalizable objects not yet run, and is in the Backlog.
+- Amended in 4.5: the unreachable set is also refused for a full dump without the fact `HandlesChecked` (GC handles that could not all be
+  checked, or a cache from before loader version 5), every detector that counts reachable objects says it in its note, and `type-growth`
+  refuses a baseline unless both snapshots have it (what a dump lacks depends on its heap count when it was taken).

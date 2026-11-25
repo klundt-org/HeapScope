@@ -43,17 +43,22 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 {
     private const int CheckInterval = 1 << 16;
 
+    /// <summary>The detail of the strong handle that holds the static fields; PathRoots has its wording.</summary>
+    private const string StaticStorage = "static storage";
+
     private readonly ClrMdLoaderOptions _options = options ?? new ClrMdLoaderOptions();
 
     /// <summary>
     /// 2 since sprint 1.8: truncated dumps lose CompleteGraph and ExactCounts, finalizer registrations are a fact. 3 since
     /// sprint 2.3.5: core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
-    /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists.
+    /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists. 5
+    /// since peer review 4.5: the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
+    /// LoaderAllocator references of 3.12 for caches written before them.
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     /// <summary>
     /// Checks, without loading it, that the DAC the dump needs may be loaded (sprint 3.6 review H1), for a dump opened from
@@ -139,12 +144,19 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump). A phase of its own since 3.12 (R5).
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
+        var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath, cancellationToken) : null, !_options.SecondHandleWalk, progress, cancellationToken);
         var weakHandles = AddDependentHandlesAndCollectWeak(runtime, builder, cancellationToken);
+        foreach (var handle in handles.LeftOut)
+        {
+            Add(handle, builder, weakHandles);
+        }
+
+        var handleTime = meter.End("handles");
         AddReferences(heap, builder, clrTypes, progress, cancellationToken);
-        var references = meter.End("references");
+        var references = handleTime + meter.End("references");
 
         progress?.Report(new LoadProgress("Reading roots", 0, null));
-        AddGcRoots(heap, target.DataReader, builder, cancellationToken);
+        AddGcRoots(heap, target.DataReader, builder, [.. handles.LeftOut.Where(static h => h.Kind == ClrHandleKind.Strong && h.Object != 0).Select(static h => h.Object)], cancellationToken);
         foreach (var address in weakHandles)
         {
             builder.AddRoot(address, RootKind.WeakHandle, RootFlags.None);
@@ -169,7 +181,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             header is { } h ? h.CapturedAtUtc : new DateTimeOffset(File.GetLastWriteTimeUtc(fullPath), TimeSpan.Zero),
             freeBytes,
             SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
-                | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None));
+                | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
+                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked));
 
         // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
         var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
@@ -179,7 +192,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             graph,
             info,
             capabilities,
-            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source),
+            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk),
             new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
     }
 
@@ -498,6 +511,44 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return [.. result.Distinct()];
     }
 
+    /// <summary>Adds a handle the runtime's own walk left out, as the walks below add theirs.</summary>
+    private static void Add(LeftOutHandle handle, HeapGraphBuilder builder, List<ulong> weak)
+    {
+        if (handle.Object == 0)
+        {
+            return;
+        }
+
+        switch (handle.Kind)
+        {
+            case ClrHandleKind.Dependent:
+                builder.AddDependentHandle(handle.Object, handle.Dependent);
+                break;
+            case ClrHandleKind.WeakShort or ClrHandleKind.WeakLong or ClrHandleKind.WeakWinRT:
+                weak.Add(handle.Object);
+                break;
+            case ClrHandleKind.Pinned:
+                builder.AddRoot(handle.Object, RootKind.PinnedHandle, RootFlags.Retaining | RootFlags.Pinned);
+                break;
+            case ClrHandleKind.AsyncPinned:
+                builder.AddRoot(handle.Object, RootKind.AsyncPinnedHandle, RootFlags.Retaining | RootFlags.Pinned);
+                break;
+            case ClrHandleKind.RefCounted:
+                if (handle.IsStrong)
+                {
+                    builder.AddRoot(handle.Object, RootKind.RefCountedHandle, RootFlags.Retaining);
+                }
+
+                break;
+            case ClrHandleKind.SizedRef:
+                builder.AddRoot(handle.Object, RootKind.Other, RootFlags.Retaining, nameof(ClrRootKind.SizedRefHandle));
+                break;
+            case ClrHandleKind.Strong:
+                // With the others, where the static storage among them is told apart.
+                break;
+        }
+    }
+
     private static List<ulong> AddDependentHandlesAndCollectWeak(ClrRuntime runtime, HeapGraphBuilder builder, CancellationToken cancellationToken)
     {
         var weak = new List<ulong>();
@@ -620,12 +671,12 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         }
     }
 
-    private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, CancellationToken cancellationToken)
+    private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, IReadOnlyList<ulong> leftOut, CancellationToken cancellationToken)
     {
         // The static storage bucket is reported both as a strong handle and (on .NET 9 and 10) as a StaticVar root;
         // it is kept once (decision 3).
-        var strongHandleObjects = new HashSet<ulong>();
-        var staticStorage = new List<ulong>();
+        var strongHandles = new List<(ulong Address, RootFlags Flags)>(leftOut.Select(static a => (a, RootFlags.Retaining)));
+        var staticStorage = new HashSet<ulong>();
         var count = 0;
         foreach (var root in heap.EnumerateRoots())
         {
@@ -663,8 +714,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     staticStorage.Add(address);
                     break;
                 case ClrRootKind.StrongHandle:
-                    strongHandleObjects.Add(address);
-                    builder.AddRoot(address, RootKind.StrongHandle, flags);
+                    strongHandles.Add((address, flags));
                     break;
                 case ClrRootKind.PinnedHandle:
                     builder.AddRoot(address, RootKind.PinnedHandle, flags | RootFlags.Pinned);
@@ -690,12 +740,14 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             }
         }
 
+        foreach (var (address, flags) in strongHandles)
+        {
+            builder.AddRoot(address, RootKind.StrongHandle, flags, staticStorage.Remove(address) ? StaticStorage : null);
+        }
+
         foreach (var address in staticStorage)
         {
-            if (strongHandleObjects.Add(address))
-            {
-                builder.AddRoot(address, RootKind.StrongHandle, RootFlags.Retaining, "static storage");
-            }
+            builder.AddRoot(address, RootKind.StrongHandle, RootFlags.Retaining, StaticStorage);
         }
     }
 

@@ -424,3 +424,32 @@ name for a type.
 **Review summary:** 5 High and 14 Moderate, and in the confirmations 7 Moderate ([docs/reviews/sprint-4.4.md](../reviews/sprint-4.4.md));
 every one fixed and confirmed. Deferred (Backlog): rows for types without an object in either snapshot, the Allocations page filtered by
 method table, the flush before a gcdump checked on .NET 8 and 9.
+
+## Sprint 4.5: Peer review
+
+**Goal:** what must change, be refactored or be proven before the first full release and the UI-heavy sprints, from reviewers who read
+the whole code base as outsiders, ranked, each finding checked in the code.
+
+**Tasks**
+1. [x] Five reviewers read the code base at sprint 4.4 (not a diff), each its area: solution architect, senior developer, CLR and GC
+   specialist, support engineer, and DevSecOps (build, packages, CI, supply chain, threat surface). Each also says what stands between
+   this and a first full release.
+2. [x] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
+   `docs/reviews/peer-review-4.5.md`.
+3. [x] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
+4. [x] A proposed split into sprints, for the owner to decide (agreed, 2026-11-25); the Backlog updated.
+5. [x] The owner's 4.4 wording and release notes answers folded in, if they came.
+
+**Decisions**
+- Like 3.5's: the review changes no code but for Critical findings. Decided autonomously.
+- The split into sprints is the owner's decision, so the sprint ends by asking. Decided autonomously.
+- The fact is positive (`HandlesChecked`) and the older cache's literal version is gone: decided before loader version 5 shipped, since after it the
+  change would have cost a version 6. Decided autonomously.
+- Compare's retained columns with the fact on one side only go to 4.6, since the result needs a new field. Decided autonomously.
+
+**Findings** (.NET 10.0, 24 processors, 2026-11-25): strong handles the runtime's own walk has of 2,400: 103 at 1 heap, 192 to 206 at 2,
+785 at 8, 1,200 at 12 (DATAS); HeapScope's second walk has all, in 6 to 14 walks and 0.1 s, and 1.9 million handles in 7.1 s.
+
+**Review summary:** 1 Critical and 1 High fixed (GC handles of Server GC processes; a program by its bare name), 20 High and 16 Moderate ranked
+([docs/reviews/peer-review-4.5.md](../reviews/peer-review-4.5.md)) and split into sprints 4.6 to 4.12. The fixes were reviewed by four: every High
+and Moderate fixed and confirmed, one Moderate deferred to 4.6.

@@ -148,10 +148,21 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
 - Roots: `ClrHeap.EnumerateRoots` (strong, pinned, async pinned and live ref-counted handles, stacks with the thread
   as detail, the f-reachable queue). On .NET 9 and 10 it also reports the static storage bucket as `StaticVar` and
   thread statics as `ThreadStaticVar`: the bucket maps to `StrongHandle` with the detail "static storage" and is kept
-  once; thread statics map to `Other`. `StaticField` roots come from `ClrModule.EnumerateTypesWithStaticFields` per
+  once (the detail on its own strong handle since 4.5); thread statics map to `Other`. `StaticField` roots come from `ClrModule.EnumerateTypesWithStaticFields` per
   module and app domain (initialized reference statics, detail `Namespace.Type.field`). Statics of generic
   instantiations missing from a module's type map are not reported; their values stay reachable through the storage
   handle.
+- GC handles of Server GC processes (peer review 4.5, loader version 5): the runtime keeps a handle table per processor and its debugging
+  library walks one per GC heap, so with fewer heaps than processors (DATAS, `GCHeapCount`) handles were left out (measured on 24
+  processors: 785 of 2,400 at 8 heaps, 200 at 2, 103 at 1). `HandleTables` walks again through a second target whose reader
+  (`HeapCountReader`) shows a larger heap count for the walk's length. The count's place is a 32-bit number of the runtime's or GC's
+  module that the walk reads and that, shown as 0, leaves no handle and, as 1 of several, some. The largest count that works is found from
+  the dump's processors by doubling and halving (a dump records one processor group's, a core file none): past the tables the walk gives
+  nothing. Any other failure leaves a doubt, which is `Unknown`, and so do several places that can be the count when none adds a handle, and more than
+  1,024 walks (6 to 14 measured). What is added: strong, pinned, async pinned, live ref-counted and sized handles as roots, dependent ones as edges, weak ones as
+  weak roots. When it cannot be told (`HandleWalkOutcome.Unknown`) the fact `HandlesChecked` is missing:
+  a note says so, the unreachable set is refused, nothing is called garbage, and growth is not measured with it on either side.
+  `Worker:SecondHandleWalk` (default on) turns the second walk off, which is the same (ADR-010).
 - Modules compiled as debuggable code are recorded (cache metadata `DebuggableModules`) and shown as a note.
 - The snapshot's capture time is the minidump header's time stamp.
 

@@ -233,7 +233,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         var recorded = info.Kind != SnapshotKind.FullDump || metadata.Dac is not null;
         string Recorded(long value) => recorded ? value.ToString(CultureInfo.InvariantCulture) : "not recorded";
         logger.LogInformation(
-            "Snapshot {Id} opened in {Seconds:N1} s: {Path}; {Bytes} bytes, fingerprint {Fingerprint:x16}, modified {ModifiedUtc:O}; {Kind}, capabilities {Capabilities}, facts {Facts}; process {Process} ({Pid}; name: {ProcessNameSource}), runtime {Runtime}, captured {CapturedUtc:O}{CaptureSource}; from {Source}{Reopen}, {Mode}, cache {CachePath} identity {Identity:x16}, written by {WriterVersion} with loader version {LoaderVersion}; {Objects} objects, {References} references, {Roots} roots, {DroppedReferences} references and {DroppedRoots} roots dropped, unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}; DAC {Dac} ({DacRule}); unavailable features {Unavailable}; notes: {Notes}",
+            "Snapshot {Id} opened in {Seconds:N1} s: {Path}; {Bytes} bytes, fingerprint {Fingerprint:x16}, modified {ModifiedUtc:O}; {Kind}, capabilities {Capabilities}, facts {Facts}; process {Process} ({Pid}; name: {ProcessNameSource}), runtime {Runtime}, captured {CapturedUtc:O}{CaptureSource}; from {Source}{Reopen}, {Mode}, cache {CachePath} identity {Identity:x16}, written by {WriterVersion} with loader version {LoaderVersion}; {Objects} objects, {References} references, {Roots} roots, {DroppedReferences} references and {DroppedRoots} roots dropped, unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}; GC handles {Handles}; DAC {Dac} ({DacRule}); unavailable features {Unavailable}; notes: {Notes}",
             descriptor.SnapshotId,
             descriptor.OpenSeconds,
             descriptor.Path,
@@ -264,6 +264,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             metadata.UnreadableObjects,
             Recorded(metadata.IncompleteSegments),
             Recorded(metadata.StaticFieldRoots),
+            Describe(metadata.Handles, info.Kind),
             (metadata.Dac?.Path ?? (metadata.Dac is not null ? "symbol server" : info.Kind == SnapshotKind.FullDump ? "not recorded (index cache from before 2.3.7)" : "none (a gcdump needs none)"))
                 + (snapshot.TryGetService<ValueReadsRefused>(out _) ? ", recorded when the cache was written and not usable now" : string.Empty),
             metadata.Dac?.Rule ?? "-",
@@ -386,10 +387,11 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             diagnostics.StaticFieldRoots,
             diagnostics.IncompleteSegments,
             diagnostics.Dac,
-            diagnostics.ProcessNameSource);
+            diagnostics.ProcessNameSource,
+            diagnostics.Handles);
         var timings = loaded.Timings;
         logger.LogInformation(
-            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}, debuggable modules {Debuggable}",
+            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}, debuggable modules {Debuggable}; GC handles {Handles}",
             path,
             timings.Total.TotalSeconds,
             timings.Open.TotalSeconds,
@@ -402,7 +404,8 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             diagnostics.UnreadableObjects,
             diagnostics.IncompleteSegments,
             diagnostics.StaticFieldRoots,
-            diagnostics.DebuggableModules.Count);
+            diagnostics.DebuggableModules.Count,
+            Describe(diagnostics.Handles, metadata.Info.Kind));
 
         // Nothing else may reference the built graph, or the mapped transition below cannot free it.
         loaded = null;
@@ -459,11 +462,12 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
     /// <summary>
     /// The snapshot's note when it opened from an older loader's cache because a rebuild could not reach its DAC (owner's
-    /// wording, 2026-11-13). Loader version 4 changed only the process name, which is read again from the dump.
+    /// wording, 2026-11-13; reworded for loader version 5, a draft for the owner). Version 4 changed only the process name, which is read again
+    /// from the dump; version 5 reads GC handles and references that an older cache lacks.
     /// </summary>
     internal static string OlderCacheNote(string cause) =>
         $"Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: {cause}. "
-        + "The one thing this version reads differently, the process name, was read again from the dump. "
+        + "It can lack what this version reads: in Server GC processes and collectible assemblies, objects held only by a GC handle or by a type can look unreachable. The process name was read again from the dump. "
         + "Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache.";
 
     /// <summary>
@@ -569,6 +573,10 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             return 0;
         }
     }
+
+    private static string Describe(HandleWalk? walk, SnapshotKind kind) => walk is null
+        ? (kind == SnapshotKind.FullDump ? "not recorded" : "none (not a full dump)")
+        : string.Create(CultureInfo.InvariantCulture, $"{walk.Outcome}: {walk.Heaps} heaps, {walk.Tables} tables walked, {walk.Processors?.ToString(CultureInfo.InvariantCulture) ?? "unknown"} processors, {walk.Added} handles added ({walk.How})");
 
     private void AddDataQualityNotes(HeapGraph graph, IndexCacheMetadata metadata, List<string> notes)
     {
