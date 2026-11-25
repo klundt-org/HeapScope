@@ -183,7 +183,14 @@ environment variables that name the setting with `__` between its parts. For exa
 { "Symbols": { "DacFolder": "/srv/dacs" } }
 ```
 
-or `Symbols__DacFolder=/srv/dacs` in the environment. An `appsettings.json` stays behind when you extract a new
+On Windows, write each \ of a path twice in JSON:
+
+```json
+{ "Symbols": { "DacFolder": "C:\\dacs" } }
+```
+
+or `Symbols__DacFolder=/srv/dacs` in the environment. A file HeapScope cannot read is named with its line when a command
+starts. An `appsettings.json` stays behind when you extract a new
 release, so copy it across; for the dotnet tool, use environment variables, since an update replaces the tool's folder.
 
 ## If HeapScope does not start

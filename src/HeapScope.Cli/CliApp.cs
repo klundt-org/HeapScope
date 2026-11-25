@@ -71,13 +71,15 @@ internal static class CliApp
             return CliCommands.Usage;
         }
 
-        // The worker attach pipe must be known before the host is built.
-        host = hostFactory(
-            parseResult.GetValue(CliCommands.PipeOption),
-            parseResult.GetValue(CliCommands.DacFolderOption),
-            parseResult.GetValue(CliCommands.AllowSymbolServerOption));
-        using (host)
+        // The worker attach pipe must be known before the host is built. Building and starting it reads appsettings.json: a mistake there
+        // is said with the file and the line, and logged, not a stack trace for every command (peer review 4.5 H16).
+        try
         {
+            host = hostFactory(
+                parseResult.GetValue(CliCommands.PipeOption),
+                parseResult.GetValue(CliCommands.DacFolderOption),
+                parseResult.GetValue(CliCommands.AllowSymbolServerOption));
+
             // The CLI never asks: graph-only commands open a cached dump whatever its DAC, and reads that need an untrusted
             // DAC refuse with the --trust-dac option to add (sprint 3.6 re-review).
             host.Services.GetRequiredService<SnapshotSession>().CheckDacOnCacheOpen = false;
@@ -88,6 +90,17 @@ internal static class CliApp
             }
 
             await host.StartAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            host?.Dispose();
+            LogFatalStart(args, ex);
+            await error.WriteLineAsync(StartFailure(ex)).ConfigureAwait(false);
+            return 1;
+        }
+
+        using (host)
+        {
             try
             {
                 var exitCode = await parseResult.InvokeAsync(configuration).ConfigureAwait(false);
@@ -103,6 +116,54 @@ internal static class CliApp
                 using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 await host.StopAsync(stopTimeout.Token).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>What a failed start says: a settings file that is not JSON with its file and line, a value of the wrong kind, else the error.</summary>
+    internal static string StartFailure(Exception ex)
+    {
+        var json = Find<System.Text.Json.JsonException>(ex);
+        var file = Find<InvalidDataException>(ex)?.Message is { } loading && loading.IndexOf('\'', StringComparison.Ordinal) is var start and >= 0
+            && loading.IndexOf('\'', start + 1) is var end and > 0 ? loading[(start + 1)..end] : null;
+        if (json is not null)
+        {
+            var line = json.LineNumber is { } number ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $", line {number + 1}") : string.Empty;
+            return $"HeapScope's settings could not be read: {file ?? "appsettings.json"}{line} is not valid JSON ({json.Message.Split('.')[0]}). In JSON, write each \\ in a path twice, as in \"C:\\\\dumps\". Fix the file, then run the command again.";
+        }
+
+        if (ex is InvalidOperationException { Message: var message } && message.Contains("configuration value", StringComparison.Ordinal))
+        {
+            return $"A setting has a value HeapScope cannot use: {message} Fix it in appsettings.json or the environment, then run the command again.";
+        }
+
+        return $"HeapScope could not start: {ex.GetType().Name}: {ex.Message} Details are in HeapScope's log.";
+    }
+
+    private static T? Find<T>(Exception? ex)
+        where T : Exception
+    {
+        for (; ex is not null; ex = ex.InnerException)
+        {
+            if (ex is T found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>A start failure in the file log, which the host's own logging never set up: the folder of <c>Logging__File__Directory</c>, else the default.</summary>
+    internal static void LogFatalStart(string[] args, Exception exception)
+    {
+        try
+        {
+            using var provider = new HeapScope.Application.Logging.FileLoggerProvider(Environment.GetEnvironmentVariable("Logging__File__Directory"), app: "cli");
+            Microsoft.Extensions.Logging.LoggerExtensions.LogCritical(provider.CreateLogger("HeapScope.Cli"), exception, "heapscope-cli could not start; arguments {Arguments}", string.Join(' ', args));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The message on stderr is what is left.
         }
     }
 }

@@ -144,7 +144,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 6. [x] H3: the static storage bucket keeps its "static storage" detail always; statics of closed generic types and boxed struct statics
    are named where ClrMD can read them; the growing static collections detector notes storage slots no static field names. Tests on a
    fixture with `Cache<T>` statics and a struct static.
-7. [ ] H16: the CLI has a boundary around its start: a mistake in `appsettings.json` is said with the file, the line and how to write a
+7. [x] H16: the CLI has a boundary around its start: a mistake in `appsettings.json` is said with the file, the line and how to write a
    backslash in JSON, and logged; unhandled exceptions are logged. INSTALL gets a Windows example. Tests: a damaged and a mistyped file.
 8. [ ] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
 9. [ ] M6: one private JSON file helper (a lock, shared reads with retries, a flushed temp file, a replace with retries, unreadable is not
