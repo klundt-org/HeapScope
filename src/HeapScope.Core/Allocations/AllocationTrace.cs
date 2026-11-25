@@ -185,6 +185,9 @@ public sealed record AllocationTraceInfo(
     int ConversionIssues = 0,
     IReadOnlyList<string>? FirstIssues = null)
 {
+    /// <summary>What the check of the file walked, in words for the log (4.2.1).</summary>
+    public string? Checked { get; init; }
+
     /// <summary>True when the trace may be cut short or misses names: the figures should be read with care.</summary>
     public bool IsIncomplete => !HasRundown || ConversionIssues > 0;
 }

@@ -1,9 +1,10 @@
-# HeapScope nightly fuzzing (sprint 3.7, peer review P13): the mutation tests of the index cache reader and the gcdump
-# loader run with many more iterations than in CI, on a new seed every night (the run number). A failure names its seed
-# and iteration, so `HEAPSCOPE_FUZZ_SEED=<seed> HEAPSCOPE_FUZZ_ITERATIONS=<n>` replays it locally; the gcdump half also
-# needs the base gcdump it mutated (`HEAPSCOPE_FUZZ_BASE`), which is kept with the results, with any failing input and
-# the iteration in progress (fixture data from LeakyConsole only). A schedule runs on the default branch's copy of this
-# file, so it checks out develop explicitly: the nightly fuzzes the code in progress, not the last release.
+# HeapScope nightly fuzzing (sprint 3.7, peer review P13): the mutation tests of the index cache reader, the gcdump loader
+# and (since 4.2.1) the trace reader run with many more iterations than in CI, on a new seed every night (the run number).
+# A failure names its seed and iteration, so `HEAPSCOPE_FUZZ_SEED=<seed> HEAPSCOPE_FUZZ_ITERATIONS=<n>` replays it locally;
+# the gcdump and trace parts also need the base they mutated (`HEAPSCOPE_FUZZ_BASE`, `HEAPSCOPE_FUZZ_TRACE`), which is kept
+# with the results, with any failing input and the iteration in progress (fixture data from LeakyConsole and LeakyApi
+# only). A schedule runs on the default branch's copy of this file, so it checks out develop explicitly: the nightly fuzzes
+# the code in progress, not the last release.
 name: Fuzz
 
 on:
@@ -22,7 +23,7 @@ env:
 
 jobs:
   fuzz:
-    name: Fuzz the cache reader and the gcdump loader
+    name: Fuzz the cache reader, the gcdump loader and the trace reader
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -44,6 +45,14 @@ jobs:
         env:
           HEAPSCOPE_FUZZ_KEEP: ${{ runner.temp }}/fuzz-results/inputs
         run: dotnet test --project tests/HeapScope.Integration.Tests -c Release --no-build --filter-class "*CraftedGcDumpTests" --report-xunit-trx --results-directory "$RUNNER_TEMP/fuzz-results"
+      - name: Traces
+        if: ${{ !cancelled() }}
+        shell: bash
+        env:
+          HEAPSCOPE_FUZZ_KEEP: ${{ runner.temp }}/fuzz-results/inputs
+          # A copy that asks for more memory than this fails the test, and the runner stays up.
+          DOTNET_GCHeapHardLimit: '0x100000000'
+        run: dotnet test --project tests/HeapScope.Integration.Tests -c Release --no-build --filter-class "*CraftedTraceTests" --report-xunit-trx --results-directory "$RUNNER_TEMP/fuzz-results"
       - name: Keep the results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

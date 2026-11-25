@@ -30,7 +30,7 @@
     <ToolCommandName>heapscope-cli</ToolCommandName>
     <PackageId>HeapScope.Cli</PackageId>
     <Authors>Ray Klundt</Authors>
-    <Description>HeapScope's command line: capture (Windows) and analyze .NET memory dumps and gcdumps, from heap summaries to retention paths and leak detectors.</Description>
+    <Description>HeapScope's command line: capture (Windows and Linux; macOS untested) and analyze .NET memory dumps and gcdumps, from heap summaries to retention paths and leak detectors.</Description>
     <PackageTags>dotnet;memory;heap;dump;gcdump;leak;diagnostics</PackageTags>
     <PackageProjectUrl>https://github.com/klundt-org/HeapScope</PackageProjectUrl>
     <RepositoryUrl>https://github.com/klundt-org/HeapScope</RepositoryUrl>

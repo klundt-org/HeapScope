@@ -130,7 +130,8 @@ internal static class WorkerErrors
                 if (ex.InnerException is { } inner)
                 {
                     // A refusal that wraps another exception (a gcdump the reader found inconsistent): where it was thrown, so
-                    // a contested refusal can be told from a HeapScope bug (3.7 review H5). Types and code only, no values.
+                    // a contested refusal can be told from a HeapScope bug (3.7 review H5). At Debug only: the inner exception's
+                    // text is the library's.
                     logger?.LogDebug(inner, "{Operation} refusal ({Code}) came from {Inner}", operation, code, inner.GetType().Name);
                 }
             }

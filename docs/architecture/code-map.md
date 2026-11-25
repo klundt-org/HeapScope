@@ -375,7 +375,9 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 - **Allocation traces [2.5, ADR-028].** Capture: `TraceProfile.Allocations` (GC events at verbose with loader and JIT
   events; the rundown on stop). Core: `Allocations/AllocationTrace` (frames, a deduplicated stack tree, types, and per
   sample its time, innermost stack node, type and bytes; `NoStackFrame`, unnamed frames labeled
-  `[unresolved frame in <module>]`). Loaders.Trace: `AllocationTraceReader` (the `Nettrace` signature checked first,
+  `[unresolved frame in <module>]`). Loaders.Trace: `TraceFileCheck` (what a trace states must
+  fit in it; `TraceCheckResult` says what was walked), `TraceReads` (the calls into TraceEvent, so its errors are told from
+  HeapScope's) and `TraceSample` [4.2.1]; `AllocationTraceReader` (the `Nettrace` signature checked first,
   TraceEvent's `.etlx` written to a private folder (section 12) and deleted, every frame kept, unnamed ones labeled and
   counted, cancellation). Analysis: `Allocations/AllocationProfile` (sample
   ranges by binary search, the timeline, types, totals, top stacks, a stack's frames) and `AllocationTreeRows` (the call

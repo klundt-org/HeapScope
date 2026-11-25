@@ -217,3 +217,29 @@ system logs what a dump's estimate rests on. Deferred: the Lows, and everything 
 macOS").
 
 The owner approved the texts on 2026-11-23, with their own wording for the Processes and Live page texts.
+
+## Sprint 4.2.1: Damaged gcdumps and traces
+
+**Goal** (owner, 2026-11-24): the nightly fuzz test's failures of 2026-11-20, 22 and 23 (seeds 20, 22 and 23) are fixed, and a
+damaged trace is refused as a damaged gcdump is: with a reason, within bounds, and never as a HeapScope error.
+
+**Tasks**
+1. [x] The gcdump's root index is checked before anything is loaded: in range, described and a pseudo node (PR 82, made
+   stricter by the review). Tests: `GcDumpTests`, failing before the fix; 48,000 damaged files over 8 seeds.
+2. [x] `TraceFileCheck` walks a trace's blocks before TraceEvent reads them and refuses sizes, field counts, nesting and types
+   the format cannot hold, and any version but 4. Tests: `TraceFileCheckTests`; recorded traces walked to their end.
+3. [x] An error TraceEvent throws on the file's events is the file's (`TraceReads`): a refusal, or while converting the trace's
+   end, with a note; the disk, access and memory are not the
+   file's; running out of memory is reported; amounts no process allocates are refused. Tests: `TraceReadsTests`,
+   `AllocationTraceTests`.
+4. [x] Damaged traces in the heavy tests and the nightly fuzz job. Tests: `CraftedTraceTests`; 15,000 over 6 seeds.
+5. [x] The log gives every refusal's byte, rule, versions and origin. Tests: in 2 and 3.
+6. [x] TraceEvent 4.0.2 (owner, 2026-11-24), compared with 4.0.0 in the review file.
+
+**Decisions**
+- A trace of another format version is refused, since nothing checks it (owner, 2026-11-24); version 6 is in the Backlog.
+- The owner approved the refusal texts on 2026-11-24.
+- The check's shape for a file that grows waits for 4.3 (ADR-028). Decided autonomously.
+
+**Review summary:** 3 High, 14 Moderate, 22 Low ([docs/reviews/sprint-4.2.1.md](../reviews/sprint-4.2.1.md)); every High and
+Moderate fixed or decided, and confirmed. Deferred: the Lows; version 6 and one file handle (Backlog).

@@ -14,7 +14,7 @@
     `heapscope-cli`, the .NET 10 runtime; installing it needs a .NET SDK), attached to the release and installed from the
     downloaded file only, through a `nuget.config` that clears every other source (3.9 review H1: the ID is not held on
     nuget.org yet, so a package of that name there could be installed instead). Capture
-    stays Windows only; the tool is tested on x64 only and untested on macOS. A tool carries no worker executable, so
+    stayed Windows only (Linux too since 4.1, macOS untested since 4.2); the tool is tested on x64 only and untested on macOS. A tool carries no worker executable, so
     the front end starts the worker's assembly through the `dotnet` host that runs it, a 64-bit one (it refuses a 32-bit
     host). This amends ADR-025's worker per runtime identifier: the tool's worker is framework-dependent.
   - Every file attached is listed in `SHA256SUMS` and attested; the shipped license files and the attribution strip

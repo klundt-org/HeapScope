@@ -122,6 +122,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
 
     private static LoadResult Build(string fullPath, GCHeapDump dump, MemoryGraph source, Stopwatch stopwatch, TimeSpan open, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
+        CheckRoot(fullPath, source);
         using var builder = new HeapGraphBuilder();
         var children = new ChildBudget(source, new FileInfo(fullPath).Length, cancellationToken);
         var (nodesByObject, undefined, unknownTypes) = AddObjects(source, builder, children, progress, cancellationToken);
@@ -330,11 +331,6 @@ public sealed class GcDumpLoader : ISnapshotLoader
     /// </summary>
     private static int AddRoots(MemoryGraph source, HeapGraphBuilder builder, ChildBudget children, CancellationToken cancellationToken)
     {
-        if (source.RootIndex == NodeIndex.Invalid)
-        {
-            return 0;
-        }
-
         var type = source.AllocTypeNodeStorage();
         var visited = new HashSet<NodeIndex>();
         var pending = new Stack<(NodeIndex Node, RootClass Class)>();
@@ -412,6 +408,26 @@ public sealed class GcDumpLoader : ISnapshotLoader
             }
 
             return child;
+        }
+    }
+
+    /// <summary>
+    /// The file states where its root tree starts (4.2.1, found by the nightly fuzz test). Left to the reader, the error was
+    /// blamed on HeapScope once the JIT had inlined the accessor that throws (<see cref="IsReaderInconsistency"/>). Every writer
+    /// starts it at a described pseudo node, which has no address: an object there would turn its references into roots.
+    /// </summary>
+    private static void CheckRoot(string path, MemoryGraph source)
+    {
+        var root = source.RootIndex;
+        if ((long)root < 0 || (long)root >= (long)source.NodeIndexLimit)
+        {
+            throw new SnapshotFormatException($"{path} starts its roots at node {(long)root}, outside its {(long)source.NodeIndexLimit:N0} nodes. The file is damaged; if it was copied or downloaded, copy it again, otherwise capture another gcdump.");
+        }
+
+        if (!source.IsDefined(root) || source.GetAddress(root) != 0)
+        {
+            var what = source.IsDefined(root) ? "an object" : "not described";
+            throw new SnapshotFormatException($"{path} starts its roots at node {(long)root}, which is {what} and not the start of a root tree. The file is damaged; if it was copied or downloaded, copy it again, otherwise capture another gcdump.");
         }
     }
 

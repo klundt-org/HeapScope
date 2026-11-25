@@ -108,6 +108,22 @@ internal sealed class TraceStore
                 var phases = new Progress<string>(phase => progress?.Report(new JobProgress(phase, 0, null)));
                 trace = await Task.Run(() => AllocationTraceReader.Read(path, phases, _etlx, cancellationToken), cancellationToken).ConfigureAwait(false);
             }
+            catch (Exception ex) when (ex is SnapshotFormatException or InsufficientMemoryException)
+            {
+                // Which file, as it was, with which rules (4.2.1 review H1): a contested refusal is matched to this line.
+                _logger.LogInformation(
+                    "Refused allocation trace {Path} ({FileBytes} bytes, written {Written:O}) with reader {Reader}, check {Check}, TraceEvent {TraceEvent}, {Reserved} bytes reserved: {Reason} {Detail}",
+                    path,
+                    length,
+                    written,
+                    AllocationTraceReader.Version,
+                    AllocationTraceReader.CheckVersion,
+                    AllocationTraceReader.LibraryVersion,
+                    ReadReservation(length),
+                    ex.Message,
+                    AllocationTraceReader.RefusalDetail(ex) ?? "");
+                throw;
+            }
             finally
             {
                 MemoryReservations.Collect();
@@ -117,9 +133,21 @@ internal sealed class TraceStore
         var info = trace.Info;
         if (trace.SampleCount == 0)
         {
-            _logger.LogInformation("Refused allocation trace {Path} ({FileBytes} bytes, written {Written:O}): no allocation samples", path, length, written);
-            // Either cause leaves no sample: another profile, or a process that allocated too little (the 2.5 re-review).
-            throw new SnapshotFormatException($"{path} has no allocation samples: it was recorded with another profile, or the process allocated less than about 100 KB per heap while recording. Record with Record allocations on the Processes page (or 'heapscope-cli trace --profile allocations') while the application is busy, or for longer.");
+            _logger.LogInformation(
+                "Refused allocation trace {Path} ({FileBytes} bytes, written {Written:O}) with reader {Reader}, check {Check}, TraceEvent {TraceEvent}: no allocation samples; {Checked}, {Issues} conversion problems {FirstIssues}",
+                path,
+                length,
+                written,
+                AllocationTraceReader.Version,
+                AllocationTraceReader.CheckVersion,
+                AllocationTraceReader.LibraryVersion,
+                info.Checked ?? "not checked",
+                info.ConversionIssues,
+                string.Join(" | ", info.FirstIssues ?? []));
+            // Any of these leaves no sample: another profile, a process that allocated too little (the 2.5 re-review), or a file
+            // that ends, or could not be read, before the first one (4.2.1 review).
+            var incomplete = info.IsIncomplete ? ", or the file is incomplete" : "";
+            throw new SnapshotFormatException($"{path} has no allocation samples: it was recorded with another profile, or the process allocated less than about 100 KB per heap while recording{incomplete}. Record with Record allocations on the Processes page (or 'heapscope-cli trace --profile allocations') while the application is busy, or for longer.");
         }
 
         var kept = KeptBytes(trace);
@@ -130,7 +158,7 @@ internal sealed class TraceStore
 
         // The trace's identity and what reading it found (the 2.5 review): a disputed figure is matched to this line.
         _logger.LogInformation(
-            "Opened allocation trace {Id} ({Path}, {FileBytes} bytes, written {Written:O}) with reader {Reader} in {Seconds:N2} s: process {ProcessId} {ProcessName} (from its first allocation tick), recording started {Start:O}, {Duration:N1} s recorded, {Samples} samples of {Bytes} bytes in {Types} types, {Frames} frames, {Nodes} stack nodes, {Lost} lost events, {NoStack} samples without a stack, {Unresolved} samples with unresolved frames, rundown {Rundown}, {Issues} conversion problems {FirstIssues}; keeps {Kept} bytes",
+            "Opened allocation trace {Id} ({Path}, {FileBytes} bytes, written {Written:O}) with reader {Reader} in {Seconds:N2} s: process {ProcessId} {ProcessName} (from its first allocation tick), recording started {Start:O}, {Duration:N1} s recorded, {Samples} samples of {Bytes} bytes in {Types} types, {Frames} frames, {Nodes} stack nodes, {Lost} lost events, {NoStack} samples without a stack, {Unresolved} samples with unresolved frames, rundown {Rundown}, {Issues} conversion problems {FirstIssues}; {Checked}; keeps {Kept} bytes",
             id,
             path,
             length,
@@ -152,6 +180,7 @@ internal sealed class TraceStore
             info.HasRundown ? "seen" : "missing",
             info.ConversionIssues,
             string.Join(" | ", info.FirstIssues ?? []),
+            info.Checked ?? "not checked",
             kept);
         return new TraceDescriptor(
             id,

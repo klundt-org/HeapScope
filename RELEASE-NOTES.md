@@ -9,7 +9,8 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 | Version | Released |
 |---|---|
-| 4.2.0 | 2026-11-23, `v4.2.0` |
+| 4.2.1 | 2026-11-24, `v4.2.1` |
+| 4.2.0 | 2026-11-24, `v4.2.0` |
 | 3.13.2 | 2026-11-20, `v3.13.2` |
 | 3.13.1 | 2026-11-19, `v3.13.1` |
 | 3.13.0 | 2026-11-17, `v3.13.0` |
@@ -19,6 +20,21 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 | 2.2.0 | 2026-10-25, `v2.2.0` |
 
 Everything else was built on `develop` and first shipped in the next release above it.
+
+## 4.2.1: Damaged gcdumps and traces (sprint 4.2.1)
+
+- **Traces that state more than they hold are refused before they are read**: what a `.nettrace` file says about its own
+  contents must fit in it. A file that does not is refused with the byte and the reason, instead of taking a lot of memory or
+  failing as a HeapScope error.
+- **Damaged gcdumps**: a gcdump whose roots start outside its nodes is always refused as damaged. After many gcdumps opened in
+  one run, it could be reported as a HeapScope error.
+- **Too little memory is said**: a trace that could not be read for lack of memory no longer opens as a shorter one.
+- **Refusals give a next step**, and the log says what each rests on.
+- **Limit**: HeapScope reads traces of format version 4, which the .NET runtime writes. A trace of another version (some newer
+  tools write version 6) opened unchecked before and is now refused with a message that says so.
+- **TraceEvent 4.0.2** (from 4.0.0), which checks that the values it reads lie within their event. A trace with a damaged
+  event can open with what came before it and a note that it may be cut short, so it can show fewer samples than in 4.2.0;
+  record it again if it matters.
 
 ## 4.2.0: Capture on macOS (sprint 4.2)
 
