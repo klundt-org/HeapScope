@@ -279,6 +279,61 @@ public sealed class MonitorServiceTests : IDisposable
         (recorded.Trace, recorded.TraceNote).ShouldBe((Path.GetFileName(run.TracePath), run.TraceError));
     }
 
+    /// <summary>Sprint 4.3: a live recording that ends by an error keeps what it has, and whoever follows it is told it ended, failed or not.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_recording_that_ends_by_an_error_is_told_to_whoever_follows_it(bool kept)
+    {
+        async Task<TraceResult> Recorder(AllocationRecordingRequest request, CancellationToken ct)
+        {
+            request.CounterInterval.ShouldBe(TimeSpan.FromSeconds(5), "the run's own: the shortest of a process's counters wins");
+            request.NoNames.ShouldBeNull();
+            await File.WriteAllBytesAsync(request.Path, new byte[64], CancellationToken.None);
+            request.Started(new HeapScope.Capture.LiveTraceStart(request.Path, null, "none", TimeSpan.Zero));
+            await Task.Yield();
+            return kept
+                ? new TraceResult(request.Path, 64, TimeSpan.FromSeconds(1), StoppedEarly: true, "The disk is full.")
+                : throw new CaptureFailedException(CaptureFailure.WriteFailed, "It broke.", null);
+        }
+
+        var ended = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopped = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new MonitorService(_capture, _feed, allocations: Recorder);
+        var run = service.Start(42, new MonitorOptions(TimeSpan.FromSeconds(5), MonitorRules.None, RecordAllocations: true), r =>
+        {
+            r.TraceEnded += (_, path) => ended.TrySetResult(path);
+            r.TraceStopped += (_, message) => stopped.TrySetResult(message);
+        });
+
+        (await ended.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct)).ShouldContain("allocations-42");
+        var message = await stopped.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+        run.Stop();
+        await run.Completion;
+
+        message.ShouldContain(kept ? "stopped early because The disk is full; what it recorded is kept" : "It broke.");
+        (run.TracePath is not null).ShouldBe(kept);
+    }
+
+    /// <summary>Sprint 4.3: a session of its own for the names is not started or stopped beside a capture of the process.</summary>
+    [Fact]
+    public async Task No_names_are_recorded_while_a_capture_of_the_process_runs()
+    {
+        string? why = null;
+        Task<TraceResult> Recorder(AllocationRecordingRequest request, CancellationToken ct)
+        {
+            why = request.NoNames;
+            return Task.FromResult(new TraceResult(request.Path, 0, TimeSpan.Zero, StoppedEarly: true));
+        }
+
+        _capture.Busy.Add(42);
+        var run = new MonitorService(_capture, _feed, allocations: Recorder).Start(42, new MonitorOptions(TimeSpan.FromSeconds(1), MonitorRules.None, RecordAllocations: true));
+        run.Stop();
+        await run.Completion;
+
+        why.ShouldBe("a capture of the process runs");
+    }
+
     [Fact]
     public async Task A_refused_trace_is_reported_at_once_and_an_unconfirmed_collection_is_not_marked()
     {

@@ -100,7 +100,7 @@ public sealed partial class LivePastRunsViewModel : ObservableObject
         if (timelineCheck.Path is not { } path)
         {
             _logger.LogInformation("Monitoring run {RunId} not reopened: its timeline {Timeline} was refused ({Refusal})", run.Id, run.Timeline ?? "(none recorded)", timelineCheck.Refusal);
-            _shown.Status = timelineCheck.Describe("This run's timeline");
+            Say(timelineCheck.Describe("This run's timeline"));
             return;
         }
 
@@ -142,7 +142,16 @@ public sealed partial class LivePastRunsViewModel : ObservableObject
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogWarning(ex, "Monitoring run {RunId}: its timeline could not be read", run.Id);
-            _shown.Status = "The run's timeline could not be read: " + ex.Message;
+            Say("The run's timeline could not be read: " + ex.Message);
+        }
+    }
+
+    /// <summary>Says why a past run is not shown, unless a run that started meanwhile has the page.</summary>
+    private void Say(string status)
+    {
+        if (!IsRunning)
+        {
+            _shown.Status = status;
         }
     }
 

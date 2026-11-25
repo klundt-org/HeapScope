@@ -66,7 +66,8 @@ public sealed class AllocationRecordingTests : IDisposable
                 }
 
                 limitReached.TrySetResult();
-            });
+            },
+            TimeSpan.FromSeconds(1));
 
         await limitReached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
         var disposing = recording.DisposeAsync().AsTask();

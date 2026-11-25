@@ -26,7 +26,7 @@ using HeapScope.Core.Allocations;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>One allocation tick as TraceEvent's live source gives it.</summary>
-internal readonly record struct LiveSample(string? TypeName, double TimeMs, DateTime Utc, long Bytes, AllocationKind Kind, int ProcessId, string? ProcessName);
+internal readonly record struct LiveSample(string? TypeName, double TimeMs, DateTime Utc, long Bytes, AllocationKind Kind);
 
 /// <summary>Any event of a live trace: how far it got.</summary>
-internal readonly record struct LiveEvent(DateTime SessionStartUtc, double TimeMs, bool IsRundown);
+internal readonly record struct LiveEvent(DateTime SessionStartUtc, double TimeMs, bool IsRundown, int Lost);

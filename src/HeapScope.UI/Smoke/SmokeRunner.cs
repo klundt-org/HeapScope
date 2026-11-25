@@ -277,7 +277,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
             await run.Completion;
         }
 
-        await allocations.FollowTask.WaitAsync(TimeSpan.FromSeconds(60));
+        await allocations.EndTask.WaitAsync(TimeSpan.FromSeconds(60));
         var completed = allocations.Types.Count > 0 && allocations.Stacks.Count > 0 && string.IsNullOrEmpty(allocations.Note);
         logger.LogInformation(
             "Smoke live process: {Summary} {Types} types and {Stacks} stacks shown, longest delay {Delay:N2} s, note {Note}; {Measured}",

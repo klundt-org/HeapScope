@@ -130,6 +130,41 @@ public sealed class LiveWorkflowTests
         SessionLibrary.TryRead(run.SessionFolder!)!.Document.Runs!.Single().Trace.ShouldBe(Path.GetFileName(trace));
     }
 
+    /// <summary>Sprint 4.3: a process has one timer for its counters and the shortest interval wins, so a recording asks for the run's own.</summary>
+    [Fact]
+    public async Task A_recording_leaves_the_run_s_interval_as_it_is()
+    {
+        using var folder = new TempFolder();
+        using var api = await FixtureProcess.StartApiAsync();
+        var capture = new CaptureService(new ProcessDiscovery(), new DumpCapturer(), new SessionLibrary(folder.Path), new JobTracker(TimeProvider.System));
+        var at = new List<DateTimeOffset>();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var run = new MonitorService(capture).Start(api.ProcessId, new MonitorOptions(TimeSpan.FromSeconds(3), MonitorRules.None, RecordAllocations: true), r =>
+        {
+            r.TraceStarted += (_, _) => started.TrySetResult();
+            r.SampleReceived += (_, sample) =>
+            {
+                lock (at)
+                {
+                    at.Add(sample.Counters.At);
+                }
+            };
+        });
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        await WaitUntilAsync(() =>
+        {
+            lock (at)
+            {
+                return at.Count >= 4;
+            }
+        });
+        run.Stop();
+        await run.Completion;
+
+        // The first gap may hold the recording's start, which restarts the timer.
+        at.Zip(at.Skip(1), static (a, b) => b - a).Skip(1).ShouldAllBe(gap => gap > TimeSpan.FromSeconds(2));
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);

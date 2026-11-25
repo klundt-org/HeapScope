@@ -23,12 +23,6 @@
 
 using System.Globalization;
 using HeapScope.Application.Sessions;
-using HeapScope.Capture;
-using HeapScope.Contracts;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using HeapScope.Core;
-using HeapScope.Application.Events;
 
 namespace HeapScope.Application.Monitoring;
 

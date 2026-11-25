@@ -99,7 +99,7 @@ public sealed class SampleTests : IDisposable
         var path = _root.File("bursts.nettrace");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         var started = new TaskCompletionSource<LiveTraceStart>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var recording = TraceRecorder.RecordLiveAsync(sample.ProcessId, path, TimeSpan.FromMinutes(2), started.SetResult, stop.Token);
+        var recording = TraceRecorder.RecordLiveAsync(sample.ProcessId, path, TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(1), noNames: null, started.SetResult, stop.Token);
         var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
         using var live = LiveTraceReader.Start(path, start.NamesPath);
 
@@ -111,7 +111,7 @@ public sealed class SampleTests : IDisposable
             await Task.Delay(200, Ct);
         }
 
-        var trace = live.View();
+        var trace = live.View().Trace;
         string Top(AllocationFilter filter) => AllocationProfile.Types(trace, filter, Ct).Select(t => trace.Types[t.Type]).First(t => t.StartsWith("HeapScope.Sample.", StringComparison.Ordinal));
         var tallest = AllocationProfile.Timeline(trace, 1000, Ct).MaxBy(b => b.Bytes);
         var burst = new AllocationFilter(tallest.StartMs, tallest.StartMs + 1000);

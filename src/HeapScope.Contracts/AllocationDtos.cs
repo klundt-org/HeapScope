@@ -65,13 +65,15 @@ public sealed record AllocationTimelineRequest(Guid TraceId, double BucketSecond
 
 public sealed record AllocationBucketDto(double StartSeconds, long Bytes, int Samples);
 
+/// <param name="BucketSeconds">The stretch asked for; of a live trace, outward to a multiple of its own.</param>
 public sealed record AllocationTimelineResult(IReadOnlyList<AllocationBucketDto> Buckets, double BucketSeconds, double DurationSeconds);
 
 /// <summary>The types allocated in an interval (seconds since the trace started; no end means to the end of the trace).</summary>
 public sealed record AllocationTypesRequest(Guid TraceId, double FromSeconds = 0, double? ToSeconds = null);
 
 /// <summary>The types (<see cref="AllocationTypeColumns"/>) and what the interval's samples stand for.</summary>
-public sealed record AllocationTypesResult(ResultSetInfo Types, long SampledBytes, int Samples);
+/// <param name="Interval">The interval counted, for a live trace.</param>
+public sealed record AllocationTypesResult(ResultSetInfo Types, long SampledBytes, int Samples, AllocationIntervalDto? Interval = null);
 
 /// <summary>The call stacks with the most sampled bytes in an interval, of every type or of one.</summary>
 public sealed record AllocationStacksRequest(Guid TraceId, double FromSeconds = 0, double? ToSeconds = null, string? TypeName = null, int Count = 20);
@@ -79,7 +81,8 @@ public sealed record AllocationStacksRequest(Guid TraceId, double FromSeconds = 
 /// <summary>One call stack: its frames, the allocating method first, then its callers.</summary>
 public sealed record AllocationStackDto(long Bytes, int Samples, IReadOnlyList<string> Frames);
 
-public sealed record AllocationStacksResult(IReadOnlyList<AllocationStackDto> Stacks, long SampledBytes, int Samples);
+/// <param name="Interval">The interval counted, for a live trace.</param>
+public sealed record AllocationStacksResult(IReadOnlyList<AllocationStackDto> Stacks, long SampledBytes, int Samples, AllocationIntervalDto? Interval = null);
 
 /// <summary>How an allocation tree is read.</summary>
 public enum AllocationTreeKindDto

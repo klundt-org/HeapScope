@@ -70,7 +70,7 @@ public sealed class TraceTests(RunningApi shared) : IClassFixture<RunningApi>, I
         var path = _root.File("live.nettrace");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         var started = new TaskCompletionSource<LiveTraceStart>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var recording = TraceRecorder.RecordLiveAsync(shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), started.SetResult, stop.Token);
+        var recording = TraceRecorder.RecordLiveAsync(shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(1), noNames: null, started.SetResult, stop.Token);
 
         var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
         start.Path.ShouldBe(path);
@@ -110,7 +110,7 @@ public sealed class TraceTests(RunningApi shared) : IClassFixture<RunningApi>, I
         await cancel.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(
-            () => new TraceService().RecordLiveAsync(shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), _ => Assert.Fail("started"), cancel.Token));
+            () => new TraceService().RecordLiveAsync(shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(1), noNames: null, _ => Assert.Fail("started"), cancel.Token));
 
         Directory.EnumerateFiles(_root.Path, "live-never-started*").ShouldBeEmpty();
     }

@@ -46,7 +46,8 @@ public enum TraceProfile
 
 /// <summary>A trace that was written.</summary>
 /// <param name="StoppedEarly">True when it ended before the duration: canceled, or the process exited.</param>
-public sealed record TraceRecording(string Path, long Bytes, TimeSpan Duration, bool StoppedEarly);
+/// <param name="Problem">Why a live recording ended before it was asked to, when that was an error: what was recorded is kept.</param>
+public sealed record TraceRecording(string Path, long Bytes, TimeSpan Duration, bool StoppedEarly, string? Problem = null);
 
 /// <summary>
 /// Records an EventPipe trace of a .NET process through its diagnostics port (sprint 1.5): the same session dotnet-trace
@@ -123,13 +124,16 @@ public static class TraceRecorder
 
     /// <summary>
     /// Records the allocations profile for a reader beside it (sprint 4.3, ADR-037): into <paramref name="path"/> itself, each chunk
-    /// of the stream written as it arrives, the file shared for reading and deleting. A System.Runtime counter each second makes the
-    /// runtime send a thread's last samples when it goes idle. Before it, a session with the rundown alone names the methods
-    /// compiled so far, into a partial file that the recording's end deletes; without it names come later.
+    /// of the stream written as it arrives, the file shared for reading and deleting. A System.Runtime counter every
+    /// <paramref name="counterInterval"/> makes the runtime send a thread's last samples when it goes idle (the process has one timer
+    /// for all who ask, and the shortest interval wins: it is that of the run's own counters). Before it, a session with the rundown alone names the methods
+    /// compiled so far, into a partial file that the recording's end deletes; without it names come later. What was recorded before an
+    /// error is kept.
     /// </summary>
+    /// <param name="noNames">Why no names are to be recorded (a capture of the process runs), or null to record them.</param>
     /// <param name="started">Called once the session records, off the caller's thread.</param>
     /// <inheritdoc cref="RecordAsync" path="/exception"/>
-    public static async Task<TraceRecording> RecordLiveAsync(int processId, string path, TimeSpan duration, Action<LiveTraceStart>? started, CancellationToken cancellationToken)
+    public static async Task<TraceRecording> RecordLiveAsync(int processId, string path, TimeSpan duration, TimeSpan counterInterval, string? noNames, Action<LiveTraceStart>? started, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duration, TimeSpan.Zero);
@@ -144,19 +148,27 @@ public static class TraceRecorder
         var names = PartialName(fullPath);
         var stoppedEarly = false;
         var created = false;
+        var recording = false;
+        string? failed = null;
         try
         {
-            var problem = await RecordNamesAsync(processId, names, cancellationToken).ConfigureAwait(false);
+            var problem = noNames ?? await RecordNamesAsync(processId, names, cancellationToken).ConfigureAwait(false);
             var start = new LiveTraceStart(fullPath, problem is null ? names : null, problem, stopwatch.Elapsed);
             stopwatch.Restart();
             var file = PrivateFiles.Open(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read | FileShare.Delete, 1, FileOptions.Asynchronous);
             created = true;
             await using (file.ConfigureAwait(false))
             {
-                using var session = await StartAsync(processId, [.. Providers(TraceProfile.Allocations), s_counterEachSecond], cancellationToken).ConfigureAwait(false);
+                using var session = await StartAsync(processId, [.. Providers(TraceProfile.Allocations), Counter(counterInterval)], cancellationToken).ConfigureAwait(false);
+                recording = true;
                 started?.Invoke(start);
                 stoppedEarly = await CopyAsync(session, file, duration, cancellationToken).ConfigureAwait(false);
             }
+        }
+        catch (Exception ex) when (recording && ex is IOException or UnauthorizedAccessException && new FileInfo(fullPath) is { Exists: true, Length: > 0 })
+        {
+            // The file states what it holds object by object: what was written is read as a recording cut short.
+            (stoppedEarly, failed) = (true, ex.Message);
         }
         catch
         {
@@ -172,11 +184,14 @@ public static class TraceRecorder
             TryDelete(names);
         }
 
-        return new TraceRecording(fullPath, new FileInfo(fullPath).Length, stopwatch.Elapsed, stoppedEarly);
+        return new TraceRecording(fullPath, new FileInfo(fullPath).Length, stopwatch.Elapsed, stoppedEarly, failed);
     }
 
-    private static readonly EventPipeProvider s_counterEachSecond =
-        new("System.Runtime", EventLevel.Informational, 0, new Dictionary<string, string> { ["EventCounterIntervalSec"] = "1" });
+    private static EventPipeProvider Counter(TimeSpan interval) => new(
+        "System.Runtime",
+        EventLevel.Informational,
+        0,
+        new Dictionary<string, string> { ["EventCounterIntervalSec"] = Math.Max(1, (int)interval.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture) });
 
     /// <summary>How long the session of the names may take: a process that does not answer must not hold the recording up.</summary>
     private static readonly TimeSpan s_namesTimeout = TimeSpan.FromSeconds(15);
@@ -192,9 +207,12 @@ public static class TraceRecorder
             await using (file.ConfigureAwait(false))
             {
                 using var session = await new DiagnosticsClient(processId)
-                    .StartEventPipeSessionAsync([new EventPipeProvider("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, LoaderKeyword)], requestRundown: true, circularBufferMB: 64, limit.Token)
+                    .StartEventPipeSessionAsync([new EventPipeProvider("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, LoaderKeyword)], requestRundown: true, circularBufferMB: 256, limit.Token)
                     .ConfigureAwait(false);
                 var copy = session.EventStream.CopyToAsync(file, CancellationToken.None);
+
+                // One that is not waited for (the limit passed) ends with the session: its error is nobody's.
+                _ = copy.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
                 await session.StopAsync(limit.Token).ConfigureAwait(false);
                 await copy.WaitAsync(limit.Token).ConfigureAwait(false);
             }

@@ -50,11 +50,23 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
 
     public List<Guid> LiveEnded { get; } = [];
 
+    /// <summary>When set, the next types query fails with it.</summary>
+    public Exception? TypesFailure { get; set; }
+
+    /// <summary>How many more times opening a live trace fails as a worker that stopped.</summary>
+    public int LiveOpenCrashes { get; set; }
+
     public Exception? LiveFailure { get; set; }
 
     public Task<LiveTraceDescriptor> OpenLiveTraceAsync(OpenLiveTraceRequest request, CancellationToken cancellationToken)
     {
         LiveOpened.Add(request);
+        if (LiveOpenCrashes > 0)
+        {
+            LiveOpenCrashes--;
+            return Task.FromException<LiveTraceDescriptor>(new WorkerCrashedException("The worker stopped."));
+        }
+
         return LiveFailure is { } failure ? Task.FromException<LiveTraceDescriptor>(failure) : Task.FromResult(new LiveTraceDescriptor(Guid.NewGuid(), request.Path, LiveState));
     }
 
@@ -78,13 +90,31 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
 
     public List<IReadOnlyList<string?>> TypeRows { get; set; } = [["System.Byte[]", "300", "3", "75"], ["System.String", "100", "1", "25"]];
 
-    public Task<AllocationTypesResult> QueryAllocationTypesAsync(AllocationTypesRequest request, CancellationToken cancellationToken)
+    /// <summary>The interval a live trace's queries say they counted.</summary>
+    public AllocationIntervalDto? LiveInterval { get; set; }
+
+    /// <summary>When set, the next types query waits for it.</summary>
+    public TaskCompletionSource? TypesGate { get; set; }
+
+    public async Task<AllocationTypesResult> QueryAllocationTypesAsync(AllocationTypesRequest request, CancellationToken cancellationToken)
     {
         TypeQueries.Add(request);
+        if (TypesGate is { } gate)
+        {
+            TypesGate = null;
+            await gate.Task;
+        }
+
+        if (TypesFailure is { } failure)
+        {
+            TypesFailure = null;
+            throw failure;
+        }
+
         var rows = TypeRows;
         var id = Guid.NewGuid();
         _sets[id] = rows;
-        return Task.FromResult(new AllocationTypesResult(new ResultSetInfo(id, rows.Count, AllocationTypeColumnsList), 400, 4));
+        return new AllocationTypesResult(new ResultSetInfo(id, rows.Count, AllocationTypeColumnsList), 400, 4, LiveInterval);
     }
 
     public Task<AllocationStacksResult> QueryAllocationStacksAsync(AllocationStacksRequest request, CancellationToken cancellationToken)

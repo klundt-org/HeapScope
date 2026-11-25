@@ -42,7 +42,8 @@ public enum TraceKind
 
 /// <summary>A trace that was written.</summary>
 /// <param name="StoppedEarly">True when it ended before the duration: canceled, or the process exited.</param>
-public sealed record TraceResult(string Path, long Bytes, TimeSpan Duration, bool StoppedEarly);
+/// <param name="Problem">Why a live recording ended by an error; what was recorded is kept.</param>
+public sealed record TraceResult(string Path, long Bytes, TimeSpan Duration, bool StoppedEarly, string? Problem = null);
 
 /// <summary>
 /// Records EventPipe traces of .NET processes, HeapScope's own included (sprint 1.5): no dotnet-trace install. Failures
@@ -57,15 +58,15 @@ public sealed class TraceService(ILogger<TraceService>? logger = null)
         RecordAsync(processId, () => TraceRecorder.RecordAsync(processId, path, (TraceProfile)(int)kind, duration, cancellationToken));
 
     /// <summary>Records allocations into a file that a reader beside it follows (sprint 4.3, ADR-037).</summary>
-    public Task<TraceResult> RecordLiveAsync(int processId, string path, TimeSpan duration, Action<LiveTraceStart>? started, CancellationToken cancellationToken) =>
-        RecordAsync(processId, () => TraceRecorder.RecordLiveAsync(processId, path, duration, started, cancellationToken));
+    public Task<TraceResult> RecordLiveAsync(int processId, string path, TimeSpan duration, TimeSpan counterInterval, string? noNames, Action<LiveTraceStart>? started, CancellationToken cancellationToken) =>
+        RecordAsync(processId, () => TraceRecorder.RecordLiveAsync(processId, path, duration, counterInterval, noNames, started, cancellationToken));
 
     private async Task<TraceResult> RecordAsync(int processId, Func<Task<TraceRecording>> record)
     {
         try
         {
             var recording = await record().ConfigureAwait(false);
-            return new TraceResult(recording.Path, recording.Bytes, recording.Duration, recording.StoppedEarly);
+            return new TraceResult(recording.Path, recording.Bytes, recording.Duration, recording.StoppedEarly, recording.Problem);
         }
         catch (Exception ex) when (Translate(ex) is { } failure)
         {

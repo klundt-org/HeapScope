@@ -99,7 +99,7 @@ public sealed class MonitorRun : IAsyncDisposable
     public event EventHandler<LiveTraceFile>? TraceStarted;
 
     /// <summary>
-    /// The allocation trace that <see cref="TraceStarted"/> named is written to its end and closed, whatever ended it. Raised
+    /// Nothing more is written to the allocation trace that <see cref="TraceStarted"/> named, whatever ended it. Raised
     /// before <see cref="Completion"/> ends.
     /// </summary>
     public event EventHandler<string>? TraceEnded;
@@ -231,6 +231,8 @@ public sealed class MonitorRun : IAsyncDisposable
         if (Options.RecordAllocations)
         {
             _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, Options.TraceLimitBytes, _allocations, _time, _logger, PendingCaptures, TraceProblem,
+                Options.Interval,
+                () => _capture.IsBusy(ProcessId),
                 start => Raise(TraceStarted, new LiveTraceFile(start.Path, start.NamesPath), nameof(TraceStarted)),
                 path => Raise(TraceEnded, path, nameof(TraceEnded)));
         }

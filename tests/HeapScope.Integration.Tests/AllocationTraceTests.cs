@@ -144,7 +144,7 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         var status = reader.Status();
         (status.Problem, status.StackProblem, status.Completed, reader.Failure).ShouldBe((null, null, true, null));
         status.Checked.ShouldNotBeNull().ShouldContain("whole");
-        var live = reader.View();
+        var live = reader.View().Trace;
         Types(live).ShouldBe(Types(finished));
         var (liveStacks, finishedStacks) = (Stacks(live), Stacks(finished));
         liveStacks.Keys.Except(finishedStacks.Keys).Take(3).ShouldBeEmpty("stacks only the live reader has");
@@ -422,7 +422,7 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         var path = _scratch.File("followed.nettrace");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         var started = new TaskCompletionSource<LiveTraceStart>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var recording = new TraceService().RecordLiveAsync(_shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), started.SetResult, stop.Token);
+        var recording = new TraceService().RecordLiveAsync(_shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(1), noNames: null, started.SetResult, stop.Token);
         var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
         var live = await _session.OpenLiveAsync(path, start.NamesPath, Ct);
         _session.Traces.ShouldNotContain(live, "it is the Live page's own");
@@ -512,6 +512,12 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         }
 
         state.StartUtc.ShouldNotBeNull();
+        var tree = await Should.ThrowAsync<WorkerOperationException>(() => _session.QueryTreeAsync(live, AllocationScope.All, AllocationTreeKindDto.BackTraces, [], null, null, Ct));
+        tree.ErrorCode.ShouldBe(HeapScopeErrorCode.InvalidArgument);
+        var types = await _session.QueryTypesAsync(live, new AllocationScope(0.5, 1.5), Ct);
+        types.Result.Interval.ShouldBe(new AllocationIntervalDto(0, 2), "whole stretches");
+        (await _session.QueryTimelineAsync(live, 1.5, Ct)).BucketSeconds.ShouldBe(2);
+        (await _session.QueryTypesAsync(finished, new AllocationScope(0.5, 1.5), Ct)).Result.Interval.ShouldBeNull("a finished trace counts what is asked");
         var id = live.Descriptor.TraceId;
         await _host.InvokeAsync((service, ct) => service.CloseTraceAsync(id, ct), Ct);
         File.Delete(path);

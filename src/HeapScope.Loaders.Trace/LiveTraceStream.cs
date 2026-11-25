@@ -67,6 +67,9 @@ internal sealed class LiveTraceStream : Stream
     /// <summary>Why the file was refused, if it was: the stream ended there.</summary>
     public SnapshotFormatException? Refusal { get; private set; }
 
+    /// <summary>What the refusal rests on, for the log.</summary>
+    public string? RefusalDetail { get; private set; }
+
     /// <summary>Whether the reader has been handed everything the file held when it last looked.</summary>
     public bool CaughtUp { get; private set; }
 
@@ -104,7 +107,7 @@ internal sealed class LiveTraceStream : Stream
                 }
 
                 // The file is shorter than it was: nothing to wait for.
-                Refusal ??= Shrunk();
+                Shrunk(_file.Length);
                 _finished = true;
                 _position = _checked;
             }
@@ -137,7 +140,7 @@ internal sealed class LiveTraceStream : Stream
             var length = _file.Length;
             if (length < _checked)
             {
-                Refusal = Shrunk();
+                Shrunk(length);
                 _finished = true;
                 return;
             }
@@ -182,6 +185,7 @@ internal sealed class LiveTraceStream : Stream
             // Everything before the object that was refused is sound and is read.
             _checked = Math.Max(_checked, _walk.Position);
             Refusal = ex;
+            RefusalDetail = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"check {TraceFileCheck.Version} refused what starts at byte {_walk.Position} of {_file.Length} (its rule and byte are in the reason)");
             _finished = true;
             return;
         }
@@ -201,7 +205,11 @@ internal sealed class LiveTraceStream : Stream
         _finished = true;
     }
 
-    private SnapshotFormatException Shrunk() => new($"{_path} became shorter while it was read. Open the finished trace again.");
+    private void Shrunk(long length)
+    {
+        Refusal ??= new SnapshotFormatException($"{_path} became shorter while it was read. Open the finished trace again.");
+        RefusalDetail = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{length} bytes, {_checked} were checked and {_position} read");
+    }
 
     public override void Flush()
     {

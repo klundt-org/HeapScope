@@ -24,13 +24,30 @@
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// What a live trace keeps at most (sprint 4.3). The defaults hold 30 minutes a second at a time; an entry takes about 50 bytes and
-/// a stack node about 40.
+/// What a live trace keeps at most (sprint 4.3). The defaults hold 30 minutes a second at a time. At the limits all
+/// of it takes 75 MB, names included, and two views 23 MB more (measured, budgets.md); folding the stacks again holds the nodes and one
+/// stretch twice.
 /// </summary>
-internal sealed record LiveAllocationLimits(double BucketMs = 1000, int MaxBuckets = 1800, int MaxEntries = 400_000, int MaxStackNodes = 300_000, int MaxTypes = 50_000)
+/// <param name="FewestBuckets">Entries past their limit make stretches longer down to this many, and then give up the stacks.</param>
+/// <param name="MaxFrames">Addresses whose frame is remembered between samples.</param>
+/// <param name="MaxUnnamed">Addresses without a name that are told apart.</param>
+/// <param name="MaxTypeText">Characters of type names.</param>
+internal sealed record LiveAllocationLimits(
+    double BucketMs = 1000,
+    int MaxBuckets = 1800,
+    int FewestBuckets = 60,
+    int MaxEntries = 400_000,
+    int MaxStackNodes = 300_000,
+    int MaxFrames = 100_000,
+    int MaxUnnamed = 20_000,
+    int MaxTypes = 50_000,
+    int MaxTypeText = 4_000_000)
 {
-    /// <summary>The memory a live trace reserves while it is read: the limits above, the names and TraceEvent's buffers.</summary>
-    public const long ReservedBytes = 160L * 1024 * 1024;
+    /// <summary>
+    /// The memory a live trace reserves while it is read: what it keeps at the limits (98 MB with two views), the folding and
+    /// TraceEvent's buffers.
+    /// </summary>
+    public const long ReservedBytes = 192L * 1024 * 1024;
 
     public static LiveAllocationLimits Default { get; } = new();
 }

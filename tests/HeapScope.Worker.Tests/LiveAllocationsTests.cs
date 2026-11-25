@@ -54,7 +54,6 @@ public sealed class LiveAllocationsTests
                 (1000.0, "B", 400L, AllocationKind.Pinned, 1, AllocationTrace.NoStackFrame),
             ]);
         (live.Samples, live.Bytes, live.WithoutStack, live.Unnamed()).ShouldBe((4, 1000, 1, 0));
-        live.View(s_info).ShouldBeSameAs(trace, "nothing was added");
     }
 
     [Fact]
@@ -70,6 +69,7 @@ public sealed class LiveAllocationsTests
         live.Unnamed().ShouldBe(2);
 
         _names.Add(0x2000, 0x100, "App.Work()");
+        live.Rename().ShouldBeTrue();
 
         var after = live.View(s_info);
         after.SampleCount.ShouldBe(1, "they are one");
@@ -115,7 +115,7 @@ public sealed class LiveAllocationsTests
     [Fact]
     public void Too_many_entries_make_stretches_longer_and_then_give_up_the_stacks()
     {
-        var live = Live(new LiveAllocationLimits(MaxEntries: 10));
+        var live = Live(new LiveAllocationLimits(MaxEntries: 10, FewestBuckets: 2));
         for (var i = 0; i < 12; i++)
         {
             live.Add(i * 1000, "A", 10, AllocationKind.Small, [0x1000]);
@@ -164,6 +164,58 @@ public sealed class LiveAllocationsTests
             .ShouldBe((2, 2, "A", "A", null, null, "B"));
         _names.Add(0x9000, 0x10, new string('x', (int)(LiveMethodNames.MaxTextBytes / 2)));
         (_names.Count, _names.LeftOut).ShouldBe((2, 1));
+    }
+
+    [Fact]
+    public void A_method_over_others_takes_their_place_and_an_unloaded_one_is_gone()
+    {
+        _names.Add(0x1000, 0x40, "A");
+        _names.Add(0x1080, 0x40, "C");
+        _names.Add(0x0ff0, 0xa0, "B");
+
+        (_names.Find(0x1020), _names.Find(0x1050), _names.Find(0x1080), _names.Find(0x10a0), _names.Count).ShouldBe(("B", "B", "B", null, 1));
+        _names.Remove(0x0ff0);
+        (_names.Find(0x1020), _names.Count).ShouldBe((null, 0));
+    }
+
+    [Fact]
+    public void A_rundown_is_taken_in_any_order()
+    {
+        _names.AddAll([(0x3000, 0x10, "C"), (0x1000, 0x10, "A"), (0x2000, 0x10, "B"), (0x1000, 0x10, "A2")]);
+
+        (_names.Find(0x1000), _names.Find(0x2000), _names.Find(0x3005), _names.Count).ShouldBe(("A2", "B", "C", 3));
+        _names.AddAll([(0x2000, 0x20, "B2"), (0x500, 0x10, "Z")]);
+        (_names.Find(0x2018), _names.Find(0x505), _names.Count).ShouldBe(("B2", "Z", 4));
+    }
+
+    [Fact]
+    public void What_is_kept_is_bounded_however_many_addresses_and_types_there_are()
+    {
+        var notices = new List<string>();
+        var live = new LiveAllocations(_names, new LiveAllocationLimits(MaxStackNodes: 50, MaxUnnamed: 10, MaxFrames: 20, MaxTypeText: 100), notices.Add);
+        for (var i = 0; i < 5_000; i++)
+        {
+            live.Add(i, "T" + (i % 200), 10, AllocationKind.Small, [(ulong)(0x10_0000 + i), (ulong)(0x20_0000 + (i % 7))]);
+        }
+
+        live.StackNodes.ShouldBeLessThanOrEqualTo(51, "and the node of the others");
+        live.Frames.ShouldBeLessThan(40, "no frame is made for a stack that is not kept");
+        live.Types.ShouldBeLessThan(60);
+        var trace = live.View(s_info);
+        (trace.SampleBytes.Sum(), Enumerable.Range(0, trace.SampleCount).Sum(trace.CountOf)).ShouldBe((50_000L, 5_000));
+        live.Unnamed().ShouldBeGreaterThan(0);
+        notices.ShouldBeEmpty("nothing shown changed its meaning");
+        live.Add(LiveAllocationLimits.Default.MaxBuckets * 1000.0, "A", 1, AllocationKind.Small, []);
+        notices.ShouldHaveSingleItem().ShouldStartWith("stretches are 2,000 ms long from now on");
+    }
+
+    [Fact]
+    public void An_interval_of_a_live_trace_is_counted_in_whole_stretches()
+    {
+        var view = new LiveTraceView(Live().View(s_info), 2000, 1, false);
+
+        view.Whole(1000, 5000).ShouldBe((0.0, 6000.0));
+        view.Whole(2000, double.PositiveInfinity).ShouldBe((2000.0, double.PositiveInfinity));
     }
 
     private LiveAllocations Live(LiveAllocationLimits? limits = null) => new(_names, limits ?? LiveAllocationLimits.Default);

@@ -117,7 +117,7 @@ public sealed class CraftedTraceTests : IDisposable
                     live.End();
                     live.Completion.Wait(TimeSpan.FromSeconds(50), token).ShouldBeTrue("the live read did not end");
                     live.Failure.ShouldBeNull();
-                    var view = live.View();
+                    var view = live.View().Trace;
                     view.SampleBytes.Sum().ShouldBeGreaterThanOrEqualTo(0);
                     if (live.Status().Problem is { } problem)
                     {

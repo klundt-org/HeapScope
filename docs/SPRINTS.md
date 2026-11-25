@@ -221,6 +221,8 @@ says what to do first: the Live page's view model is 796 lines with three concer
   Both gates are met on Windows and Linux; ADR-037 is amended. macOS is not measured (no Mac).
 - Task 4: a recording of LeakyApi under load replayed in pieces of 1 MB and of 100,003 bytes gives the finished reader's types,
   stacks by name, counts and bytes exactly. 1,500 damaged copies (seed 43) read live as well: none fails as HeapScope's error.
+- A live trace at its limits (309,968 entries, 300,001 nodes, 300,000 methods of 37 MB): 75 MB kept, 98 MB with two views, a view in 6
+  ms, the longest of 2 million samples 23 ms (a stretch that grew), 300,000 names sorted in 107 ms (.NET 10, workstation GC).
 - Task 5: followed across a killed worker, a recording ends with the finished file's samples, bytes and lost events.
 - Task 6: `--smoke-live-process` on LeakyApi under load: 612 to 921 samples in 30 s, figures 0.25 to 0.30 s behind, stacks asked
   for every second. On a real window the longest UI operation was 30 to 35 ms in 3 of 5 runs and 160 and 168 ms in 2, with no

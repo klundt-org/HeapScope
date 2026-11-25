@@ -25,7 +25,7 @@ namespace HeapScope.Sample;
 
 /// <summary>
 /// The allocation bursts scenario (sprint 4.3): one thread allocates heartbeats evenly and another builds a report every ten
-/// seconds, in a burst of a second. Over the whole run the heartbeats are the type allocated most; within a burst the report's
+/// seconds, in a burst of two and a half. Over the whole run the heartbeats are the type allocated most; within a burst the report's
 /// rows are, so only an interval of the timeline shows what the burst is. Nothing is kept, so the heap stays about the same size.
 /// </summary>
 internal static class AllocationBursts
@@ -40,9 +40,9 @@ internal static class AllocationBursts
     private static readonly TimeSpan s_first = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan s_every = TimeSpan.FromSeconds(10);
 
-    private const int HeartbeatsPerTick = 2_000;
-    private const int RowsPerTick = 4_000;
-    private const int TicksPerBurst = 60;
+    private const int HeartbeatsPerTick = 4_000;
+    private const int RowsPerTick = 7_000;
+    private const int TicksPerBurst = 160;
     private const int TickMs = 15;
 
     private static int s_started;

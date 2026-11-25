@@ -38,17 +38,24 @@ internal sealed class LiveTrace : IDisposable
     private readonly IDisposable _reservation;
     private readonly ILogger _logger;
     private readonly Timer _log;
+    private readonly string? _namesPath;
     private OpenTrace? _view;
     private int _disposed;
 
-    public LiveTrace(Guid id, string path, string? namesPath, IDisposable reservation, ILogger logger)
+    public LiveTrace(Guid id, string path, string? namesPath, bool ended, IDisposable reservation, ILogger logger)
     {
         Id = id;
         Path = path;
         _reservation = reservation;
         _logger = logger;
-        _reader = LiveTraceReader.Start(path, namesPath);
-        _log = new Timer(_ => Log("so far", LogLevel.Debug), null, s_logEvery, s_logEvery);
+        _namesPath = namesPath;
+        _reader = LiveTraceReader.Start(path, namesPath, notice => logger.LogInformation("Live trace {Id}: {Notice}", id, notice));
+        if (ended)
+        {
+            _reader.End();
+        }
+
+        _log = new Timer(_ => Log("so far"), null, s_logEvery, s_logEvery);
         _ = CompleteAsync();
     }
 
@@ -62,11 +69,11 @@ internal sealed class LiveTrace : IDisposable
     /// <summary>What was read so far, for the queries; the same object until more is.</summary>
     public OpenTrace View()
     {
-        var trace = _reader.View();
+        var view = _reader.View();
         var known = Volatile.Read(ref _view);
-        if (known is null || !ReferenceEquals(known.Trace, trace))
+        if (known is null || !ReferenceEquals(known.Live, view))
         {
-            known = new OpenTrace(Path, trace, isLive: true);
+            known = new OpenTrace(Path, view.Trace, view);
             Volatile.Write(ref _view, known);
         }
 
@@ -117,21 +124,21 @@ internal sealed class LiveTrace : IDisposable
         }
 
         await _log.DisposeAsync().ConfigureAwait(false);
-        Log("at its end", LogLevel.Information);
+        Log(_reader.Ended ? "at its recording's end" : Volatile.Read(ref _disposed) == 1 ? "closed before its recording's end" : "stopped before its recording's end");
 
         // What it keeps is part of the worker's memory from here on, as an open trace's is.
         _reservation.Dispose();
     }
 
     /// <summary>What a figure shown while recording rests on: the rules, how far the file was read, and what was left out.</summary>
-    private void Log(string when, LogLevel level)
+    private void Log(string when)
     {
         // The delay is the page's to ask for: not asked here.
         var s = _reader.Peek();
-        _logger.Log(
-            level,
-            "Live trace {Id} {When}: {Samples} samples of {Bytes} bytes in {Types} types over {Seconds:N1} s, stretches of {Bucket:N0} ms, {Entries} entries, {Nodes} stack nodes, {Methods} methods ({Named} named before), {Lost} lost events, {NoStack} without a stack, {Unnamed} with unnamed frames, {Past} past the limits, {Read} bytes read; stacks {Stacks}, names {Names}; {Checked}; {Problem} {Detail}",
+        _logger.LogInformation(
+            "Live trace {Id} ({Path}) {When}: {Samples} samples of {Bytes} bytes in {Types} types over {Seconds:N1} s, stretches of {Bucket:N0} ms, {Entries} entries, {Nodes} stack nodes, {Methods} methods ({Named} named before, {LeftOut} left out), {Lost} lost events, {NoStack} without a stack, {Unnamed} with unnamed frames, {Past} past the limits, longest delay {Delay:N0} ms, {Read} bytes read; stacks {Stacks}, names {Names}; {Checked}; {Problem} {Detail}",
             Id,
+            Path,
             when,
             s.Samples,
             s.Bytes,
@@ -142,13 +149,15 @@ internal sealed class LiveTrace : IDisposable
             s.StackNodes,
             s.Methods,
             s.NamedBefore,
+            s.MethodsLeftOut,
             s.LostEvents,
             s.SamplesWithoutStack,
             s.SamplesUnnamed,
             s.SamplesPastLimits,
+            s.LongestDelayMs,
             s.BytesRead,
             s.StackProblem ?? "read",
-            s.NamesProblem ?? "read",
+            _namesPath is null ? "none" : s.NamesProblem ?? "read",
             s.Checked ?? "check not ended",
             s.Problem ?? "no problem",
             s.ProblemDetail ?? string.Empty);

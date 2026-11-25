@@ -173,7 +173,7 @@ public sealed class LiveTraceStreamTests : IDisposable
         var status = reader.Status();
         (status.Completed, status.Problem, status.Samples, status.DelayMs).ShouldBe((true, null, 0L, null));
         status.NamesProblem.ShouldNotBeNull().ShouldContain("FileNotFoundException");
-        reader.View().SampleCount.ShouldBe(0);
+        reader.View().Trace.SampleCount.ShouldBe(0);
         reader.Failure.ShouldBeNull();
     }
 

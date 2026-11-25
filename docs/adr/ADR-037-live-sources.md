@@ -70,7 +70,7 @@
     still has them. A reader of the format of our own was weighed and is not built: one more parser to own.
   - A short rundown-only session before the recording (123 to 171 ms on about 800 methods, 316 to 491 ms on 45,600) names what was
     compiled before; method events name the rest. At most 0.1% of the frames were unnamed when they arrived.
-  - The recording carries a System.Runtime counter every second: without it the runtime keeps a thread's last samples when it
+  - The recording carries a System.Runtime counter (every second where measured; as built, see below): without it the runtime keeps a thread's last samples when it
     goes idle, for seconds.
   - A heap-only dump stops the process 2.5 times as long as a full dump, so no new kind of snapshot is added.
 - Amended in 4.3 (as built):
@@ -79,11 +79,20 @@
   - Samples are added up by stretch of time, type, stack and kind (`LiveAllocations`): stretches of a second, doubling when a
     run has more than 1,800 of them or too many entries; stacks and types past the limits are added up under "other", counted
     and said. A live trace is an `AllocationTrace` whose entries stand for more than one sample, so the queries, trees and views
-    of a finished one answer for it. 160 MB are reserved while it is read.
+    of a finished one answer for it, but for the call tree, whose keys would not hold while stacks are folded again. A query's
+    interval is counted in whole stretches and the answer says which, since they may have grown since it was chosen. 192 MB are
+    reserved while it is read (98 MB is what it keeps at its limits, measured). Frames are folded by method name, or by address
+    until one is known; a method loaded over another's code takes its place, and an unloaded one is gone.
   - Its identity across a worker restart is the recording's own start, which the file states, and not the file's creation time,
-    which some file systems do not keep.
+    which some file systems do not keep. A restarted worker reads what the file holds before anything is
+    answered from it.
   - The methods compiled before are named by the partial file of a rundown-only session that is deleted when the recording ends;
     the finished file has its own rundown. Monitoring runs record this way (`TraceRecorder.RecordLiveAsync`); the Processes page and
-    the command line keep the partial file and its rename.
+    the command line keep the partial file and its rename. Not while a capture of the process runs: starting or stopping a
+    session can disturb a gcdump's.
+  - The System.Runtime counter comes at the run's own interval: a process has one timer for its counters, and the shortest
+    interval asked for wins, so one every second would have overridden a longer run's. An idle process's last samples then
+    arrive an interval late at most.
+  - A recording that ends by an error keeps what it has.
   - Choosing an interval is asking again, not a push: the Live page asks twice a second where the trace stands, and for the
     timeline and types at most every two seconds. Call stacks are asked for on demand.

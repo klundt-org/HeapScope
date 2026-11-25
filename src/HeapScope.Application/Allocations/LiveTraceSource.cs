@@ -35,6 +35,9 @@ internal sealed class LiveTraceSource(string? namesPath)
 
     private DateTimeOffset? _start;
 
+    /// <summary>When the recording first followed started, once known.</summary>
+    public DateTimeOffset? StartUtc => _start;
+
     /// <summary>
     /// The recording's own start is its identity: false when <paramref name="state"/> is of another recording than the first that
     /// said one (the file only ever grows, so its size and time say nothing).

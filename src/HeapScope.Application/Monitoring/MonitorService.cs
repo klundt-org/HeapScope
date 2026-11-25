@@ -41,7 +41,7 @@ public sealed class MonitorService(ICaptureService capture, ICounterSource? coun
     private readonly ICaptureService _capture = capture ?? throw new ArgumentNullException(nameof(capture));
     private readonly ICounterSource _counters = counters ?? new EventPipeCounterSource();
     private readonly ILogger _logger = logger ?? NullLogger<MonitorService>.Instance;
-    private readonly AllocationRecorder _allocations = allocations ?? ((request, ct) => new TraceService().RecordLiveAsync(request.ProcessId, request.Path, TimeSpan.FromDays(20), request.Started, ct));
+    private readonly AllocationRecorder _allocations = allocations ?? ((request, ct) => new TraceService().RecordLiveAsync(request.ProcessId, request.Path, TimeSpan.FromDays(20), request.CounterInterval, request.NoNames, request.Started, ct));
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
 
     /// <summary>

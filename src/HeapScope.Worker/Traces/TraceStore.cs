@@ -217,7 +217,7 @@ internal sealed class TraceStore
         LiveTrace live;
         try
         {
-            live = new LiveTrace(id, path, request.NamesPath is { Length: > 0 } names ? Path.GetFullPath(names) : null, reservation, _logger);
+            live = new LiveTrace(id, path, request.NamesPath is { Length: > 0 } names ? Path.GetFullPath(names) : null, request.Ended, reservation, _logger);
         }
         catch
         {
@@ -227,14 +227,16 @@ internal sealed class TraceStore
 
         _live[id] = live;
         _logger.LogInformation(
-            "Following the trace {Id} ({Path}) with live reader {Reader}, check {Check}, TraceEvent {TraceEvent}, {Reserved} bytes reserved; names from {Names}",
+            "Following the trace {Id} ({Path}) with live reader {Reader}, check {Check}, TraceEvent {TraceEvent}, {Reserved} bytes reserved; names from {Names}; recording {Recording}; stacks {Stacks}",
             id,
             path,
             LiveTraceReader.Version,
             AllocationTraceReader.CheckVersion,
             AllocationTraceReader.LibraryVersion,
             LiveTraceReader.ReservedBytes,
-            request.NamesPath ?? "none");
+            request.NamesPath ?? "none",
+            request.Ended ? "ended" : "goes on",
+            live.State().HasStacks ? "read" : "not read (the line at its end says why)");
         return new LiveTraceDescriptor(id, path, live.State());
     }
 
@@ -276,10 +278,10 @@ internal sealed class TraceStore
 }
 
 /// <summary>An open trace with its type ids by name.</summary>
-internal sealed class OpenTrace(string path, AllocationTrace trace, bool isLive = false)
+internal sealed class OpenTrace(string path, AllocationTrace trace, LiveTraceView? live = null)
 {
-    /// <summary>What was read so far of a trace that is still recorded, or was when it was read.</summary>
-    public bool IsLive { get; } = isLive;
+    /// <summary>The view of a live trace this is, with the width of its stretches; null for a finished trace.</summary>
+    public LiveTraceView? Live { get; } = live;
 
     public string Path { get; } = path;
 

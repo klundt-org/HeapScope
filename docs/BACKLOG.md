@@ -181,6 +181,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   trust. Needs an ADR and the owner's approval of every user-facing word.
 - The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
   86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
+- From the 4.3 review: the names of a run's start kept for a trace whose process exited without a rundown; the delay measured across a
+  suspend or clock step; a 32-bit target's live call stacks; live wordings for two refusals (its Lows).
 - From 4.3: a stall of 140 to 170 ms, with no processor time used by the UI thread, in some runs of the live smoke runs on a real
   window (3 of 11, with and without the live allocations, none headless): find what it waits for.
 - From 3.8 (decided autonomously): an analysis workspace per snapshot, extracted from

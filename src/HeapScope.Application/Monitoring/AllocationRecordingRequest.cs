@@ -26,5 +26,7 @@ using HeapScope.Capture;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>A monitoring run's allocation trace to record (sprint 4.3): live, into <paramref name="Path"/> itself.</summary>
+/// <param name="CounterInterval">The run's own interval: the process's counters have one, and the shortest wins.</param>
+/// <param name="NoNames">Why the methods compiled before are not to be named, or null.</param>
 /// <param name="Started">To be called once the recording has started.</param>
-public sealed record AllocationRecordingRequest(int ProcessId, string Path, Action<LiveTraceStart> Started);
+public sealed record AllocationRecordingRequest(int ProcessId, string Path, TimeSpan CounterInterval, string? NoNames, Action<LiveTraceStart> Started);

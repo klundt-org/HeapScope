@@ -25,4 +25,5 @@ namespace HeapScope.Contracts;
 
 /// <summary>Follows a trace that is being recorded (sprint 4.3, ADR-037).</summary>
 /// <param name="NamesPath">A short trace that names the methods compiled before; one that is gone is no failure.</param>
-public sealed record OpenLiveTraceRequest(string Path, string? NamesPath = null);
+/// <param name="Ended">The recording has ended already: followed again after a worker restart.</param>
+public sealed record OpenLiveTraceRequest(string Path, string? NamesPath = null, bool Ended = false);

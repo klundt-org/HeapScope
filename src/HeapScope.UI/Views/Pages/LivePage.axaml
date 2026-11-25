@@ -96,7 +96,7 @@
           </StackPanel>
         </Expander.Header>
         <WrapPanel>
-                  <ComboBox x:Name="PastRuns" Width="420" ItemsSource="{Binding PastRuns.Runs}" VerticalAlignment="Center">
+          <ComboBox x:Name="PastRuns" Width="420" ItemsSource="{Binding PastRuns.Runs}" VerticalAlignment="Center">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:PastRunItem">
                 <TextBlock Text="{Binding Title}" />

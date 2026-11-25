@@ -36,8 +36,8 @@ namespace HeapScope.UI.ViewModels;
 
 /// <summary>
 /// What the process being watched allocates, as it does (sprint 4.3, ADR-037): the worker follows the run's allocation trace, and
-/// this asks it a few times a second what changed. The types of the chosen interval are kept up to date in place; call stacks are
-/// looked up when asked for. The run's finished trace stays the record.
+/// one loop asks it a few times a second what changed, until another run takes its place. The types of the chosen interval are kept
+/// up to date in place; call stacks are looked up when asked for. The run's finished trace stays the record.
 /// </summary>
 public sealed partial class LiveAllocationsViewModel : ObservableObject
 {
@@ -46,6 +46,9 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
 
     /// <summary>Types looked through for the selected one, which stays listed when it falls behind.</summary>
     private const int LookedThrough = 500;
+
+    /// <summary>Types of a chosen interval written to the log.</summary>
+    private const int LoggedTypes = 5;
 
     /// <summary>Stacks listed, most allocated first.</summary>
     public const int TopStacks = 20;
@@ -59,13 +62,22 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
     /// <summary>A delay longer than this is said: at best it is a quarter of a second.</summary>
     public const double SaidDelaySeconds = 2;
 
+    /// <summary>
+    /// A worker that stops this often in a row while it follows a recording, without reading more of it than before, is not started
+    /// for it again: each time takes the user's open snapshots with it.
+    /// </summary>
+    public const int MostCrashes = 3;
+
     /// <summary>Bars of the timeline, at most about this many.</summary>
     private const double Bars = 200;
+
+    private const string WholeRunText = "The whole run so far";
 
     private readonly AllocationSession? _session;
     private readonly ILogger _logger;
     private Following? _following;
     private bool _updating;
+    private bool _applying;
 
     /// <summary>Whether a run's live allocations are shown: from its recording's start until another run takes their place.</summary>
     [ObservableProperty]
@@ -115,8 +127,6 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectedFrames))]
     private AllocationStackItem? _selectedStack;
 
-    private const string WholeRunText = "The whole run so far";
-
     public LiveAllocationsViewModel(AllocationSession? session, ILogger logger)
     {
         _session = session;
@@ -143,8 +153,8 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
     /// <summary>How long what is shown stays as it is, at least: tests make it shorter.</summary>
     public TimeSpan Refresh { get; set; } = RefreshEvery;
 
-    /// <summary>The following in progress, for tests and smoke runs; completed without one.</summary>
-    public Task FollowTask { get; private set; } = Task.CompletedTask;
+    /// <summary>Ends once the followed recording's end is shown, or following it failed (tests and smoke runs); completed without one.</summary>
+    public Task EndTask { get; private set; } = Task.CompletedTask;
 
     /// <summary>Follows a run's trace from here on, in place of what is shown.</summary>
     public void Follow(string path, string? namesPath)
@@ -157,9 +167,10 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
 
         var following = new Following();
         _following = following;
+        EndTask = following.End.Task;
         IsShown = true;
         Summary = "Waiting for the first allocation sample.";
-        FollowTask = FollowAsync(following, path, namesPath);
+        _ = FollowAsync(following, path, namesPath);
     }
 
     /// <summary>The run's recording ended: what is left of it is read, and the figures stay.</summary>
@@ -171,7 +182,7 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Stops following and shows nothing.</summary>
+    /// <summary>Stops following, in the worker too, and shows nothing.</summary>
     public void Close()
     {
         if (_following is { } following)
@@ -191,47 +202,83 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
 
     private async Task FollowAsync(Following following, string path, string? namesPath)
     {
+        // Everything asked of the worker for this run joins up under one activity (logging.md).
+        using var activity = new Activity("HeapScope.Allocations").SetTag("grid", "LiveAllocations").Start();
         var ct = following.Stop.Token;
         TraceHandle? handle = null;
         try
         {
-            handle = await _session!.OpenLiveAsync(path, namesPath, ct);
-            if (ct.IsCancellationRequested)
-            {
-                return;
-            }
-
+            handle = await OpenAsync(following, path, namesPath, ct);
             following.Trace = handle;
-            await PollAsync(following, handle, ct);
+            await LoopAsync(following, handle, ct);
         }
         catch (Exception) when (ct.IsCancellationRequested)
         {
-            // Another run took its place.
+            // Closed: another run took its place, a past run is shown, or the app ends.
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
             _logger.LogInformation("The live allocations of {Path} stopped: {Reason}", path, ex.Message);
-            Stopped(ex.Message);
+            Stopped(following, ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "The live allocations of {Path} failed", path);
-            Stopped("The live allocations failed. Details are in the log.");
+            Stopped(following, "The live allocations failed. Details are in the log.");
         }
-        finally
+
+        // However it ended, the worker lets go of it.
+        following.Trace = null;
+        if (following.Stacks is { } stacks)
         {
-            if (ct.IsCancellationRequested && handle is not null)
+            following.Stacks = null;
+            await stacks.CancelAsync();
+            stacks.Dispose();
+        }
+
+        if (handle is not null)
+        {
+            await CloseInWorkerAsync(handle);
+        }
+
+        following.End.TrySetResult();
+    }
+
+    private async Task<TraceHandle> OpenAsync(Following following, string path, string? namesPath, CancellationToken ct)
+    {
+        while (true)
+        {
+            try
             {
-                await CloseInWorkerAsync(handle);
+                return await _session!.OpenLiveAsync(path, namesPath, ct);
+            }
+            catch (WorkerCrashedException ex) when (Crashed(following, path, ex))
+            {
+                await Wait(PollEvery, ct);
             }
         }
     }
 
-    private async Task PollAsync(Following following, TraceHandle handle, CancellationToken ct)
+    /// <summary>Counts a worker that stopped: whether it is to be asked again.</summary>
+    private bool Crashed(Following following, string path, WorkerCrashedException ex)
+    {
+        following.Crashes++;
+        _logger.LogInformation(
+            "The worker stopped while the live allocations of {Path} were asked for ({Crashes} of {Most} without reading more than {Samples} samples): {Reason}",
+            path,
+            following.Crashes,
+            MostCrashes,
+            following.MostSamples,
+            ex.Message);
+        return following.Crashes < MostCrashes;
+    }
+
+    private async Task LoopAsync(Following following, TraceHandle handle, CancellationToken ct)
     {
         var told = false;
         while (true)
         {
+            var settled = false;
             try
             {
                 if (following.Ended && !told)
@@ -241,43 +288,73 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
                 }
 
                 var state = await _session!.QueryLiveAsync(handle, ct);
+                if (state.Samples > following.MostSamples)
+                {
+                    (following.MostSamples, following.Crashes) = (state.Samples, 0);
+                }
+
                 following.State = state;
-                ShowState(state);
+                ShowState(handle, state);
 
-                // Before the first sample there is nothing to show, and what a first sample shows is not kept waiting.
-                var due = following.Asked || state.Completed || following.Shown == 0 || Stopwatch.GetElapsedTime(following.Shown) >= Refresh;
-                if (due && state.Version > 0 && (state.Version != following.ShownVersion || following.Asked))
+                // What the user chose is not kept waiting, and neither is what a first sample shows.
+                var chosen = following.ShownChoice != following.Choice;
+                var changed = state.Version != following.ShownVersion;
+                var due = state.Completed || following.Shown == 0 || Stopwatch.GetElapsedTime(following.Shown) >= Refresh;
+                if (state.Version > 0 && (chosen || (changed && due)))
                 {
-                    following.Asked = false;
-                    await RefreshAsync(following, handle, state, ct);
+                    await RefreshAsync(following, handle, state, chosen, ct);
                 }
 
-                if (state.Completed)
+                if (state.Version > 0 && following.ShownChoice != following.Choice)
                 {
-                    _logger.LogInformation(
-                        "The live allocations of {Path} ended: {Samples} samples of {Bytes} bytes in {Types} types over {Seconds:N1} s",
-                        handle.Path,
-                        state.Samples,
-                        state.SampledBytes,
-                        state.Types,
-                        state.DurationSeconds);
-                    Delay = null;
-                    following.Completed = true;
-                    return;
+                    // Chosen while the answer to the choice before it arrived.
+                    continue;
                 }
+
+                settled = state.Completed && (state.Version == 0 || (following.ShownChoice == following.Choice && following.ShownVersion == state.Version));
             }
             catch (WorkerCrashedException ex)
             {
                 // The worker restarts with the next question and follows the file again, from its start.
-                _logger.LogInformation("The live allocations of {Path} wait for the worker: {Reason}", handle.Path, ex.Message);
-                told = false;
+                if (!Crashed(following, handle.Path, ex))
+                {
+                    _logger.LogInformation("The live allocations of {Path} are given up", handle.Path);
+                    Stopped(following, "The analysis worker stopped each time it followed this recording, so the live allocations are off. The trace itself is still recorded.");
+                    return;
+                }
             }
 
-            await Wait(PollEvery, ct);
+            if (!settled)
+            {
+                await Wait(PollEvery, ct);
+                continue;
+            }
+
+            if (!following.End.Task.IsCompleted)
+            {
+                LogEnd(handle, following.State!);
+                following.End.TrySetResult();
+            }
+
+            // Nothing changes any more but what the user chooses.
+            await following.Chosen.WaitAsync(ct);
         }
     }
 
-    private void ShowState(LiveTraceDto state)
+    private void LogEnd(TraceHandle handle, LiveTraceDto state) => _logger.LogInformation(
+        "The live allocations of {Path} (worker trace {WorkerTrace}) ended: {Samples} samples of {Bytes} bytes in {Types} types over {Seconds:N1} s, {Lost} lost events, {Unnamed} with unnamed frames, {Past} past the limits; {Problem}",
+        handle.Path,
+        handle.Descriptor.TraceId,
+        state.Samples,
+        state.SampledBytes,
+        state.Types,
+        state.DurationSeconds,
+        state.LostEvents,
+        state.SamplesUnnamed,
+        state.SamplesPastLimits,
+        state.Problem ?? "read to its end");
+
+    private void ShowState(TraceHandle handle, LiveTraceDto state)
     {
         if (state.Samples > 0)
         {
@@ -285,12 +362,28 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
                 CultureInfo.CurrentCulture,
                 $"About {Format.Bytes(state.SampledBytes)} allocated in {state.Samples:N0} samples, {state.Types:N0} types, {state.DurationSeconds:N0} s.");
         }
+        else if (state.Completed)
+        {
+            Summary = "No allocation was sampled in this run.";
+        }
 
-        // Catching up with a recording that is ahead (after a worker restart) is said differently: the delay is the file's age.
-        Delay = state.Completed || state.DelaySeconds is not { } seconds || seconds < SaidDelaySeconds
-            ? state is { Completed: false, CaughtUp: false, Samples: > 0 } && Delay is not null ? Delay : null
+        var delay = state.Completed || state.DelaySeconds is not { } seconds || seconds < SaidDelaySeconds
+            ? null
             : string.Create(CultureInfo.CurrentCulture, $"These figures are {seconds:N0} s behind the process.");
-        Note = string.Join(" ", NotesOf(state));
+        var note = string.Join(" ", NotesOf(state));
+        if (note != (Note ?? string.Empty) || (delay is null) != (Delay is null))
+        {
+            _logger.LogInformation(
+                "Live allocations of {Path} (worker trace {WorkerTrace}) say at {Samples} samples, {Seconds:N1} s: delay {Delay}; note {Note}",
+                handle.Path,
+                handle.Descriptor.TraceId,
+                state.Samples,
+                state.DurationSeconds,
+                delay ?? "none",
+                note.Length == 0 ? "none" : note);
+        }
+
+        (Delay, Note) = (delay, note);
     }
 
     private static IEnumerable<string> NotesOf(LiveTraceDto state)
@@ -310,31 +403,47 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
             yield return string.Create(CultureInfo.CurrentCulture, $"The runtime dropped {state.LostEvents:N0} events, so the figures are low.");
         }
 
+        if (state.SamplesUnnamed > 0)
+        {
+            yield return string.Create(CultureInfo.CurrentCulture, $"{state.SamplesUnnamed:N0} samples have a frame without a name yet.");
+        }
+
         if (state.SamplesPastLimits > 0)
         {
             yield return string.Create(CultureInfo.CurrentCulture, $"{state.SamplesPastLimits:N0} samples are added up under other types or stacks. The finished trace has them all.");
         }
     }
 
-    private void Stopped(string reason)
+    /// <summary>Following is over before the recording's end: what is shown stays, with why.</summary>
+    private void Stopped(Following following, string reason)
     {
+        if (_following != following)
+        {
+            return;
+        }
+
         Delay = null;
         Note = reason;
+        if (following.State is not { Samples: > 0 })
+        {
+            Summary = null;
+        }
     }
 
     partial void OnSelectionChanged(TimeInterval? value)
     {
-        if (value is not null)
+        if (value is not null && !_applying)
         {
-            // Whole stretches, as the worker counts them; a click without a drag is no interval.
-            var width = _following?.State?.BucketSeconds ?? BucketSeconds;
-            var snapped = new TimeInterval(Math.Floor(value.FromSeconds / width) * width, Math.Ceiling(value.ToSeconds / width) * width);
             if (value.ToSeconds <= value.FromSeconds)
             {
+                // A click without a drag is no interval.
                 Selection = null;
                 return;
             }
 
+            // Whole stretches, as the worker counts them; it says which it counted, since they may have grown meanwhile.
+            var width = _following?.State?.BucketSeconds ?? BucketSeconds;
+            var snapped = new TimeInterval(Math.Floor(value.FromSeconds / width) * width, Math.Ceiling(value.ToSeconds / width) * width);
             if (snapped != value)
             {
                 Selection = snapped;
@@ -345,7 +454,10 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         Interval = value is null
             ? WholeRunText
             : string.Create(CultureInfo.CurrentCulture, $"From {value.FromSeconds:N0} s to {value.ToSeconds:N0} s");
-        Ask("the interval");
+        if (!_applying)
+        {
+            Ask();
+        }
     }
 
     partial void OnSelectedTypeChanged(LiveTypeItem? value)
@@ -386,53 +498,26 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
 
     private AllocationScope Scope => new(Selection?.FromSeconds ?? 0, Selection?.ToSeconds, SelectedType?.Name);
 
-    /// <summary>Brings up to date what the user's choice changed, at once.</summary>
-    private void Ask(string what)
+    /// <summary>The user chose another interval: the loop shows it next, whatever it is doing.</summary>
+    private void Ask()
     {
-        if (_following is not { Trace: { } handle, State: { } state } following)
+        if (_following is not { } following)
         {
             return;
         }
 
-        _logger.LogInformation("Live allocations of {Path} (worker trace {WorkerTrace}): {What} changed to {Interval}", handle.Path, handle.Descriptor.TraceId, what, Interval);
-        following.Asked = true;
-        if (following.Completed)
-        {
-            // Nobody asks any more where it stands.
-            following.Asked = false;
-            FollowTask = RefreshCompletedAsync(following, handle, state);
-        }
-
+        following.Choice++;
+        following.Chosen.Release();
         LoadStacks();
     }
 
-    private async Task RefreshCompletedAsync(Following following, TraceHandle handle, LiveTraceDto state)
-    {
-        try
-        {
-            await RefreshAsync(following, handle, state, following.Stop.Token);
-        }
-        catch (Exception) when (following.Stop.IsCancellationRequested)
-        {
-            // Another run took its place.
-        }
-        catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
-        {
-            Stopped(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "The live allocations of {Path} failed", handle.Path);
-            Stopped("The live allocations failed. Details are in the log.");
-        }
-    }
-
-    /// <summary>The timeline and the types, as of <paramref name="state"/>.</summary>
-    private async Task RefreshAsync(Following following, TraceHandle handle, LiveTraceDto state, CancellationToken ct)
+    /// <summary>The timeline and the types, as of <paramref name="state"/>; an answer for an interval no longer chosen is dropped.</summary>
+    private async Task RefreshAsync(Following following, TraceHandle handle, LiveTraceDto state, bool chosen, CancellationToken ct)
     {
         following.Shown = Stopwatch.GetTimestamp();
-        var bucket = state.BucketSeconds * Math.Max(1, Math.Ceiling(state.DurationSeconds / state.BucketSeconds / Bars));
-        var timeline = await _session!.QueryTimelineAsync(handle, bucket, ct);
+        var choice = following.Choice;
+        var asked = state.BucketSeconds * Math.Max(1, Math.Ceiling(state.DurationSeconds / state.BucketSeconds / Bars));
+        var timeline = await _session!.QueryTimelineAsync(handle, asked, ct);
         var answer = await _session.QueryTypesAsync(handle, Scope with { TypeName = null }, ct);
         ResultPage page;
         try
@@ -444,62 +529,106 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
             answer.Rows.ReleaseInBackground(_logger);
         }
 
-        if (ct.IsCancellationRequested)
+        if (ct.IsCancellationRequested || choice != following.Choice)
         {
             return;
         }
 
-        (Buckets, BucketSeconds, DurationSeconds) = (timeline.Buckets, bucket, state.DurationSeconds);
+        (Buckets, BucketSeconds, DurationSeconds) = (timeline.Buckets, timeline.BucketSeconds, state.DurationSeconds);
+        Applied(answer.Result.Interval);
         var columns = answer.Result.Types.Columns.Select((c, i) => (c.Name, i)).ToDictionary(c => c.Name, c => c.i, StringComparer.Ordinal);
         var (type, bytes, samples) = (columns[AllocationTypeColumns.Type], columns[AllocationTypeColumns.Bytes], columns[AllocationTypeColumns.Samples]);
         ShowTypes([.. page.Rows.Select(r => (r[type] ?? string.Empty, Number(r[bytes]), Number(r[samples])))], answer.Result.SampledBytes);
+        (following.ShownVersion, following.ShownChoice) = (state.Version, choice);
+        if (chosen)
+        {
+            // A figure the user looked at can be found again in the finished trace: the interval counted, and as of when.
+            _logger.LogInformation(
+                "Live allocations of {Path} (worker trace {WorkerTrace}) show {Interval} as of {Samples} samples, {Seconds:N1} s, stretches of {Bucket:N0} s: {IntervalSamples} samples of {IntervalBytes} bytes in {Types} types; top {Top}",
+                handle.Path,
+                handle.Descriptor.TraceId,
+                Selection is { } s ? string.Create(CultureInfo.InvariantCulture, $"{s.FromSeconds:R} s to {s.ToSeconds:R} s") : "the whole run",
+                state.Samples,
+                state.DurationSeconds,
+                state.BucketSeconds,
+                answer.Result.Samples,
+                answer.Result.SampledBytes,
+                answer.Result.Types.TotalCount,
+                string.Join("; ", Types.Take(LoggedTypes).Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Name} {t.Bytes} bytes ({t.Samples} samples)"))));
+        }
 
         static long Number(string? text) => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
-        following.ShownVersion = state.Version;
+    }
+
+    /// <summary>Shows the interval the worker counted: whole stretches, which grow in a long run.</summary>
+    private void Applied(AllocationIntervalDto? interval)
+    {
+        if (interval is null || Selection is not { } selection || interval.ToSeconds is not { } to || (selection.FromSeconds == interval.FromSeconds && selection.ToSeconds == to))
+        {
+            return;
+        }
+
+        _applying = true;
+        try
+        {
+            Selection = new TimeInterval(interval.FromSeconds, to);
+        }
+        finally
+        {
+            _applying = false;
+        }
     }
 
     /// <summary>Updates the rows in place, so that a selected type stays selected and only what changed is drawn again.</summary>
     public void ShowTypes(IReadOnlyList<(string Name, long Bytes, long Samples)> found, long total)
     {
-        var known = Types.ToDictionary(t => t.Name, StringComparer.Ordinal);
+        ArgumentNullException.ThrowIfNull(found);
         var selected = SelectedType;
         _updating = true;
-        var rows = found.Take(TopTypes).ToList();
-        if (selected is not null)
+        try
         {
-            rows.AddRange(found.Skip(TopTypes).Where(r => r.Name == selected.Name));
-        }
-
-        for (var i = 0; i < rows.Count; i++)
-        {
-            var (name, bytes, samples) = rows[i];
-            if (known.Remove(name, out var item))
+            var known = Types.ToDictionary(t => t.Name, StringComparer.Ordinal);
+            var rows = found.Take(TopTypes).ToList();
+            if (selected is not null)
             {
-                var at = Types.IndexOf(item);
-                if (at != i)
+                rows.AddRange(found.Skip(TopTypes).Where(r => r.Name == selected.Name));
+            }
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var (name, bytes, samples) = rows[i];
+                if (known.Remove(name, out var item))
                 {
-                    // Not moved: the grid keeps showing a moved row where it was.
-                    Types.RemoveAt(at);
+                    var at = Types.IndexOf(item);
+                    if (at != i)
+                    {
+                        // Not moved: the grid keeps showing a moved row where it was.
+                        Types.RemoveAt(at);
+                        Types.Insert(i, item);
+                    }
+                }
+                else
+                {
+                    item = new LiveTypeItem(name);
                     Types.Insert(i, item);
                 }
+
+                item.Update(bytes, samples, total);
             }
-            else
+
+            while (Types.Count > rows.Count)
             {
-                item = new LiveTypeItem(name);
-                Types.Insert(i, item);
+                Types.RemoveAt(Types.Count - 1);
             }
 
-            item.Update(bytes, samples, total);
+            // The grid lets go of a row that was taken out to be put elsewhere; the user did not.
+            SelectedType = selected is not null && Types.Contains(selected) ? selected : null;
         }
-
-        while (Types.Count > rows.Count)
+        finally
         {
-            Types.RemoveAt(Types.Count - 1);
+            _updating = false;
         }
 
-        // The grid lets go of a row that was taken out to be put elsewhere; the user did not.
-        SelectedType = selected is not null && Types.Contains(selected) ? selected : null;
-        _updating = false;
         if (selected != SelectedType)
         {
             LoadStacks();
@@ -522,12 +651,14 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         }
 
         following.Stacks?.Cancel();
+        following.Stacks?.Dispose();
         following.Stacks = CancellationTokenSource.CreateLinkedTokenSource(following.Stop.Token);
         _ = LoadStacksAsync(handle, Scope, following.Stacks.Token);
     }
 
     private async Task LoadStacksAsync(TraceHandle handle, AllocationScope scope, CancellationToken ct)
     {
+        using var activity = new Activity("HeapScope.Query").SetTag("grid", "LiveAllocationStacks").Start();
         StacksStatus = "Finding the top call stacks...";
         try
         {
@@ -537,6 +668,7 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
                 return;
             }
 
+            Applied(result.Interval);
             Stacks.Clear();
             for (var i = 0; i < result.Stacks.Count; i++)
             {
@@ -555,6 +687,7 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            _logger.LogInformation("The live call stacks of {Path} were refused: {Reason}", handle.Path, ex.Message);
             Stacks.Clear();
             StacksStatus = ex.Message;
         }
@@ -575,6 +708,10 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         {
             _logger.LogInformation("Closing the live trace {Path} in the worker failed: {Reason}", handle.Path, ex.Message);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Closing the live trace {Path} in the worker failed", handle.Path);
+        }
     }
 
     /// <summary>One run being followed; everything here is the UI thread's.</summary>
@@ -584,19 +721,29 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
 
         public CancellationTokenSource? Stacks { get; set; }
 
+        /// <summary>The trace while the loop asks about it: nothing is asked of one that is closed.</summary>
         public TraceHandle? Trace { get; set; }
 
         public LiveTraceDto? State { get; set; }
 
         public bool Ended { get; set; }
 
-        public bool Completed { get; set; }
+        public TaskCompletionSource End { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        /// <summary>The user's choice changed what is to be shown.</summary>
-        public bool Asked { get; set; }
+        /// <summary>Counts the user's choices, and let go of at each: a loop with nothing else to do waits for it.</summary>
+        public int Choice { get; set; }
+
+        public SemaphoreSlim Chosen { get; } = new(0);
+
+        /// <summary>The choice and version what is shown is of.</summary>
+        public int ShownChoice { get; set; }
 
         public long ShownVersion { get; set; } = -1;
 
         public long Shown { get; set; }
+
+        public int Crashes { get; set; }
+
+        public long MostSamples { get; set; }
     }
 }

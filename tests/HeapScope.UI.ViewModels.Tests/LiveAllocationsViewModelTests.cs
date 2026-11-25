@@ -88,6 +88,8 @@ public sealed class LiveAllocationsViewModelTests
         _live.IsShown.ShouldBeTrue("the figures stay until another run");
         _live.Types.Count.ShouldBe(2);
         Service.TracesClosed.ShouldBeEmpty("the worker keeps them: an interval can still be chosen");
+        _live.Close();
+        await WaitUntilAsync(() => Service.TracesClosed.Count == 1);
     }
 
     [Fact]
@@ -148,9 +150,13 @@ public sealed class LiveAllocationsViewModelTests
         await TickAsync(ends: true);
 
         _live.Selection = new TimeInterval(1, 2);
-        await _live.FollowTask;
+        await WaitUntilAsync(() => Service.TypeQueries[^1].ToSeconds == 2);
 
-        Service.TypeQueries[^1].ToSeconds.ShouldBe(2);
+        // And again, when the worker restarted meanwhile: it follows the file to its end before it answers.
+        _worker.NewGeneration();
+        _live.Selection = new TimeInterval(2, 5);
+        await WaitUntilAsync(() => Service.TypeQueries[^1].ToSeconds == 5);
+        (Service.LiveOpened.Count, Service.LiveOpened[^1].Ended).ShouldBe((2, true));
     }
 
     [Fact]
@@ -183,12 +189,13 @@ public sealed class LiveAllocationsViewModelTests
     public async Task What_the_figures_leave_out_and_how_far_behind_they_are_is_said()
     {
         await FollowAsync();
-        State(s => s with { DelaySeconds = 4.2, LostEvents = 7, SamplesPastLimits = 3, HasStacks = false });
+        State(s => s with { DelaySeconds = 4.2, LostEvents = 7, SamplesPastLimits = 3, HasStacks = false, SamplesUnnamed = 2 });
         await TickAsync();
         _live.Delay.ShouldBe("These figures are 4 s behind the process.");
         _live.Note!.ShouldContain("dropped 7 events");
         _live.Note!.ShouldContain("3 samples are added up");
         _live.Note!.ShouldContain("Call stacks cannot be shown");
+        _live.Note!.ShouldContain("2 samples have a frame without a name yet.");
 
         State(s => s with { DelaySeconds = 0.3 });
         await TickAsync();
@@ -232,6 +239,8 @@ public sealed class LiveAllocationsViewModelTests
         await TickAsync(ends: true);
         _live.Note.ShouldBe("It is another recording.");
         _live.IsShown.ShouldBeTrue();
+        _live.Types.Count.ShouldBe(2, "what was shown stays");
+        Service.TracesClosed.Count.ShouldBe(1, "the worker follows it no more");
     }
 
     [Fact]
@@ -240,9 +249,109 @@ public sealed class LiveAllocationsViewModelTests
         Service.LiveFailure = new WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Following the recording needs about 160 MB.", null);
 
         _live.Follow(TracePath, null);
-        await _live.FollowTask;
+        await _live.EndTask;
 
-        (_live.IsShown, _live.Note).ShouldBe((true, "Following the recording needs about 160 MB."));
+        (_live.IsShown, _live.Note, _live.Summary).ShouldBe((true, "Following the recording needs about 160 MB.", null));
+    }
+
+    [Fact]
+    public async Task The_interval_shown_is_the_one_the_worker_counted_when_stretches_grew()
+    {
+        await FollowAsync();
+        _live.Selection = new TimeInterval(3, 5);
+
+        // The stretches are two seconds by the time it is asked.
+        Service.LiveInterval = new AllocationIntervalDto(2, 6);
+        State(s => s with { BucketSeconds = 2 });
+        await TickAsync();
+
+        (_live.Selection!.FromSeconds, _live.Selection.ToSeconds, _live.Interval).ShouldBe((2.0, 6.0, "From 2 s to 6 s"));
+        var asked = Service.TypeQueries.Count;
+        await TickAsync();
+        Service.TypeQueries.Count.ShouldBe(asked, "what was shown is not asked for again");
+    }
+
+    [Fact]
+    public async Task A_choice_made_while_the_last_figures_arrive_is_shown_too()
+    {
+        await FollowAsync();
+        _live.End();
+        State(s => s with { Completed = true, Version = 5 });
+        var gate = Service.TypesGate = new TaskCompletionSource();
+        _tick.Release();
+        await WaitUntilAsync(() => Service.TypesGate is null);
+
+        _live.Selection = new TimeInterval(1, 3);
+        gate.SetResult();
+
+        await WaitUntilAsync(() => Service.TypeQueries[^1].ToSeconds == 3);
+    }
+
+    [Fact]
+    public async Task A_choice_is_asked_for_again_when_the_worker_stopped_at_it()
+    {
+        await FollowAsync();
+        _live.Selection = new TimeInterval(1, 3);
+        Service.TypesFailure = new WorkerCrashedException("The worker stopped.");
+        await TickAsync();
+        var asked = Service.TypeQueries.Count;
+
+        await TickAsync();
+
+        (Service.TypeQueries.Count, Service.TypeQueries[^1].ToSeconds).ShouldBe((asked + 1, 3));
+    }
+
+    [Fact]
+    public async Task A_worker_that_stops_each_time_is_not_started_for_it_again()
+    {
+        await FollowAsync();
+        Service.LiveFailure = new WorkerCrashedException("The worker stopped.");
+        for (var i = 1; i < LiveAllocationsViewModel.MostCrashes; i++)
+        {
+            await TickAsync();
+        }
+
+        await TickAsync(ends: true);
+
+        _live.Note!.ShouldStartWith("The analysis worker stopped each time it followed this recording");
+        _live.Types.Count.ShouldBe(2, "what was shown stays");
+        _live.Selection = new TimeInterval(1, 2);
+        _live.ShowStacks = true;
+        Service.StackQueries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_worker_that_stops_while_the_trace_opens_is_asked_again()
+    {
+        Service.LiveOpenCrashes = LiveAllocationsViewModel.MostCrashes - 1;
+        State(s => s with { Version = 4, Samples = 4, SampledBytes = 400, Types = 2, DurationSeconds = 10 });
+        _live.Follow(TracePath, null);
+        await WaitsAsync(1);
+        await TickAsync();
+        await TickAsync();
+        _live.Types.Count.ShouldBe(2);
+        Service.LiveOpened.Count.ShouldBe(LiveAllocationsViewModel.MostCrashes);
+
+        Service.LiveOpenCrashes = LiveAllocationsViewModel.MostCrashes;
+        _live.Follow(TracePath, null);
+        for (var i = 1; i < LiveAllocationsViewModel.MostCrashes; i++)
+        {
+            await TickAsync(ends: i == LiveAllocationsViewModel.MostCrashes - 1);
+        }
+
+        _live.Note.ShouldBe("The worker stopped.");
+    }
+
+    [Fact]
+    public async Task A_run_that_sampled_nothing_says_so()
+    {
+        _live.Follow(TracePath, null);
+        await WaitsAsync(1);
+        _live.End();
+        State(s => s with { Completed = true });
+        await TickAsync(ends: true);
+
+        _live.Summary.ShouldBe("No allocation was sampled in this run.");
     }
 
     [Fact]
@@ -272,7 +381,7 @@ public sealed class LiveAllocationsViewModelTests
         _tick.Release();
         if (ends)
         {
-            await _live.FollowTask.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+            await _live.EndTask.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         }
         else
         {

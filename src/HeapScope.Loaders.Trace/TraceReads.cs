@@ -134,7 +134,7 @@ internal static class TraceReads
     public static int Lost(EventPipeEventSource source) => source.EventsLost;
 
     /// <summary>What a live trace is read for (sprint 4.3): its ticks, its methods' code and names, and how far it got.</summary>
-    public static void Subscribe(EventPipeEventSource source, Action<TraceEvent, LiveSample>? tick, Action<ulong, uint, string> method, Action<LiveEvent>? any)
+    public static void Subscribe(EventPipeEventSource source, Action<TraceEvent, LiveSample>? tick, Action<ulong, uint, string> method, Action<ulong>? unload, Action<LiveEvent>? any)
     {
         if (tick is not null)
         {
@@ -151,6 +151,11 @@ internal static class TraceReads
         var rundown = new ClrRundownTraceEventParser(source);
         rundown.MethodDCStartVerbose += OnMethod;
         rundown.MethodDCStopVerbose += OnMethod;
+        if (unload is not null)
+        {
+            source.Clr.MethodUnloadVerbose += data => unload(Start(data));
+        }
+
         if (any is not null)
         {
             source.AllEvents += data => any(Any(source, data));
@@ -168,9 +173,14 @@ internal static class TraceReads
             GCAllocationKind.Large => AllocationKind.Large,
             (GCAllocationKind)2 => AllocationKind.Pinned,
             _ => AllocationKind.Small,
-        },
-        data.ProcessID,
-        data.ProcessName);
+        });
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static ulong Start(MethodLoadUnloadVerboseTraceData data) => data.MethodStartAddress;
+
+    /// <summary>The process an event is of; TraceEvent makes the name anew each time.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static (int ProcessId, string? Name) ProcessOf(TraceEvent data) => (Math.Max(0, data.ProcessID), string.IsNullOrEmpty(data.ProcessName) ? null : data.ProcessName);
 
     /// <summary>A method's code and its name, put together as TraceLog does, so that a live stack reads as the finished one.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -183,7 +193,7 @@ internal static class TraceReads
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static LiveEvent Any(EventPipeEventSource source, TraceEvent data) =>
-        new(source.SessionStartTime.ToUniversalTime(), data.TimeStampRelativeMSec, IsRundown(data));
+        new(source.SessionStartTime.ToUniversalTime(), data.TimeStampRelativeMSec, IsRundown(data), source.EventsLost);
 
     /// <summary>The name of a stack's innermost method, and when it has none, of its module.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]

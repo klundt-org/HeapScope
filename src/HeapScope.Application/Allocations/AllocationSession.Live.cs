@@ -53,13 +53,7 @@ public sealed partial class AllocationSession
     {
         var live = LiveOf(handle);
         var state = await UseAsync(handle, (service, id, ct) => service.QueryLiveTraceAsync(new LiveTraceRequest(id), ct), cancellationToken).ConfigureAwait(false);
-        if (!live.IsSame(state))
-        {
-            _logger.LogInformation("Not using {Path}: it is another recording now, started {Start:O}", handle.Path, state.StartUtc);
-            handle.FileChanged = true;
-            throw Changed(handle);
-        }
-
+        CheckSame(handle, live, state);
         return state;
     }
 
@@ -91,22 +85,68 @@ public sealed partial class AllocationSession
         }
     }
 
+    /// <summary>
+    /// Follows the trace again in a restarted worker: what it holds now is read before anything is answered from it, and it must be
+    /// the recording first followed. Whatever fails or is canceled, the handle stays the old one's and the next question tries again.
+    /// </summary>
     private async Task ReopenLiveAsync(TraceHandle handle, LiveTraceSource live, CancellationToken cancellationToken)
     {
         var generation = worker.Generation;
         _logger.LogInformation("Following {Path} again (worker trace {WorkerTraceId} of generation {Generation} is gone; the worker is now generation {Now})", handle.Path, handle.WorkerTraceId, handle.Generation, generation);
-        var opened = await worker.InvokeAsync((service, ct) => service.OpenLiveTraceAsync(new OpenLiveTraceRequest(handle.Path, live.NamesPath), ct), cancellationToken).ConfigureAwait(false);
-        handle.Update(Describe(opened), generation);
-        if (live.Ended)
+        var opened = await worker.InvokeAsync((service, ct) => service.OpenLiveTraceAsync(new OpenLiveTraceRequest(handle.Path, live.NamesPath, live.Ended), ct), cancellationToken).ConfigureAwait(false);
+        var used = false;
+        try
         {
-            await worker.InvokeAsync((service, ct) => service.EndLiveTraceAsync(opened.TraceId, ct), cancellationToken).ConfigureAwait(false);
+            var state = opened.State;
+            while (!state.CaughtUp && !state.Completed)
+            {
+                await Task.Delay(s_catchUpEvery, cancellationToken).ConfigureAwait(false);
+                state = await worker.InvokeAsync((service, ct) => service.QueryLiveTraceAsync(new LiveTraceRequest(opened.TraceId), ct), cancellationToken).ConfigureAwait(false);
+            }
+
+            CheckSame(handle, live, state);
+            ThrowIfClosed(handle);
+            handle.Update(Describe(opened), generation);
+            used = true;
+            _logger.LogInformation("Followed {Path} again as worker trace {WorkerTraceId} (generation {Generation}): {Samples} samples so far", handle.Path, opened.TraceId, generation, state.Samples);
+            if (live.Ended)
+            {
+                // It may have ended since the worker was asked to follow it.
+                await worker.InvokeAsync((service, ct) => service.EndLiveTraceAsync(opened.TraceId, ct), CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (!used || handle.IsClosed)
+            {
+                await CloseQuietlyAsync(opened.TraceId).ConfigureAwait(false);
+            }
         }
 
-        if (handle.IsClosed)
+        ThrowIfClosed(handle);
+    }
+
+    private static readonly TimeSpan s_catchUpEvery = TimeSpan.FromMilliseconds(50);
+
+    private async Task CloseQuietlyAsync(Guid traceId)
+    {
+        try
         {
-            // Closed while this ran: CloseLiveAsync saw the old generation and closed nothing.
-            await worker.InvokeAsync((service, ct) => service.CloseTraceAsync(opened.TraceId, ct), CancellationToken.None).ConfigureAwait(false);
-            ThrowIfClosed(handle);
+            await worker.InvokeAsync((service, ct) => service.CloseTraceAsync(traceId, ct), CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Workers.WorkerException ex)
+        {
+            _logger.LogInformation("Closing worker trace {WorkerTraceId} failed: {Reason}", traceId, ex.Message);
+        }
+    }
+
+    private void CheckSame(TraceHandle handle, LiveTraceSource live, LiveTraceDto state)
+    {
+        if (!live.IsSame(state))
+        {
+            _logger.LogInformation("Not using {Path}: it is another recording now, started {Start:O}, not {First:O}", handle.Path, state.StartUtc, live.StartUtc);
+            handle.FileChanged = true;
+            throw Changed(handle);
         }
     }
 

@@ -21,6 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using System.Globalization;
 using System.Runtime.InteropServices;
 using HeapScope.Core.Allocations;
 
@@ -29,11 +30,12 @@ namespace HeapScope.Loaders.Trace;
 /// <summary>
 /// The allocations of a trace that is still being recorded, added up as they arrive (sprint 4.3, ADR-037): by stretch of time,
 /// type, stack and kind. Stacks are folded by method where it is known when the sample arrives, by address where not, and the
-/// addresses take their method's name once it is. Bounded: a stretch grows when there are too many of them, or too many entries,
-/// and what is past the limits is added up under <see cref="OtherStacks"/> and <see cref="OtherTypes"/>, counted.
-/// Not thread-safe: the reader and whoever asks take its lock.
+/// addresses take their method's name once it is (<see cref="Rename"/>). Bounded: a stretch grows when there are too many of them,
+/// or too many entries, and what is past the limits is added up under <see cref="OtherStacks"/> and <see cref="OtherTypes"/>,
+/// counted. Not thread-safe: the reader and whoever asks take its lock.
 /// </summary>
-internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimits limits)
+/// <param name="notice">Told what changes the meaning of figures already shown: a stretch that grew, stacks given up.</param>
+internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimits limits, Action<string>? notice = null)
 {
     /// <summary>The frame of the samples whose stack is past the limit.</summary>
     public const string OtherStacks = "[other stacks]";
@@ -52,12 +54,12 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
     private List<int> _stackParents = [];
     private Dictionary<(int Parent, int Frame), int> _nodes = [];
     private List<Dictionary<Key, Amount>> _buckets = [];
+    private long _typeText;
     private int _entries;
     private bool _stacksFolded;
-    private int _namesVersion;
     private int _addressVersion;
-    private AllocationTrace? _view;
-    private long _viewOf = -1;
+    private int _renamedVersion;
+    private (long Version, int Nodes, long Count) _unnamedSamples = (-1, 0, 0);
 
     /// <summary>Bumped by each sample.</summary>
     public long Version { get; private set; }
@@ -71,20 +73,36 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
 
     public long WithoutStack { get; private set; }
 
+    /// <summary>Samples under <see cref="OtherStacks"/> or <see cref="OtherTypes"/>.</summary>
+    public long PastLimits { get; private set; }
+
+    public int Types => _types.Count;
+
+    public int StackNodes => _stackFrames.Count;
+
+    public int Frames => _frames.Count;
+
+    public int Entries => _entries;
+
     /// <summary>The samples with a frame that has no name by now.</summary>
     public long Unnamed()
     {
-        Rename();
-        if (_unnamed.Count == 0)
+        if (_unnamed.Count == 0 && !_frameIds.ContainsKey(AllocationTrace.UnresolvedFrame(null)))
         {
             return 0;
         }
 
+        if (_unnamedSamples.Version == Version && _unnamedSamples.Nodes == _stackFrames.Count)
+        {
+            return _unnamedSamples.Count;
+        }
+
         // A parent comes before its children.
+        var shared = _frameIds.GetValueOrDefault(AllocationTrace.UnresolvedFrame(null), -1);
         var unnamed = new bool[_stackFrames.Count];
         for (var n = 0; n < unnamed.Length; n++)
         {
-            unnamed[n] = _unnamed.ContainsKey(_stackFrames[n]) || (_stackParents[n] >= 0 && unnamed[_stackParents[n]]);
+            unnamed[n] = _stackFrames[n] == shared || _unnamed.ContainsKey(_stackFrames[n]) || (_stackParents[n] >= 0 && unnamed[_stackParents[n]]);
         }
 
         var samples = 0L;
@@ -96,28 +114,20 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
             }
         }
 
+        _unnamedSamples = (Version, _stackFrames.Count, samples);
         return samples;
     }
-
-    /// <summary>Samples under <see cref="OtherStacks"/> or <see cref="OtherTypes"/>.</summary>
-    public long PastLimits { get; private set; }
-
-    public int Types => _types.Count;
-
-    public int StackNodes => _stackFrames.Count;
-
-    public int Entries => _entries;
 
     public void Add(double timeMs, string? typeName, long bytes, AllocationKind kind, ReadOnlySpan<ulong> stack)
     {
         var past = false;
         var type = Type(string.IsNullOrEmpty(typeName) ? "?" : typeName, ref past);
         var leaf = Leaf(stack, ref past);
-        var bucket = timeMs <= 0 || double.IsNaN(timeMs) ? 0 : (int)Math.Min(timeMs / BucketMs, int.MaxValue - 1);
+        var bucket = BucketOf(timeMs);
         while (bucket >= limits.MaxBuckets)
         {
-            Widen();
-            bucket = (int)Math.Min(timeMs / BucketMs, int.MaxValue - 1);
+            Widen("the run is longer than the stretches kept");
+            bucket = BucketOf(timeMs);
         }
 
         while (_buckets.Count <= bucket)
@@ -126,14 +136,14 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         }
 
         Put(_buckets[bucket], new Key(type, leaf, kind), new Amount(bytes, 1));
-        while (_entries > limits.MaxEntries && _buckets.Count > 1)
+        while (_entries > limits.MaxEntries && _buckets.Count > limits.FewestBuckets)
         {
-            Widen();
+            Widen("there are more entries than are kept");
         }
 
         if (_entries > limits.MaxEntries)
         {
-            // One stretch left and still too many: the stacks are what there is too much of.
+            // Time is kept to a degree, so the stacks are what there is too much of.
             FoldStacks();
             past = true;
         }
@@ -144,16 +154,10 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         Version++;
     }
 
-    /// <summary>What was added so far, as the queries read a trace; the same object until something is added.</summary>
+    /// <summary>What was added so far, as the queries read a trace.</summary>
     public AllocationTrace View(AllocationTraceInfo info)
     {
         ArgumentNullException.ThrowIfNull(info);
-        Rename();
-        if (_view is { } known && _viewOf == Version && known.Info == info)
-        {
-            return known;
-        }
-
         var times = new double[_entries];
         var stacks = new int[_entries];
         var types = new int[_entries];
@@ -170,10 +174,45 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
             }
         }
 
-        _view = new AllocationTrace([.. _frames], [.. _types], [.. _stackFrames], [.. _stackParents], times, stacks, types, bytes, kinds, info, counts);
-        _viewOf = Version;
-        return _view;
+        return new AllocationTrace([.. _frames], [.. _types], [.. _stackFrames], [.. _stackParents], times, stacks, types, bytes, kinds, info, counts);
     }
+
+    /// <summary>Addresses whose method is known by now take its name: the stacks they are in are folded again. Whether any did.</summary>
+    public bool Rename()
+    {
+        if (_unnamed.Count == 0 || _renamedVersion == names.Version)
+        {
+            return false;
+        }
+
+        _renamedVersion = names.Version;
+        var renamed = new Dictionary<int, int>();
+        foreach (var (frame, address) in _unnamed)
+        {
+            if (names.Find(address) is { } name)
+            {
+                renamed.Add(frame, FrameId(name));
+            }
+        }
+
+        if (renamed.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var frame in renamed.Keys)
+        {
+            _unnamedByAddress.Remove(_unnamed[frame]);
+            _unnamed.Remove(frame);
+        }
+
+        _frameOfAddress.Clear();
+        Refold((node, frames) => renamed.GetValueOrDefault(frames[node], frames[node]), keep: true);
+        _unnamedSamples = (-1, 0, 0);
+        return true;
+    }
+
+    private int BucketOf(double timeMs) => timeMs <= 0 || double.IsNaN(timeMs) ? 0 : (int)Math.Min(timeMs / BucketMs, int.MaxValue - 1);
 
     private void Put(Dictionary<Key, Amount> bucket, Key key, Amount amount)
     {
@@ -189,7 +228,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
             return id;
         }
 
-        if (_types.Count >= limits.MaxTypes)
+        if (_types.Count >= limits.MaxTypes || _typeText + name.Length > limits.MaxTypeText)
         {
             past = true;
             name = OtherTypes;
@@ -202,6 +241,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         id = _types.Count;
         _types.Add(name);
         _typeIds.Add(name, id);
+        _typeText += name.Length;
         return id;
     }
 
@@ -213,24 +253,26 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
             return Node(-1, FrameId(AllocationTrace.NoStackFrame));
         }
 
-        if (_addressVersion != names.Version)
-        {
-            // A method may have taken another's place: what an address is, is asked again.
-            _frameOfAddress.Clear();
-            _addressVersion = names.Version;
-        }
-
         if (_stacksFolded)
         {
             past = true;
             return Node(-1, FrameId(OtherStacks));
         }
 
+        if (_addressVersion != names.Version || _frameOfAddress.Count >= limits.MaxFrames)
+        {
+            // A method may have taken another's place: what an address is, is asked again.
+            _frameOfAddress.Clear();
+            _addressVersion = names.Version;
+        }
+
         var node = -1;
         for (var i = stack.Length - 1; i >= 0; i--)
         {
-            var frame = Frame(stack[i]);
-            if (_stackFrames.Count >= limits.MaxStackNodes && !_nodes.ContainsKey((node, frame)))
+            // Past the limit only what is known already is followed: no frame is made for a stack that is not kept.
+            var full = _stackFrames.Count >= limits.MaxStackNodes;
+            var frame = Frame(stack[i], create: !full);
+            if (full && (frame < 0 || !_nodes.ContainsKey((node, frame))))
             {
                 past = true;
                 return Node(-1, FrameId(OtherStacks));
@@ -242,28 +284,53 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         return node;
     }
 
-    private int Frame(ulong address)
+    /// <summary>The frame of an address, or -1 when it would have to be made.</summary>
+    private int Frame(ulong address, bool create)
     {
-        if (!_frameOfAddress.TryGetValue(address, out var frame))
+        if (_frameOfAddress.TryGetValue(address, out var frame))
         {
-            frame = names.Find(address) is { } name ? FrameId(name) : UnnamedFrame(address);
-            _frameOfAddress.Add(address, frame);
+            return frame;
         }
 
+        if (names.Find(address) is { } name)
+        {
+            if (!_frameIds.TryGetValue(name, out frame))
+            {
+                if (!create)
+                {
+                    return -1;
+                }
+
+                frame = FrameId(name);
+            }
+        }
+        else if (!_unnamedByAddress.TryGetValue(address, out frame))
+        {
+            if (!create)
+            {
+                return -1;
+            }
+
+            frame = UnnamedFrame(address);
+        }
+
+        _frameOfAddress.Add(address, frame);
         return frame;
     }
 
     private int UnnamedFrame(ulong address)
     {
-        if (!_unnamedByAddress.TryGetValue(address, out var frame))
+        if (_unnamed.Count >= limits.MaxUnnamed)
         {
-            // A frame of its own: merging unnamed frames would hide different methods.
-            frame = _frames.Count;
-            _frames.Add(AllocationTrace.UnresolvedFrame(null));
-            _unnamed.Add(frame, address);
-            _unnamedByAddress.Add(address, frame);
+            // Too many to tell apart: one frame for the rest.
+            return FrameId(AllocationTrace.UnresolvedFrame(null));
         }
 
+        // A frame of its own: merging unnamed frames would hide different methods.
+        var frame = _frames.Count;
+        _frames.Add(AllocationTrace.UnresolvedFrame(null));
+        _unnamed.Add(frame, address);
+        _unnamedByAddress.Add(address, frame);
         return frame;
     }
 
@@ -292,78 +359,51 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         return node;
     }
 
-    /// <summary>Addresses whose method is known by now take its name: the stacks they are in are folded again.</summary>
-    private void Rename()
-    {
-        if (_unnamed.Count == 0 || _namesVersion == names.Version)
-        {
-            return;
-        }
-
-        _namesVersion = names.Version;
-        var renamed = new Dictionary<int, int>();
-        foreach (var (frame, address) in _unnamed)
-        {
-            if (names.Find(address) is { } name)
-            {
-                renamed.Add(frame, FrameId(name));
-            }
-        }
-
-        if (renamed.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var frame in renamed.Keys)
-        {
-            _unnamedByAddress.Remove(_unnamed[frame]);
-            _unnamed.Remove(frame);
-        }
-
-        _frameOfAddress.Clear();
-        Refold((node, frames, _) => renamed.GetValueOrDefault(frames[node], frames[node]), keep: _ => true);
-        _viewOf = -1;
-    }
-
     /// <summary>Every stack becomes <see cref="OtherStacks"/>: the entries left are types per stretch.</summary>
     private void FoldStacks()
     {
         var other = FrameId(OtherStacks);
         _stacksFolded = true;
         PastLimits = Samples;
-        Refold((_, _, _) => other, keep: _ => false);
+        var entries = _entries;
+        _unnamed.Clear();
+        _unnamedByAddress.Clear();
+        _frameOfAddress.Clear();
+        Refold((_, _) => other, keep: false);
+        notice?.Invoke(string.Create(CultureInfo.InvariantCulture, $"the call stacks of {Samples} samples were given up, {entries} entries became {_entries}"));
     }
 
-    /// <summary>Builds the tree of stacks again, each node's frame as <paramref name="frameOf"/> says; a node not kept becomes its root.</summary>
-    private void Refold(Func<int, List<int>, List<int>, int> frameOf, Func<int, bool> keep)
+    /// <summary>Builds the tree of stacks again, each node's frame as <paramref name="frameOf"/> says; without <paramref name="keep"/> every node becomes a root.</summary>
+    private void Refold(Func<int, List<int>, int> frameOf, bool keep)
     {
         var (frames, parents, buckets) = (_stackFrames, _stackParents, _buckets);
         (_stackFrames, _stackParents, _nodes) = ([], [], []);
         var moved = new int[frames.Count];
         for (var n = 0; n < frames.Count; n++)
         {
-            moved[n] = Node(keep(n) && parents[n] >= 0 ? moved[parents[n]] : -1, frameOf(n, frames, parents));
+            moved[n] = Node(keep && parents[n] >= 0 ? moved[parents[n]] : -1, frameOf(n, frames));
         }
 
-        _buckets = [];
         _entries = 0;
-        foreach (var bucket in buckets)
+        for (var b = 0; b < buckets.Count; b++)
         {
+            // One at a time: the old ones are let go as the new ones are made.
+            var bucket = buckets[b];
             var again = new Dictionary<Key, Amount>(bucket.Count);
             foreach (var (key, amount) in bucket)
             {
                 Put(again, key with { Leaf = moved[key.Leaf] }, amount);
             }
 
-            _buckets.Add(again);
+            buckets[b] = again;
         }
     }
 
     /// <summary>Two stretches become one.</summary>
-    private void Widen()
+    private void Widen(string why)
     {
         BucketMs *= 2;
+        var entries = _entries;
         var wide = new List<Dictionary<Key, Amount>>((_buckets.Count + 1) / 2);
         _entries = 0;
         for (var b = 0; b < _buckets.Count; b += 2)
@@ -382,7 +422,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         }
 
         _buckets = wide;
-        _viewOf = -1;
+        notice?.Invoke(string.Create(CultureInfo.InvariantCulture, $"stretches are {BucketMs:N0} ms long from now on: {why} ({Samples} samples, {entries} entries became {_entries} in {_buckets.Count} stretches)"));
     }
 
     private readonly record struct Key(int Type, int Leaf, AllocationKind Kind);

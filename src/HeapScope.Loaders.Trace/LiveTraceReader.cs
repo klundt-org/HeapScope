@@ -21,6 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using System.Globalization;
 using HeapScope.Core;
 using HeapScope.Core.Allocations;
 using Microsoft.Diagnostics.Tracing;
@@ -40,6 +41,10 @@ public sealed class LiveTraceReader : IDisposable
     /// <summary>The memory a live trace reserves while it is read.</summary>
     public const long ReservedBytes = LiveAllocationLimits.ReservedBytes;
 
+    /// <summary>A view is used again for this long while samples arrive, and addresses are named at most this often.</summary>
+    private static readonly TimeSpan s_viewFor = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan s_renameEvery = TimeSpan.FromSeconds(2);
+
     private readonly Lock _gate = new();
     private readonly CancellationTokenSource _stop = new();
     private readonly LiveMethodNames _names = new();
@@ -49,9 +54,11 @@ public sealed class LiveTraceReader : IDisposable
     private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly EventStackReader? _stacks;
     private readonly string? _stackProblem;
-    private readonly string? _namesProblem;
-    private readonly int _namedBefore;
+    private readonly string? _namesPath;
     private readonly string _path;
+    private string? _namesProblem;
+    private int _namedBefore;
+    private int _methods;
     private volatile bool _ended;
     private int _processId;
     private string? _processName;
@@ -60,39 +67,40 @@ public sealed class LiveTraceReader : IDisposable
     private long _total;
     private int _lost;
     private double? _delayMs;
+    private double _longestDelayMs;
     private bool _hasRundown;
     private bool _completed;
     private string? _problem;
     private string? _problemDetail;
     private Exception? _failure;
+    private LiveTraceView? _view;
+    private long _viewAt;
+    private long _renamedAt;
 
-    private LiveTraceReader(string path, string? namesPath, LiveAllocationLimits limits)
+    private LiveTraceReader(string path, string? namesPath, LiveAllocationLimits limits, Action<string>? notice)
     {
         _path = path;
-        _allocations = new LiveAllocations(_names, limits);
+        _namesPath = namesPath;
+        _namesProblem = namesPath is null ? "none recorded" : null;
+        _allocations = new LiveAllocations(_names, limits, notice);
         (_stacks, _stackProblem) = EventStackReader.Create();
-        if (namesPath is not null)
-        {
-            _namesProblem = ReadNames(namesPath);
-            _namedBefore = _names.Count;
-        }
-
         _stream = new LiveTraceStream(path, () => _ended, _stop.Token);
         _thread = new Thread(Run) { IsBackground = true, Name = "HeapScope live trace" };
     }
 
     /// <summary>Starts reading <paramref name="path"/>, which may hold nothing yet.</summary>
     /// <param name="namesPath">A trace with the rundown of the methods compiled before (deleted or damaged is no failure).</param>
+    /// <param name="notice">Told, under the reader's lock, what changes the meaning of figures already given: for the log.</param>
     /// <exception cref="SnapshotFormatException">The file cannot be opened.</exception>
-    public static LiveTraceReader Start(string path, string? namesPath) => Start(path, namesPath, LiveAllocationLimits.Default);
+    public static LiveTraceReader Start(string path, string? namesPath, Action<string>? notice = null) => Start(path, namesPath, LiveAllocationLimits.Default, notice);
 
-    internal static LiveTraceReader Start(string path, string? namesPath, LiveAllocationLimits limits)
+    internal static LiveTraceReader Start(string path, string? namesPath, LiveAllocationLimits limits, Action<string>? notice = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         var fullPath = Path.GetFullPath(path);
         try
         {
-            var reader = new LiveTraceReader(fullPath, namesPath, limits);
+            var reader = new LiveTraceReader(fullPath, namesPath, limits, notice);
             reader._thread.Start();
             return reader;
         }
@@ -107,6 +115,9 @@ public sealed class LiveTraceReader : IDisposable
 
     /// <summary>An error that is HeapScope's own, if one ended the reading (for the log).</summary>
     public Exception? Failure => Volatile.Read(ref _failure);
+
+    /// <summary>Whether the recording was said to have ended.</summary>
+    public bool Ended => _ended;
 
     /// <summary>The recording ended and its file is closed: the reader finishes what it holds.</summary>
     public void End() => _ended = true;
@@ -127,6 +138,7 @@ public sealed class LiveTraceReader : IDisposable
     {
         lock (_gate)
         {
+            Rename();
             return new LiveTraceStatus(
                 _allocations.Version,
                 _durationMs,
@@ -136,12 +148,14 @@ public sealed class LiveTraceReader : IDisposable
                 _allocations.Types,
                 _allocations.Entries,
                 _allocations.StackNodes,
-                _names.Count,
+                _completed ? _methods : _names.Count,
+                _names.LeftOut,
                 _lost,
                 _allocations.WithoutStack,
                 _allocations.Unnamed(),
                 _allocations.PastLimits,
                 _delayMs,
+                _longestDelayMs,
                 _stream.CaughtUp,
                 _completed,
                 _stream.BytesRead,
@@ -163,12 +177,23 @@ public sealed class LiveTraceReader : IDisposable
         }
     }
 
-    /// <summary>What was read so far, as the queries read a trace: entries added up by stretch of time (<see cref="AllocationTrace.SampleCounts"/>).</summary>
-    public AllocationTrace View()
+    /// <summary>
+    /// What was read so far, as the queries read a trace: entries added up by stretch of time (<see cref="AllocationTrace.SampleCounts"/>).
+    /// While samples arrive, the same view answers for a second, so that questions asked together are answered from one; once reading
+    /// is over it is everything.
+    /// </summary>
+    public LiveTraceView View()
     {
         lock (_gate)
         {
-            return _allocations.View(new AllocationTraceInfo(
+            if (_view is { } known
+                && ((known.Version == _allocations.Version && known.Completed == _completed) || (!_completed && Environment.TickCount64 - _viewAt < s_viewFor.TotalMilliseconds)))
+            {
+                return known;
+            }
+
+            Rename();
+            var info = new AllocationTraceInfo(
                 _processId,
                 _processName,
                 _startUtc,
@@ -176,7 +201,10 @@ public sealed class LiveTraceReader : IDisposable
                 _lost,
                 _allocations.WithoutStack,
                 _allocations.Unnamed(),
-                _hasRundown));
+                _hasRundown);
+            _view = new LiveTraceView(_allocations.View(info), _allocations.BucketMs, _allocations.Version, _completed);
+            _viewAt = Environment.TickCount64;
+            return _view;
         }
     }
 
@@ -192,21 +220,39 @@ public sealed class LiveTraceReader : IDisposable
         _stop.Dispose();
     }
 
+    /// <summary>Folding the stacks again takes as long as there are entries: not for every method that is compiled.</summary>
+    private void Rename()
+    {
+        if (_completed || _renamedAt == 0 || Environment.TickCount64 - _renamedAt >= s_renameEvery.TotalMilliseconds)
+        {
+            if (_allocations.Rename())
+            {
+                _view = null;
+            }
+
+            _renamedAt = Environment.TickCount64;
+        }
+    }
+
     private void Run()
     {
         try
         {
-            using var source = TraceReads.OpenLive(_stream);
-            TraceReads.Subscribe(source, OnTick, OnMethod, OnEvent);
-            TraceReads.Process(source);
-            lock (_gate)
+            if (_namesPath is { } namesPath)
             {
-                _lost = TraceReads.Lost(source);
+                var problem = ReadNames(namesPath);
+                lock (_gate)
+                {
+                    (_namesProblem, _namedBefore) = (problem, _names.Count);
+                }
             }
 
+            using var source = TraceReads.OpenLive(_stream);
+            TraceReads.Subscribe(source, OnTick, OnMethod, OnUnload, OnEvent);
+            TraceReads.Process(source);
             if (_stream.Refusal is { } refusal)
             {
-                Stopped(refusal.Message, "the check refused it");
+                Stopped(refusal.Message, _stream.RefusalDetail);
             }
         }
         catch (Exception ex) when (_stop.IsCancellationRequested)
@@ -216,11 +262,11 @@ public sealed class LiveTraceReader : IDisposable
         }
         catch (Exception) when (_stream.Refusal is { } refusal)
         {
-            Stopped(refusal.Message, "the check refused it");
+            Stopped(refusal.Message, _stream.RefusalDetail);
         }
         catch (AmountException ex)
         {
-            Stopped($"{_path} {ex.Message}: the file may be damaged.", "amount of a sample");
+            Stopped($"{_path} {ex.Message}: the file may be damaged.", ex.Detail);
         }
         catch (Exception ex) when (TraceReads.IsFileError(ex))
         {
@@ -244,6 +290,12 @@ public sealed class LiveTraceReader : IDisposable
         {
             lock (_gate)
             {
+                _allocations.Rename();
+                _view = null;
+
+                // What names the addresses is over with: an unnamed frame stays one.
+                _methods = _names.Count;
+                _names.Clear();
                 _completed = true;
             }
 
@@ -251,7 +303,7 @@ public sealed class LiveTraceReader : IDisposable
         }
     }
 
-    private void Stopped(string problem, string detail)
+    private void Stopped(string problem, string? detail)
     {
         lock (_gate)
         {
@@ -266,16 +318,17 @@ public sealed class LiveTraceReader : IDisposable
         {
             if (AllocationTraceReader.RefusedAmount(sample.Bytes, ref _total) is { } amount)
             {
-                throw new AmountException(amount);
+                throw new AmountException(amount, string.Create(CultureInfo.InvariantCulture, $"amount of sample {_allocations.Samples + 1} at {sample.TimeMs:F1} ms"));
             }
 
-            if (_processId == 0 && sample.ProcessId > 0)
+            if (_processId == 0)
             {
-                (_processId, _processName) = (sample.ProcessId, string.IsNullOrEmpty(sample.ProcessName) ? null : sample.ProcessName);
+                (_processId, _processName) = TraceReads.ProcessOf(e);
             }
 
-            var delay = (DateTime.UtcNow - sample.Utc).TotalMilliseconds;
-            _delayMs = Math.Max(_delayMs ?? 0, Math.Max(0, delay));
+            var delay = Math.Max(0, (DateTime.UtcNow - sample.Utc).TotalMilliseconds);
+            _delayMs = Math.Max(_delayMs ?? 0, delay);
+            _longestDelayMs = Math.Max(_longestDelayMs, delay);
             _allocations.Add(sample.TimeMs, sample.TypeName, sample.Bytes, sample.Kind, stack);
         }
     }
@@ -288,6 +341,14 @@ public sealed class LiveTraceReader : IDisposable
         }
     }
 
+    private void OnUnload(ulong start)
+    {
+        lock (_gate)
+        {
+            _names.Remove(start);
+        }
+    }
+
     private void OnEvent(LiveEvent e)
     {
         lock (_gate)
@@ -295,10 +356,11 @@ public sealed class LiveTraceReader : IDisposable
             _startUtc = e.SessionStartUtc;
             _durationMs = Math.Max(_durationMs, e.TimeMs);
             _hasRundown |= e.IsRundown;
+            _lost = e.Lost;
         }
     }
 
-    /// <summary>The names of the methods compiled before the recording, from a short trace of its own: why there are none, or null.</summary>
+    /// <summary>The names of the methods compiled before the recording, from a short trace of its own: why there are none, or not all, or null.</summary>
     private string? ReadNames(string path)
     {
         try
@@ -310,9 +372,29 @@ public sealed class LiveTraceReader : IDisposable
 
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var source = TraceReads.OpenLive(stream);
-            TraceReads.Subscribe(source, null, OnMethod, null);
+            var methods = new List<(ulong, uint, string)>();
+            TraceReads.Subscribe(
+                source,
+                null,
+                (start, size, name) =>
+                {
+                    _stop.Token.ThrowIfCancellationRequested();
+                    if (methods.Count < LiveMethodNames.MaxMethods)
+                    {
+                        methods.Add((start, size, name));
+                    }
+                },
+                null,
+                null);
             TraceReads.Process(source);
-            return _names.Count == 0 ? "it names none" : null;
+            lock (_gate)
+            {
+                _names.AddAll(methods);
+            }
+
+            return TraceReads.Lost(source) is > 0 and var lost
+                ? string.Create(CultureInfo.InvariantCulture, $"{lost} events of them were lost")
+                : methods.Count == 0 ? "it names none" : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SnapshotFormatException || TraceReads.IsFileError(ex))
         {
@@ -320,5 +402,8 @@ public sealed class LiveTraceReader : IDisposable
         }
     }
 
-    private sealed class AmountException(string message) : Exception(message);
+    private sealed class AmountException(string message, string detail) : Exception(message)
+    {
+        public string Detail { get; } = detail;
+    }
 }
