@@ -118,6 +118,59 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// Sprint 4.3 (ADR-037): a live reader beside a recording adds up to what the finished file holds, type by type and stack by
+    /// stack, however the file grows.
+    /// </summary>
+    [Theory]
+    [InlineData(1 << 20)]
+    [InlineData(100_003)]
+    public async Task A_recording_replayed_in_pieces_reads_as_the_finished_file(int piece)
+    {
+        var finished = AllocationTraceReader.Read(_shared.TracePath, null, _scratch.Path, Ct);
+        var bytes = await File.ReadAllBytesAsync(_shared.TracePath, Ct);
+        var path = _scratch.File($"replayed-{piece}.nettrace");
+        await using var writer = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read | FileShare.Delete, 1);
+        using var reader = LiveTraceReader.Start(path, namesPath: null);
+        for (var at = 0; at < bytes.Length; at += piece)
+        {
+            await writer.WriteAsync(bytes.AsMemory(at, Math.Min(piece, bytes.Length - at)), Ct);
+            await Task.Delay(1, Ct);
+        }
+
+        reader.End();
+        await reader.Completion.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+
+        var status = reader.Status();
+        (status.Problem, status.StackProblem, status.Completed, reader.Failure).ShouldBe((null, null, true, null));
+        status.Checked.ShouldNotBeNull().ShouldContain("whole");
+        var live = reader.View();
+        Types(live).ShouldBe(Types(finished));
+        var (liveStacks, finishedStacks) = (Stacks(live), Stacks(finished));
+        liveStacks.Keys.Except(finishedStacks.Keys).Take(3).ShouldBeEmpty("stacks only the live reader has");
+        finishedStacks.Keys.Except(liveStacks.Keys).Take(3).ShouldBeEmpty("stacks only the finished file has");
+        liveStacks.Where(s => finishedStacks[s.Key] != s.Value).Take(3).ShouldBeEmpty();
+        (live.Info.ProcessId, live.Info.LostEvents, live.Info.HasRundown, live.Info.SamplesWithoutStack).ShouldBe(
+            (finished.Info.ProcessId, finished.Info.LostEvents, finished.Info.HasRundown, finished.Info.SamplesWithoutStack));
+
+        static Dictionary<string, (long Bytes, int Samples)> Types(AllocationTrace trace) =>
+            AllocationProfile.Types(trace, AllocationFilter.All).ToDictionary(t => trace.Types[t.Type], t => (t.Bytes, t.Samples), StringComparer.Ordinal);
+
+        static Dictionary<string, (long Bytes, int Samples)> Stacks(AllocationTrace trace)
+        {
+            var stacks = new Dictionary<string, (long Bytes, int Samples)>(StringComparer.Ordinal);
+            foreach (var (bytes, node, samples) in AllocationProfile.TopStacks(trace, AllocationFilter.All, int.MaxValue))
+            {
+                // Unnamed frames read the same whatever module the finished file knows for them.
+                var key = string.Join(" < ", AllocationProfile.FramesOf(trace, node).Select(f => trace.Frames[f].StartsWith("[unresolved frame", StringComparison.Ordinal) ? "?" : trace.Frames[f]));
+                var (b, n) = stacks.GetValueOrDefault(key);
+                stacks[key] = (b + bytes, n + samples);
+            }
+
+            return stacks;
+        }
+    }
+
     [Fact]
     public void The_trace_holds_samples_of_LeakyApi_with_named_stacks_and_leaves_no_temporary_file()
     {

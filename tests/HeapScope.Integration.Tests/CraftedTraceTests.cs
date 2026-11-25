@@ -65,7 +65,7 @@ public sealed class CraftedTraceTests : IDisposable
         // The base itself must read, or every copy's refusal would say nothing.
         AllocationTraceReader.Read(basePath, null, _folder.File("etlx"), token).SampleCount.ShouldBeGreaterThan(0);
 
-        var (opened, refused) = (0, 0);
+        var (opened, refused, stopped) = (0, 0, 0);
         for (var i = 0; i < iterations; i++)
         {
             // Alone in the process (its collection), since the memory counted is the process's. Each iteration has its own numbers, so one replays alone.
@@ -110,6 +110,20 @@ public sealed class CraftedTraceTests : IDisposable
                         ex.Message.ShouldContain("record", Case.Insensitive);
                         refused++;
                     }
+
+                    // Sprint 4.3: the same file read as one that is being recorded and ends there. It stops with a reason or at the
+                    // end, never with an error of HeapScope's own.
+                    using var live = LiveTraceReader.Start(mutated, mutated);
+                    live.End();
+                    live.Completion.Wait(TimeSpan.FromSeconds(50), token).ShouldBeTrue("the live read did not end");
+                    live.Failure.ShouldBeNull();
+                    var view = live.View();
+                    view.SampleBytes.Sum().ShouldBeGreaterThanOrEqualTo(0);
+                    if (live.Status().Problem is { } problem)
+                    {
+                        problem.ShouldNotContain("Following the recording failed");
+                        stopped++;
+                    }
                 },
                 token);
 
@@ -134,11 +148,12 @@ public sealed class CraftedTraceTests : IDisposable
             Delete(mutated);
         }
 
-        TestContext.Current.TestOutputHelper?.WriteLine($"{opened} read, {refused} refused");
+        TestContext.Current.TestOutputHelper?.WriteLine($"{opened} read, {refused} refused; live, {stopped} stopped early");
         if (iterations >= 100)
         {
             // Refusing everything, or nothing, would pass the rest.
             opened.ShouldBeGreaterThan(0);
+            stopped.ShouldBeInRange(1, iterations - 1);
             refused.ShouldBeGreaterThan(0);
         }
     }

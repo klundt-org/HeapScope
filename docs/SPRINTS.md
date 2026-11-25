@@ -135,7 +135,7 @@ says what to do first: the Live page's view model is 796 lines with three concer
 3. [x] The live file: each chunk of the session's stream written as it arrives, under its final name, owner-only, shared for
    reading and deleting; `AllocationRecording` says when it ended, after the flush. Tests: a reader beside the writer, an end
    in mid-chunk, a canceled run.
-4. [ ] A streaming reader in Loaders.Trace: tails the file, keeps aggregates (types and sizes per time bucket; stacks folded by
+4. [x] A streaming reader in Loaders.Trace: tails the file, keeps aggregates (types and sizes per time bucket; stacks folded by
    module and offset, named when names are known), bounded in memory and reserved. Tests: a growing file replayed in pieces
    gives the same totals as the finished one; names that arrive late; a file that stops growing; a damaged file.
 5. [ ] The worker contract: open a live trace, "what changed since", "the recording ended"; one protocol bump; the identity of a

@@ -24,6 +24,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using HeapScope.Core.Allocations;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.Parsers;
@@ -122,6 +123,67 @@ internal static class TraceReads
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static CallStackIndex Caller(TraceLog log, CallStackIndex stack) => log.CallStacks.Caller(stack);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static EventPipeEventSource OpenLive(Stream stream) => new(stream);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void Process(EventPipeEventSource source) => source.Process();
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static int Lost(EventPipeEventSource source) => source.EventsLost;
+
+    /// <summary>What a live trace is read for (sprint 4.3): its ticks, its methods' code and names, and how far it got.</summary>
+    public static void Subscribe(EventPipeEventSource source, Action<TraceEvent, LiveSample>? tick, Action<ulong, uint, string> method, Action<LiveEvent>? any)
+    {
+        if (tick is not null)
+        {
+            source.Clr.GCAllocationTick += data => tick(data, Live(data));
+        }
+
+        void OnMethod(MethodLoadUnloadVerboseTraceData data)
+        {
+            var (start, size, name) = Method(data);
+            method(start, size, name);
+        }
+
+        source.Clr.MethodLoadVerbose += OnMethod;
+        var rundown = new ClrRundownTraceEventParser(source);
+        rundown.MethodDCStartVerbose += OnMethod;
+        rundown.MethodDCStopVerbose += OnMethod;
+        if (any is not null)
+        {
+            source.AllEvents += data => any(Any(source, data));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static LiveSample Live(GCAllocationTickTraceData data) => new(
+        data.TypeName,
+        data.TimeStampRelativeMSec,
+        data.TimeStamp.ToUniversalTime(),
+        data.AllocationAmount64,
+        data.AllocationKind switch
+        {
+            GCAllocationKind.Large => AllocationKind.Large,
+            (GCAllocationKind)2 => AllocationKind.Pinned,
+            _ => AllocationKind.Small,
+        },
+        data.ProcessID,
+        data.ProcessName);
+
+    /// <summary>A method's code and its name, put together as TraceLog does, so that a live stack reads as the finished one.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (ulong Start, uint Size, string Name) Method(MethodLoadUnloadVerboseTraceData data)
+    {
+        var signature = data.MethodSignature;
+        var arguments = signature.IndexOf('(', StringComparison.Ordinal);
+        return (data.MethodStartAddress, (uint)data.MethodSize, $"{data.MethodNamespace}.{data.MethodName}{(arguments >= 0 ? signature[arguments..] : string.Empty)}");
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static LiveEvent Any(EventPipeEventSource source, TraceEvent data) =>
+        new(source.SessionStartTime.ToUniversalTime(), data.TimeStampRelativeMSec, IsRundown(data));
 
     /// <summary>The name of a stack's innermost method, and when it has none, of its module.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
