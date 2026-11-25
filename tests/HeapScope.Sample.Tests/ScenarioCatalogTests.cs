@@ -95,6 +95,18 @@ public sealed class ScenarioCatalogTests
         (typeof(ReportRow).FullName, typeof(Heartbeat).FullName).ShouldBe((AllocationBursts.AnswerType, AllocationBursts.SteadyType));
     }
 
+    /// <summary>Sprint 4.4: rates are allocated and not kept, trades are kept.</summary>
+    [Fact]
+    public void The_churn_allocates_its_answer_and_keeps_the_decoy()
+    {
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Churn.Quote(5_000);
+
+        (GC.GetAllocatedBytesForCurrentThread() - before).ShouldBeGreaterThanOrEqualTo(5_000 * 56);
+        (Churn.Book(5), Churn.Book(5)).ShouldBe((5, 10));
+        (typeof(ExchangeRate).FullName, typeof(Trade).FullName).ShouldBe((Churn.AnswerType, Churn.GrowingType));
+    }
+
     [Fact]
     public void What_cannot_run_together_is_named_both_ways()
     {

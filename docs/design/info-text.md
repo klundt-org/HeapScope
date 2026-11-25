@@ -380,6 +380,16 @@ Drafts for the owner (sprint 4.4, what was allocated between two snapshots). `Al
 | CLI | diff --allocated, stderr | Where: allocations "{trace}" --from {N} --to {N} | draft |
 | CLI | Usage | --sort allocated needs --allocated. | draft |
 
+The sample's scenario and its lesson, drafts too (`LessonCatalogTests` checks both, `SampleTests` follows the steps):
+
+| Scenario | Title | Plants | Answer | Decoys | Status |
+|---|---|---|---|---|---|
+| Churn | Allocated and dropped | Exchange rates allocated all the time, of which only the latest are kept, and trades kept as they come, so what a comparison shows growing is not what is allocated most. | HeapScope.Sample.ExchangeRate | HeapScope.Sample.Trade | draft |
+
+| Lesson | Title | Summary | Steps | Question | Status |
+|---|---|---|---|---|---|
+| allocated-between | What was allocated between two snapshots | Compare two snapshots of a recorded run to see what was allocated and is gone again. | 1. On the Live page, choose the process heapscope-sample, open Snapshot rules, tick Record allocations and press Start.<br>2. On the Processes page, select the sample's row (it says Sample in the Kind column), tick As gcdump and choose Capture dump. When it asks to open it, say yes. A gcdump holds only what a collection left, so what was dropped is not in it.<br>3. Wait about ten seconds, then capture and open a second gcdump. Then press Stop on the Live page.<br>4. On the Snapshots page, open the Compare tab, type HeapScope.Sample in the filter and sort by Bytes +/-: the top row is what grew.<br>5. Tick Allocated between and sort by Allocated (est.). The top row is now what was allocated most, most of it collected since: right-click it and choose Show where it was allocated. | Which of the sample's types was allocated most between the two snapshots? | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts
