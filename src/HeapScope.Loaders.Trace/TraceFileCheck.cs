@@ -33,7 +33,7 @@ namespace HeapScope.Loaders.Trace;
 /// fields each event description states. Walks the block headers and reads only the description blocks, so a long trace
 /// costs little. It follows TraceEvent's own reading of nettrace version 4, the one the .NET runtime writes, tag by tag:
 /// where TraceEvent stops (a file cut short, another tag) the walk stops, and what it accepts here it has been shown to fit.
-/// Descriptions are read from their own blocks only: in version 4 TraceEvent 4.0 takes none from a block of events (an event
+/// Descriptions are read from their own blocks only: in version 4 TraceEvent 4.0.2 takes none from a block of events (an event
 /// whose description is not known, 0 included, is an error there), and it reads every type the check accepts, at any depth
 /// (its source at 10e5d27, the commit the package is built from). Any other version is refused, since nothing checks it.
 /// Look at it again when TraceEvent or the runtime's format changes.

@@ -36,7 +36,7 @@ under the MIT License, whose text is below.
 | Microsoft.Bcl.AsyncInterfaces | 10.0.3 | Microsoft Corporation |
 | Microsoft.Diagnostics.NETCore.Client | 0.2.750501 | Microsoft Corporation |
 | Microsoft.Diagnostics.Runtime (ClrMD) | 4.2.751201 | Microsoft Corporation |
-| Microsoft.Diagnostics.Tracing.TraceEvent | 4.0.0 | Microsoft Corporation (see the note on native binaries below) |
+| Microsoft.Diagnostics.Tracing.TraceEvent | 4.0.2 | Microsoft Corporation (see the note on native binaries below) |
 | Microsoft.Extensions.* (Hosting, Configuration, DependencyInjection, Logging, Options, Primitives, FileProviders, FileSystemGlobbing, Diagnostics) | 10.0.14 | Microsoft Corporation |
 | Microsoft.Identity.Client, Microsoft.Identity.Client.Extensions.Msal (via ClrMD) | 4.83.1 | Microsoft Corporation |
 | Microsoft.IdentityModel.Abstractions (via ClrMD) | 8.14.0 | Microsoft Corporation |

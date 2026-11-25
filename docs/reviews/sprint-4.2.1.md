@@ -58,7 +58,7 @@ otherwise, marked "decided autonomously".
 - M12 (support-engineer) TraceEvent's text went into the message. Fixed: the exception's type and HeapScope's words; the log has
   its problem lines, as for an opened trace, and its message at Debug.
 - M13 (support-engineer) The only next step was to record again. Fixed: copy it again and compare its size first. "Crafted" is
-  gone from the traces' texts. Drafts for the owner.
+  gone from the traces' texts. The owner approved the texts on 2026-11-24.
 - M14 (solution-architect, support-engineer) Docs. Fixed: ADR-028, logging.md, security-privacy.md, code map, ARCHITECTURE.
 - The check's shape for 4.3 (solution-architect, Moderate): deferred to 4.3 task 4, and written in ADR-028.
 - An uncompressed record's own size (senior-dev Moderate, gc-specialist in H2b): kept. TraceEvent steps by the payload's size in
@@ -68,7 +68,7 @@ otherwise, marked "decided autonomously".
 
 Fixed on the way: cancellation per description; named constants; a phase ("Checking the trace file"); `ProcessName` read once;
 every flag of a compressed header tested; fuzz.yml's comment. Not fixed: the file is opened twice (Backlog); the mutation job's
-duration is not recorded; the benchmark was not run; the other gcdump refusals name no file; `IsFileError` walks the stack in a
+duration is not recorded; the other gcdump refusals name no file; `IsFileError` walks the stack in a
 filter; a zero-filled tail inside a block of descriptions is refused; the read left running after a test's timeout.
 
 ## Confirmations
@@ -91,3 +91,21 @@ Each reviewer read the fixes (2026-11-24) and confirmed its findings, but for th
   passed with them corrected.
 - Low, fixed: the type rule of `IsFileError` tested by itself; the conversion called through `TraceReads`; the memory line
   matched at its start; the event source test counts every field; ADR-037 points to ADR-028; the reader's version is 2.
+
+## TraceEvent 4.0.2 (added after the confirmations)
+
+The owner asked (2026-11-24) why not take TraceEvent 4.0.2 in this sprint. It is the only package that changed (MIT, the same
+files and dependencies, signed by Microsoft). Checked:
+
+- The package's commit is not public, so the two binaries were compared, method by method, by their compiled code. What reads a
+  trace's blocks and descriptions, and so what the check follows, is the same. In EventPipe reading: `EventPipeEventSource.Process`
+  and `DispatchEvent` and the block loop honor `StopProcessing`, and one read of a related activity is checked. Elsewhere: the
+  values read from an event are bounds-checked, and call stacks are interned in arrays. FastSerialization: a larger write
+  buffer and a bulk copy; its deserializer is the same.
+- 14 sound and damaged traces (the recorded ones, LeakyApi, event sources, 4.3's deep stacks): the same samples, stacks, frames,
+  types, times, amounts and refusals, compared by hash.
+- 9,500 damaged copies of three traces: 44 differ. 33 open with both and 11 are refused by both; none changed sides. Where they
+  differ, 4.0.2 stops at the first damaged event and says so, while 4.0.0 read past its end (9 of them then gave another count
+  of lost events; 2 gave samples after it). Longest read 675 ms, most allocated 17 MB.
+- `allocations` benchmark, 5 alternating runs each: 0.4 to 0.6 s with both; growth 29 to 30 MB (4.9 MB trace) and 16 to 17 MB
+  (0.7 MB, 4,845 stack nodes) with both. The larger write buffer and the arrays do not show at these sizes.

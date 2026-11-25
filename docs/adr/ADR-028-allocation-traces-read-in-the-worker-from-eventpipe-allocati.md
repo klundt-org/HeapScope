@@ -27,10 +27,11 @@
   status says so); reading the samples after it checks the token every 4,096 events.
 - Amended in 4.2.1: HeapScope walks a trace's blocks itself before TraceEvent reads it (`TraceFileCheck`) and refuses sizes,
   field counts and nesting the file cannot hold. It covers nettrace version 4, which the .NET runtime writes, and follows
-  TraceEvent 4.0's own reading of it: where TraceEvent stops (a file cut short, another tag) the walk stops, and what came
+  TraceEvent's own reading of it (the same compiled code in 4.0.0 and 4.0.2): where TraceEvent stops (a file cut short, another tag) the walk stops, and what came
   before is read as it was. Any other version is refused, since nothing checks it. All the field lists of an event's
   description share one budget, a field per six bytes of its record; a block of descriptions is at most 1 MB, types nest at
   most 64 deep, and a type version 4 does not have is refused. A file the check lets through and TraceEvent then fails on is refused as well (`TraceReads` tells its errors
   from HeapScope's), and memory that runs out while converting, which TraceEvent takes as the trace's end, is reported as
-  such. Look at the check again when TraceEvent or the runtime's format changes. 4.3's live reader needs it resumable: the
+  such. Since 4.2.1 TraceEvent is 4.0.2, which checks the bounds of the values it reads from an event and stops at the first
+  event that is damaged. Look at the check again when TraceEvent or the runtime's format changes. 4.3's live reader needs it resumable: the
   walk keeps its place in a file that grows, and only whole, checked blocks reach TraceEvent.

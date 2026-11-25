@@ -169,7 +169,7 @@
       "heapscope.analysis": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[3.13.0, )",
+          "HeapScope.Core": "[4.2.1, )",
           "System.IO.Hashing": "[10.0.15, )"
         }
       },

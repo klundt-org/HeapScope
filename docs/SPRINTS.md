@@ -51,7 +51,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.1 | Capture on Linux | Closed | 2026-11-20 | sprint-4.1 |
 | 4.1.1 | Hide processes HeapScope cannot capture | Closed | 2026-11-21 | sprint-4.1.1 |
 | 4.2 | Capture on macOS | Closed | 2026-11-23 | sprint-4.2 |
-| 4.2.1 | Patch: damaged gcdumps and traces | In Progress | | |
+| 4.2.1 | Patch: damaged gcdumps and traces | Closed | 2026-11-24 | sprint-4.2.1 |
 | 4.3 | Live session | Planned | | |
 | 4.4 | Allocated between two snapshots | Planned | | |
 | 4.5 | Peer review | Planned | | |
@@ -103,13 +103,20 @@ Owner decisions, 2026-11-18:
 | 4.1 | Capture on Linux | L | Process list, full dumps and gcdumps, live counters and allocation recording on Linux, through the runtime's diagnostics channel; permission and ptrace rules; the tutorial on Linux; the checks by hand automated. |
 | 4.1.1 | Hide processes HeapScope cannot capture | S | Owner, 2026-11-20: the Processes list hides the processes that need more rights than HeapScope has ("Needs administrator", on Linux "Needs root or its user"), with a check box to show them; when HeapScope runs elevated (as root) it can capture them, so all are shown. The list keeps marking which processes are elevated or another user's. |
 | 4.2 | Capture on macOS | M | The same on macOS, built and checked on Linux, marked untested. |
-| 4.2.1 | Patch: damaged gcdumps and traces | S | Owner, 2026-11-24: the nightly fuzz test failed on 2026-11-20, 22 and 23 (seeds 20, 22 and 23). A gcdump states the node its root tree starts at, and the loader did not check it: the reader's own error refused such a file, until the JIT had inlined the accessor that throws after many loads in one process, and then it was reported as a HeapScope error. Fixed and on `develop` (48,000 mutated files over 8 seeds since, none failing). Added 2026-11-24 (owner): a trace states sizes and counts too, and they are checked before it is read; a failure on its events is a refusal. Waits for the owner before its pull request. |
+| 4.2.1 | Patch: damaged gcdumps and traces | S | Owner, 2026-11-24: the nightly fuzz test failed on 2026-11-20, 22 and 23 (seeds 20, 22 and 23). A gcdump states the node its root tree starts at, and the loader did not check it: the reader's own error refused such a file, until the JIT had inlined the accessor that throws after many loads in one process, and then it was reported as a HeapScope error. Fixed and on `develop` (48,000 mutated files over 8 seeds since, none failing). Added 2026-11-24 (owner): a trace states sizes and counts too, and they are checked before it is read; a failure on its events is a refusal. TraceEvent is 4.0.2. |
 | 4.3 | Live session | L | Allocations streamed beside the Live timeline from a trace read while it grows (ADR-037), and snapshots faster than a full dump. |
 | 4.4 | Allocated between two snapshots | M | In Compare, from the trace recorded between them (from 2.5; ADR-028). |
 | 4.5 | Peer review | M | A review of the phase so far, like 3.5's; its fixes plan the next sprints. |
 | 4.6 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.7 | Sunburst | S to M | A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.8 | WPF leak detectors (optional) | M | With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.2.1: Damaged gcdumps and traces
+
+Closed 2026-11-24; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.2.1.md](reviews/sprint-4.2.1.md). ADR-028 and ADR-037 are amended for it.
 
 ---
 
