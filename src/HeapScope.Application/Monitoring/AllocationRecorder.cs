@@ -23,14 +23,8 @@
 
 using System.Globalization;
 using HeapScope.Application.Sessions;
-using HeapScope.Capture;
-using HeapScope.Contracts;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using HeapScope.Core;
-using HeapScope.Application.Events;
 
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>Records an allocation trace of a process into a file until canceled (sprint 3.4; the trace service by default).</summary>
-public delegate Task<TraceResult> AllocationRecorder(int processId, string path, CancellationToken cancellationToken);
+public delegate Task<TraceResult> AllocationRecorder(AllocationRecordingRequest request, CancellationToken cancellationToken);

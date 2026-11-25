@@ -176,6 +176,12 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
         return Task.FromResult(new TypeReferrersResult(info, 1, 5, references, new ReverseIndexInfo(true, SnapshotMemoryMode.InMemory, 0.1, 1024, true), CompleteGraph));
     }
 
+    /// <summary>Why the worker refuses a diff's allocations (sprint 4.4).</summary>
+    public string? AllocatedRefusal { get; set; }
+
+    /// <summary>Runs before a diff with allocations is answered.</summary>
+    public Action? BeforeDiffAnswer { get; set; }
+
     public async Task<TypeDiffResult> QueryTypeDiffAsync(TypeDiffRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         DiffQueries.Add(request);
@@ -185,7 +191,12 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
         }
 
         string[] names = [TypeDiffColumns.Name, TypeDiffColumns.Change, TypeDiffColumns.BaselineObjects, TypeDiffColumns.CurrentObjects, TypeDiffColumns.ObjectsDelta, TypeDiffColumns.BaselineBytes, TypeDiffColumns.CurrentBytes, TypeDiffColumns.BytesDelta, TypeDiffColumns.BaselineTypes, TypeDiffColumns.CurrentTypes, TypeDiffColumns.TypeName, TypeDiffColumns.Module];
-        var column = Array.IndexOf(names, request.SortColumn ?? TypeDiffColumns.BytesDelta);
+        if (request.Allocations is not null && AllocatedRefusal is { } refusal)
+        {
+            throw new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InvalidArgument, refusal, null);
+        }
+
+        var column = request.Allocations is not null && request.SortColumn is TypeDiffColumns.AllocatedBytes ? 7 : Array.IndexOf(names, request.SortColumn ?? TypeDiffColumns.BytesDelta);
         if (column < 0)
         {
             throw new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InvalidArgument, $"Unknown sort column {request.SortColumn}.", null);
@@ -203,6 +214,14 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
         {
             names = [.. names, TypeDiffColumns.NewObjects, TypeDiffColumns.DeadObjects];
             rows = [.. rows.Select(r => (IReadOnlyList<string?>)[.. r, "1", "0"])];
+        }
+
+        // Sprint 4.4: the first row has a sample, the others have none.
+        if (request.Allocations is not null)
+        {
+            BeforeDiffAnswer?.Invoke();
+            names = [.. names, TypeDiffColumns.AllocatedBytes, TypeDiffColumns.AllocatedSamples, TypeDiffColumns.AllocatedType];
+            rows = [.. rows.Select((r, i) => (IReadOnlyList<string?>)[.. r, .. Enumerable.Repeat<string?>(null, 12 - Math.Min(12, r.Count)), i == 0 ? "5000" : null, i == 0 ? "2" : null, i == 0 ? "Traced" : null])];
         }
 
         var id = Guid.NewGuid();
@@ -225,7 +244,8 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
             matched,
             request.MatchObjects && !matched ? IdentityNote : null,
             matched ? rows.Count : 0,
-            0);
+            0,
+            Allocations: request.Allocations is null ? null : new DiffAllocationInfo(2, 6, 2, 6, 10, 2, 5000, 5000, 0, 0, 0, 0));
     }
 
     public Task<TypeTrendResult> QueryTypeTrendAsync(TypeTrendRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)

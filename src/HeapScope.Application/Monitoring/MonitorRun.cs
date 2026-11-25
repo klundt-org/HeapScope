@@ -61,6 +61,7 @@ public sealed class MonitorRun : IAsyncDisposable
     private readonly TimeProvider _time;
     private readonly List<DateTimeOffset> _forcedGcs = [];
     private readonly DateTimeOffset _started;
+    private readonly long _startedStamp;
     private bool _maximumLogged;
     private bool _deferLogged;
     private bool _closing;
@@ -78,6 +79,7 @@ public sealed class MonitorRun : IAsyncDisposable
         _allocations = allocations;
         _time = time;
         _started = time.GetUtcNow();
+        _startedStamp = time.GetTimestamp();
         _rules = new SnapshotRuleEngine(options.Rules);
         _timeline = TimelineWriter.None(logger);
     }
@@ -94,6 +96,15 @@ public sealed class MonitorRun : IAsyncDisposable
     /// the reason in words, on a background thread (review of 3.4: shown at once, not at the end of the run).
     /// </summary>
     public event EventHandler<string>? TraceStopped;
+
+    /// <summary>The allocation trace is being written and can be read beside it (sprint 4.3, ADR-037).</summary>
+    public event EventHandler<LiveTraceFile>? TraceStarted;
+
+    /// <summary>
+    /// Nothing more is written to the allocation trace that <see cref="TraceStarted"/> named, whatever ended it. Raised
+    /// before <see cref="Completion"/> ends.
+    /// </summary>
+    public event EventHandler<string>? TraceEnded;
 
     /// <summary>The run's id in its session's record (sprint 3.4).</summary>
     public Guid Id { get; } = Guid.NewGuid();
@@ -221,7 +232,11 @@ public sealed class MonitorRun : IAsyncDisposable
 
         if (Options.RecordAllocations)
         {
-            _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, Options.TraceLimitBytes, _allocations, _time, _logger, PendingCaptures, TraceProblem);
+            _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, Options.TraceLimitBytes, _allocations, _time, _logger, PendingCaptures, TraceProblem,
+                Options.Interval,
+                () => _capture.IsBusy(ProcessId),
+                start => Raise(TraceStarted, new LiveTraceFile(start.Path, start.NamesPath), nameof(TraceStarted)),
+                path => Raise(TraceEnded, path, nameof(TraceEnded)));
         }
 
         Record(ended: null);
@@ -351,7 +366,8 @@ public sealed class MonitorRun : IAsyncDisposable
                 record.Relative(trace),
                 snapshots,
                 forced,
-                TraceError),
+                TraceError,
+                ended is { } end ? (end - _started - _time.GetElapsedTime(_startedStamp)).TotalSeconds : null),
             described);
     }
 

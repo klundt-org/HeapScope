@@ -303,9 +303,9 @@ public sealed class TraceFileCheckTests
         return message;
     }
 
-    private static byte[] Trace(params Placed[] objects) => Trace(4, objects);
+    internal static byte[] Trace(params Placed[] objects) => Trace(4, objects);
 
-    private static byte[] Trace(int version, params Placed[] objects)
+    internal static byte[] Trace(int version, params Placed[] objects)
     {
         var file = new List<byte>([.. "Nettrace"u8, .. Int(20), .. "!FastSerialization.1"u8]);
         foreach (var (type, body, statedSize) in objects.Prepend(new Placed("Trace", new byte[48], 48)))
@@ -325,21 +325,21 @@ public sealed class TraceFileCheckTests
         return [.. file, 1];
     }
 
-    private static Placed Block(bool compressed, params byte[][] descriptions)
+    internal static Placed Block(bool compressed, params byte[][] descriptions)
     {
         var records = descriptions.SelectMany(d => compressed ? (byte[])[0x83, 0, 5, 9, 1, 3, .. VarUInt(d.Length), .. d] : [.. new byte[76], .. Int(d.Length), .. d]);
         byte[] body = [20, 0, (byte)(compressed ? 1 : 0), 0, .. new byte[16], .. records];
         return new Placed("MetadataBlock", body, body.Length);
     }
 
-    private sealed record Placed(string Type, byte[] Body, int StatedSize);
+    internal sealed record Placed(string Type, byte[] Body, int StatedSize);
 
-    private static byte[] Description(byte[] fields) =>
+    internal static byte[] Description(byte[] fields) =>
         [.. Int(1), .. Text("Provider"), .. Int(5), .. Text("Event"), .. new byte[16], .. fields];
 
-    private static byte[] Fields(params byte[][] fields) => [.. Int(fields.Length), .. fields.SelectMany(f => f)];
+    internal static byte[] Fields(params byte[][] fields) => [.. Int(fields.Length), .. fields.SelectMany(f => f)];
 
-    private static byte[] Plain(int type, string name) => [.. Int(type), .. Text(name)];
+    internal static byte[] Plain(int type, string name) => [.. Int(type), .. Text(name)];
 
     private static byte[] Struct(string name, params byte[][] fields) => [.. Int(1), .. Fields(fields), .. Text(name)];
 
@@ -353,9 +353,9 @@ public sealed class TraceFileCheckTests
 
     private static byte[] Tagged(byte tag, byte[] body) => [.. Int(body.Length), tag, .. body];
 
-    private static byte[] Int(int value) => BitConverter.GetBytes(value);
+    internal static byte[] Int(int value) => BitConverter.GetBytes(value);
 
-    private static byte[] Text(string text) => [.. Encoding.Unicode.GetBytes(text), 0, 0];
+    internal static byte[] Text(string text) => [.. Encoding.Unicode.GetBytes(text), 0, 0];
 
     private static byte[] VarUInt(int value)
     {

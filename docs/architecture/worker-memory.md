@@ -29,6 +29,9 @@ and `build/check-tool.sh`) and `ToolWorkerTests` on the dotnet host start.
 - Large arrays are allocated once at their final size. No `List<T>` doubling for per-object data; chunked
   buffers during building, exact arrays after.
 - Hot loops avoid LINQ, closures, boxing and per-item allocations. `ArrayPool<T>` for temporary buffers.
+- A live trace (sprint 4.3) reserves `LiveTraceReader.ReservedBytes` (192 MB) until it is read to its end: at its limits it keeps
+  75 MB, and 98 MB with two views (measured, budgets.md), beside TraceEvent's buffers. What it keeps then is committed memory like
+  an open trace's, until it is closed; the method names are let go at its end.
 - Object sets (sprint 3.1, ADR-030) are built inside a reservation and cached within 256 MB of sets and 128 MB of
   detector tables, outside the reservations' total; letting the reservations evict that cache before refusing is in the
   Backlog. Similar Retention (sprint 3.2) reserves `SimilarRetention.WorkingBytes`: 4 bytes per member, 200 per possible

@@ -47,7 +47,7 @@ Sprint 3.11:
 
 ## Open
 
-Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
+Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.6 to 4.9 to it.
 
 **High**
 - The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
@@ -181,8 +181,16 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   trust. Needs an ADR and the owner's approval of every user-facing word.
 - The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
   86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
-- From 3.8 (decided autonomously): the Live page view model split into live monitoring, past runs and timeline actions
-  with a shared chart state (peer review P11, its view model half); an analysis workspace per snapshot, extracted from
+- From the 4.4 review: the Allocations page filtered by method table, now that samples keep it; the flush before a gcdump checked on .NET 8
+  and 9; a bound on an interval's edges from the ticks' heap index.
+- From 4.4: rows in Compare for types that were allocated between two snapshots and have no object in either; `monitor --record-allocations`
+  on the command line; a capture that says when another tool's session keeps a gcdump from naming its types; a trace recorded on the
+  Processes page linked to the snapshots it lies between.
+- From the 4.3 review: the names of a run's start kept for a trace whose process exited without a rundown; the delay measured across a
+  suspend or clock step; a 32-bit target's live call stacks; live wordings for two refusals (its Lows).
+- From 4.3: a stall of 140 to 170 ms, with no processor time used by the UI thread, in some runs of the live smoke runs on a real
+  window (3 of 11, with and without the live allocations, none headless): find what it waits for.
+- From 3.8 (decided autonomously): an analysis workspace per snapshot, extracted from
   the Snapshots page, with a design for the worker's result sets of hidden snapshots (P21, Phase 4); the Object view,
   the inspections page, the allocation trace page and the icicle loading through the query runner (P8's second wave);
   `OfTypeKeys` and `TypeGroups.MatchTypes` as one matcher (S5, both normalize the module since 3.8).
@@ -360,6 +368,9 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   group-only column; the tree's Retained column has the "Exactly this much" note, `ValueBoundTexts.Exact`, for every row; M6).
 
 **Low**
+- From peer review 4.5 (2026-11-25; its High and Moderate findings are planned as sprints 4.6 to 4.12): its Low findings and what its fixes
+  left: a time limit for the second walk of GC handles, and the handles it found kept when a limit stops it
+  ([reviews/peer-review-4.5.md](reviews/peer-review-4.5.md)).
 - Visual design, left out of sprint 3.10 (product owner, 2026-11-04; ADR-040): inline data bars in grids, dimmed namespaces
   in type names, a collapsible snapshot rail, the icicle chart colored by application versus framework code.
 - WinForms specific leak inspections.

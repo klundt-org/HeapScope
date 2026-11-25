@@ -13,7 +13,7 @@ traffic, takes snapshots over time, and uses HeapScope to find what is growing a
 - Discovering local .NET processes and capturing full dumps and gcdumps.
 - Loading snapshots into a compact in-memory object graph, cached on disk for fast reopen.
 - Type summaries, snapshot diffs, object inspection, simple inspections (duplicate strings, LOH, collections).
-- Live counters and timed snapshots.
+- Live counters, live allocations (sprint 4.3) and timed snapshots.
 - Reverse references, retention paths, dominator tree, retained sizes, smart leak detectors.
 - A CLI with the same capabilities as the UI, usable in automation.
 - Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture on Linux since sprint 4.1,
@@ -95,9 +95,9 @@ Capture and sessions (sprint 1.1):
 - Application: `SessionLibrary` keeps sessions under `%LOCALAPPDATA%\HeapScope\sessions` (`Sessions:Root`; a relative
   root is under `%LOCALAPPDATA%\HeapScope`), one folder per session (`yyyyMMdd-HHmmss[-name]`, claimed by creating its
   `session.json` exclusively, so parallel runs never share one) with `session.json` (format version 1: name, created,
-  last opened, snapshots with id, file, label, kind, source, process, runtime version and folder, capture time, size;
+  last opened, snapshots with id, file, label, kind, source, process, runtime version and folder, capture time, size, and since 4.4 its heap's time;
   since 3.4 `Runs`, the monitoring runs with their process, interval, rules, kind, start and end, timeline and trace
-  files and the ids of their snapshots and forced collections; unknown members are kept on save, on the document and on
+  files, the ids of their snapshots and forced collections, and since 4.4 how far the clock moved against the recording; unknown members are kept on save, on the document and on
   each run, so an older build never drops what a newer one wrote). Since 3.4 a snapshot of a session is deleted with
   its index caches and sidecars (next to it and in the fallback folder, named by Core's `IndexCachePaths`), and a session
   whole; only files inside the session folder are deleted (no link is followed; dumps a session records elsewhere are
@@ -143,7 +143,7 @@ src/
   HeapScope.Capture            Process discovery, dump/gcdump capture, live counters, timed snapshots.
   HeapScope.Loaders.ClrMd      Full dump -> compact graph.
   HeapScope.Loaders.GcDump     gcdump -> compact graph (sprint 1.8).
-  HeapScope.Loaders.Trace      EventPipe trace -> sampled allocations (sprint 2.5, ADR-028).
+  HeapScope.Loaders.Trace      EventPipe trace -> sampled allocations (sprint 2.5, ADR-028), also while it is recorded (ADR-037).
   HeapScope.ThirdParty.GcDump  Vendored MIT gcdump reader and writer from dotnet/diagnostics (PerfView code), sprint 1.8.
   HeapScope.Contracts          IPC DTOs and service interfaces shared by UI, worker and CLI.
   HeapScope.Worker             Out-of-process analysis host (64-bit).

@@ -203,10 +203,11 @@ public static class CounterMonitor
                     {
                         source.Process();
                     }
-                    catch (Exception ex) when (ex is FormatException or EndOfStreamException or IOException && Volatile.Read(ref stopping) == 1)
+                    catch (Exception ex) when (ex is FormatException or EndOfStreamException or IOException or ObjectDisposedException && Volatile.Read(ref stopping) == 1)
                     {
                         // Stopping the session can cut the stream inside a block (CI, sprint 3.6: "Read past end of
-                        // stream"): the samples read so far are the run's; the stop was asked for.
+                        // stream"), or read from its pipe once closed (CI, 2026-11-25: "Cannot access a closed pipe"): the samples read so far are the
+                        // run's; the stop was asked for.
                     }
 
                     if (builder.Flush() is { } last)

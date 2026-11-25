@@ -43,6 +43,42 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
         return OpenTraceGate is { } gate ? gate.Task.ContinueWith(_ => descriptor, TaskScheduler.Default) : Task.FromResult(descriptor);
     }
 
+    /// <summary>What a live trace answers (sprint 4.3); a test changes it as the recording goes on.</summary>
+    public LiveTraceDto LiveState { get; set; } = new(0, 42, "App", DateTimeOffset.UnixEpoch, 0, 1, 0, 0, 0, 0, 0, 0, 0, null, true, false, true, null);
+
+    public List<OpenLiveTraceRequest> LiveOpened { get; } = [];
+
+    public List<Guid> LiveEnded { get; } = [];
+
+    /// <summary>When set, the next types query fails with it.</summary>
+    public Exception? TypesFailure { get; set; }
+
+    /// <summary>How many more times opening a live trace fails as a worker that stopped.</summary>
+    public int LiveOpenCrashes { get; set; }
+
+    public Exception? LiveFailure { get; set; }
+
+    public Task<LiveTraceDescriptor> OpenLiveTraceAsync(OpenLiveTraceRequest request, CancellationToken cancellationToken)
+    {
+        LiveOpened.Add(request);
+        if (LiveOpenCrashes > 0)
+        {
+            LiveOpenCrashes--;
+            return Task.FromException<LiveTraceDescriptor>(new WorkerCrashedException("The worker stopped."));
+        }
+
+        return LiveFailure is { } failure ? Task.FromException<LiveTraceDescriptor>(failure) : Task.FromResult(new LiveTraceDescriptor(Guid.NewGuid(), request.Path, LiveState));
+    }
+
+    public Task<LiveTraceDto> QueryLiveTraceAsync(LiveTraceRequest request, CancellationToken cancellationToken) =>
+        LiveFailure is { } failure ? Task.FromException<LiveTraceDto>(failure) : Task.FromResult(LiveState);
+
+    public Task EndLiveTraceAsync(Guid traceId, CancellationToken cancellationToken)
+    {
+        LiveEnded.Add(traceId);
+        return Task.CompletedTask;
+    }
+
     public Task CloseTraceAsync(Guid traceId, CancellationToken cancellationToken)
     {
         TracesClosed.Add(traceId);
@@ -52,13 +88,33 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
     public Task<AllocationTimelineResult> QueryAllocationTimelineAsync(AllocationTimelineRequest request, CancellationToken cancellationToken) =>
         Task.FromResult(new AllocationTimelineResult([new(0, 300, 3), new(5, 100, 1)], 5, 10));
 
-    public Task<AllocationTypesResult> QueryAllocationTypesAsync(AllocationTypesRequest request, CancellationToken cancellationToken)
+    public List<IReadOnlyList<string?>> TypeRows { get; set; } = [["System.Byte[]", "300", "3", "75"], ["System.String", "100", "1", "25"]];
+
+    /// <summary>The interval a live trace's queries say they counted.</summary>
+    public AllocationIntervalDto? LiveInterval { get; set; }
+
+    /// <summary>When set, the next types query waits for it.</summary>
+    public TaskCompletionSource? TypesGate { get; set; }
+
+    public async Task<AllocationTypesResult> QueryAllocationTypesAsync(AllocationTypesRequest request, CancellationToken cancellationToken)
     {
         TypeQueries.Add(request);
-        List<IReadOnlyList<string?>> rows = [["System.Byte[]", "300", "3", "75"], ["System.String", "100", "1", "25"]];
+        if (TypesGate is { } gate)
+        {
+            TypesGate = null;
+            await gate.Task;
+        }
+
+        if (TypesFailure is { } failure)
+        {
+            TypesFailure = null;
+            throw failure;
+        }
+
+        var rows = TypeRows;
         var id = Guid.NewGuid();
         _sets[id] = rows;
-        return Task.FromResult(new AllocationTypesResult(new ResultSetInfo(id, rows.Count, AllocationTypeColumnsList), 400, 4));
+        return new AllocationTypesResult(new ResultSetInfo(id, rows.Count, AllocationTypeColumnsList), 400, 4, LiveInterval);
     }
 
     public Task<AllocationStacksResult> QueryAllocationStacksAsync(AllocationStacksRequest request, CancellationToken cancellationToken)

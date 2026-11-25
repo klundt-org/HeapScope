@@ -47,9 +47,14 @@ internal sealed class AllocationRecording : IAsyncDisposable
     private readonly Func<Task[]> _pendingCaptures;
     private readonly Action<string, Exception?> _problem;
     private readonly long _startedAt;
+    private Action<LiveTraceStart>? _started;
+    private Action<string>? _ended;
     private Task<TraceResult>? _trace;
     private Task _watch = Task.CompletedTask;
+    private Task _told = Task.CompletedTask;
     private long _endedAt;
+    private bool _recording;
+    private bool _asked;
 
     private AllocationRecording(Guid runId, int processId, long limitBytes, TimeProvider time, ILogger logger, Func<Task[]> pendingCaptures, Action<string, Exception?> problem)
     {
@@ -79,16 +84,20 @@ internal sealed class AllocationRecording : IAsyncDisposable
         TimeProvider time,
         ILogger logger,
         Func<Task[]> pendingCaptures,
-        Action<string, Exception?> problem)
+        Action<string, Exception?> problem,
+        TimeSpan counterInterval,
+        Func<bool>? busy = null,
+        Action<LiveTraceStart>? started = null,
+        Action<string>? ended = null)
     {
-        var recording = new AllocationRecording(runId, processId, limitBytes, time, logger, pendingCaptures, problem);
+        var recording = new AllocationRecording(runId, processId, limitBytes, time, logger, pendingCaptures, problem) { _started = started, _ended = ended };
         try
         {
             var target = folder ?? throw new IOException("The run has no session folder to record the allocation trace into.");
             recording.Path = System.IO.Path.Combine(target, string.Create(CultureInfo.InvariantCulture, $"allocations-{processId}-{time.GetLocalNow():yyyyMMdd-HHmmss}.nettrace"));
             logger.LogInformation("Monitoring run {RunId} (pid {Pid}): starting an allocation trace to {Path}, limit {Limit} bytes", runId, processId, recording.Path, limitBytes);
-            recording._trace = recorder(processId, recording.Path, recording._stop.Token);
-            _ = recording._trace.ContinueWith(recording.OnEnded, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            recording._trace = recorder(new AllocationRecordingRequest(processId, recording.Path, counterInterval, busy?.Invoke() == true ? "a capture of the process runs" : null, recording.OnStarted), recording._stop.Token);
+            recording._told = recording._trace.ContinueWith(recording.OnEnded, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             recording._watch = recording.WatchAsync(recording.Path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CaptureFailedException)
@@ -110,12 +119,14 @@ internal sealed class AllocationRecording : IAsyncDisposable
             return null;
         }
 
+        _asked = !trace.IsCompleted;
         await _stop.CancelAsync().ConfigureAwait(false);
         await _watch.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        await _told.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         try
         {
             var written = await trace.ConfigureAwait(false);
-            _logger.LogInformation("Monitoring run {RunId} (pid {Pid}): allocation trace {Path}, {Bytes} bytes over {Seconds:N0} s", _runId, _processId, written.Path, written.Bytes, written.Duration.TotalSeconds);
+            _logger.LogInformation("Monitoring run {RunId} (pid {Pid}): allocation trace {Path}, {Bytes} bytes over {Seconds:N0} s{Early}", _runId, _processId, written.Path, written.Bytes, written.Duration.TotalSeconds, written.StoppedEarly && !_asked ? ", ended before it was asked to" : string.Empty);
             return written;
         }
         catch (OperationCanceledException ex) when (_stop.IsCancellationRequested)
@@ -143,10 +154,43 @@ internal sealed class AllocationRecording : IAsyncDisposable
         _stop.Dispose();
     }
 
-    /// <summary>A trace that ends before the run (refused, failed) is reported at once.</summary>
+    private void OnStarted(LiveTraceStart start)
+    {
+        Volatile.Write(ref _recording, true);
+        _logger.LogInformation(
+            "Monitoring run {RunId} (pid {Pid}): the allocation trace {Path} is being written; names of the methods compiled so far {Names} in {NamesMs:N0} ms",
+            _runId,
+            _processId,
+            start.Path,
+            start.NamesProblem ?? "recorded",
+            start.NamesTime.TotalMilliseconds);
+        _started?.Invoke(start);
+    }
+
+    /// <summary>
+    /// Nothing more is written to the file, whatever ended it: whoever reads it beside the recording is told (ADR-037), and only if
+    /// they were told it started. A trace that ends before the run (refused, failed) is reported at once.
+    /// </summary>
     private void OnEnded(Task<TraceResult> trace)
     {
         Volatile.Write(ref _endedAt, _time.GetTimestamp());
+        if (Volatile.Read(ref _recording))
+        {
+            _logger.LogInformation(
+                "Monitoring run {RunId} (pid {Pid}): the allocation trace {Path} is written, {Seconds:N1} s in: {How}",
+                _runId,
+                _processId,
+                Path,
+                _time.GetElapsedTime(_startedAt, _endedAt).TotalSeconds,
+                trace.IsFaulted ? "it failed" : trace is { IsCompletedSuccessfully: true, Result.Problem: { } error } ? "it ended by an error (" + error + ")" : _stop.IsCancellationRequested ? "it was stopped" : "it ended by itself");
+            _ended?.Invoke(Path!);
+        }
+
+        if (trace is { IsCompletedSuccessfully: true, Result.Problem: { } failed })
+        {
+            _problem($"The allocation trace stopped early because {failed.TrimEnd('.')}; what it recorded is kept and the run goes on.", null);
+        }
+
         if (trace.IsFaulted && !_stop.IsCancellationRequested)
         {
             var error = trace.Exception!.InnerException ?? trace.Exception;
@@ -162,10 +206,9 @@ internal sealed class AllocationRecording : IAsyncDisposable
             while (!_stop.IsCancellationRequested && _trace is { IsCompleted: false })
             {
                 await Task.Delay(s_checkInterval, _time, _stop.Token).ConfigureAwait(false);
-                // The recorder writes a partial file of its own, renamed when it ends (3.8 review H1: the watch looked for
-                // another name and never saw the trace grow).
-                var size = Directory.EnumerateFiles(System.IO.Path.GetDirectoryName(path)!, TraceRecorder.PartialPattern(path)).Append(path)
-                    .Select(f => new FileInfo(f)).Where(f => f.Exists).Select(f => f.Length).DefaultIfEmpty(0).Max();
+                // The recorder writes the file under its final name (4.3), once its session starts.
+                var file = new FileInfo(path);
+                var size = file.Exists ? file.Length : 0;
                 var free = new DriveInfo(System.IO.Path.GetPathRoot(System.IO.Path.GetFullPath(path))!).AvailableFreeSpace;
                 string? why = size >= _limitBytes
                     ? string.Create(CultureInfo.InvariantCulture, $"it reached its limit of {_limitBytes / (1024 * 1024)} MB")

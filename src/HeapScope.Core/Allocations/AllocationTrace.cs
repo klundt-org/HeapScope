@@ -60,7 +60,9 @@ public sealed class AllocationTrace
         int[] sampleTypes,
         long[] sampleBytes,
         AllocationKind[] sampleKinds,
-        AllocationTraceInfo info)
+        AllocationTraceInfo info,
+        int[]? sampleCounts = null,
+        AllocationMethodTables? methodTables = null)
     {
         ArgumentNullException.ThrowIfNull(frames);
         ArgumentNullException.ThrowIfNull(types);
@@ -78,9 +80,10 @@ public sealed class AllocationTrace
         }
 
         var count = sampleTimes.Length;
-        if (sampleStacks.Length != count || sampleTypes.Length != count || sampleBytes.Length != count || sampleKinds.Length != count)
+        if (sampleStacks.Length != count || sampleTypes.Length != count || sampleBytes.Length != count || sampleKinds.Length != count || (sampleCounts is not null && sampleCounts.Length != count)
+            || (methodTables is not null && methodTables.Samples.Length != count))
         {
-            throw new ArgumentException("Every sample needs a time, a stack, a type, a kind and its bytes.", nameof(sampleTimes));
+            throw new ArgumentException("Every sample needs a time, a stack, a type, a kind and its bytes, and a count when the others have one.", nameof(sampleTimes));
         }
 
         for (var n = 0; n < stackParents.Length; n++)
@@ -93,9 +96,10 @@ public sealed class AllocationTrace
 
         for (var i = 0; i < count; i++)
         {
-            if ((i > 0 && sampleTimes[i] < sampleTimes[i - 1]) || (uint)sampleStacks[i] >= (uint)stackFrames.Length || (uint)sampleTypes[i] >= (uint)types.Count)
+            if ((i > 0 && sampleTimes[i] < sampleTimes[i - 1]) || (uint)sampleStacks[i] >= (uint)stackFrames.Length || (uint)sampleTypes[i] >= (uint)types.Count
+                || (methodTables is not null && (uint)methodTables.Samples[i] >= (uint)methodTables.Distinct.Length))
             {
-                throw new ArgumentException("Samples must be in time order, each with an existing stack node and type.", nameof(sampleTimes));
+                throw new ArgumentException("Samples must be in time order, each with an existing stack node, type and method table.", nameof(sampleTimes));
             }
         }
 
@@ -108,6 +112,8 @@ public sealed class AllocationTrace
         SampleTypes = sampleTypes;
         SampleBytes = sampleBytes;
         SampleKinds = sampleKinds;
+        SampleCounts = sampleCounts;
+        MethodTables = methodTables;
         Info = info;
     }
 
@@ -141,6 +147,21 @@ public sealed class AllocationTrace
     /// <summary>The heap each sample counted bytes for.</summary>
     public AllocationKind[] SampleKinds { get; }
 
+    /// <summary>
+    /// How many samples each entry stands for, or null when each is one. A live trace (sprint 4.3) keeps its samples added up by
+    /// stretch of time, type, stack and kind: an entry's time is then the start of its stretch.
+    /// </summary>
+    public int[]? SampleCounts { get; }
+
+    /// <summary>The samples entry <paramref name="index"/> stands for.</summary>
+    public int CountOf(int index) => SampleCounts is { } counts ? counts[index] : 1;
+
+    /// <summary>
+    /// Each sample's method table as the tick gives it (sprint 4.4), the key that joins it to a full dump of the process; null for a
+    /// live trace.
+    /// </summary>
+    public AllocationMethodTables? MethodTables { get; }
+
     public AllocationTraceInfo Info { get; }
 
     public int SampleCount => SampleTimes.Length;
@@ -155,8 +176,8 @@ public sealed class AllocationTrace
     /// <summary>The frame of samples the trace recorded no stack for (counted in <see cref="AllocationTraceInfo.SamplesWithoutStack"/>).</summary>
     public const string NoStackFrame = "[no stack recorded]";
 
-    /// <summary>Bytes kept per sample (time, stack, type, bytes, kind) for memory estimates.</summary>
-    public const int BytesPerSample = 25;
+    /// <summary>Bytes kept per sample (time, stack, type, bytes, kind, method table) for memory estimates.</summary>
+    public const int BytesPerSample = 29;
 }
 
 /// <summary>What a trace says about itself, and what reading it found.</summary>

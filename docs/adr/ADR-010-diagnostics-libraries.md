@@ -1,4 +1,4 @@
-# ADR-010 Diagnostics libraries (amended in sprint 3.12)
+# ADR-010 Diagnostics libraries (amended in sprints 1.8, 3.12 and 4.5)
 
 - Context: reading dumps and talking to runtimes is complex; Microsoft's libraries are the reference.
 - Decision: ClrMD, Microsoft.Diagnostics.NETCore.Client, TraceEvent, latest stable at sprint 0.1.
@@ -22,3 +22,13 @@
   `LoaderKnownAnswerTests` (every object's address, type, size and finalizer flag and every count against ClrMD's own walk,
   and a walk handed to ClrMD in mid-segment, on Windows) and `WalkComparisonTests` (every object, on each CI system's own
   fixture dump, Linux's core dump included).
+- Amendment (sprint 4.5, peer review C1): a load of a Server GC dump walks the GC handles a second time (`HandleTables`), through a second
+  ClrMD runtime whose reader shows Microsoft's debugging library one number of the dump as another: the heap count. Why: the runtime
+  keeps a handle table per processor, the library walks one per heap, and nothing else gives the rest. Alternatives: reading the
+  tables ourselves (their layout changes between versions and is not documented), or only refusing what rests on them (every answer
+  about ASP.NET Core services would be in doubt). Assumed: the heap count is a 32-bit number of the runtime's or GC's module that the
+  walk reads, and a table past the last gives nothing. Nothing is assumed about where it lies: the place is found by what it does, each
+  added handle must be of the heap's objects, and what cannot be shown ends as `Unknown`, with a note and the unreachable set refused.
+  Verified on 64-bit .NET 10 on Windows and Linux; other versions are not (peer review H1). `Worker:SecondHandleWalk` turns it off. A
+  ClrMD or runtime upgrade is checked by `HandleTablesTests` (Windows, 1, 2 and changing heap counts against the process's own counts)
+  and `build/check-handles.sh` (Linux, in CI).

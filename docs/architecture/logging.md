@@ -210,6 +210,17 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   change, the other snapshot, how many of the inner set's objects it kept and the survivors in all; a trend logs its
   snapshots in order, grouping, rows and the first rows' growth; the CLI's growth gate logs what it checked (total or a
   heap kind, per row or summed) and how many rows exceeded.
+- Live traces (sprint 4.3): the run logs the trace it writes and whether the methods compiled so far could be named; the worker
+  logs a live trace's path, readers' versions, memory and names file when it opens, where it stands every minute and at its end
+  (the recording's end, or closed or stopped before it: samples, bytes, types, stretch, entries, lost events, unnamed frames, what
+  is past the limits, the longest delay, why there are no stacks or names, what the check walked, why it stopped), and each time
+  its stretches grow or its stacks are given up, with the numbers. The run logs when its trace is written and why it ended. The
+  page logs, under one activity per run, each interval chosen with what it showed and as of when (samples, seconds, the stretch,
+  the top types), a delay or note when it appears or goes, a worker that stopped and how often, and the figures at the end. The
+  stacks shown are logged as a finished trace's are, with as of when; their node numbers are of that moment, their frames hold in
+  the finished trace. The timeline and types, asked for every two seconds, are at Debug. The finished file is the record a
+  contested figure is checked against: one that ended by an error is kept, and one whose process exited has no rundown, so some
+  frames a live view named have no name in it.
 - Live workflow (sprint 3.4): a forced collection logs the target, whether its end was seen and the time; a refused
   capture or collection logs what it was, why it was asked and what was running; a run logs its id at the start, the
   allocation trace's path, size and length, and each time it is recorded in its session (snapshots, forced collections);
@@ -280,3 +291,17 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   `dotnet` as its path; its header's folder is the tool's `worker` folder. A worker that cannot start says which case it
   is (no worker in the folder, an assembly without a dotnet host, a 32-bit host, a configured path not found) with a
   next step.
+- Allocated between (sprint 4.4): a capture's "Recorded ... its heap as of" line has its heap's time and what that was taken from (the
+  dump's last write, the first heap node, or the runtime's answer and why), and a gcdump's line says that the type table was flushed and
+  when the heap was walked. The app and the command line write "Allocations between {baseline} and {current}" with the trace taken or the
+  reason as said, and the evidence: each heap's time and where it is from, "in reverse order", and each run of the session (its process,
+  times, trace and note) with why it does not fit. The worker writes "Allocations between ..." with the trace, its start and length, the
+  interval asked for and counted, samples and bytes, and how they were joined: by method table, by name, names several types share,
+  types without an object, method tables that are another type's in the dumps, each with its largest five, and gcdump types without a
+  name; a refusal has the same line with what it refused. Compare also logs a refused or unread trace as said, what it sorted by
+  instead, that a closed trace unticked the box, and the row and interval behind "Show where it was allocated".
+- GC handles (peer review 4.5): a load's and an open's line say how they were read (`GC handles Recovered: 8 heaps, 24 tables walked, 24
+  processors, 6549 handles added (2725 by the runtime's own walk, walked again at 0x... (3 places, 1 drive the walk, 1 can be the heap
+  count), ending at 25 tables; added ... by kind; ... not used; 9 walks, 0.1 s)`), `Complete`, or `Unknown` with the reason: the first doubt with
+  the count tried and what it gave, or an exception with the method it came from. Caches from before say "not recorded". A detector over
+  reachable objects logs its note, and a refused baseline is logged as every refusal is. The walk is a phase of its own, "handles".

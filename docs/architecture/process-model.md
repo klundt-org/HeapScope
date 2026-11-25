@@ -79,7 +79,7 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   `RequestRefusedException` (Core; the worker's own request checks) is `InvalidArgument`: any other exception, an
   `ArgumentException` from a bug included, is unexpected, logged as an error with its stack and an id (the trace id, or a new one when there is none), and
   the user sees a fixed message with that id, never the exception's own text. The client's message stays plain and the
-  log keeps the details. The front ends catch `WorkerException`, the base of the three worker exception types. The UI
+  log keeps the details. The front ends catch `WorkerException`, the base of the worker exception types (with `AllocationsUnavailableException` of 4.4: the trace of a question about snapshots cannot be used). The UI
   adds last-chance handlers (dispatcher, app domain, unobserved tasks) that log and show a plain message; the
   CLI command boundary prints a plain message and logs the stack trace.
 - Worker stderr is captured by the client and forwarded into the client's log (category `Worker`), so the
@@ -217,6 +217,17 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   it says, and `ProbeSnapshotAsync` reports a cache an older loader wrote as `Invalid` (it is rebuilt on open). Also in
   3.12, without a version of their own: the dominator tree's `RetainedIs` column (M6), and `InvalidArgument` only for a
   `RequestRefusedException`, every other failure `Unknown` with a fixed message and an id (B5).
+  Version 23 (sprint 4.3, ADR-037): live traces. `OpenLiveTraceAsync` (`OpenLiveTraceRequest`: the trace being recorded and the
+  short trace that names the methods compiled before; `LiveTraceDescriptor`), `QueryLiveTraceAsync` (`LiveTraceDto`: a version
+  that grows with each sample, the recording's start, how far it was read, its delay, what was left out, and why reading
+  stopped), `EndLiveTraceAsync` (the recording ended and its file is closed). The queries of a finished trace answer for a live
+  one, for what was read so far: an interval counts whole stretches (`LiveTraceDto.BucketSeconds`) by their start. A live trace
+  holds its memory reservation until it is read to its end. `AllocationIntervalDto` on the types and stacks answers is the interval
+  a live trace counted; its timeline's stretch is a multiple of its own, and its tree is refused.
+  Version 24 (sprint 4.4, ADR-028): `TypeDiffRequest.Allocations` (`DiffAllocationScope`: an open trace and an interval on the
+  machine's clock), the diff's `AllocatedBytes` and `AllocatedSamples` columns with the hidden key column `AllocatedType` (the trace's
+  name of a type row; empty without a sample and when the row joins several names), and `TypeDiffResult.Allocations`
+  (`DiffAllocationInfo`: what was counted and what no row holds). A live trace is refused.
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

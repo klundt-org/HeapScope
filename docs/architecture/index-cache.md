@@ -81,7 +81,7 @@ Implemented in sprint 0.5 (`HeapScope.Storage`: `IndexCacheWriter`, `IndexCacheR
 - A cache an older loader wrote (sprint 3.12, ADR-041): `IndexCacheReader.ReadMetadata` reads the directory and the
   metadata section alone (checksummed), so the open learns the loader version without reading the graph, and the probe
   reports such a cache as one to rebuild (the memory warning sees the load). A cache whose metadata cannot be read is
-  rebuilt without being read further. When the rebuild cannot reach the dump's DAC, the older cache (loader version 3 or
+  rebuilt without being read further. A cache of a newer loader opens as it is. When the rebuild cannot reach the dump's DAC, the older cache (loader version 3 or
   later for full dumps) opens in its place: read with the same signature check, never written, and only when it is still
   older than the current loader.
 - Measured (`index-cache`, synthetic 50M objects with 150M references, 1.6 GB file, reopened in a fresh process,

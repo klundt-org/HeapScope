@@ -1,18 +1,10 @@
-4.2.1: capture on Linux, and on macOS untested (4.2.0); damaged traces and gcdumps refused (4.2.1).
+4.5.0: GC handles of Server GC processes.
 
-- heapscope-cli list, capture (full dumps and gcdumps), monitor and trace now run on Linux, as on Windows. Another user's
-  process needs heapscope-cli run as that user, or with sudo; as root, a full dump of another user's process goes to a
-  folder that user can write (--out), since the runtime writes it as that user.
-- When Linux stops a capture (kernel.yama.ptrace_scope, a container without SYS_PTRACE, diagnostics turned off, another
-  TMPDIR, a service's own /tmp), the error says why and what to change. heapscope-cli never changes system settings.
-- On macOS the same commands are built, on Linux, and nobody has run them on a Mac: if a capture fails, take a dump with
-  dotnet-dump and open it with heapscope-cli. A full dump may need an application signed to allow it; a gcdump does not.
-- heapscope-cli list shows every process with its mark; the app hides those it cannot capture (4.1.1).
-- heapscope-cli allocations refuses a trace that states more than it holds before reading it, with the byte and the reason,
-  and says so when there is too little memory to read a trace. A trace with a damaged event can open with what came before it
-  and a note, so it can show fewer samples than before; record it again if it matters (4.2.1).
-- heapscope-cli allocations reads traces of format version 4, which the .NET runtime writes; another version is refused with
-  a message (4.2.1).
-- Every command that opens a gcdump refuses a damaged one as damaged (4.2.1).
+- Full dumps of Server GC processes with fewer heaps than processors lacked GC handles in every earlier version, so live objects
+  could look unreachable and be left out by inspect, retained-by and paths. Open such dumps again: their index cache is rebuilt (4.5.0).
+- heapscope-cli diff --allocated adds what was allocated between two snapshots that the app captured during one run that
+  recorded allocations (4.4.0).
+- heapscope-cli capture --kind gcdump keeps the names of the types when a trace of the process is recorded meanwhile (4.4.0).
+- heapscope-cli sample has scenarios of allocation bursts (4.3.0) and of objects allocated and dropped (4.4.0).
 
 All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md

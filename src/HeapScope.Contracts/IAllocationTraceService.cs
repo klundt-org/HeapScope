@@ -37,7 +37,24 @@ public interface IAllocationTraceService
     /// </summary>
     Task<TraceDescriptor> OpenTraceAsync(OpenTraceRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
-    /// <summary>Closes a trace; closing an unknown trace does nothing.</summary>
+    /// <summary>
+    /// Follows a trace while it is recorded (sprint 4.3, ADR-037): answers at once, and the queries below answer for what was read
+    /// so far, but for the tree: its keys would not hold while stacks are folded again, so it is refused with
+    /// <see cref="HeapScopeErrorCode.InvalidArgument"/>. Fails with <see cref="HeapScopeErrorCode.SnapshotFormat"/> when the file cannot be opened and with
+    /// <see cref="HeapScopeErrorCode.InsufficientMemory"/> when following it does not fit the memory budget.
+    /// </summary>
+    Task<LiveTraceDescriptor> OpenLiveTraceAsync(OpenLiveTraceRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Where a live trace stands, to ask again what changed since. Fails with <see cref="HeapScopeErrorCode.TraceNotLoaded"/> for a
+    /// trace that is not open and with <see cref="HeapScopeErrorCode.InvalidArgument"/> for one that is not live.
+    /// </summary>
+    Task<LiveTraceDto> QueryLiveTraceAsync(LiveTraceRequest request, CancellationToken cancellationToken);
+
+    /// <summary>The recording of a live trace ended and its file is closed: what is left of it is read. Fails as <see cref="QueryLiveTraceAsync"/>.</summary>
+    Task EndLiveTraceAsync(Guid traceId, CancellationToken cancellationToken);
+
+    /// <summary>Closes a trace, live or not; closing an unknown trace does nothing.</summary>
     Task CloseTraceAsync(Guid traceId, CancellationToken cancellationToken);
 
     /// <summary>

@@ -243,3 +243,213 @@ damaged trace is refused as a damaged gcdump is: with a reason, within bounds, a
 
 **Review summary:** 3 High, 14 Moderate, 22 Low ([docs/reviews/sprint-4.2.1.md](../reviews/sprint-4.2.1.md)); every High and
 Moderate fixed or decided, and confirmed. Deferred: the Lows; version 6 and one file handle (Backlog).
+
+## Sprint 4.3: Live session
+
+**Goal:** while HeapScope watches a process, the Live page also shows what it is allocating, by type and by call stack, about
+a quarter of a second behind it (ADR-037), and a snapshot can be taken that stops the process for less time than a full dump.
+
+**Starting point.** A monitoring run already records the allocation session to a `.nettrace` file in the session folder
+(`AllocationRecording`), and the worker reads finished traces (`AllocationTraceReader`, `TraceStore`). ADR-037 fixes where a
+live trace is read (the worker tails the file) and sets two gates to measure before building on it. Refactor analysis row 4
+says what to do first: the Live page's view model is 796 lines with three concerns.
+
+**Tasks**
+1. [x] The gates of ADR-037, measured: a tail in a process of its own (working set, delay, ticks lost), and folding stacks by
+   module and offset as they arrive (CPU, memory, flat out and at about 70 ticks a second); whether a short rundown-only
+   session at the start names methods compiled before it. Also the pause and size of a dump with the heap only
+   (`DumpType.WithHeap`) against a full dump and a gcdump, and whether HeapScope opens it. On a quiet machine. If a gate
+   fails, stop and report before building. Proof: the numbers in ADR-037's amendment.
+2. [x] The Live view model split (Backlog 3.8 P11): live monitoring, past runs, the run's files over one state (`LiveRunState`);
+   replaced runs disposed; no file reads on the UI thread. No behavior change, but a past run still being read is not shown
+   over a run that started meanwhile. Tests: the existing Live tests, plus one per concern.
+3. [x] The live file: each chunk of the session's stream written as it arrives, under its final name, owner-only, shared for
+   reading and deleting; `AllocationRecording` says when it ended, after the flush. Tests: a reader beside the writer, an end
+   in mid-chunk, a canceled run.
+4. [x] A streaming reader in Loaders.Trace: tails the file, keeps aggregates (types and sizes per time bucket; stacks folded by
+   module and offset, named when names are known), bounded in memory and reserved. Tests: a growing file replayed in pieces
+   gives the same totals as the finished one; names that arrive late; a file that stops growing; a damaged file.
+5. [x] The worker contract: open a live trace, "what changed since", "the recording ended"; one protocol bump; the identity of a
+   live trace across a worker restart. Tests: contract, restart, and refusal tests.
+6. [x] The Live page: allocations by type beside the timeline for the selected range, stacks on demand, and the delay shown when
+   it grows; the Allocations page opens the same file afterwards. Wording drafted for the owner. Tests: view models, views,
+   and the live smoke run with the UI's longest single operation.
+7. [x] The faster snapshot, only if task 1 shows it is worth it: it does not (Findings), so nothing is added.
+8. [x] The sample's scenario and lesson (ADR-042's extension contract) for the live session; drafts for the owner.
+9. [x] Docs: ADR-037 amended, ARCHITECTURE and its pages, DEVELOPER, USER-GUIDE, info-text.md, Backlog.
+
+**Decisions**
+- The gates come first, and a failed gate stops the sprint for the owner. Decided autonomously.
+- The Live view model split precedes the feature, as the refactor analysis asks. Decided autonomously.
+- "Snapshots faster than a full dump" starts as a measurement of the heap-only dump; what is built follows the numbers, and if
+  nothing beats a gcdump clearly, nothing is added. Decided autonomously.
+- Monitoring runs always record live, in the app and wherever else; the Processes page's recording and `trace` keep their partial
+  file. The live panel shows for runs that record allocations, which stays the user's choice. Decided autonomously.
+- A live trace's queries are a finished trace's, over entries that stand for several samples, in place of new queries. Decided
+  autonomously.
+- Its identity across a worker restart is the recording's start (ADR-037 said creation time). Decided autonomously.
+- Streaming stays request and answer, no push (ADR-037). Aggregates only; the file stays the record. Decided by ADR-037.
+
+**Findings**
+- Task 1, 2026-11-24 (reading TraceEvent 4.0.0's members, nothing run): `EventPipeEventSource`, which the 3.8 spike tails the
+  file with, exposes no call stack (its stack cache and the event record are internal). TraceEvent's live stacks come from
+  `TraceLog.CreateFromEventPipeSession`, which takes the session, not a stream or a file, so it does not fit the worker
+  tailing the file (ADR-037). Candidates to measure: a small reader of the nettrace blocks of our own (stacks by instruction
+  pointer as they arrive), or converting the file's prefix when stacks are asked for (`CreateFromEventPipeDataFile`). Its
+  start-of-session rundown is a separate short session, as ADR-037 describes; HeapScope can start the same itself.
+- Task 1, 2026-11-24, call stacks (`live-stacks`): the stack read from TraceEvent's internal event record, its layout checked
+  first, in a reader process of its own with workstation GC. The developer machine (32 GB, 7.8 GB free) with light other use, 2
+  to 7% of the processor before the runs; runs with and without stacks alternated. In every run with stacks, each stack read
+  live was the one TraceLog gave for the finished file (compared as multisets; an earlier run of a minute: 1,051,222 samples,
+  55,965,064 frames), and no event was lost.
+
+  | Run (15 s each) | Samples | Delay p50 / p95 / max | Reader CPU (reading and folding) | Peak working set |
+  |---|---|---|---|---|
+  | flat out, no stacks, 4 runs | 291,764 to 311,862 | 180 to 183 / 235 to 237 / 252 to 261 ms | 438 to 500 ms | 52 to 53 MB |
+  | flat out, stacks, 4 runs | 290,815 to 326,214 | 181 to 182 / 236 to 238 / 253 to 264 ms | 859 to 1,016 ms (345 to 398 ms) | 64 to 67 MB |
+  | about 70 a second, no stacks, 2 runs | 1,081 and 1,085 | 184 and 186 / 233 and 235 / 249 and 252 ms | 516 and 594 ms | 39 MB |
+  | about 70 a second, stacks, 2 runs | 1,083 and 1,084 | 171 and 185 / 219 and 234 / 236 and 239 ms | 562 and 578 ms (11 and 18 ms) | 40 to 41 MB |
+  | the C# compiler building HeapScope, stacks, 2 runs | 16,072 and 18,833, up to 1,442 types and 10,272 stacks | 107 and 117 / 191 and 205 / 4,201 and 5,247 ms | 703 and 1,016 ms (94 and 118 ms) | 70 MB |
+
+  The memory and some of the CPU with stacks are the probe's own (every sample kept for the comparison).
+- A rundown-only session at the start took 123 to 144 ms on about 800 methods, and 316 to 491 ms (20.5 MB) on the compiler's
+  45,600; it named every frame in both, the compiler being warm. A copy of the file cut at half time converted without an
+  error (17 to 61 MB in 0.1 to 1.2 s) and named none of its frames: "Stacks so far" needs the start rundown too. Reading from
+  a cold program, where methods are compiled while recording, was not measured.
+- The late samples: when a thread stops allocating, the runtime keeps its last samples until it has something else to
+  send. Shown with a target that works a second and idles three: a copy of the file taken a second into the idle time ended on
+  a whole block and lacked exactly the samples that came late (294, 755 and 2 in three runs). No reader can avoid it, ours or
+  TraceEvent's. With a System.Runtime counter every second in the same session the maximum delay fell from 3,147 to 3,182 ms to
+  205 to 252 ms (4 runs each way), and on the compiler from 3,269 and 5,400 ms to 464 and 697 ms (2 runs each way).
+- Task 1, 2026-11-24, snapshots (`dump-kinds`), a target holding 1,000 MB in 7.9 million objects, 5 runs each, NVMe:
+
+  | Snapshot | Size | Target stopped (workstation GC / server GC) | Until the file is there |
+  |---|---|---|---|
+  | full dump | 1,105 to 1,109 MB | 489 to 528 / 503 to 580 ms | 589 to 695 ms |
+  | heap-only dump | 1,014 to 1,035 MB | 1,255 to 1,316 / 1,259 to 1,310 ms | 1,343 to 1,393 ms |
+  | gcdump | 135 to 140 MB | 662 to 837 / 1,127 to 1,152 ms | 3,398 to 4,252 ms (the command line's start included) |
+
+  HeapScope opens all three (the same object count within 16); the heap-only dump gave 157 roots to the full dump's 253. The
+  heap-only dump stops the process 2.5 times as long for 8% less file, so task 7 adds nothing, as its decision says.
+- A cold program (`--cold-ms`, its methods compiled while recording, 3 runs): every stack matched, and 99.9% of the frames or more
+  were named when their sample arrived (the start rundown, or a method event before the sample): 27 of 23,776, 24 of 23,767
+  and 2,187 of 6,994,331 were not.
+- Damaged files: 15,000 damaged copies of a small trace (5 seeds), each read with and without the stack access: it adds no
+  failure seen. What a trace states is checked since 4.2.1 (`TraceFileCheck`, ADR-028); the live reader needs that check to keep
+  its place in a file that grows (task 4).
+- The probe again on TraceEvent 4.0.2 (2026-11-24, 10 s flat out): 175,213 samples, every stack the one TraceLog gave, every frame
+  named, delay p50 185, p95 242 and max 267 ms, reading and folding 200 ms, peak working set 57 MB: as on 4.0.0.
+- Linux (2026-11-24, TraceEvent 4.0.2, a GitHub runner of 4 processors, 10 s each, one run of each kind): every stack the one
+  TraceLog gave, and no event lost.
+
+  | Run | Samples | Delay p50 / p95 / max | Reading and folding | Peak working set | Frames not named when they arrived |
+  |---|---|---|---|---|---|
+  | flat out | 239,033 | 160 / 209 / 226 ms | 387 ms | 85 MB | 0 of 12,725,625 |
+  | pausing every 200 | 10,054 | 160 / 207 / 220 ms | 36 ms | 64 MB | 0 of 535,261 |
+  | a counter each second, idle 3 s of 4 | 70,421 | 144 / 239 / 318 ms | 159 ms | 80 MB | 5 of 3,749,021 |
+  | a cold program | 208,791 | 160 / 210 / 225 ms | 293 ms | 84 MB | 1,904 of 11,116,357 |
+
+  Both gates are met on Windows and Linux; ADR-037 is amended. macOS is not measured (no Mac).
+- Task 4: a recording of LeakyApi under load replayed in pieces of 1 MB and of 100,003 bytes gives the finished reader's types,
+  stacks by name, counts and bytes exactly. 1,500 damaged copies (seed 43) read live as well: none fails as HeapScope's error.
+- A live trace at its limits (309,968 entries, 300,001 nodes, 300,000 methods of 37 MB): 75 MB kept, 98 MB with two views, a view in 6
+  ms, the longest of 2 million samples 23 ms (a stretch that grew), 300,000 names sorted in 107 ms (.NET 10, workstation GC).
+- Task 5: followed across a killed worker, a recording ends with the finished file's samples, bytes and lost events.
+- Task 6: `--smoke-live-process` on LeakyApi under load: 612 to 921 samples in 30 s, figures 0.25 to 0.30 s behind, stacks asked
+  for every second. On a real window the longest UI operation was 30 to 35 ms in 3 of 5 runs and 160 and 168 ms in 2, with no
+  processor time used by the UI thread in that stall. `--smoke-live`, without the panel, has the same stall (139 ms in 1 of 6),
+  and the panel headless has none (27 to 33 ms in 6 of 6): it is the window's, not the panel's, and in the Backlog.
+
+**Review summary:** 6 High and 20 Moderate, and in the confirmations 3 High and 5 Moderate
+([docs/reviews/sprint-4.3.md](../reviews/sprint-4.3.md)); every one fixed and confirmed, but for the names of a process that exits
+without a rundown (M18, Backlog). Deferred: the Lows listed there, and a stall of the live smoke run's window (Backlog).
+
+## Sprint 4.4: Allocated between two snapshots
+
+**Goal:** comparing two snapshots of one monitoring run that recorded its allocations, Compare says what was allocated between them, by
+type, and one step leads to where.
+
+**Starting point.** A comparison says what is there now and was not (New, matched by address, so a moved object counts too); it says
+nothing of what was allocated and is gone again, or where. A run that records allocations has both snapshots and the trace in its
+session (`SessionRun`: `SnapshotIds`, `Trace`), each with a time; ADR-028 left out joining them, since it needs one clock and one
+name for a type.
+
+**Tasks**
+1. [x] Measured before building: how a capture's recorded time lies to the trace's (the target is paused while a dump is written), and
+   how much of the sampled bytes join a diff row by name, for full dumps and gcdumps (generics, arrays, nested types, names in two
+   modules). If names do not join for most of the bytes, stop and report. Proof: the numbers in Findings and ADR-028's amendment.
+2. [x] Which trace lies between two snapshots: the run of one session that holds both and a trace, the interval, and a reason when
+   there is none (another process, another run, no trace, a trace that ended before). Tests: each reason; a received session's
+   paths.
+3. [x] One name for a type: the trace's names brought to the snapshots' form in one place, tested against real dumps. Tests: table and
+   integration.
+4. [x] The worker: a diff with a trace and an interval gets Allocated columns (estimates), with the sampled bytes that no row took;
+   one protocol bump. Tests: contract, worker, a real run.
+5. [x] Compare: a check box like New and dead objects, the note that says what the figures are, and a step from a row to the
+   Allocations page with the interval and type chosen. Wording drafted for the owner. Tests: view models, views.
+6. [x] The command line: `diff --allocated`, with the trace found in the session (decision below). Tests: CLI.
+7. [x] The sample's scenario and lesson (ADR-042), or why not; drafts for the owner.
+8. [x] Docs: ADR-028 amended, ARCHITECTURE pages, DEVELOPER, USER-GUIDE, info-text.md, the CLI's README, Backlog.
+
+**Decisions**
+- Only a trace of the same monitoring run is linked. A trace recorded on the Processes page between two captures is not looked for: its
+  session does not say what it belongs to. Decided autonomously.
+- Figures are estimates and marked so, as everywhere; rows without a sample say nothing rather than zero bytes. Decided autonomously.
+- Task 1 showed that the tick's type id is the type's method table, so full dumps are joined by it, not by name. Only a gcdump is joined by
+  name; a name that types of several modules share goes to no row, and the note says how many bytes that is. Decided autonomously.
+- The run is found by its process and time, not by its list of captures, so a capture from the Processes page during the run counts too.
+  Decided autonomously.
+- When a capture is asked for what was allocated since, its heap's time counts, not its file's: `SessionSnapshot.HeapUtc`. Decided
+  autonomously.
+- Types without an object in either snapshot have no row; the note says their bytes, and the Allocations page has them. Rows for them are in
+  the Backlog. Decided autonomously.
+- `diff --allocated` takes the session's trace only; a trace named by the user has no heap times to go with it. Decided autonomously.
+- Task 7: a scenario of its own, Churn, since the bursts keep nothing a comparison could have a row for. Decided autonomously.
+
+**Findings** (task 1, .NET 10.0, Windows, LeakyApi under LoadGen and DenseHeap compiling with Roslyn, 2026-11-25)
+- Time. The recorded time of a full dump lay 3 to 160 ms after the target's pause (up to 220 MB at the rate DenseHeap allocates), that
+  of a gcdump 3 to 6 s after (170 MB of LeakyApi's, up to 1,860 MB of DenseHeap's). A dump's own time has whole seconds only. Now: a full
+  dump's last write and a gcdump's first heap node, within the pause or at most 3 ms after it (0 to 1.9 MB).
+- Names. Of the sampled bytes between two full dumps, 61 to 83% join by name and 74 to 100% by the tick's type id; the rest are types
+  without an object in either dump (74%: both dumps just after a collection, of a compiler's temporaries). The runtime's events name a
+  nested type by its innermost name, as a gcdump does: between gcdumps 80 to 95% join by name, and the rest are types that left nothing
+  behind (Activity, log scopes, compiler temporaries). Names several modules share: 0 to 0.4%; names the trace has for several types,
+  which the review left without a row: 1.1%.
+- Every gcdump but the first that was captured while a trace recorded had types without a name (it said that it was incomplete). The
+  runtime describes a type once while a session has its type keyword, and forgets only when the keyword is turned off, which the flush
+  before a gcdump did not do beside another session. So since 3.4, when runs could record allocations, the second gcdump of such a run
+  was of no use. Fixed in the vendored flush, for HeapScope's three kinds of recording; another tool's session that has the type
+  keyword still does it (Backlog). Test: `Each_gcdump_beside_a_recording_names_its_types`, failing without the fix for all three.
+
+**Review summary:** 5 High and 14 Moderate, and in the confirmations 7 Moderate ([docs/reviews/sprint-4.4.md](../reviews/sprint-4.4.md));
+every one fixed and confirmed. Deferred (Backlog): rows for types without an object in either snapshot, the Allocations page filtered by
+method table, the flush before a gcdump checked on .NET 8 and 9.
+
+## Sprint 4.5: Peer review
+
+**Goal:** what must change, be refactored or be proven before the first full release and the UI-heavy sprints, from reviewers who read
+the whole code base as outsiders, ranked, each finding checked in the code.
+
+**Tasks**
+1. [x] Five reviewers read the code base at sprint 4.4 (not a diff), each its area: solution architect, senior developer, CLR and GC
+   specialist, support engineer, and DevSecOps (build, packages, CI, supply chain, threat surface). Each also says what stands between
+   this and a first full release.
+2. [x] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
+   `docs/reviews/peer-review-4.5.md`.
+3. [x] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
+4. [x] A proposed split into sprints, for the owner to decide (agreed, 2026-11-25); the Backlog updated.
+5. [x] The owner's 4.4 wording and release notes answers folded in, if they came.
+
+**Decisions**
+- Like 3.5's: the review changes no code but for Critical findings. Decided autonomously.
+- The split into sprints is the owner's decision, so the sprint ends by asking. Decided autonomously.
+- The fact is positive (`HandlesChecked`) and the older cache's literal version is gone: decided before loader version 5 shipped, since after it the
+  change would have cost a version 6. Decided autonomously.
+- Compare's retained columns with the fact on one side only go to 4.6, since the result needs a new field. Decided autonomously.
+
+**Findings** (.NET 10.0, 24 processors, 2026-11-25): strong handles the runtime's own walk has of 2,400: 103 at 1 heap, 192 to 206 at 2,
+785 at 8, 1,200 at 12 (DATAS); HeapScope's second walk has all, in 6 to 14 walks and 0.1 s, and 1.9 million handles in 7.1 s.
+
+**Review summary:** 1 Critical and 1 High fixed (GC handles of Server GC processes; a program by its bare name), 20 High and 16 Moderate ranked
+([docs/reviews/peer-review-4.5.md](../reviews/peer-review-4.5.md)) and split into sprints 4.6 to 4.12. The fixes were reviewed by four: every High
+and Moderate fixed and confirmed, one Moderate deferred to 4.6.

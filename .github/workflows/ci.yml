@@ -201,6 +201,8 @@ jobs:
           dump="$RUNNER_TEMP/leaky.dmp"
           bash build/fixture-dump.sh "$dump" cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli
           bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$dump"
+          # GC handles of a Server GC process with fewer heaps than processors (peer review 4.5).
+          bash build/check-handles.sh "$PWD/src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli" "$RUNNER_TEMP/handles"
           # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19), and a missing
           # DAC with the symbol server's download rule (sprint 3.12), and the loader's object walk against ClrMD's on a core dump
           # (sprint 3.12 review M1).

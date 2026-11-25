@@ -196,6 +196,7 @@ public sealed class CaptureService : ICaptureService
             string? path = null;
             string? sessionFolder = null;
             var createdSession = false;
+            HeapTime? heap = null;
             var reports = new CaptureProgressAdapter(progress);
 
             // The session is written into until the capture is recorded: it cannot be deleted meanwhile (review H1 of 3.4).
@@ -235,7 +236,7 @@ public sealed class CaptureService : ICaptureService
 
                 LogSelfCheck();
                 _logger.LogInformation("Capturing a {Kind} of {Name} (pid {Pid}) to {Path}", profile.Noun, process.Name, process.ProcessId, path);
-                await profile.Capture(process, path, reports, ct).ConfigureAwait(false);
+                heap = await profile.Capture(process, path, reports, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (Translate(ex) is { } failure)
             {
@@ -307,14 +308,14 @@ public sealed class CaptureService : ICaptureService
                 var snapshotId = Guid.NewGuid();
                 var session = Library.AddTo(sessionFolder ?? Library.Current.Folder, new SessionSnapshot(
                     snapshotId, path, process.Name, process.ProcessId, process.RuntimeVersion, _time.GetUtcNow(), size,
-                    Kind: kind, Source: source, Label: label, RuntimeDirectory: process.RuntimeDirectory));
-                _logger.LogInformation("Recorded {Path} as snapshot {SnapshotId} ({Source}, {Label}) in session {Folder}", path, snapshotId, source, label ?? "no label", session.Folder);
+                    Kind: kind, Source: source, Label: label, RuntimeDirectory: process.RuntimeDirectory, HeapUtc: heap?.Utc));
+                _logger.LogInformation("Recorded {Path} as snapshot {SnapshotId} ({Source}, {Label}), its heap as of {HeapUtc} ({HeapSource}), in session {Folder}", path, snapshotId, source, label ?? "no label", heap?.Utc.ToString("O", CultureInfo.InvariantCulture) ?? "unknown", heap?.Source ?? "the runtime's events did not say", session.Folder);
                 return new CaptureResult(path, size, ToEntry(process), session, notPrivate, Kind: kind, SnapshotId: snapshotId);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // The snapshot is valid; only the record failed.
-                _logger.LogWarning(ex, "The capture {Path} could not be recorded in its session", path);
+                _logger.LogWarning(ex, "The capture {Path}, its heap as of {HeapUtc} ({HeapSource}), could not be recorded in its session", path, heap?.Utc.ToString("O", CultureInfo.InvariantCulture) ?? "unknown", heap?.Source ?? "the runtime's events did not say");
                 var warning = $"The snapshot was written, but the session could not be updated: {ex.Message}";
                 return new CaptureResult(path, size, ToEntry(process), null, notPrivate is null ? warning : warning + " " + notPrivate, kind);
             }
@@ -507,7 +508,7 @@ public sealed class CaptureService : ICaptureService
             string.Empty,
             (process, path) => _capturer.Preflight(process, path, (estimate, free) => LogEstimate(process, estimate, free)),
             CopiesDac: true,
-            (process, path, progress, ct) => _capturer.CaptureAsync(process, path, progress, ct, (estimate, free) => LogEstimate(process, estimate, free)));
+            async (process, path, progress, ct) => await _capturer.CaptureAsync(process, path, progress, ct, (estimate, free) => LogEstimate(process, estimate, free)).ConfigureAwait(false));
 
         void LogEstimate(DotNetProcess process, DumpEstimate estimate, long? free)
         {
@@ -529,7 +530,7 @@ public sealed class CaptureService : ICaptureService
         string TitlePrefix,
         Action<DotNetProcess, string>? Preflight,
         bool CopiesDac,
-        Func<DotNetProcess, string, IProgress<CaptureProgress>, CancellationToken, Task> Capture);
+        Func<DotNetProcess, string, IProgress<CaptureProgress>, CancellationToken, Task<HeapTime?>> Capture);
 
     /// <summary>
     /// Copies the target's DAC (and off Windows its runtime library, 4.1 review H4) next to the dump, so the 1.2 loader finds the matching DAC in the dump's

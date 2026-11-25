@@ -25,6 +25,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HeapScope.Application.Allocations;
 using HeapScope.Application.Monitoring;
 using HeapScope.Application.Presentation;
 using HeapScope.Application.Sessions;
@@ -36,59 +37,30 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A monitoring run of the current session, listed to reopen (sprint 3.4).</summary>
-public sealed record PastRunItem(SessionRun Run, string Folder)
-{
-    public string Title => string.Create(CultureInfo.CurrentCulture, $"{Run.StartedUtc.ToLocalTime():g}: {Run.ProcessName ?? "process"} {Run.ProcessId}, {Run.SnapshotIds.Count} snapshots{(Run.EndedUtc is { } end ? $", {(end - Run.StartedUtc).TotalMinutes:N0} min" : ", not ended")}{(Run.Trace is null ? string.Empty : ", allocations")}");
-}
-
-/// <summary>A snapshot a rule took during the run, as a card: when, which rule, how big, or why it failed.</summary>
-public sealed record SnapshotCard(DateTimeOffset At, string Rule, string? Path, long SizeBytes, string? Error)
-{
-    public string Time => At.ToLocalTime().ToString("T", CultureInfo.CurrentCulture);
-
-    public string Summary => Error is null ? $"{Format.Bytes(SizeBytes)}, {System.IO.Path.GetFileName(Path)}" : "failed: " + Error;
-}
-
 /// <summary>
 /// The Live page (sprint 1.7, ADR-021): monitor a process's GC heap per heap kind every interval, take snapshots by
 /// rules, see the run as a stacked chart with snapshot markers and cards, and a badge when GC pressure is high. Samples
-/// arrive on a background thread and are marshaled here; the chart keeps the last <see cref="WindowSamples"/>.
+/// arrive on a background thread and are marshaled here. Since sprint 4.3 this is monitoring alone: what the page shows is in
+/// <see cref="Shown"/>, the run's files in <see cref="Files"/> and the past runs in <see cref="PastRuns"/>.
 /// </summary>
 public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 {
-    /// <summary>Samples the chart keeps (30 minutes at 1 s).</summary>
-    public const int WindowSamples = 1800;
-
     private readonly MonitorService _monitor;
     private readonly ICaptureService _capture;
     private readonly IUiDispatcher _dispatcher;
     private readonly IUserInteraction? _interaction;
     private readonly ILogger _logger;
-    private readonly List<HeapSample> _samples = [];
-    private readonly List<DateTimeOffset> _markers = [];
-    private readonly List<DateTimeOffset> _gcMarkers = [];
-    private readonly AllocationsViewModel? _allocations;
     private MonitorRun? _run;
 
     /// <summary>Records an allocation trace for the whole run (sprint 3.4).</summary>
     [ObservableProperty]
     private bool _recordAllocations;
 
-    /// <summary>The last run's allocation trace, once it ended with one.</summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
-    private string? _tracePath;
-
     /// <summary>A Get snapshot or Force GC in progress.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GetSnapshotCommand))]
     [NotifyCanExecuteChangedFor(nameof(ForceGcCommand))]
     private bool _acting;
-
-    /// <summary>What the chart shows when it is a past run's (sprint 3.4), read only.</summary>
-    [ObservableProperty]
-    private string? _pastRunShown;
 
     [ObservableProperty]
     private ProcessRow? _selectedProcess;
@@ -120,28 +92,8 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
     [NotifyCanExecuteChangedFor(nameof(GetSnapshotCommand))]
     [NotifyCanExecuteChangedFor(nameof(ForceGcCommand))]
-    [NotifyCanExecuteChangedFor(nameof(OpenPastRunCommand))]
     [NotifyPropertyChangedFor(nameof(EmptyText))]
     private bool _isRunning;
-
-    /// <summary>
-    /// What the user must not miss about the run: why it was refused, or that no samples are arriving. Shown as a banner: a refused
-    /// run lasts milliseconds, and its Start and Stop buttons only flash (3.10, the owner's own test).
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
-    private string? _runWarning;
-
-    /// <summary>The last run's timeline file once the run stopped, while it is there; null otherwise.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTimeline))]
-    [NotifyCanExecuteChangedFor(nameof(OpenTimelineCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ShowTimelineCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DeleteTimelineCommand))]
-    private string? _timelinePath;
-
-    [ObservableProperty]
-    private string? _status;
 
     [ObservableProperty]
     private string? _latest;
@@ -155,25 +107,37 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     private bool _warnedNoSamples;
 
-    /// <summary>Bumped once per sample: the chart redraws when it changes.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSamples))]
-    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
-    private int _chartVersion;
-
-    /// <summary>When the run began, so the time axis reads the run's age once the window has slid past its start.</summary>
-    [ObservableProperty]
-    private DateTimeOffset? _chartStart;
-
-    public LiveViewModel(MonitorService monitor, ICaptureService capture, IUiDispatcher dispatcher, ILogger<LiveViewModel>? logger = null, IUserInteraction? interaction = null, AllocationsViewModel? allocations = null)
+    public LiveViewModel(MonitorService monitor, ICaptureService capture, IUiDispatcher dispatcher, ILogger<LiveViewModel>? logger = null, IUserInteraction? interaction = null, AllocationsViewModel? allocations = null, AllocationSession? live = null)
     {
         _interaction = interaction;
-        _allocations = allocations;
         _monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
         _capture = capture ?? throw new ArgumentNullException(nameof(capture));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _logger = logger ?? NullLogger<LiveViewModel>.Instance;
+        Files = new LiveRunFilesViewModel(Shown, interaction, allocations, _logger);
+        PastRuns = new LivePastRunsViewModel(capture, Shown, Files, _logger);
+        Allocations = new LiveAllocationsViewModel(live, _logger);
+        Shown.PropertyChanged += (_, e) =>
+        {
+            // A past run's chart has no live allocations beside it: Open allocations opens its trace.
+            if (e.PropertyName == nameof(LiveRunState.PastRunShown) && Shown.PastRunShown is not null)
+            {
+                Allocations.Close();
+            }
+        };
     }
+
+    /// <summary>What the page shows of the run being watched, or of a past one.</summary>
+    public LiveRunState Shown { get; } = new();
+
+    /// <summary>The shown run's timeline, trace and snapshots.</summary>
+    public LiveRunFilesViewModel Files { get; }
+
+    /// <summary>The current session's past runs.</summary>
+    public LivePastRunsViewModel PastRuns { get; }
+
+    /// <summary>What the process being watched allocates, when the run records it.</summary>
+    public LiveAllocationsViewModel Allocations { get; }
 
     public ObservableCollection<ProcessRow> Processes { get; } = [];
 
@@ -192,36 +156,13 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private string? _hiddenNote;
 
-    public ObservableCollection<SnapshotCard> Snapshots { get; } = [];
-
     public IReadOnlyList<string> RearmModes { get; } = ["below", "once", "step"];
-
-    /// <summary>Whether the timeline row (its path, Open, Show in folder, Delete) is shown.</summary>
-    public bool HasTimeline => TimelinePath is not null;
-
-    /// <summary>The chart's samples, oldest first (read on the UI thread).</summary>
-    public IReadOnlyList<HeapSample> Samples => _samples;
-
-    /// <summary>Whether the chart has anything to show (raised with <see cref="ChartVersion"/>: the list itself does not notify).</summary>
-    public bool HasSamples => _samples.Count > 0;
-
-    /// <summary>Whether the empty chart has something useful to say: a warning says it better.</summary>
-    public bool ShowEmptyState => !HasSamples && RunWarning is null;
 
     /// <summary>What the empty chart says: once Start is pressed, "choose a process" is wrong.</summary>
     public string EmptyText => IsRunning ? WaitingText : PlatformHints.LiveEmpty;
 
     /// <summary>How a run waits before asking whether any sample came: tests hold it to decide when that happens.</summary>
     public Func<TimeSpan, Task> NoSampleDelay { get; set; } = static wait => Task.Delay(wait);
-
-    /// <summary>When rules took snapshots, for the chart's markers.</summary>
-    public IReadOnlyList<DateTimeOffset> Markers => _markers;
-
-    /// <summary>When the run forced a collection (sprint 3.4).</summary>
-    public IReadOnlyList<DateTimeOffset> GcMarkers => _gcMarkers;
-
-    /// <summary>The current session's monitoring runs, newest first (sprint 3.4).</summary>
-    public ObservableCollection<PastRunItem> PastRuns { get; } = [];
 
     /// <summary>The run in progress, if any (tests and smoke runs await its completion).</summary>
     public MonitorRun? Run => _run;
@@ -243,7 +184,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     {
         if (Unavailable is { } reason)
         {
-            Status = reason;
+            Shown.Status = reason;
             return;
         }
 
@@ -256,7 +197,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
-            Status = "The process list could not be read: " + ex.Message;
+            Shown.Status = "The process list could not be read: " + ex.Message;
         }
     }
 
@@ -292,11 +233,11 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     private async Task StartAsync()
     {
         // Whatever this press leads to, the last run's warning is over.
-        RunWarning = null;
+        Shown.RunWarning = null;
         _warnedNoSamples = false;
         if (SelectedProcess is not { } process)
         {
-            Status = "Pick a process to monitor.";
+            Shown.Status = "Pick a process to monitor.";
             return;
         }
 
@@ -305,17 +246,11 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        _samples.Clear();
-        _markers.Clear();
-        _gcMarkers.Clear();
-        Snapshots.Clear();
-        TimelinePath = null;
-        TracePath = null;
-        PastRunShown = null;
+        Shown.Clear();
+        Files.Show(timeline: null, trace: null);
+        Allocations.Close();
         HighGcPressure = false;
         Latest = null;
-        ChartStart = null;
-        ChartVersion++;
         var options = new MonitorOptions(
             TimeSpan.FromSeconds(Math.Max(1, IntervalSeconds)),
             rules,
@@ -326,25 +261,37 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             RecordRun: RecordRuns);
         IsRunning = true;
         _stopAsked = false;
-        Status = string.Create(CultureInfo.CurrentCulture, $"Starting to monitor {process.Name} (pid {process.ProcessId})...");
+        Shown.Status = string.Create(CultureInfo.CurrentCulture, $"Starting to monitor {process.Name} (pid {process.ProcessId})...");
+        var replaced = _run;
+        _run = null;
         MonitorRun run;
         try
         {
-            run = await Task.Run(() => _monitor.Start(process.ProcessId, options, attached =>
+            run = await Task.Run(async () =>
             {
-                // Before the first sample can arrive: every event of the run finds it current.
-                _run = attached;
-                attached.SampleReceived += (_, sample) => _dispatcher.Post(() => OnSample(attached, sample));
-                attached.Captured += (_, capture) => _dispatcher.Post(() => OnCaptured(attached, capture));
-                attached.GcForced += (_, forced) => _dispatcher.Post(() => OnGcForced(attached, forced));
-                attached.TraceStopped += (_, message) => _dispatcher.Post(() => OnTraceStopped(attached, message));
-            }));
+                if (replaced is not null)
+                {
+                    await DisposeReplacedAsync(replaced);
+                }
+
+                return _monitor.Start(process.ProcessId, options, attached =>
+                {
+                    // Before the first sample can arrive: every event of the run finds it current.
+                    _run = attached;
+                    attached.SampleReceived += (_, sample) => _dispatcher.Post(() => OnSample(attached, sample));
+                    attached.Captured += (_, capture) => _dispatcher.Post(() => OnCaptured(attached, capture));
+                    attached.GcForced += (_, forced) => _dispatcher.Post(() => OnGcForced(attached, forced));
+                    attached.TraceStopped += (_, message) => _dispatcher.Post(() => OnTraceStopped(attached, message));
+                    attached.TraceStarted += (_, trace) => _dispatcher.Post(() => OnTraceStarted(attached, trace));
+                    attached.TraceEnded += (_, _) => _dispatcher.Post(() => OnTraceEnded(attached));
+                });
+            });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             _logger.LogWarning(ex, "Monitoring pid {Pid} could not start", process.ProcessId);
-            Status = null;
-            RunWarning = "Monitoring could not start: " + ex.Message;
+            Shown.Status = null;
+            Shown.RunWarning = "Monitoring could not start: " + ex.Message;
             IsRunning = false;
             return;
         }
@@ -356,7 +303,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
         if (ReferenceEquals(run, _run) && IsRunning && run.TraceError is null)
         {
-            Status = string.Create(CultureInfo.CurrentCulture, $"Monitoring {process.Name} (pid {process.ProcessId}){(rules.Rules.Count > 0 ? "; rules: " + string.Join(", ", rules.Rules.Select(r => r.Label)) : string.Empty)}.");
+            Shown.Status = string.Create(CultureInfo.CurrentCulture, $"Monitoring {process.Name} (pid {process.ProcessId}){(rules.Rules.Count > 0 ? "; rules: " + string.Join(", ", rules.Rules.Select(r => r.Label)) : string.Empty)}.");
         }
 
         _ = WatchAsync(run);
@@ -370,11 +317,11 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         await NoSampleDelay(wait).ConfigureAwait(false);
         _dispatcher.Post(() =>
         {
-            if (ReferenceEquals(run, _run) && IsRunning && _samples.Count == 0)
+            if (ReferenceEquals(run, _run) && IsRunning && Shown.Samples.Count == 0)
             {
                 _logger.LogWarning("Monitoring run {RunId} (pid {Pid}): no samples after {Seconds:N0} s", run.Id, run.ProcessId, wait.TotalSeconds);
                 _warnedNoSamples = true;
-                RunWarning = string.Create(CultureInfo.CurrentCulture, $"No samples from {processName} after {wait.TotalSeconds:N0} s, so there is nothing to chart yet. A process can turn off the runtime events Live reads (EventSource support), as some trimmed apps do. Get snapshot still works.");
+                Shown.RunWarning = string.Create(CultureInfo.CurrentCulture, $"No samples from {processName} after {wait.TotalSeconds:N0} s, so there is nothing to chart yet. A process can turn off the runtime events Live reads (EventSource support), as some trimmed apps do. Get snapshot still works.");
             }
         });
     }
@@ -400,9 +347,9 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         Acting = true;
         try
         {
-            Status = "Taking a snapshot...";
+            Shown.Status = "Taking a snapshot...";
             var taken = await run.CaptureNowAsync();
-            Status = taken.Result is not null ? "Snapshot taken." : "The snapshot failed: " + taken.Error;
+            Shown.Status = taken.Result is not null ? "Snapshot taken." : "The snapshot failed: " + taken.Error;
         }
         finally
         {
@@ -433,120 +380,15 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         Acting = true;
         try
         {
-            Status = "Forcing a garbage collection...";
+            Shown.Status = "Forcing a garbage collection...";
             var forced = await run.ForceGcAsync(CancellationToken.None);
-            Status = forced.Result is { Completed: true } ? "A full garbage collection ran in the process. Objects it moved count as dead and new in a comparison by address."
+            Shown.Status = forced.Result is { Completed: true } ? "A full garbage collection ran in the process. Objects it moved count as dead and new in a comparison by address."
                 : forced.Result is { } incomplete ? "The collection is not confirmed: " + incomplete.Outcome + ". It is not marked on the chart."
                 : forced.Error;
         }
         finally
         {
             Acting = false;
-        }
-    }
-
-    private bool CanOpenTrace() => TracePath is not null && _allocations is not null;
-
-    /// <summary>Opens the last run's allocation trace on the Allocations page (sprint 3.4).</summary>
-    [RelayCommand(CanExecute = nameof(CanOpenTrace))]
-    private async Task OpenTraceAsync()
-    {
-        if (TracePath is { } path && _allocations is { } allocations)
-        {
-            await allocations.OpenPathAsync(path);
-        }
-    }
-
-    /// <summary>Lists the current session's monitoring runs (sprint 3.4).</summary>
-    [RelayCommand]
-    private async Task RefreshRunsAsync()
-    {
-        // Read from disk, off the UI thread (a read waits up to a second for a program that holds the document, sprint 3.6
-        // review): runs are recorded there as they start and end (never creating a session to list nothing).
-        var folder = _capture.Library.CurrentFolder;
-        var session = folder is null ? null : await Task.Run(() => SessionLibrary.TryRead(folder));
-        PastRuns.Clear();
-        if (session is null)
-        {
-            return;
-        }
-
-        foreach (var run in (session.Document.Runs ?? []).OrderByDescending(r => r.StartedUtc))
-        {
-            PastRuns.Add(new PastRunItem(run, session.Folder));
-        }
-    }
-
-    private bool CanOpenPastRun(PastRunItem? item) => !IsRunning;
-
-    /// <summary>
-    /// Shows a past run read only (sprint 3.4, decision 5): its timeline's counters, its snapshots and forced collections as
-    /// markers, and its snapshots as cards.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanOpenPastRun))]
-    private async Task OpenPastRunAsync(PastRunItem? item)
-    {
-        if (item is null)
-        {
-            return;
-        }
-
-        var run = item.Run;
-        // Only a CSV timeline inside its session folder, reached through no link: Delete timeline acts on this path, and
-        // Open timeline hands it to the system, so a received session cannot name a program to run (peer review S3).
-        var (timelineCheck, traceCheck) = Session.RunFiles(item.Folder, run);
-        if (timelineCheck.Path is not { } path)
-        {
-            _logger.LogInformation("Monitoring run {RunId} not reopened: its timeline {Timeline} was refused ({Refusal})", run.Id, run.Timeline ?? "(none recorded)", timelineCheck.Refusal);
-            Status = timelineCheck.Describe("This run's timeline");
-            return;
-        }
-
-        try
-        {
-            var read = await TimelineFile.ReadAsync(path, CancellationToken.None);
-            _samples.Clear();
-            _samples.AddRange(read.Samples.TakeLast(WindowSamples));
-            ChartStart = read.Samples.Count > 0 ? read.Samples[0].At : null;
-            _markers.Clear();
-            _markers.AddRange(read.Events.Where(e => e.Text.StartsWith(MonitorRun.SnapshotEventPrefix, StringComparison.Ordinal)).Select(e => e.At));
-            _gcMarkers.Clear();
-            _gcMarkers.AddRange(read.Events.Where(e => e.Text == MonitorRun.GcForcedEvent).Select(e => e.At));
-            Snapshots.Clear();
-            var session = await Task.Run(() => SessionLibrary.TryRead(item.Folder));
-            foreach (var snapshot in (session?.Document.Snapshots ?? []).Where(s => run.SnapshotIds.Contains(s.Id)).OrderByDescending(s => s.CapturedUtc))
-            {
-                // A received session may name a network path: it is never looked at (sprint 3.7, peer review S3).
-                var file = session!.PathOf(snapshot);
-                var gone = !Session.IsLocal(file) ? "not on this machine" : File.Exists(file) ? null : "deleted";
-                Snapshots.Add(new SnapshotCard(snapshot.CapturedUtc, snapshot.Label ?? snapshot.Source.ToString(), file, snapshot.SizeBytes, gone));
-            }
-
-            TimelinePath = path;
-            TracePath = traceCheck.Path;
-            if (run.Trace is not null && traceCheck.Path is null)
-            {
-                _logger.LogInformation("Monitoring run {RunId}: its trace {Trace} was refused ({Refusal})", run.Id, run.Trace, traceCheck.Refusal);
-            }
-            PastRunShown = item.Title + (read.SkippedLines > 0 ? string.Create(CultureInfo.CurrentCulture, $" ({read.SkippedLines} unreadable lines left out)") : string.Empty);
-            Status = "Showing a past run, read only. Start monitoring to see live data again.";
-            RunWarning = null;
-            ChartVersion++;
-            _logger.LogInformation(
-                "Reopened monitoring run {RunId} of pid {Pid} from {Timeline}: {Samples} samples ({Shown} shown, {Skipped} unreadable lines), {Events} events, {Snapshots} snapshots",
-                run.Id,
-                run.ProcessId,
-                path,
-                read.Samples.Count,
-                _samples.Count,
-                read.SkippedLines,
-                read.Events.Count,
-                Snapshots.Count);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogWarning(ex, "Monitoring run {RunId}: its timeline could not be read", run.Id);
-            Status = "The run's timeline could not be read: " + ex.Message;
         }
     }
 
@@ -562,106 +404,28 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     private bool _stopAsked;
 
-    private bool CanUseTimeline() => TimelinePath is not null && _interaction is not null;
+    partial void OnIsRunningChanged(bool value) => PastRuns.IsRunning = value;
 
-    [RelayCommand(CanExecute = nameof(CanUseTimeline))]
-    private async Task OpenTimelineAsync()
+    /// <summary>
+    /// Disposes a run a new one replaces (peer review P11): it has ended (Start waits for that), but holds its stop and its
+    /// trace's recording until then.
+    /// </summary>
+    private async Task DisposeReplacedAsync(MonitorRun run)
     {
-        if (TimelineOrGone() is { } path)
-        {
-            var opened = await _interaction!.OpenFileAsync(path);
-            _logger.LogInformation("Timeline open asked: {Outcome}", opened ? "opened" : "no app");
-            if (!opened)
-            {
-                Status = "No app opened the timeline. It is a CSV file; Show in folder finds it.";
-            }
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanUseTimeline))]
-    private async Task ShowTimelineAsync()
-    {
-        if (TimelineOrGone() is { } path)
-        {
-            var shown = await _interaction!.ShowInFolderAsync(path);
-            _logger.LogInformation("Timeline show in folder asked: {Outcome}", shown ? "shown" : "failed");
-            if (!shown)
-            {
-                Status = "The folder could not be opened.";
-            }
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanUseTimeline))]
-    private async Task DeleteTimelineAsync()
-    {
-        if (TimelineOrGone() is not { } path
-            || !await _interaction!.ConfirmAsync("Delete the timeline", $"Delete {Path.GetFileName(path)}? This cannot be undone. The run's snapshots are kept."))
-        {
-            return;
-        }
-
         try
         {
-            File.Delete(path);
-            TimelinePath = null;
-            Status = "Timeline deleted.";
-
-            // The path of the user's own file, never its contents (ARCHITECTURE 11): a past run reopens from it.
-            _logger.LogInformation("Timeline {Path} deleted after the user confirmed", path);
+            await run.DisposeAsync();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
-            _logger.LogWarning("Deleting the timeline {Path} failed: {Error}", path, ex.GetType().Name);
-            Status = "The timeline could not be deleted: " + ex.Message;
+            // How the run ended was logged and shown when it did; this is about what it still held.
+            _logger.LogWarning(ex, "Monitoring run {RunId}: disposing it failed", run.Id);
         }
-    }
-
-    /// <summary>Shows a rule's snapshot file in its folder (a failed capture's card has none).</summary>
-    [RelayCommand]
-    private async Task ShowSnapshotAsync(SnapshotCard? card)
-    {
-        if (card?.Path is not { } path || _interaction is null)
-        {
-            return;
-        }
-
-        if (!Session.IsLocal(path))
-        {
-            _logger.LogInformation("Snapshot show in folder refused: {Path} is not on this machine", path);
-            Status = "That snapshot is not on this machine.";
-            return;
-        }
-
-        if (!File.Exists(path))
-        {
-            Status = "That snapshot file is no longer there.";
-            return;
-        }
-
-        var shown = await _interaction.ShowInFolderAsync(path);
-        _logger.LogInformation("Snapshot show in folder asked: {Outcome}", shown ? "shown" : "failed");
-        if (!shown)
-        {
-            Status = "The folder could not be opened.";
-        }
-    }
-
-    /// <summary>The timeline's path, or null after saying it is gone (deleted or moved outside HeapScope).</summary>
-    private string? TimelineOrGone()
-    {
-        if (TimelinePath is { } path && File.Exists(path))
-        {
-            return path;
-        }
-
-        TimelinePath = null;
-        Status = "The timeline file is no longer there.";
-        return null;
     }
 
     public async ValueTask DisposeAsync()
     {
+        Allocations.Close();
         if (_run is { } run)
         {
             await run.DisposeAsync();
@@ -677,7 +441,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             MonitorRuleGrammar.Minutes(CultureInfo.CurrentCulture));
         if (parsed.FirstError is { } error)
         {
-            Status = error;
+            Shown.Status = error;
         }
 
         return parsed.Rules;
@@ -692,24 +456,17 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        ChartStart ??= sample.Counters.At;
         if (_warnedNoSamples)
         {
             _warnedNoSamples = false;
-            RunWarning = null;
-        }
-
-        _samples.Add(sample.Counters);
-        if (_samples.Count > WindowSamples)
-        {
-            _samples.RemoveRange(0, _samples.Count - WindowSamples);
+            Shown.RunWarning = null;
         }
 
         var s = sample.Counters;
         HighGcPressure = sample.HighGcPressure;
         Latest = string.Create(CultureInfo.CurrentCulture,
             $"GC heap {Format.Bytes(s.GcHeapBytes)}, after the last GC {Format.Bytes(s.HeapAfterGcBytes)} (gen1 {Format.Bytes(s.Gen1Bytes)}, gen2 {Format.Bytes(s.Gen2Bytes)}, LOH {Format.Bytes(s.LargeObjectHeapBytes)}, POH {Format.Bytes(s.PinnedObjectHeapBytes)}); allocated {Format.Bytes(s.AllocatedBytes)}; GCs {s.Gen0Collections}/{s.Gen1Collections}/{s.Gen2Collections}; last GC {s.TimeInGcPercent:0.#}% of the time");
-        ChartVersion++;
+        Shown.Add(s);
     }
 
     private void OnGcForced(MonitorRun run, MonitorForcedGc forced)
@@ -720,15 +477,30 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        _gcMarkers.Add(forced.At);
-        ChartVersion++;
+        Shown.AddForcedGc(forced.At);
     }
 
     private void OnTraceStopped(MonitorRun run, string message)
     {
         if (ReferenceEquals(run, _run))
         {
-            Status = message;
+            Shown.Status = message;
+        }
+    }
+
+    private void OnTraceStarted(MonitorRun run, LiveTraceFile trace)
+    {
+        if (ReferenceEquals(run, _run))
+        {
+            Allocations.Follow(trace.Path, trace.NamesPath);
+        }
+    }
+
+    private void OnTraceEnded(MonitorRun run)
+    {
+        if (ReferenceEquals(run, _run))
+        {
+            Allocations.End();
         }
     }
 
@@ -739,9 +511,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        _markers.Add(capture.At);
-        Snapshots.Insert(0, new SnapshotCard(capture.At, capture.Rule, capture.Result?.Path, capture.Result?.SizeBytes ?? 0, capture.Error));
-        ChartVersion++;
+        Shown.Add(new SnapshotCard(capture.At, capture.Rule, capture.Result?.Path, capture.Result?.SizeBytes ?? 0, capture.Error));
     }
 
     private async Task WatchAsync(MonitorRun run)
@@ -774,23 +544,22 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
             }
 
             // The final status first: whoever sees IsRunning turn false (a test on another thread) then reads it.
-            Status = ended is not null ? null : string.Create(CultureInfo.CurrentCulture,
-                $"Stopped after {_samples.Count:N0} samples and {run.Captures.Count(c => c.Result is not null)} snapshots.");
+            Shown.Status = ended is not null ? null : string.Create(CultureInfo.CurrentCulture,
+                $"Stopped after {Shown.Samples.Count:N0} samples and {run.Captures.Count(c => c.Result is not null)} snapshots.");
 
             // "Nothing to chart yet" and "Get snapshot still works" are about a run that is still going.
-            RunWarning = ended ?? (_warnedNoSamples ? null : RunWarning);
+            Shown.RunWarning = ended ?? (_warnedNoSamples ? null : Shown.RunWarning);
             _warnedNoSamples = false;
-            TimelinePath = run.TimelinePath;
-            TracePath = run.TracePath;
+            Files.Show(run.TimelinePath, run.TracePath);
 
             // Not for a refused run: the warning says why, and "the run goes on without it" would be false.
             if (ended is null && run.TraceError is { } traceError)
             {
-                Status = string.IsNullOrEmpty(Status) ? traceError : Status + " " + traceError;
+                Shown.Status = string.IsNullOrEmpty(Shown.Status) ? traceError : Shown.Status + " " + traceError;
             }
 
             IsRunning = false;
-            _ = RefreshRunsCommand.ExecuteAsync(null);
+            _ = PastRuns.RefreshRunsCommand.ExecuteAsync(null);
         });
     }
 }

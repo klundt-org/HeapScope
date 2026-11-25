@@ -13,7 +13,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
   string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
-  [1.6] and `TypeNameForms` (a full dump's type name in the form a gcdump records it) [1.8]; types without a method
+  [1.6] and `TypeNameForms` (a full dump's type name in the form a gcdump records it [1.8], and a runtime event's in the snapshots' spelling [4.4]); types without a method
   table are told apart by name and module [1.8]. `Loading/`: the loader contract both loaders share (`ISnapshotLoader`
   with its `Version`, `LoadResult`, `LoadProgress`, `LoadTimings`, `LoadDiagnostics`) and `SnapshotFileSignature` (a
   file's first bytes tell a minidump, `MDMP`, from a gcdump, a FastSerialization stream whose first object is a
@@ -103,7 +103,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   shared with the loader, runtime creation failures wrapped with a next step) [1.5]; `MinidumpHeader` [1.2, 1.8];
   `CoreFileHeader` (a Linux or macOS core cut short: program headers or load commands, or a segment's file range, past
   the end of the file; such a core loses CompleteGraph and ExactCounts like a truncated minidump), a core's capture time
-  from the file's write time marked `SnapshotFacts.CaptureTimeFromFile` with a note, loader version 3 [2.3.5]; `ClrMdDumpLoader.ProcessNameOf`: the executable's path the dump records, else its modules, and which rule chose it, loader version 4 [3.10];
+  from the file's write time marked `SnapshotFacts.CaptureTimeFromFile` with a note, loader version 3 [2.3.5]; `ClrMdDumpLoader.ProcessNameOf`: the executable's path the dump records, else its modules, and which rule chose it, loader version 4 [3.10]; `HandleTables` and `HeapCountReader`: the GC handles the runtime's walk leaves out, loader version 5 [4.5];
   `UnixLocalPath` (the local path rule on Linux and macOS: the mount holding the path, links resolved) [2.3.5];
   `DacLocator` and `LocalOnlyFileLocator` (the matching DAC from local folders only, ADR-017, section 6.3) [0.1, 1.2];
   a DAC next to the dump only once trusted by its SHA-256 and loaded from a private copy (`BesideDumpDirectories`,
@@ -200,7 +200,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   per handle for all its waiters) and `ResultQuery` (a query whose rows come back as a result set) [P5];
   `Events/SafeEvents` (events raised after state is final, outside locks, a throwing listener logged) [P9];
   `Presentation/` (column access by name, the texts and the monitor rules parser both front ends use) [P18];
-  `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed) and `RunRecord`, a file per type
+  `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed; since 4.3 live, `LiveTraceFile` and `TraceEnded` tell who follows it) and `RunRecord`, a file per type
   [P11]; `Sessions/SessionFileCheck` (a session's file, or which check refused it) [3.7 review M2].
   `Workers/` (`WorkerHost`, `IWorkerClient`, exceptions, log forwarding), `Jobs/JobTracker`,
   `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's setting and its
@@ -260,7 +260,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   types and instances grids (off by default, carried from the types grid into a type's objects) and the object's
   retained size with its immediate dominator as a link in the Retention tab [2.3]; `InspectionsViewModel` (tiles,
   fragmentation bars, rows as `CellRowItem`s, the generic row of any result set since 2.4) [1.6]; `LiveViewModel` and
-  `SnapshotCard` [1.7]; `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
+  `SnapshotCard` [1.7], since 4.3 monitoring alone over `LiveRunState` (what the page shows of a run), with
+  `LivePastRunsViewModel`, `LiveRunFilesViewModel` and `LiveAllocationsViewModel` (what the process allocates, as it does); `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
   of the app is a target the Snapshots page routes), `RetainersViewModel` (the dominator tree grid with
   `DominatorRowItem`, the trail as `TrailItem`s, the icicle with `IcicleGeometry`), `RetainedBySetViewModel`,
   `ColumnGroups`, and `GridQueryViewModel.OnRowsApplied` (what refers to new rows runs after they are bound) [2.4].
@@ -282,7 +283,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   Sprint 3.3: Compare's New and Dead, retained and per-generation columns (`ColumnGroups.Identity`), a row's new, dead
   or survived objects as sets, and `TrendViewModel` (the ticked open snapshots, oldest first, as a dynamic-column grid).
   Sprint 3.4 to 3.6: deleting snapshots and sessions and the cleanup of old sessions (`SnapshotsViewModel`,
-  `PageViewModels`), past runs and forced collections on `LiveViewModel` (`PastRunItem`), and the DAC trust question in
+  `PageViewModels`), past runs and forced collections on the Live page (`PastRunItem`), and the DAC trust question in
   `SnapshotsViewModel`.
   Sprint 3.11: opening a dump again refreshes its row in place (`SnapshotItemViewModel.Reload`, `SnapshotsViewModel.ShowOpened`)
   and runs Compare and Trend again when they use it (`CompareViewModel.Reopened`, `TrendViewModel.Reopened`); `InfoTexts` and
@@ -354,7 +355,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   since 3.8] and `phase2-indices`,
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache
   (build, sidecar write, reopen in both modes) [2.1]; `retention`, the root path tree, key paths and object searches of
-  a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `dominators`, the reverse index and
+  a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `live-stacks`, its call stack gate, and `dump-kinds`, how long each snapshot stops a process [4.3]; `dominators`, the reverse index and
   dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread);
   `ui-stalls` (WPR recordings of the UI split by cause, `UiStallAttribution`, tested in tests/HeapScope.Benchmarks.Tests)
   and `cpu-profile` (where a process's busiest thread spent a recording) [3.12].
@@ -377,13 +378,18 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   sample its time, innermost stack node, type and bytes; `NoStackFrame`, unnamed frames labeled
   `[unresolved frame in <module>]`). Loaders.Trace: `TraceFileCheck` (what a trace states must
   fit in it; `TraceCheckResult` says what was walked), `TraceReads` (the calls into TraceEvent, so its errors are told from
-  HeapScope's) and `TraceSample` [4.2.1]; `AllocationTraceReader` (the `Nettrace` signature checked first,
+  HeapScope's) and `TraceSample` [4.2.1]; a trace while it is recorded [4.3]: `LiveTraceReader` (a thread that follows the file),
+  `LiveTraceStream` (only whole checked objects), `EventStackReader` (call stacks from TraceEvent's record), `LiveAllocations` and
+  `LiveAllocationLimits` (what is kept, bounded), `LiveMethodNames` and `LiveTraceView`; `AllocationTraceReader` (the `Nettrace` signature checked first,
   TraceEvent's `.etlx` written to a private folder (section 12) and deleted, every frame kept, unnamed ones labeled and
-  counted, cancellation). Analysis: `Allocations/AllocationProfile` (sample
+  counted, cancellation). Analysis: `Allocations/AllocationJoin` (sampled allocations joined to a diff's types) [4.4] and
+  `Allocations/AllocationProfile` (sample
   ranges by binary search, the timeline, types, totals, top stacks, a stack's frames) and `AllocationTreeRows` (the call
   tree and back traces flattened from open keys like ADR-027, with `AllocationRow`, `AllocationTreeView`,
-  `AllocationFilter`). Worker: `Traces/TraceStore` (open traces, a memory reservation while reading,
+  `AllocationFilter`). Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
   `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource`. Application:
+  `Allocations/AllocatedBetween` (which run's trace lies between two snapshots, or why none does), `DiffAllocations` and
+  `AllocationsUnavailableException` (the trace of a question about snapshots cannot be used) [4.4] and
   `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, and
   `StartRecord`, which records into the current session's folder and opens the trace). UI.ViewModels:
   `AllocationsViewModel` (the page), `AllocationTraceViewModel` (a trace: interval, type, stacks), `AllocationTypesViewModel`,

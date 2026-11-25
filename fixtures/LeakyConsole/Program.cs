@@ -26,7 +26,7 @@ using Fixtures.Leaks;
 
 // Usage: LeakyConsole [--leak all|none|Name1,Name2] [--detected all|none|Name] [--count N] [--payload BYTES] [--publishers N]
 //                     [--semantics N] [--runtime-semantics N] [--late-garbage N] [--inspection] [--waste]
-//                     [--retention-patterns N]
+//                     [--retention-patterns N] [--handles-under-load N]
 //                     [--parent-pid PID]
 // Leaks the requested items, prints "READY pid=<pid>" and waits until killed (or until the parent exits), so a test
 // can capture a dump. Late garbage is created after the last full collection, so it is present but unreachable.
@@ -37,6 +37,7 @@ var semantics = IntArg("--semantics", 0);
 var runtimeSemantics = IntArg("--runtime-semantics", 0);
 var lateGarbage = IntArg("--late-garbage", 0);
 var retentionPatterns = IntArg("--retention-patterns", 0);
+var handlesUnderLoad = IntArg("--handles-under-load", 0);
 ParentWatch.ExitWhenParentExits(Arg("--parent-pid") is { } parent ? int.Parse(parent, CultureInfo.InvariantCulture) : null);
 if (Arg("--publishers") is { } publishers)
 {
@@ -77,6 +78,11 @@ if (runtimeSemantics > 0)
 if (retentionPatterns > 0)
 {
     RetentionPatternFixtures.Create(retentionPatterns);
+}
+
+if (handlesUnderLoad > 0)
+{
+    Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"HANDLES {HandleFixtures.Create(handlesUnderLoad)}"));
 }
 
 if (args.Contains("--inspection"))

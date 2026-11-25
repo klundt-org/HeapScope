@@ -271,6 +271,14 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             grid.Columns.Single(c => Equals(c.Tag, ColumnGroups.Identity) && c.SortMemberPath == "NewObjects").IsVisible.ShouldBeTrue();
             grid.Columns.Where(c => Equals(c.Tag, ColumnGroups.Retained)).ShouldAllBe(c => !c.IsVisible);
 
+            // Sprint 4.4: the box is there, and its columns wait for a recorded run.
+            window.GetVisualDescendants().OfType<CheckBox>().Single(b => b.Name == "AllocatedBox").IsVisible.ShouldBe(compare.OffersAllocated);
+            grid.Columns.Where(c => Equals(c.Tag, ColumnGroups.Allocated)).Select(c => (c.SortMemberPath, c.IsVisible)).ShouldBe([("AllocatedBytes", false), ("AllocatedSamples", false)]);
+            compare.AllocatedShown = true;
+            Dispatcher.UIThread.RunJobs();
+            grid.Columns.Where(c => Equals(c.Tag, ColumnGroups.Allocated)).ShouldAllBe(c => c.IsVisible);
+            grid.ContextMenu!.Items.OfType<MenuItem>().ShouldContain(i => Equals(i.Header, "Show where it was allocated"));
+
             compare.IsTrendShown = true;
             await compare.Trend.QueryTask;
             await Settle(compare.Trend.Rows);
@@ -494,6 +502,61 @@ public sealed class ViewTests(UiSession ui) : IDisposable
         });
     }
 
+    /// <summary>Sprint 4.3: the live allocations take their place below the chart, with their bars, types and stacks, and bind cleanly.</summary>
+    [Fact]
+    public async Task The_live_page_shows_what_the_process_allocates_below_the_chart()
+    {
+        await ui.RunAsync(() =>
+        {
+            var capture = new FakeCaptureService(_folder, new JobTracker(TimeProvider.System));
+            var live = new LiveViewModel(new MonitorService(capture, new SyntheticCounterSource(0, perSecond: 1)), capture, ImmediateUiDispatcher.Instance);
+            ui.ClearBindingErrors();
+            var page = new LivePage { DataContext = live };
+            var window = new Window { Content = page, Width = 1200, Height = 900 };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var panel = page.FindControl<Border>("LiveAllocationsPanel").ShouldNotBeNull();
+            panel.IsVisible.ShouldBeFalse("only for a run that records");
+
+            live.Allocations.IsShown = true;
+            live.Allocations.Summary = "About 400 B";
+            live.Allocations.Delay = "These figures are 4 s behind the process.";
+            live.Allocations.Buckets = [new(0, 300, 3), new(1, 100, 1)];
+            live.Allocations.DurationSeconds = 2;
+            live.Allocations.Types.Add(new LiveTypeItem("System.Byte[]"));
+            live.Allocations.ShowStacks = true;
+            live.Allocations.Stacks.Add(new AllocationStackItem(1, 300, 75, 3, ["App.Grow", "App.Main"]));
+            Dispatcher.UIThread.RunJobs();
+
+            // Figures that change the order change the rows shown, and the selected row stays the user's.
+            var types = live.Allocations.Types;
+            foreach (var name in new[] { "B", "C" })
+            {
+                types.Add(new LiveTypeItem(name));
+            }
+
+            live.Allocations.SelectedType = types[2];
+            Dispatcher.UIThread.RunJobs();
+            var grid = page.FindControl<DataGrid>("LiveTypesGrid").ShouldNotBeNull();
+            string[] Shown() => [.. grid.GetVisualDescendants().OfType<DataGridRow>().Where(r => r.IsVisible).OrderBy(r => r.Bounds.Y).Select(r => ((LiveTypeItem)r.DataContext!).Name)];
+            Shown().ShouldBe(["System.Byte[]", "B", "C"]);
+            live.Allocations.ShowTypes([("C", 30, 3), ("System.Byte[]", 20, 2), ("B", 10, 1)], 60);
+            Dispatcher.UIThread.RunJobs();
+            Shown().ShouldBe(["C", "System.Byte[]", "B"]);
+            (live.Allocations.SelectedType?.Name, ((LiveTypeItem?)grid.SelectedItem)?.Name).ShouldBe(("C", "C"));
+
+            panel.Bounds.Height.ShouldBe(300);
+            window.GetVisualDescendants().OfType<Controls.TimelineChart>().ShouldHaveSingleItem().Bounds.Height.ShouldBeGreaterThan(100, "the chart keeps its place");
+            page.FindControl<Controls.AllocationTimeline>("LiveAllocationTimeline").ShouldNotBeNull().Bounds.Width.ShouldBeGreaterThan(500);
+            panel.GetVisualDescendants().OfType<DataGrid>().Select(g => g.Name).ShouldBe(["LiveTypesGrid", "LiveStacksGrid"]);
+            page.FindControl<TextBlock>("LiveDelay").ShouldNotBeNull().IsEffectivelyVisible.ShouldBeTrue();
+            window.GetVisualDescendants().OfType<Controls.InfoIcon>().Where(i => i.IsEffectivelyVisible).Select(i => i.Text).ShouldContain(InfoTexts.LiveAllocations);
+            ui.BindingErrors.ShouldBeEmpty();
+            window.Close();
+            return Task.CompletedTask;
+        });
+    }
+
     /// <summary>A refused run lasts milliseconds: the page must keep saying why, with no prompt to choose a process under it.</summary>
     [Fact]
     public async Task The_live_page_shows_a_warning_in_place_of_the_empty_prompt()
@@ -510,7 +573,7 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             var empty = window.GetVisualDescendants().OfType<Controls.EmptyState>().ShouldHaveSingleItem();
             (warning.IsEffectivelyVisible, empty.IsVisible, empty.Text).ShouldBe((false, true, PlatformHints.LiveEmpty));
 
-            live.RunWarning = "Refused.";
+            live.Shown.RunWarning = "Refused.";
             Dispatcher.UIThread.RunJobs();
 
             (warning.IsEffectivelyVisible, warning.Text, empty.IsVisible).ShouldBe((true, "Refused.", false));

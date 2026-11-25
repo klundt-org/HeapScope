@@ -49,7 +49,8 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<IUserInteraction>(),
             sp.GetService<ILoggerFactory>(),
             sp.GetService<HeapScope.Application.Bookmarks.BookmarkStore>(),
-            sp.GetService<SessionLibrary>()));
+            sp.GetService<SessionLibrary>(),
+            sp.GetRequiredService<AllocationsViewModel>()));
         services.AddSingleton(sp => new HomeViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<SnapshotsViewModel>(),
@@ -85,7 +86,8 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<IUiDispatcher>(),
             sp.GetService<ILogger<LiveViewModel>>(),
             sp.GetRequiredService<IUserInteraction>(),
-            sp.GetRequiredService<AllocationsViewModel>()));
+            sp.GetRequiredService<AllocationsViewModel>(),
+            sp.GetService<HeapScope.Application.Allocations.AllocationSession>()));
         services.AddSingleton(sp => new GridExportService(
             sp.GetRequiredService<IUserInteraction>(),
             sp.GetService<ILogger<GridExportService>>()));

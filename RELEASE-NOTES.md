@@ -9,6 +9,7 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 | Version | Released |
 |---|---|
+| 4.5.0 | 2026-11-25, `v4.5.0` |
 | 4.2.1 | 2026-11-24, `v4.2.1` |
 | 4.2.0 | 2026-11-24, `v4.2.0` |
 | 3.13.2 | 2026-11-20, `v3.13.2` |
@@ -20,6 +21,39 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 | 2.2.0 | 2026-10-25, `v2.2.0` |
 
 Everything else was built on `develop` and first shipped in the next release above it.
+
+## 4.5.0: GC handles of Server GC processes (sprint 4.5)
+
+- **Wrong until now**: in full dumps of Server GC processes with fewer heaps than processors (most ASP.NET Core services, since
+  the heap count changes by itself on .NET 9 and 10), objects held only by a GC handle could look unreachable, and so could
+  everything they hold: they retained nothing, why alive found no path, and leak detectors left them out. This was so in every
+  version. HeapScope now reads all handles, and rebuilds its index cache when you open such a dump again.
+- **When it cannot tell** whether it has all handles, a note says so, unreachable objects are not listed, and nothing is called garbage.
+- **Show in folder** starts Explorer, or Finder, by its full path. Before, a program named explorer.exe in the current folder could
+  run instead.
+- **Limit**: tested on .NET 10 only. Older caches opened without the dump's runtime (DAC) still lack them, and a note says so.
+
+## 4.4.0: Allocated between two snapshots (sprint 4.4)
+
+- **What was allocated between two snapshots**: when both were captured while one run on the Live page recorded allocations, tick
+  Allocated between in Compare. Each row says about how many bytes of its types were allocated between the two, collected objects
+  included, and "Show where it was allocated" opens the Allocations page at that time and type. On the command line:
+  `diff --allocated`.
+- **Gcdumps beside a recording have their types**: every gcdump but the first that was captured while a trace was recorded had types
+  without a name.
+- **A new lesson**, What was allocated between two snapshots, with its scenario in the sample.
+- **Limits**: the figures are estimates from samples. Types without an object in either snapshot have no row; a note says their bytes.
+  A gcdump is matched by type name only, and a name several types share has no row.
+
+## 4.3.0: Live allocations (sprint 4.3)
+
+- **What a process allocates, while it runs**: with Record allocations ticked, the Live page shows below its chart the bytes allocated
+  over time, the types that allocated most, and on demand the call stacks. Drag across the bars to choose an interval. The figures
+  are usually less than a second behind the process, and the trace is recorded as before.
+- **A recording that ends by an error is kept** up to there.
+- **A new lesson**, What a burst allocates, with its scenario in the sample.
+- **Limit**: in a run of more than half an hour the bars stand for longer stretches, and an interval is counted in whole ones. The
+  finished trace has every sample.
 
 ## 4.2.1: Damaged gcdumps and traces (sprint 4.2.1)
 

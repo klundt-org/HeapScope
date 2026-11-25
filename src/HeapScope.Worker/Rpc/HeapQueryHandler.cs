@@ -24,9 +24,11 @@
 using System.Diagnostics;
 using System.Globalization;
 using HeapScope.Analysis;
+using HeapScope.Analysis.Allocations;
 using HeapScope.Contracts;
 using HeapScope.Core;
 using HeapScope.Worker.Snapshots;
+using HeapScope.Worker.Traces;
 using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Rpc;
@@ -42,6 +44,7 @@ internal sealed class HeapQueryHandler(
     DerivedQueries derived,
     IdentityMatcher identities,
     ObjectSetResolver resolver,
+    TraceStore traces,
     ILogger<HeapQueryHandler> logger) : RpcHandler(logger), IHeapQueryService
 {
     /// <summary>Array elements listed when an object is inspected (more are summarized in one row).</summary>
@@ -172,7 +175,7 @@ internal sealed class HeapQueryHandler(
                 currentInterfaces = await derived.GetInterfacesAsync(request.CurrentId, current, progress, cancellationToken, "the current snapshot").ConfigureAwait(false);
             }
 
-            var (extras, comparison) = await DiffExtrasAsync(request, baseline, current, progress, cancellationToken).ConfigureAwait(false);
+            var (extras, comparison) = await DiffExtrasAsync(request, baseline, baselineAggregation, current, currentAggregation, progress, cancellationToken).ConfigureAwait(false);
             var source = await Task.Run(
                 () => TypeDiffSource.Create(baseline.Graph, baselineAggregation, current.Graph, currentAggregation, request, baseline.Info.Kind, current.Info.Kind, baselineInterfaces, currentInterfaces, extras),
                 cancellationToken).ConfigureAwait(false);
@@ -200,7 +203,8 @@ internal sealed class HeapQueryHandler(
                     ? [.. TypeSummarySource.KindColumns.Select(k => new HeapKindTotal(k.ToDto(), currentAggregation.KindObjects[(int)k] - baselineAggregation.KindObjects[(int)k], (long)currentAggregation.KindBytes[(int)k] - (long)baselineAggregation.KindBytes[(int)k]))]
                     : null,
                 comparison.BaselineDominators,
-                comparison.CurrentDominators);
+                comparison.CurrentDominators,
+                comparison.Allocations);
         });
 
     public Task<TypeTrendResult> QueryTypeTrendAsync(TypeTrendRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
@@ -441,7 +445,14 @@ internal sealed class HeapQueryHandler(
     /// What a diff adds (decisions 1 to 5): object matches when asked and possible, retained bytes when asked, per-kind bytes
     /// when both snapshots have generations. The caller holds both snapshots' leases.
     /// </summary>
-    private async Task<(DiffExtras Extras, Comparison Comparison)> DiffExtrasAsync(TypeDiffRequest request, ISnapshot baseline, ISnapshot current, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
+    private async Task<(DiffExtras Extras, Comparison Comparison)> DiffExtrasAsync(
+        TypeDiffRequest request,
+        ISnapshot baseline,
+        TypeAggregation baselineAggregation,
+        ISnapshot current,
+        TypeAggregation currentAggregation,
+        IProgress<JobProgress>? progress,
+        CancellationToken cancellationToken)
     {
         // Refused before any work (the 3.3 review).
         if (request.IncludeRetained && request.GroupBy == TypeGrouping.Interface)
@@ -450,6 +461,12 @@ internal sealed class HeapQueryHandler(
         }
 
         var comparison = new Comparison();
+        AllocationJoin? allocated = null;
+        if (request.Allocations is { } scope)
+        {
+            (allocated, comparison.Allocations) = await AllocatedAsync(scope, request, baseline, baselineAggregation, current, currentAggregation, progress, cancellationToken).ConfigureAwait(false);
+        }
+
         long[]? newPerType = null, deadPerType = null;
         if (request.MatchObjects)
         {
@@ -508,7 +525,111 @@ internal sealed class HeapQueryHandler(
         }
 
         var kinds = baseline.Capabilities.HasFlag(SnapshotCapabilities.Generations) && current.Capabilities.HasFlag(SnapshotCapabilities.Generations);
-        return (new DiffExtras { NewPerCurrentType = newPerType, DeadPerBaselineType = deadPerType, BaselineRetained = baselineRetained, CurrentRetained = currentRetained, Kinds = kinds }, comparison);
+        return (new DiffExtras { NewPerCurrentType = newPerType, DeadPerBaselineType = deadPerType, BaselineRetained = baselineRetained, CurrentRetained = currentRetained, Kinds = kinds, Allocated = allocated }, comparison);
+    }
+
+    /// <summary>
+    /// The sampled allocations of the interval between the heaps, joined to the two snapshots' types (sprint 4.4). The trace must be
+    /// of the snapshots' process where both say which that is; the front end vouches for the rest (one monitoring run).
+    /// </summary>
+    private async Task<(AllocationJoin Join, DiffAllocationInfo Info)> AllocatedAsync(
+        DiffAllocationScope scope,
+        TypeDiffRequest request,
+        ISnapshot baseline,
+        TypeAggregation baselineAggregation,
+        ISnapshot current,
+        TypeAggregation currentAggregation,
+        IProgress<JobProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (traces.IsLive(scope.TraceId))
+        {
+            throw new RequestRefusedException("This trace is still being recorded. Its allocations can be compared when the recording has ended.");
+        }
+
+        var open = traces.TryGet(scope.TraceId) ?? throw AllocationTraceHandler.NotLoaded(scope.TraceId);
+        var info = open.Trace.Info;
+        var start = new DateTimeOffset(DateTime.SpecifyKind(info.StartUtc, DateTimeKind.Utc));
+        var (asked, until) = ((scope.FromUtc - start).TotalMilliseconds, (scope.ToUtc - start).TotalMilliseconds);
+
+        // An interval is half open: the last event of a recording is in one that reaches past its end.
+        var (from, to) = (Math.Max(0, asked), until >= info.DurationMs ? Math.Max(0, info.DurationMs) + 1 : until);
+        var question = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{request.BaselineId} and {request.CurrentId}: trace {scope.TraceId} ({open.Path}) of process {info.ProcessId}, recorded from {start:O} for {info.DurationMs / 1000:F3} s, asked {scope.FromUtc:O} to {scope.ToUtc:O} ({asked / 1000:F3} s to {until / 1000:F3} s of it)");
+        foreach (var (snapshot, side) in new[] { (baseline.Info, "baseline"), (current.Info, "current snapshot") })
+        {
+            if (info.ProcessId != 0 && snapshot.ProcessId is { } pid && pid != 0 && pid != info.ProcessId)
+            {
+                Logger.LogInformation("Allocations between {Question}: refused, the {Side} is of process {ProcessId}", question, side, pid);
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The allocation trace is of process {info.ProcessId}, and the {side} is of process {pid}: allocations can be compared for one process only."));
+            }
+        }
+
+        if (until <= asked)
+        {
+            Logger.LogInformation("Allocations between {Question}: refused, the heaps are of the same moment", question);
+            throw new RequestRefusedException("The two snapshots are of the same moment, so nothing was allocated between them. Choose two different ones.");
+        }
+
+        if (asked > info.DurationMs || until <= 0)
+        {
+            Logger.LogInformation("Allocations between {Question}: refused, the recording does not lie between them", question);
+            throw new RequestRefusedException(until <= 0
+                ? string.Create(CultureInfo.InvariantCulture, $"The recording started {-until / 1000:N1} s after the later snapshot, so it has nothing that was allocated between the two. Capture both while the run records.")
+                : string.Create(CultureInfo.InvariantCulture, $"The recording ended {(asked - info.DurationMs) / 1000:N1} s before the earlier snapshot (the process exited, or the trace reached its size limit), so it has nothing that was allocated between the two. Capture both while the run records."));
+        }
+
+        progress?.Report(new JobProgress("Adding up the allocations between the snapshots", 0, null));
+        var (types, join) = await Task.Run(
+            () =>
+            {
+                var allocated = AllocationJoin.Types(open.Trace, new AllocationFilter(from, to), cancellationToken);
+
+                // Only a gcdump is joined by name.
+                var shared = baseline.Info.Kind == SnapshotKind.GcDump || current.Info.Kind == SnapshotKind.GcDump ? open.SharedNames : new HashSet<string>();
+                return (allocated, AllocationJoin.Join(allocated, shared, baseline.Graph, baselineAggregation, current.Graph, currentAggregation, cancellationToken));
+            },
+            cancellationToken).ConfigureAwait(false);
+        var totals = join.Totals;
+        Logger.LogInformation(
+            "Allocations between {Question}: counted {From:F3} s to {To:F3} s, {Samples} samples of {Bytes} bytes in {Types} types (by name and method table); joined by method table {ByTable} bytes, by name {ByName} bytes; names several types share {Shared} bytes (largest {TopShared}); types without an object {Absent} bytes in {AbsentTypes} types (largest {TopAbsent}), of them {OtherType} bytes of method tables that are another type's in the dumps (largest {TopOther}); {Unnamed} gcdump types without a name; {Lost} lost events, {Issues} conversion problems",
+            question,
+            from / 1000,
+            to / 1000,
+            totals.Samples,
+            totals.Bytes,
+            types.Count,
+            totals.ByMethodTable,
+            totals.ByName,
+            totals.SharedName,
+            Describe(totals.TopShared),
+            totals.Absent,
+            totals.AbsentTypes,
+            Describe(totals.TopAbsent),
+            totals.OtherType,
+            string.Join("; ", totals.TopOtherType.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Type.Name} as {t.Snapshot} at 0x{t.Type.MethodTable:x} {t.Type.Bytes} bytes"))),
+            totals.UnnamedTypes,
+            info.LostEvents,
+            info.ConversionIssues);
+        return (join, new DiffAllocationInfo(
+            from / 1000,
+            to / 1000,
+            asked / 1000,
+            until / 1000,
+            info.DurationMs / 1000,
+            totals.Samples,
+            totals.Bytes,
+            totals.ByMethodTable + totals.ByName,
+            totals.Absent,
+            totals.AbsentTypes,
+            totals.SharedName,
+            info.LostEvents,
+            totals.ByName,
+            totals.UnnamedTypes,
+            info.ConversionIssues));
+
+        static string Describe(IReadOnlyList<AllocatedType> largest) => string.Join("; ", largest.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Name} at 0x{t.MethodTable:x} {t.Bytes} bytes")));
     }
 
     private void LogDiff(TypeDiffRequest request, Comparison comparison, TypeDiffSource source) =>
@@ -546,5 +667,7 @@ internal sealed class HeapQueryHandler(
         public DominatorIndexInfo? BaselineDominators { get; set; }
 
         public DominatorIndexInfo? CurrentDominators { get; set; }
+
+        public DiffAllocationInfo? Allocations { get; set; }
     }
 }

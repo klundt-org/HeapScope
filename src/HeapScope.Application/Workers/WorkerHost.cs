@@ -461,6 +461,12 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             info.ArgumentList.Add("true");
         }
 
+        if (!_options.SecondHandleWalk)
+        {
+            info.ArgumentList.Add("--second-handle-walk");
+            info.ArgumentList.Add("false");
+        }
+
         if (_options.WorkerLogLevel != LogLevel.Information)
         {
             info.ArgumentList.Add("--log-level");

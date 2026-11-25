@@ -63,6 +63,15 @@ public class WorkerOptionsTests
     }
 
     [Fact]
+    public void The_second_handle_walk_is_on_unless_turned_off()
+    {
+        Read("--pipe", "p").SecondHandleWalk.ShouldBeTrue();
+        Read("--pipe", "p", "--second-handle-walk", "false").SecondHandleWalk.ShouldBeFalse();
+        WorkerOptions.TryRead(new ConfigurationBuilder().AddCommandLine(["--pipe", "p", "--second-handle-walk", "maybe"], WorkerOptions.CreateSwitchMappings()).Build(), enableTestHooks: false, out _, out var error).ShouldBeFalse();
+        error.ShouldNotBeNull().ShouldContain("--second-handle-walk");
+    }
+
+    [Fact]
     public void Without_a_data_folder_the_worker_uses_the_default()
     {
         var options = Read("--pipe", "p");

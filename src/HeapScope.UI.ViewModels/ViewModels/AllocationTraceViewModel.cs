@@ -158,6 +158,23 @@ public sealed partial class AllocationTraceViewModel : ObservableObject
         Refresh(types: true);
     }
 
+    /// <summary>Shows an interval, of one type or of every type (a step from another page, sprint 4.4).</summary>
+    public void Narrow(TimeInterval interval, string? typeName)
+    {
+        ArgumentNullException.ThrowIfNull(interval);
+        TypeName = typeName;
+        Types.SelectedRow = null;
+        if (Selection == interval)
+        {
+            using var activity = Act("narrow to the type {0}", typeName ?? "every type");
+            Refresh(types: false);
+        }
+        else
+        {
+            Selection = interval;
+        }
+    }
+
     partial void OnSelectionChanged(TimeInterval? value)
     {
         // A click without a drag is no interval: the whole trace (the 2.5 review).

@@ -120,7 +120,8 @@ public sealed class LiveWorkflowTests
 
         // Until the session has started there is nothing to stop but the start (MonitorServiceTests), so wait for bytes, not for time.
         var folderOfRun = run.SessionFolder.ShouldNotBeNull();
-        await WaitUntilAsync(() => new DirectoryInfo(folderOfRun).EnumerateFiles("*.partial").Any(static f => new FileInfo(f.FullName).Length > 0));
+        await WaitUntilAsync(() => new DirectoryInfo(folderOfRun).EnumerateFiles("*.nettrace").Any(static f => new FileInfo(f.FullName).Length > 0),
+            () => $"trace {run.TracePath}, error {run.TraceError}, run ended {run.Completion.IsCompleted}, files {string.Join(", ", new DirectoryInfo(folderOfRun).EnumerateFiles().Select(static f => f.Name + " " + f.Length))}");
         run.Stop();
         await run.Completion;
 
@@ -130,12 +131,47 @@ public sealed class LiveWorkflowTests
         SessionLibrary.TryRead(run.SessionFolder!)!.Document.Runs!.Single().Trace.ShouldBe(Path.GetFileName(trace));
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
+    /// <summary>Sprint 4.3: a process has one timer for its counters and the shortest interval wins, so a recording asks for the run's own.</summary>
+    [Fact]
+    public async Task A_recording_leaves_the_run_s_interval_as_it_is()
+    {
+        using var folder = new TempFolder();
+        using var api = await FixtureProcess.StartApiAsync();
+        var capture = new CaptureService(new ProcessDiscovery(), new DumpCapturer(), new SessionLibrary(folder.Path), new JobTracker(TimeProvider.System));
+        var at = new List<DateTimeOffset>();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var run = new MonitorService(capture).Start(api.ProcessId, new MonitorOptions(TimeSpan.FromSeconds(3), MonitorRules.None, RecordAllocations: true), r =>
+        {
+            r.TraceStarted += (_, _) => started.TrySetResult();
+            r.SampleReceived += (_, sample) =>
+            {
+                lock (at)
+                {
+                    at.Add(sample.Counters.At);
+                }
+            };
+        });
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        await WaitUntilAsync(() =>
+        {
+            lock (at)
+            {
+                return at.Count >= 4;
+            }
+        });
+        run.Stop();
+        await run.Completion;
+
+        // The first gap may hold the recording's start, which restarts the timer; a late sample makes one gap longer and the next shorter.
+        ((at[^1] - at[1]) / (at.Count - 2)).ShouldBeGreaterThan(TimeSpan.FromSeconds(2));
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, Func<string>? state = null)
     {
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
         while (!condition())
         {
-            DateTime.UtcNow.ShouldBeLessThan(deadline, "condition not met in time");
+            DateTime.UtcNow.ShouldBeLessThan(deadline, "condition not met in time: " + state?.Invoke());
             await Task.Delay(50, Ct);
         }
     }

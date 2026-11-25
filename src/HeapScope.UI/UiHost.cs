@@ -48,10 +48,12 @@ namespace HeapScope.UI;
 /// (sprint 1.7) and the run exits with the dispatcher checks.</param>
 /// <param name="SmokeAllocationsPath">With <c>--smoke-open</c>, an allocations trace to show on the Allocations page (sprint 2.5).</param>
 /// <param name="ScreenshotFolder">With <c>--headless</c> (<c>--screenshots folder</c>), saves each page as PNG files (<see cref="Smoke.ScreenshotRunner"/>).</param>
+/// <param name="SmokeLiveProcess">When set (<c>--smoke-live-process pid</c>), the Live page watches this process for real and records its allocations
+/// (sprint 4.3), under a data folder of its own, and the run exits with the dispatcher checks.</param>
 /// <param name="ScreenshotLivePid">With <c>--screenshots</c> (<c>--screenshot-live-pid N</c>), the Live page's picture watches this process for real.</param>
-public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null, string? ScreenshotFolder = null, int? ScreenshotLivePid = null)
+public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null, string? ScreenshotFolder = null, int? ScreenshotLivePid = null, int? SmokeLiveProcess = null)
 {
-    public bool IsSmokeRun => SmokeSyntheticObjects is not null || SmokeOpenPath is not null || SmokeLiveSamples is not null || ScreenshotFolder is not null;
+    public bool IsSmokeRun => SmokeSyntheticObjects is not null || SmokeOpenPath is not null || SmokeLiveSamples is not null || SmokeLiveProcess is not null || ScreenshotFolder is not null;
 }
 
 /// <summary>Builds the generic host (DI, configuration, logging) for the app.</summary>
@@ -98,7 +100,8 @@ internal static class UiHost
             smokeLive is null ? null : int.Parse(smokeLive, NumberStyles.None, CultureInfo.InvariantCulture),
             builder.Configuration["smoke-allocations"],
             builder.Configuration["screenshots"],
-            builder.Configuration["screenshot-live-pid"] is { } livePid ? int.Parse(livePid, NumberStyles.None, CultureInfo.InvariantCulture) : null);
+            builder.Configuration["screenshot-live-pid"] is { } livePid ? int.Parse(livePid, NumberStyles.None, CultureInfo.InvariantCulture) : null,
+            builder.Configuration["smoke-live-process"] is { } watched ? int.Parse(watched, NumberStyles.None, CultureInfo.InvariantCulture) : null);
         builder.Services.AddSingleton(options);
 
         builder.Services.AddSingleton<IUiDispatcher>(new AvaloniaUiDispatcher(dispatcher));
@@ -106,7 +109,7 @@ internal static class UiHost
             dispatcher, sp.GetRequiredService<ILogger<DispatcherWatchdog>>(), options.IsSmokeRun ? DispatcherWatchdog.SmokeProbeInterval : null));
         builder.Services.AddSingleton<IUserInteraction>(sp => options.IsSmokeRun
             ? new AutomaticUserInteraction()
-            : new AvaloniaUserInteraction(() => sp.GetService<MainWindow>()));
+            : new AvaloniaUserInteraction(() => sp.GetService<MainWindow>(), sp.GetService<ILogger<AvaloniaUserInteraction>>()));
         builder.Services.AddHeapScopeViewModels();
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<ViewPrewarmer>();

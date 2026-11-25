@@ -79,7 +79,8 @@ dotnet test --solution HeapScope.sln
   method (the package's commit may not be public), above all everything in EventPipe reading; what both read from sound
   traces and from thousands of damaged copies, by hash; the `allocations` benchmark; running out of memory under
   `DOTNET_GCHeapHardLimit` (the conversion's words are matched); and the gate, whose integration tests capture a gcdump,
-  watch counters and trigger a collection. Record it in the sprint's review file (`docs/reviews/sprint-4.2.1.md` is the
+  watch counters and trigger a collection, and (4.3) read call stacks while recording: `EventStackReader` checks the layout of
+  TraceEvent's event record, and a changed one gives no stacks, which `LiveTraceStreamTests` fails on. Record it in the sprint's review file (`docs/reviews/sprint-4.2.1.md` is the
   first). The check's comment, the notices and the table in ARCHITECTURE.md name the version.
 - GitHub Actions are pinned by full commit hash (sprint 3.7), and since 2026-11-17 the repository requires it (Settings,
   Actions: "Require actions to be pinned to a full-length commit SHA"), so an action named by tag or branch fails the run.
@@ -155,7 +156,10 @@ dotnet test --solution HeapScope.sln
   gates on one heap kind's growth (with a size; a percent there exits 64), and `--fail-on-growth-per-row` checks each
   matching row on its own (a percent against that row's baseline bytes) and lists the rows over it. Both read every
   matching row; the gate's log line names each row over its limit with its baseline and limit. `--sort new|dead` needs
-  `--match-objects` and `--sort retained-delta` needs `--retained` (exit 64). `trend <dump> <dump> [<dump>...] [--group] [--filter] [--sort bytes-delta|count-delta|growth-steps|name]
+  `--match-objects` and `--sort retained-delta` needs `--retained` (exit 64). Since 4.4: `--allocated` adds what was allocated of each row
+  between the two snapshots, estimated from the allocation trace of the monitoring run during which both were captured (found in their
+  session; exit 1 with the reason when there is none), with `--sort allocated`; stderr has the totals and an `allocations` command line for
+  the interval. `trend <dump> <dump> [<dump>...] [--group] [--filter] [--sort bytes-delta|count-delta|growth-steps|name]
   [--top N | --all] [--format table|csv|json]` puts 2 to 20 dumps side by side, oldest first: bytes in each, the change
   first to last, and the steps a row grew in (dumps of one kind only; a dump given twice exits 64).
   `instances <dump> --type <name> [--module <file>] [--filter <0xprefix|/regex/|text>] [--sort bytes|address|generation|value|retained]
@@ -240,6 +244,10 @@ dotnet test --solution HeapScope.sln
   downloads and logs a warning. Both reach the worker on its command line only.
 - Worker GC heaps: half the logical processors by default, so the worker cannot starve the UI; override with
   `--Worker:GcHeapCount <n>` (UI), the `Worker__GcHeapCount` environment variable, or `DOTNET_GCHeapCount` (hexadecimal).
+- A Server GC dump that ends the worker while its GC handles are read: `--Worker:SecondHandleWalk false` (UI) or `Worker__SecondHandleWalk=false`
+  loads it without the second walk (ADR-010); its handles then count as not checked, also after the walk is on
+  again, until `heapscope-cli open <dump> --rebuild`. A ClrMD or runtime upgrade must pass
+  `HandleTablesTests` and `build/check-handles.sh`.
 - Run the worker standalone (for debugging): `dotnet run --project src/HeapScope.Worker -- --pipe <name>`
   (without `--parent-pid` it does not watch a parent; add `--enable-test-hooks` for the crash and hang hooks).
   Attach a client with `dotnet run --project src/HeapScope.Cli -- worker ping --pipe <name>`, or set
@@ -256,6 +264,8 @@ dotnet test --solution HeapScope.sln
   `retainers`, `11-compare` as `compare` and `13-live` as `live`, each with `-light` and `-dark`.
 - Live smoke run: `HeapScope --smoke-live 1800` charts 1,800 made-up samples on the Live page as fast as it can
   (no process, no timeline file) and exits with the same codes as the other smoke runs.
+  `HeapScope --smoke-live-process <pid>` (4.3) watches a real .NET process for 30 s, records its allocations and checks the
+  Live page's allocations and call stacks. It records into a session, so it needs `HEAPSCOPE_DATA_FOLDER`.
 - UI smoke run: `HeapScope --smoke-synthetic 5000000` runs a synthetic job, checks dispatcher lag and exits
   (0 ok, 3 lag over the gate, 4 job failed, 5 the first window took over 30 s, 6 a grid walked its whole row list);
   details in ARCHITECTURE.md 8. `HeapScope --smoke-open <dump>`
@@ -315,7 +325,13 @@ dotnet test --solution HeapScope.sln
   heaviest methods, inclusive and at the leaf.
 - Live sources (sprint 3.8, ADR-037): `dotnet run -c Release --project perf/HeapScope.Benchmarks -- live-tail --seconds
   10` records an allocating copy of itself and reads the trace file while it grows, reporting events read and lost,
-  the delay to the reader and its memory.
+  the delay to the reader and its memory. `live-stacks` (sprint 4.3; `--seconds`, `--pause-every`, `--depth`, `--stacks no`)
+  reads it in a process of its own, folds call stacks and compares them with TraceLog's for the finished file; set
+  `DOTNET_gcServer=0` for the memory figures. `--pid` reads another process, `--idle-ms 3000` makes the target idle between
+  seconds of work, `--counters-s 1` adds a counter to the session, `--cold-ms 5000` starts the target cold,
+  and `--keep <folder>` keeps the trace. `dump-kinds --cli <heapscope-cli.exe> --folder <folder>`
+  (`--mb 1000`, `--runs 5`) says how long a full dump, a heap-only dump and a gcdump stop a process; set
+  `HEAPSCOPE_DATA_FOLDER` for it.
 - Hybrid CPUs: when measuring UI responsiveness, remember Windows may put a background window's threads on efficiency
   cores. HeapScope's UI opts out (ADR-019); pinning a process (`ProcessorAffinity`) to performance or efficiency cores
   is how that was proven.
@@ -335,6 +351,8 @@ dotnet test --solution HeapScope.sln
   When a run stops, a row shows its timeline file with Open (the system's app for CSV), Show in folder (Explorer and
   Finder select the file; elsewhere the folder opens) and Delete (asks first; the run's snapshots are kept). The log
   says which was used and how it went, never the path.
+  With Record allocations ticked (sprint 4.3) a panel below the chart shows what the process allocates as it does: bars over
+  time, where dragging chooses an interval, the interval's types, and call stacks on demand.
   Since 3.4: Get snapshot captures the process now as one of the run's snapshots; Force GC asks first (the target
   pauses, finalizers do not run), then runs a full blocking collection in it (a dotted line on the chart, only when its
   end was seen; .NET 5 or later); "Record allocations" records an allocation trace for the whole run, up to 1 GB or

@@ -129,6 +129,42 @@ public sealed class DumpCapturerTests : IDisposable
         File.Exists(dump + DumpCapturer.PartialSuffix).ShouldBeFalse();
     }
 
+    /// <summary>Sprint 4.4: the heap is as of the dump's last write, in the target's pause; a file that says less gives the answer's time.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_heap_s_time_is_the_dump_s_last_write(bool ownTime)
+    {
+        CaptureSupported();
+        DateTime written = default;
+        _writer.Behavior = async path =>
+        {
+            // File times can be a few milliseconds coarse (Linux).
+            await Task.Delay(50, Ct);
+            await File.WriteAllTextAsync(path, "MDMP", Ct);
+            if (!ownTime)
+            {
+                File.SetLastWriteTimeUtc(path, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            }
+
+            written = File.GetLastWriteTimeUtc(path);
+            await Task.Delay(50, Ct);
+        };
+        var started = DateTimeOffset.UtcNow;
+
+        var heap = await Capturer.CaptureAsync(Process(), Dump(), null, Ct);
+
+        if (ownTime)
+        {
+            (heap.Utc.UtcDateTime, heap.Source).ShouldBe((written, "the dump's last write"));
+        }
+        else
+        {
+            heap.Utc.ShouldBeGreaterThanOrEqualTo(started);
+            heap.Source.ShouldStartWith("the runtime's answer");
+        }
+    }
+
     [Fact]
     public async Task Canceling_waits_for_the_runtime_then_removes_the_whole_dump()
     {

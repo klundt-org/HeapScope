@@ -50,13 +50,13 @@ internal sealed class TypeDiffSource : IResultSource
     ];
 
     // Sprint 3.3: the optional columns, each with how it reads a row.
-    private static readonly (ResultColumn Column, Func<DiffRow, long> Value)[] s_matchColumns =
+    private static readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] s_matchColumns =
     [
         (new(TypeDiffColumns.NewObjects, ResultColumnKind.Integer), r => r.NewObjects ?? 0),
         (new(TypeDiffColumns.DeadObjects, ResultColumnKind.Integer), r => r.DeadObjects ?? 0),
     ];
 
-    private static readonly (ResultColumn Column, Func<DiffRow, long> Value)[] s_retainedColumns =
+    private static readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] s_retainedColumns =
     [
         (new(TypeDiffColumns.BaselineRetained, ResultColumnKind.Bytes, Bound: ValueBound.LowerBound), r => (long)(r.BaselineRetained ?? 0)),
         (new(TypeDiffColumns.CurrentRetained, ResultColumnKind.Bytes, Bound: ValueBound.LowerBound), r => (long)(r.CurrentRetained ?? 0)),
@@ -64,7 +64,7 @@ internal sealed class TypeDiffSource : IResultSource
         (new(TypeDiffColumns.RetainedDelta, ResultColumnKind.SignedInteger, Bound: ValueBound.Estimate), r => r.RetainedDelta ?? 0),
     ];
 
-    private static readonly (ResultColumn Column, Func<DiffRow, long> Value)[] s_kindColumns =
+    private static readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] s_kindColumns =
     [
         (new(TypeDiffColumns.Gen0Delta, ResultColumnKind.SignedInteger), r => r.KindDelta(HeapKind.Gen0)),
         (new(TypeDiffColumns.Gen1Delta, ResultColumnKind.SignedInteger), r => r.KindDelta(HeapKind.Gen1)),
@@ -73,23 +73,34 @@ internal sealed class TypeDiffSource : IResultSource
         (new(TypeDiffColumns.PohDelta, ResultColumnKind.SignedInteger), r => r.KindDelta(HeapKind.PinnedObjectHeap)),
     ];
 
+    // Sprint 4.4: empty for a row without a sample, which is not the same as nothing allocated.
+    private static readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] s_allocatedColumns =
+    [
+        (new(TypeDiffColumns.AllocatedBytes, ResultColumnKind.Bytes, Bound: ValueBound.Estimate), r => r.AllocatedBytes),
+        (new(TypeDiffColumns.AllocatedSamples, ResultColumnKind.Integer), r => r.AllocatedSamples),
+    ];
+
     private static readonly ResultColumn[] s_hiddenTypeColumns =
     [
         new(TypeDiffColumns.TypeName, ResultColumnKind.Text, IsHidden: true),
         new(TypeDiffColumns.Module, ResultColumnKind.Text, IsHidden: true),
     ];
 
+    private static readonly ResultColumn s_allocatedTypeColumn = new(TypeDiffColumns.AllocatedType, ResultColumnKind.Text, IsHidden: true);
+
     private readonly DiffRow[] _rows;
     private readonly bool _byType;
-    private readonly (ResultColumn Column, Func<DiffRow, long> Value)[] _extra;
+    private readonly bool _allocated;
+    private readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] _extra;
     private readonly ResultColumn[] _columns;
 
-    private TypeDiffSource(DiffRow[] rows, bool byType, int unfilteredCount, int newRows, int goneRows, (ResultColumn Column, Func<DiffRow, long> Value)[] extra)
+    private TypeDiffSource(DiffRow[] rows, bool byType, int unfilteredCount, int newRows, int goneRows, (ResultColumn Column, Func<DiffRow, long?> Value)[] extra)
     {
         _rows = rows;
         _byType = byType;
+        _allocated = byType && extra.Any(e => e.Column.Name == TypeDiffColumns.AllocatedBytes);
         _extra = extra;
-        _columns = [.. s_columns, .. extra.Select(e => e.Column), .. byType ? s_hiddenTypeColumns : []];
+        _columns = [.. s_columns, .. extra.Select(e => e.Column), .. byType ? s_hiddenTypeColumns : [], .. _allocated ? [s_allocatedTypeColumn] : Array.Empty<ResultColumn>()];
         UnfilteredCount = unfilteredCount;
         NewRows = newRows;
         GoneRows = goneRows;
@@ -134,11 +145,12 @@ internal sealed class TypeDiffSource : IResultSource
     {
         ArgumentNullException.ThrowIfNull(request);
         extras ??= new DiffExtras();
-        (ResultColumn Column, Func<DiffRow, long> Value)[] extra =
+        (ResultColumn Column, Func<DiffRow, long?> Value)[] extra =
         [
             .. extras.NewPerCurrentType is null ? [] : s_matchColumns,
             .. extras.BaselineRetained is null ? [] : s_retainedColumns,
             .. extras.Kinds ? s_kindColumns : [],
+            .. extras.Allocated is null ? [] : s_allocatedColumns,
         ];
         if (!Enum.IsDefined(request.GroupBy))
         {
@@ -160,7 +172,7 @@ internal sealed class TypeDiffSource : IResultSource
             .On(TypeDiffColumns.CurrentTypes, r => r.CurrentTypes);
         foreach (var (column, value) in extra)
         {
-            sort.On(column.Name, value);
+            sort.On(column.Name, row => value(row) ?? -1);
         }
 
         sort.Validate(sortColumn);
@@ -204,13 +216,18 @@ internal sealed class TypeDiffSource : IResultSource
         var next = 10;
         foreach (var (_, value) in _extra)
         {
-            cells[next++] = value(row).ToString(CultureInfo.InvariantCulture);
+            cells[next++] = value(row)?.ToString(CultureInfo.InvariantCulture);
         }
 
         if (_byType)
         {
             cells[next++] = row.TypeName;
-            cells[next] = row.Module;
+            cells[next++] = row.Module;
+        }
+
+        if (_allocated)
+        {
+            cells[next] = row.AllocatedType;
         }
     }
 

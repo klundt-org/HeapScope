@@ -35,8 +35,8 @@ namespace HeapScope.Integration.Tests;
 [Trait("Category", "Integration")]
 public sealed class LessonTests : IDisposable
 {
-    // Scenarios without a lesson (LessonCatalog.NoLesson) and the one checked by SampleTests' allocation trace.
-    private static readonly string[] s_checkedElsewhere = ["Inspection", "SteadyAllocation"];
+    // Scenarios without a lesson (LessonCatalog.NoLesson) and those SampleTests checks, with an allocation trace and a live one.
+    private static readonly string[] s_checkedElsewhere = ["Inspection", "SteadyAllocation", "AllocationBursts", "Churn"];
 
     private readonly TempFolder _root = new();
 

@@ -38,6 +38,7 @@ public sealed class UsageTests
         { ["diff", "a.dmp", "b.dmp", "--top", "0"], "--top must be 1 or more." },
         { ["diff", "a.dmp", "b.dmp", "--top", "3", "--all"], "Use either --top or --all, not both." },
         { ["diff", "a.dmp"], null },
+        { ["diff", "a.dmp", "b.dmp", "--sort", "allocated"], "--sort allocated needs --allocated." },
         { ["set", "a.dmp", "--namespace", "A", "--assembly", "B"], null },
         { ["set", "a.dmp", "--unreachable", "--namespace", "A"], null },
         { ["monitor", "--pid", "1", "--every", "soon"], "--every: 'soon' is not an interval such as 90s, 5m or 1h." },

@@ -131,7 +131,8 @@ public sealed class DumpCapturer(
     IElevationProbe? elevation = null,
     IDiskSpace? disk = null,
     IDumpWriter? writer = null,
-    Func<DotNetProcess, long>? estimator = null)
+    Func<DotNetProcess, long>? estimator = null,
+    TimeProvider? timeProvider = null)
 {
     /// <summary>Free space HeapScope always leaves on the drive (the index cache and the system need room too).</summary>
     public const long ReserveBytes = 1L * 1024 * 1024 * 1024;
@@ -142,6 +143,7 @@ public sealed class DumpCapturer(
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
     private readonly IDiskSpace _disk = disk ?? VolumeDiskSpace.Instance;
     private readonly IDumpWriter _writer = writer ?? DiagnosticsDumpWriter.Instance;
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly Func<DotNetProcess, DumpEstimate> _estimate = estimator is null
         ? DumpSizeEstimator.Estimate
         : process => new DumpEstimate(estimator(process), null, process.PrivateBytes, 0, FromWalk: false);
@@ -191,9 +193,10 @@ public sealed class DumpCapturer(
     /// Captures a full dump of <paramref name="process"/> to <paramref name="path"/>. Throws
     /// <see cref="ElevationRequiredException"/>, <see cref="InsufficientDiskSpaceException"/>,
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
-    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>.
+    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the dump was last
+    /// written to, which is while the target is paused (sprint 4.4).
     /// </summary>
-    public async Task CaptureAsync(
+    public async Task<HeapTime> CaptureAsync(
         DotNetProcess process,
         string path,
         IProgress<CaptureProgress>? progress,
@@ -219,9 +222,12 @@ public sealed class DumpCapturer(
             "Canceling",
             estimate,
             "The runtime finishes writing the dump, then HeapScope deletes it")));
+        var started = _time.GetUtcNow();
+        HeapTime written;
         try
         {
             await _writer.WriteAsync(process.ProcessId, file.PartialPath).ConfigureAwait(false);
+            written = LastWritten(file.PartialPath, started, _time.GetUtcNow());
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -236,6 +242,24 @@ public sealed class DumpCapturer(
         }
 
         file.Commit();
+        return written;
+    }
+
+    // The runtime answers a moment after the target runs again (0.16 s measured, in which a busy process allocates 200 MB), so the
+    // file's own time is taken where it is one of this write.
+    private static HeapTime LastWritten(string path, DateTimeOffset started, DateTimeOffset answered)
+    {
+        try
+        {
+            var written = new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
+            return written >= started && written <= answered
+                ? new HeapTime(written, "the dump's last write")
+                : new HeapTime(answered, string.Create(CultureInfo.InvariantCulture, $"the runtime's answer, as the dump's last write ({written:O}) is not of this capture"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new HeapTime(answered, $"the runtime's answer, as the dump's last write could not be read ({ex.GetType().Name})");
+        }
     }
 
     private Exception Translate(DotNetProcess process, string directory, Exception ex)

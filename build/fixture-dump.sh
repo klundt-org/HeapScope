@@ -24,6 +24,7 @@
 
 # Starts the LeakyConsole fixture, waits for READY, writes a full dump of it and stops it (sprint 3.6, peer review S1:
 # one copy for every CI job and the local gate). The dump holds fixture data only; it is never uploaded.
+# FIXTURE_ARGS replaces what the fixture leaks (peer review 4.5: build/check-handles.sh).
 # Usage: fixture-dump.sh <dump path> <capture: cli=<heapscope-cli path> | dotnet-dump> [configuration]
 set -euo pipefail
 [ $# -ge 2 ] || { echo "Usage: fixture-dump.sh <dump path> <cli=<heapscope-cli> | dotnet-dump> [Release|Debug]" >&2; exit 64; }
@@ -38,7 +39,8 @@ fixture="fixtures/LeakyConsole/bin/$configuration/net10.0/LeakyConsole.dll"
 # process number, not Windows's, which /proc/$$/winpid gives (re-review).
 parent=$$
 [ -r "/proc/$$/winpid" ] && parent=$(cat "/proc/$$/winpid")
-dotnet "$fixture" --leak all --count 2000 --payload 32 --late-garbage 300 --parent-pid "$parent" > "$log" 2>&1 &
+# shellcheck disable=SC2086 # several arguments
+dotnet "$fixture" ${FIXTURE_ARGS:---leak all --count 2000 --payload 32 --late-garbage 300} --parent-pid "$parent" > "$log" 2>&1 &
 fixture_pid=$!
 trap 'kill $fixture_pid 2>/dev/null || true' EXIT
 for _ in $(seq 1 120); do

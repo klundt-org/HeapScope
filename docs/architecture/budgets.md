@@ -104,6 +104,11 @@ leaking 20 requests of 2,000 items shows a GC heap rise of more than 10 MB withi
 now climbed about 14 MB a second between collections while the after-GC size changed only at each GC. The Live smoke
 run charts 1,800 samples (a full 30-minute window) in about 29 s with a longest dispatcher operation of 18 to 26 ms;
 3,600 samples (an hour, the window sliding) stayed at 29 ms.
+The second walk of GC handles (sprint 4.5, Server GC with 2 heaps on 24 processors): 0.1 s for 9,600 handles, 7.1 s for 1.9 million, a
+load phase of its own ("handles").
+Live allocations (sprint 4.3, the numbers in the sprint's Findings): figures 0.25 to 0.30 s behind LeakyApi under load, the Live
+page's longest operation 27 to 35 ms beside the stall of BACKLOG.md that its smoke run has without them too; a live trace at its limits keeps 75 MB, 98 MB with
+two views, and answers a view in 6 ms.
 Leak detectors (sprint 2.6, Release CLI `inspect`, a fresh LeakyApi dump with every leak at 300,000 items each, 658 MB):
 growing static collections 0.1 s, event handler leaks 1.5 s (300,000 subscribers on 1,024 publishers), timer leaks
 0.4 s, disposed but referenced 0.3 s, HttpClient instances and service scopes 0.1 s each; all fourteen inspections
@@ -117,7 +122,7 @@ LoadGen whose process was killed before the rundown (5.6 MB, 45,110 samples) rea
 of LeakyApi under continuous load (25.6 MB, 168,073 samples) 1.1 s and 131 MB; 600 s (72 MB, 565,625 samples) 1.9 s and
 227 MB, about 76 MB plus 2.1 bytes per file byte. The worker reserves 96 MB plus 3 bytes per file byte while reading
 (`TraceStore.ReadReservation`, about 1.4 times the measured growth; sizes above 72 MB are extrapolated, and growth
-follows samples, about 240 bytes each, more than file bytes); an open trace keeps 25 bytes per sample plus its names (14 MB for the 600 s trace).
+follows samples, about 240 bytes each, more than file bytes); an open trace keeps 29 bytes per sample (25 before 4.4) plus its names (14 MB for the 600 s trace, 2.3 MB more since 4.4).
 Whole-trace queries take 2 to 13 ms (types 244 ms on the first call, JIT included). A 12 s trace of 5,000 requests
 (4.1 MB, 5,415 samples) lists the five leaks' `Grow` methods as its top five call stacks. The UI smoke run's
 allocations step (Release, the 150 s trace, after the Small-sized dump's phases): the cold first show 3.0 s with a

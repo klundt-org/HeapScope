@@ -229,7 +229,8 @@ public static class InfoTexts
         "Group by adds up rows by type, namespace, assembly or interface. Only type rows open objects or sets here, and interface rows need full dumps and have no retained sizes.\n" +
         "New and dead objects matches objects across the two snapshots by address, type and size, in the same heap (small object heap, LOH, POH or frozen). An object a collection moved counts as dead and new, and a new object of the same type and size where a dead one was can count as survived. It needs two complete full dumps of one run of a process, with the earlier one as baseline; if not, a note says why.\n" +
         "Retained sizes adds each row's retained bytes, what its objects keep alive, in both snapshots, as lower bounds. Interface rows have none, and the first time for a snapshot it has to compute them, which can take a while.\n" +
-        "Generations adds the change in bytes per heap area: Gen0, Gen1, Gen2, LOH and POH. It needs generations in both snapshots, so not a gcdump. Growth in Gen2 is usually what stays, though a full dump also counts objects not collected yet.";
+        "Generations adds the change in bytes per heap area: Gen0, Gen1, Gen2, LOH and POH. It needs generations in both snapshots, so not a gcdump. Growth in Gen2 is usually what stays, though a full dump also counts objects not collected yet.\n" +
+        "Allocated between adds what was allocated between the two snapshots, objects collected since included, estimated from samples. It needs two snapshots captured while one run on the Live page recorded allocations; if not, a note says why. Show where it was allocated, in a row's menu, opens the Allocations page at that time and type. The trace names a nested type without its declaring type, so types can share a name there.";
 
     /// <summary>Compare: trend: The options row.</summary>
     public const string TrendOptions =
@@ -274,7 +275,7 @@ public static class InfoTexts
         "then says what the two size rules do after firing: below fires again once the heap falls under 90 percent of the threshold, once never fires again, and step raises the threshold by its own amount.\n" +
         "at most is the most snapshots the rules may take in a run; empty means no limit. Get snapshot and failed captures do not count.\n" +
         "as gcdumps makes this run's snapshots gcdumps, with only objects and references, instead of full dumps. Each one runs a full garbage collection in the process.\n" +
-        "Record allocations records sampled allocations with call stacks for the whole run, up to 1 GB. After the run, press Open allocations under Past runs.";
+        "Record allocations records sampled allocations with call stacks for the whole run, up to 1 GB, and shows them below the chart while it runs. After the run, press Open allocations under Past runs.";
 
     /// <summary>Live: Past runs heading.</summary>
     public const string LivePastRuns =
@@ -286,6 +287,13 @@ public static class InfoTexts
     public const string LiveChart =
         "The chart stacks the heap areas as of the last collection, with what was allocated since then on top. A dashed line marks a snapshot and a dotted line a forced collection.\n" +
         "The line above it is the latest sample: the heap now, the heap after the last collection and its parts, bytes allocated, collections per generation, and the last collection's share of time.";
+
+    /// <summary>Live: Allocations heading (sprint 4.3).</summary>
+    public const string LiveAllocations =
+        "What the process has allocated since the recording started, while it runs. Sizes are estimates from samples, about one for every 100 KB allocated.\n" +
+        "Drag across the bars to choose an interval; a click shows the whole run again. The types are those of the interval, the 20 that allocated the most.\n" +
+        "Show call stacks lists where the selected type, or all types, were allocated. It shows them as of that moment; Refresh brings them up to date.\n" +
+        "The figures are usually less than a second behind the process, and more when it is very busy. The finished trace has everything: press Open allocations under Past runs.";
 
     /// <summary>The Types options in a set, where only Group by and Generations show.</summary>
     public const string TypesOptionsInSet =
