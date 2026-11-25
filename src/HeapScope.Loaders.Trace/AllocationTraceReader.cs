@@ -43,9 +43,10 @@ public static class AllocationTraceReader
 {
     /// <summary>
     /// Changes when how stacks, frames or samples are built changes (the worker's versions line, ARCHITECTURE.md 11), so a
-    /// log line can be matched to the rules that produced it. 1: sprint 2.5.
+    /// log line can be matched to the rules that produced it. 1: sprint 2.5. 2: 4.2.1 (amounts no process
+    /// allocates are refused, and running out of memory is).
     /// </summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
     /// <summary>TraceEvent's version, for the worker's versions line.</summary>
     public static string LibraryVersion { get; } = typeof(TraceLog).Assembly.GetName().Version?.ToString() ?? "unknown";
@@ -77,6 +78,8 @@ public static class AllocationTraceReader
         ArgumentException.ThrowIfNullOrEmpty(path);
         var fullPath = Path.GetFullPath(path);
         CheckSignature(fullPath);
+        progress?.Report("Checking the trace file");
+        var check = CheckStatedSizes(fullPath, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
         var folder = PrivateFiles.CreatePrivateDirectory(temporaryFolder);
@@ -88,19 +91,37 @@ public static class AllocationTraceReader
             var conversion = new IssueWriter(KeptIssues);
             try
             {
-                TraceLog.CreateFromEventPipeDataFile(fullPath, etlx, new TraceLogOptions { ContinueOnError = true, ConversionLog = conversion });
+                TraceReads.Convert(fullPath, etlx, new TraceLogOptions { ContinueOnError = true, ConversionLog = conversion });
             }
-            catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+            catch (Exception ex) when (TraceReads.IsFileError(ex))
             {
                 conversion.EndLine();
-                throw new SnapshotFormatException($"{fullPath} could not be read as an EventPipe trace: {ex.Message} The recording may have been cut short; record it again.", ex);
+                throw Refuse(fullPath, ex, check, conversion);
             }
 
             conversion.EndLine();
+            if (conversion.RanOutOfMemory)
+            {
+                // TraceEvent takes any failure as the trace's end: too little memory must not pass for a short trace (4.2.1 review).
+                throw WithDetail(new InsufficientMemoryException(MemoryMessage(fullPath)), $"TraceEvent's conversion ran out of memory; {check}", conversion);
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report("Reading allocation samples");
-            using var log = new TraceLog(etlx);
-            return new Builder(log, conversion.Count, conversion.First, cancellationToken).Build();
+            try
+            {
+                using var log = TraceReads.Open(etlx);
+                return new Builder(log, fullPath, conversion, check, cancellationToken).Build();
+            }
+            catch (Exception ex) when (TraceReads.IsFileError(ex))
+            {
+                // TraceEvent accepted the file and failed on its events: refused with a reason (4.2.1).
+                throw Refuse(fullPath, ex, check, conversion);
+            }
+        }
+        catch (OutOfMemoryException ex) when (ex is not InsufficientMemoryException)
+        {
+            throw WithDetail(new InsufficientMemoryException(MemoryMessage(fullPath), ex), $"{TraceReads.Origin(ex)}; {check}", conversion: null);
         }
         finally
         {
@@ -154,7 +175,7 @@ public static class AllocationTraceReader
     /// TraceEvent's conversion log, keeping only what reports a problem: how many lines, and the first few (its own words;
     /// it writes no event payloads). Nothing else is held, however long a damaged trace's log grows (the 2.5 re-review).
     /// </summary>
-    private sealed class IssueWriter(int kept) : TextWriter
+    internal sealed class IssueWriter(int kept) : TextWriter
     {
         private readonly StringBuilder _line = new();
 
@@ -163,6 +184,9 @@ public static class AllocationTraceReader
         public int Count { get; private set; }
 
         public List<string> First { get; } = [];
+
+        /// <summary>A conversion problem was memory running out.</summary>
+        public bool RanOutOfMemory { get; private set; }
 
         public override void Write(char value)
         {
@@ -186,11 +210,70 @@ public static class AllocationTraceReader
                 || line.Contains("exception", StringComparison.OrdinalIgnoreCase))
             {
                 Count++;
+                RanOutOfMemory |= line.StartsWith("System.OutOfMemoryException", StringComparison.Ordinal);
                 if (First.Count < kept)
                 {
                     First.Add(line);
                 }
             }
+        }
+    }
+
+    /// <summary>The key of a refusal's details in <see cref="Exception.Data"/>.</summary>
+    private const string DetailKey = "HeapScope.TraceRefusal";
+
+    /// <summary>What a refusal rests on, for the log (types, counts and TraceEvent's own problem lines), or null.</summary>
+    public static string? RefusalDetail(Exception refusal) => refusal.Data[DetailKey] as string;
+
+    /// <summary>1 TB: no object is that large, and a tick stands for about 100 KB or for one large object.</summary>
+    private const long LargestSample = 1L << 40;
+
+    /// <summary>Why an amount is refused, or null: the totals would be wrong, or overflow.</summary>
+    internal static string? RefusedAmount(long bytes, ref long total)
+    {
+        if (bytes is < 0 or > LargestSample)
+        {
+            return $"states an allocation of {bytes:N0} bytes, which no process makes";
+        }
+
+        total += bytes;
+        return total > long.MaxValue / 2 ? $"states allocations of {total:N0} bytes together, which no process makes" : null;
+    }
+
+    /// <summary>The check's version, for the worker's versions line.</summary>
+    public static int CheckVersion => TraceFileCheck.Version;
+
+    /// <summary>A file TraceEvent failed on. Its text stays out of the message (it is not
+    /// HeapScope's, and may quote the file); the log has its problem lines, as for an opened trace.</summary>
+    private static SnapshotFormatException Refuse(string path, Exception ex, TraceCheckResult check, IssueWriter conversion)
+    {
+        var refusal = new SnapshotFormatException($"{path} could not be read as an EventPipe trace ({ex.GetType().Name}): the file may be damaged. {NextStep}", ex);
+        return WithDetail(refusal, $"{TraceReads.Origin(ex)}; {check}", conversion);
+    }
+
+    private const string NextStep = "If it was copied or downloaded, copy it again and compare its size with the original; otherwise record the trace again.";
+
+    private static T WithDetail<T>(T refusal, string detail, IssueWriter? conversion)
+        where T : Exception
+    {
+        refusal.Data[DetailKey] = conversion is null ? detail : $"{detail}; {conversion.Count} conversion problems {string.Join(" | ", conversion.First)}";
+        return refusal;
+    }
+
+    private static string MemoryMessage(string path) =>
+        $"Reading {path} needs more memory than there is. Close other traces, snapshots or applications and try again; if the file is small, it may be damaged.";
+
+    /// <summary>What the file states must fit in it before TraceEvent allocates for it (4.2.1).</summary>
+    private static TraceCheckResult CheckStatedSizes(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return TraceFileCheck.Check(stream, path, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new SnapshotFormatException($"{path} could not be read: {ex.Message} If it is still being recorded, wait until the recording ends.", ex);
         }
     }
 
@@ -231,7 +314,7 @@ public static class AllocationTraceReader
         }
     }
 
-    private sealed class Builder(TraceLog log, int issues, List<string> firstIssues, CancellationToken cancellationToken)
+    private sealed class Builder(TraceLog log, string path, IssueWriter conversion, TraceCheckResult check, CancellationToken cancellationToken)
     {
         private readonly List<string> _frames = [];
         private readonly Dictionary<string, int> _frameIds = new(StringComparer.Ordinal);
@@ -254,18 +337,18 @@ public static class AllocationTraceReader
         private long _rundownEvents;
         private long _events;
         private int _processId;
+        private long _total;
         private string? _processName;
 
         public AllocationTrace Build()
         {
             // Exact arrays from the trace's event counts: no list doubling over millions of samples (the 2.5 review).
-            Allocate(ExpectedTicks());
-            var source = log.Events.GetSource();
+            Allocate((int)Math.Min(TraceReads.Count(log, AllocationTickEventId), Array.MaxLength));
+            var source = TraceReads.Source(log);
             var canceled = false;
-            var rundownProvider = ClrRundownTraceEventParser.ProviderGuid;
             source.AllEvents += e =>
             {
-                if (e.ProviderGuid == rundownProvider)
+                if (TraceReads.IsRundown(e))
                 {
                     _rundownEvents++;
                 }
@@ -299,32 +382,22 @@ public static class AllocationTraceReader
                 SortByTime();
             }
 
+            var (startUtc, durationMs, lost) = TraceReads.Session(log);
             var info = new AllocationTraceInfo(
                 _processId,
                 _processName,
-                log.SessionStartTime.ToUniversalTime(),
-                log.SessionDuration.TotalMilliseconds,
-                log.EventsLost,
+                startUtc,
+                durationMs,
+                lost,
                 _withoutStack,
                 _unresolvedSamples,
                 _rundownEvents > 0,
-                issues,
-                firstIssues);
-            return new AllocationTrace(_frames, _types, [.. _stackFrames], [.. _stackParents], _times, _stacks, _sampleTypes, _bytes, _kinds, info);
-        }
-
-        private int ExpectedTicks()
-        {
-            long ticks = 0;
-            foreach (var counts in log.Stats)
+                conversion.Count,
+                conversion.First)
             {
-                if (counts.ProviderGuid == ClrTraceEventParser.ProviderGuid && (int)counts.EventID == AllocationTickEventId)
-                {
-                    ticks += counts.Count;
-                }
-            }
-
-            return (int)Math.Min(ticks, Array.MaxLength);
+                Checked = check.ToString(),
+            };
+            return new AllocationTrace(_frames, _types, [.. _stackFrames], [.. _stackParents], _times, _stacks, _sampleTypes, _bytes, _kinds, info);
         }
 
         private void Allocate(int length)
@@ -344,13 +417,21 @@ public static class AllocationTraceReader
                 Allocate(Math.Max(1024, _count + (_count / 2)));
             }
 
-            if (_processId == 0 && data.ProcessID > 0)
+            if (_processId == 0 && TraceReads.ProcessId(data) is > 0 and var processId)
             {
-                _processId = data.ProcessID;
-                _processName = string.IsNullOrEmpty(data.ProcessName) ? null : data.ProcessName;
+                _processId = processId;
+                var name = TraceReads.ProcessName(data);
+                _processName = string.IsNullOrEmpty(name) ? null : name;
             }
 
-            var typeName = string.IsNullOrEmpty(data.TypeName) ? "?" : data.TypeName;
+            var sample = TraceReads.Sample(data);
+            if (RefusedAmount(sample.Bytes, ref _total) is { } amount)
+            {
+                var refusal = new SnapshotFormatException($"{path} {amount}: the file may be damaged. {NextStep}");
+                throw WithDetail(refusal, $"amount of sample {_count + 1} at {sample.TimeMs:F1} ms; {check}", conversion);
+            }
+
+            var typeName = string.IsNullOrEmpty(sample.TypeName) ? "?" : sample.TypeName;
             if (!_typeIds.TryGetValue(typeName, out var type))
             {
                 type = _types.Count;
@@ -358,13 +439,13 @@ public static class AllocationTraceReader
                 _typeIds.Add(typeName, type);
             }
 
-            var (stack, unresolved) = Leaf(data.CallStackIndex());
+            var (stack, unresolved) = Leaf(sample.Stack);
             if (unresolved)
             {
                 _unresolvedSamples++;
             }
 
-            var time = data.TimeStampRelativeMSec;
+            var time = sample.TimeMs;
             if (_count > 0 && time < _times[_count - 1])
             {
                 _ordered = false;
@@ -373,8 +454,8 @@ public static class AllocationTraceReader
             _times[_count] = time;
             _stacks[_count] = stack;
             _sampleTypes[_count] = type;
-            _bytes[_count] = data.AllocationAmount64;
-            _kinds[_count] = data.AllocationKind switch
+            _bytes[_count] = sample.Bytes;
+            _kinds[_count] = sample.Kind switch
             {
                 GCAllocationKind.Large => AllocationKind.Large,
                 (GCAllocationKind)2 => AllocationKind.Pinned,
@@ -430,9 +511,9 @@ public static class AllocationTraceReader
             // Innermost first; every frame kept, named or not (merging unnamed frames would hide different methods).
             _scratch.Clear();
             var unresolved = false;
-            for (var at = index; at != CallStackIndex.Invalid; at = log.CallStacks.Caller(at))
+            for (var at = index; at != CallStackIndex.Invalid; at = TraceReads.Caller(log, at))
             {
-                var (frame, named) = Frame(log.CallStacks.CodeAddressIndex(at));
+                var (frame, named) = Frame(at);
                 unresolved |= !named;
                 _scratch.Add(frame);
             }
@@ -460,13 +541,12 @@ public static class AllocationTraceReader
             return node;
         }
 
-        private (int Frame, bool Named) Frame(CodeAddressIndex address)
+        private (int Frame, bool Named) Frame(CallStackIndex stack)
         {
-            var method = log.CodeAddresses.MethodIndex(address);
-            var name = method == MethodIndex.Invalid ? null : log.CodeAddresses.Methods.FullMethodName(method);
-            return string.IsNullOrEmpty(name)
-                ? (FrameId(AllocationTrace.UnresolvedFrame(log.CodeAddresses.ModuleFile(address)?.Name)), false)
-                : (FrameId(name), true);
+            var (method, module) = TraceReads.Frame(log, stack);
+            return method is null
+                ? (FrameId(AllocationTrace.UnresolvedFrame(module)), false)
+                : (FrameId(method), true);
         }
 
         private int FrameId(string name)

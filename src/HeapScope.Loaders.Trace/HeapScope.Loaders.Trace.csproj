@@ -7,5 +7,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="HeapScope.Integration.Tests" />
+    <InternalsVisibleTo Include="HeapScope.Worker.Tests" />
   </ItemGroup>
 </Project>

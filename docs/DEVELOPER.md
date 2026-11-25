@@ -50,12 +50,12 @@ dotnet test --solution HeapScope.sln
   by hand to run the app or the CLI against a scratch profile; the build scripts that drive the CLI set it to a scratch
   folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `capture-check.sh`). The worker also takes `--data-folder` (from
   `Worker:DataFolder` on the client), which wins over the variable.
-- Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`) run a short pass in every run;
+- Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`, and `CraftedTraceTests` since 4.2.1, which also bounds memory) run a short pass in every run;
   `HEAPSCOPE_FUZZ_ITERATIONS` and `HEAPSCOPE_FUZZ_SEED` raise and vary it. The nightly `fuzz.yml` runs 2,000 iterations on
   the run number as the seed, on `develop`; a failure names its seed, iteration and exception type. The cache half replays
   from the seed alone. The gcdump half mutates a gcdump captured live, so it also needs that base: with
   `HEAPSCOPE_FUZZ_KEEP=<folder>` (set by the nightly, kept with its results) the test keeps the base (`base.gcdump`), the
-  iteration in progress and any failing input there, and `HEAPSCOPE_FUZZ_BASE=<base.gcdump>` replays from it.
+  iteration in progress and any failing input there, and `HEAPSCOPE_FUZZ_BASE=<base.gcdump>` replays from it; a trace likewise, with `base.nettrace` and `HEAPSCOPE_FUZZ_TRACE`.
 - The DAC trust check on a real dump of any system: `HEAPSCOPE_FIXTURE_DUMP=<dump> dotnet test --project
   tests/HeapScope.Loaders.ClrMd.Tests --filter-class "*PlantedDacTests"` (CI's Linux job runs it, with
   `HEAPSCOPE_REQUIRE_FIXTURE=1` so a skip fails). It plants the DAC next to the dump and removes it after; a folder that
@@ -73,6 +73,14 @@ dotnet test --solution HeapScope.sln
   a major version comes in a PR of its own. It skips major versions of `Microsoft.Extensions.*` and `System.*`, which
   follow the .NET 10 runtime until a deliberate move.
   Dependabot security updates are on too (since 2026-11-17): a PR when a package has a known vulnerability and a fix.
+- A TraceEvent update is a change of its own (sprint 4.2.1), taken out of Dependabot's grouped PR by hand until the
+  Backlog item is done: `TraceFileCheck` follows
+  its reading (ADR-028). Compare the two packages' files, dependencies and signature; the compiled code of both, method by
+  method (the package's commit may not be public), above all everything in EventPipe reading; what both read from sound
+  traces and from thousands of damaged copies, by hash; the `allocations` benchmark; running out of memory under
+  `DOTNET_GCHeapHardLimit` (the conversion's words are matched); and the gate, whose integration tests capture a gcdump,
+  watch counters and trigger a collection. Record it in the sprint's review file (`docs/reviews/sprint-4.2.1.md` is the
+  first). The check's comment, the notices and the table in ARCHITECTURE.md name the version.
 - GitHub Actions are pinned by full commit hash (sprint 3.7), and since 2026-11-17 the repository requires it (Settings,
   Actions: "Require actions to be pinned to a full-length commit SHA"), so an action named by tag or branch fails the run.
   Dependabot's action updates keep the hash and the version in the comment beside it.
@@ -617,7 +625,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   (`test-results-<system>`), which is where a test that fails now and then shows up:
   - Windows builds the solution, runs the fast and the integration tiers (since 3.6), captures the LeakyConsole fixture
     with the CLI and checks the known answers (`build/check-known-answers.sh`). Since 2026-10-31 a second Windows job
-    runs the heavy collection (classes with the `Run=Heavy` trait: gigabyte heaps and dumps, the Ctrl+C capture, run one
+    runs the heavy collection (classes with the `Run=Heavy` trait: gigabyte heaps and dumps, the Ctrl+C capture, what counts the process's memory, run one
     at a time) beside it (`test.sh integration-heavy`; the first job runs `integration-light`), which halves the wait
     for a PR. The local gate still runs the whole `integration` tier.
   - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests (the view model and headless UI

@@ -266,6 +266,7 @@ public sealed class GcDumpTests(AllLeaksGcDump shared) : IClassFixture<AllLeaksG
     [InlineData(null)]
     [InlineData(1_000_000)]
     [InlineData(int.MaxValue)]
+    [InlineData(-1)]
     [InlineData(-2)]
     [InlineData(int.MinValue)]
     public void A_root_index_outside_the_node_table_is_refused(int? root)
@@ -285,7 +286,31 @@ public sealed class GcDumpTests(AllLeaksGcDump shared) : IClassFixture<AllLeaksG
         var ex = Should.Throw<SnapshotFormatException>(() => new GcDumpLoader().Load(path, cancellationToken: Ct));
 
         ex.Message.ShouldContain($"starts its roots at node {outside}, outside its {(int)graph.NodeIndexLimit:N0} nodes");
-        ex.Message.ShouldContain("capture another gcdump");
+        ex.Message.ShouldContain("otherwise capture another gcdump");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_root_index_that_is_not_the_start_of_a_root_tree_is_refused(bool described)
+    {
+        // 4.2.1 review: an object there would turn its references into roots, an undescribed node would leave none.
+        using var folder = new TempFolder();
+        var path = folder.File("crafted.gcdump");
+        var graph = new MemoryGraph(10);
+        var tree = new MemoryNodeBuilder(graph, "[.NET Roots]");
+        var node = graph.GetNodeIndex(0x10000);
+        if (described)
+        {
+            graph.SetNode(node, graph.CreateType("System.String"), 32, new GrowableArray<NodeIndex>());
+        }
+
+        graph.RootIndex = tree.Build();
+        graph.AllowReading();
+        graph.RootIndex = node;
+        GCHeapDump.WriteMemoryGraph(graph, path, "test");
+
+        Should.Throw<SnapshotFormatException>(() => new GcDumpLoader().Load(path, cancellationToken: Ct)).Message.ShouldContain(described ? "which is an object and not the start of a root tree" : "which is not described and not the start of a root tree");
     }
 
     [Fact]

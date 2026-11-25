@@ -174,7 +174,7 @@ tests/
   HeapScope.Capture.Tests      Capture preflight (elevation, disk, partial files) with fakes; the real probe.
   HeapScope.Application.Tests  Job tracking, logging and worker client logic with fakes.
   HeapScope.Cli.Tests          The CLI in process: usage errors, tables as text, cells by name (sprint 3.8).
-  HeapScope.Worker.Tests       Worker internals: result set store, progress throttling, error mapping.
+  HeapScope.Worker.Tests       Worker internals: result set store, progress throttling, error mapping; the trace file check [4.2.1].
   HeapScope.UI.ViewModels.Tests View model tests (no windows are shown; they run on every system).
   HeapScope.UI.Tests           The app's views on Avalonia's headless platform: every page, the grids over 1.5 million
                                rows, the attribution markup and the themes (sprint 2.3.6).
@@ -367,9 +367,9 @@ The table matches `Directory.Packages.props`, the authoritative list.
 | System.CommandLine | 2.0.14 | MIT | Cli |
 | Microsoft.Diagnostics.Runtime (ClrMD) | 4.2.751201 | MIT | Loaders.ClrMd |
 | Microsoft.Diagnostics.NETCore.Client | 0.2.750501 | MIT | Capture |
-| Microsoft.Diagnostics.Tracing.TraceEvent | 4.0.0 | MIT | Capture (Loaders.GcDump in 1.8, Loaders.Trace in 2.5) |
+| Microsoft.Diagnostics.Tracing.TraceEvent | 4.0.2 | MIT | Capture (Loaders.GcDump in 1.8, Loaders.Trace in 2.5) |
 | Microsoft.CodeAnalysis.CSharp | 5.9.0 | MIT | DenseHeap fixture |
-| xunit.v3 | 4.0.2 | Apache 2.0 | tests |
+| xunit.v3 | 4.0.3 | Apache 2.0 | tests |
 | Shouldly | 4.3.0 | BSD 3-Clause | tests |
 
 Tests run on Microsoft.Testing.Platform (`global.json` opts in), which xunit.v3 4.x requires with the .NET 10
