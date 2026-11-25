@@ -138,7 +138,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
    records its thread is never run on the caller's.
 4. [x] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
    after a failed check, and stops recording with a message after several in a row. Tests: the probe on a folder, failures counted.
-5. [ ] H2: a detector that could not read objects says so: the result carries its counts (scanned, unread), the front ends show "not
+5. [x] H2: a detector that could not read objects says so: the result carries its counts (scanned, unread), the front ends show "not
    checked" for what was unread, and a detector that could read none of what it needs is a refusal. Tests per detector with fields
    missing; the CLI's and the app's text.
 6. [ ] H3: the static storage bucket keeps its "static storage" detail always; statics of closed generic types and boxed struct statics

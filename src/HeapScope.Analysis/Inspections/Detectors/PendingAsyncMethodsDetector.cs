@@ -124,16 +124,11 @@ internal sealed class PendingAsyncMethodsDetector : IInspection
             notes.Add("Calls in flight wait by design (requests being served, background loops): compare these counts with the work in flight when the dump was taken. The bytes are the state machine boxes' own; open a row's retained size to see what their locals hold.");
         }
 
-        if (unreadable > 0)
-        {
-            notes.Add(string.Create(CultureInfo.InvariantCulture, $"The state of {unreadable:N0} state machines could not be read, so they are not counted."));
-        }
-
         var pending = found.Sum(m => (long)m.Value.Members.Count);
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{boxTypes} state machine box types; {pending} reachable application async calls waiting in {found.Count} methods, {ended} ended but still referenced, {unreadable} unreadable; {skipped}; reported: {Describe(reported)}; largest below the threshold: {Describe(ordered.Skip(reported.Count).Take(5))}; {Reachability.Describe(reachable)}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), DetectorTables.Types(rows, "StateMachine"), basis, Counts: new(scanned, unreadable + skipped.Total, ListsRows: true));
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, notes.Count == 0 ? null : string.Join(" ", notes), DetectorTables.Types(rows, "StateMachine"), basis, Counts: new(scanned, unreadable + skipped.Total, ListsRows: true), Unread: new(unreadable, scanned, "async state machines"));
     }
 
     private static string Describe(IEnumerable<KeyValuePair<string, Method>> methods)

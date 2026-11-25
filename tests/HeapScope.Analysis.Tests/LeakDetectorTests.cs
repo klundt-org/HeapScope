@@ -461,7 +461,7 @@ public sealed class LeakDetectorTests
         result.Rows.MembersOf(0).ShouldNotBeNull().Count.ShouldBe(1_200);
         result.Basis!.ShouldStartWith("4 state machine box types; 2199 reachable application async calls waiting in 2 methods, 1500 ended but still referenced, 1 unreadable; left out: framework method waiting by design 3000");
         result.Basis!.ShouldContain("reported: App.Jobs.WaitAsync 1200 (115200 bytes); largest below the threshold: App.Jobs.PollAsync 999");
-        result.Note!.ShouldContain("could not be read");
+        result.Unread.ShouldNotBeNull().Count.ShouldBe(1, "said by the worker as not checked (peer review 4.5 H2)");
     }
 
     [Fact]

@@ -121,8 +121,8 @@ public sealed record InspectionProgress(string Phase, long Done, long Total);
 /// only: it backs up a disputed result without any value from the dump (sprint 2.3.7 review H3).
 /// </summary>
 /// <paramref name="Counts"/> (sprint 3.12, B7) is the same for every inspection: what it scanned, what it left out (unread,
-/// excluded by a rule) and the cap on rows its log line lists.
-public sealed record InspectionResult(long Count, long Bytes, long? WastedBytes, string? Note, InspectionTable Rows, string? Basis = null, InspectionCounts? Counts = null);
+/// excluded by a rule) and the cap on rows its log line lists. <paramref name="Unread"/> (peer review 4.5) is what it could not read.
+public sealed record InspectionResult(long Count, long Bytes, long? WastedBytes, string? Note, InspectionTable Rows, string? Basis = null, InspectionCounts? Counts = null, InspectionUnread? Unread = null);
 
 /// <summary>Kinds of inspection columns (mirrored by the worker's result columns).</summary>
 public enum InspectionColumnKind

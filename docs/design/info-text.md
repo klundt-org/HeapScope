@@ -413,6 +413,8 @@ Drafts for the owner (sprint 4.6, right answers; peer review 4.5).
 | Page | Where | Text | Status |
 |---|---|---|---|
 | Live | A run's allocation trace whose checks failed five times in a row (H11) | The allocation trace stopped early because its size and the free space of its disk could not be checked; what it recorded is kept and the run goes on. | draft |
+| Inspections, CLI | A detector that could not read some of what it checks (H2), in its note | {N} of {M} {timers, service scopes, HttpClients, async state machines, objects with a disposed flag, collections} could not be read, so they were not checked. | draft |
+| Inspections, CLI | A detector that could read none of it (H2), a refusal | {Title} checked nothing: none of the {M} {what} in this snapshot could be read. Their runtime may lay them out differently from the .NET versions HeapScope knows. | draft |
 
 ## Evidence: the per-setting drafts
 
