@@ -61,3 +61,15 @@
   - What the worker checks of a trace before it reads it, and what a trace that grows needs of that check: ADR-028, amended in
     4.2.1.
   - gcdump capture stays in the front end (ADR-023 amended).
+- Amended in 4.3 (the gates, measured on Windows and Linux; `live-stacks`, the numbers in the sprint's Findings): a reader in a
+  process of its own keeps the delay of the table above (p95 at most 242 ms flat out on Windows, 239 ms on Linux) and loses no
+  event, in 57 to 85 MB of which the probe's own samples are part; reading and folding the stacks costs 11 to 18 ms in 15 s at
+  about 70 samples a second and 200 to 400 ms in 10 to 15 s flat out. Every live stack was the one TraceLog gives for the finished file.
+  - Stacks are read from TraceEvent's event record, which is not public: by reflection, its layout checked once at the start.
+    If the check fails (another TraceEvent), the live view shows types without stacks and the log says why; the finished file
+    still has them. A reader of the format of our own was weighed and is not built: one more parser to own.
+  - A short rundown-only session before the recording (123 to 171 ms on about 800 methods, 316 to 491 ms on 45,600) names what was
+    compiled before; method events name the rest. At most 0.1% of the frames were unnamed when they arrived.
+  - The recording carries a System.Runtime counter every second: without it the runtime keeps a thread's last samples when it
+    goes idle, for seconds.
+  - A heap-only dump stops the process 2.5 times as long as a full dump, so no new kind of snapshot is added.

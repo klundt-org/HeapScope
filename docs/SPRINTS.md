@@ -124,7 +124,7 @@ live trace is read (the worker tails the file) and sets two gates to measure bef
 says what to do first: the Live page's view model is 796 lines with three concerns.
 
 **Tasks**
-1. [ ] The gates of ADR-037, measured: a tail in a process of its own (working set, delay, ticks lost), and folding stacks by
+1. [x] The gates of ADR-037, measured: a tail in a process of its own (working set, delay, ticks lost), and folding stacks by
    module and offset as they arrive (CPU, memory, flat out and at about 70 ticks a second); whether a short rundown-only
    session at the start names methods compiled before it. Also the pause and size of a dump with the heap only
    (`DumpType.WithHeap`) against a full dump and a gcdump, and whether HeapScope opens it. On a quiet machine. If a gate
@@ -202,7 +202,17 @@ says what to do first: the Live page's view model is 796 lines with three concer
   its place in a file that grows (task 4).
 - The probe again on TraceEvent 4.0.2 (2026-11-24, 10 s flat out): 175,213 samples, every stack the one TraceLog gave, every frame
   named, delay p50 185, p95 242 and max 267 ms, reading and folding 200 ms, peak working set 57 MB: as on 4.0.0.
-- Still open in task 1: Linux. ADR-037 is amended when it is done.
+- Linux (2026-11-24, TraceEvent 4.0.2, a GitHub runner of 4 processors, 10 s each, one run of each kind): every stack the one
+  TraceLog gave, and no event lost.
+
+  | Run | Samples | Delay p50 / p95 / max | Reading and folding | Peak working set | Frames not named when they arrived |
+  |---|---|---|---|---|---|
+  | flat out | 239,033 | 160 / 209 / 226 ms | 387 ms | 85 MB | 0 of 12,725,625 |
+  | pausing every 200 | 10,054 | 160 / 207 / 220 ms | 36 ms | 64 MB | 0 of 535,261 |
+  | a counter each second, idle 3 s of 4 | 70,421 | 144 / 239 / 318 ms | 159 ms | 80 MB | 5 of 3,749,021 |
+  | a cold program | 208,791 | 160 / 210 / 225 ms | 293 ms | 84 MB | 1,904 of 11,116,357 |
+
+  Both gates are met on Windows and Linux; ADR-037 is amended. macOS is not measured (no Mac).
 
 ---
 
