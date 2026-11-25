@@ -6,6 +6,6 @@ query-filters:
   # Clear-text storage of sensitive information. Its 16 alerts on main (2026-11-25) were all log lines and messages that hold
   # file paths, status codes and the SHA-256 of a DAC: the rule reads names such as Untrusted, DacNotTrusted and trusted-dacs
   # as secrets. HeapScope stores no passwords, keys or tokens. Its logs keep dump contents out by design (logging.md), which
-  # the support review checks every sprint, and secret scanning with push protection covers the repository.
+  # the support review checks every sprint, and secret scanning covers the repository.
   - exclude:
       id: cs/cleartext-storage-of-sensitive-information

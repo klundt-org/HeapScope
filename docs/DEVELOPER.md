@@ -659,8 +659,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   - Code scanning (`.github/workflows/codeql.yml`, 2026-11-25, owner): CodeQL's default queries on the C# code (read without a
     build) and the workflows, on PRs and pushes into `develop` and `main` and weekly, on Linux; not a required check. A rule that
     gives only false positives is turned off in `.github/codeql/codeql-config.yml` with its reason (the first: clear-text
-    storage, which reads names such as `Untrusted` as secrets), not dismissed alert by alert. Secret scanning and push protection
-    are on (owner).
+    storage, which reads names such as `Untrusted` as secrets), not dismissed alert by alert. Secret scanning is on (owner); push protection is
+    the owner's to turn on (the repository's API still said off on 2026-11-25).
   - No macOS runners since 2026-10-31 (owner: their minutes cost about ten times Linux's). Until then a macOS job did
     what Linux does, informational (an arm64 runner; ADR-025). Nothing in CI tests on macOS now.
   - Beside the tests (since 2026-10-31; before, after them), a package job publishes the self-contained builds per
