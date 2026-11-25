@@ -52,7 +52,7 @@ public sealed record TraceRecording(string Path, long Bytes, TimeSpan Duration, 
 /// Records an EventPipe trace of a .NET process through its diagnostics port (sprint 1.5): the same session dotnet-trace
 /// starts, so nobody installs dotnet-trace. The file is a <c>.nettrace</c> that PerfView, Visual Studio or TraceEvent
 /// read. It is written to a partial file of its own (<see cref="PartialName"/>) and renamed when complete; an existing file
-/// is never overwritten.
+/// is never overwritten. A live recording (<see cref="RecordLiveAsync"/>) is written under its final name, for a reader beside it.
 /// Canceling stops the recording early and keeps what was recorded; a failure deletes the partial file.
 /// </summary>
 public static class TraceRecorder
@@ -107,58 +107,8 @@ public static class TraceRecorder
         {
             await using (file.ConfigureAwait(false))
             {
-                EventPipeSession session;
-                try
-                {
-                    session = await new DiagnosticsClient(processId)
-                        .StartEventPipeSessionAsync(Providers(profile), requestRundown: true, circularBufferMB: 256, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException)
-                {
-                    throw Translate(processId, ex);
-                }
-
-                using (session)
-                {
-                    // The stream ends when the session stops (with the rundown that names methods) or the process exits.
-                    var copy = session.EventStream.CopyToAsync(file, CancellationToken.None);
-                    var elapsed = Task.Delay(duration, cancellationToken);
-                    var first = await Task.WhenAny(copy, elapsed).ConfigureAwait(false);
-                    stoppedEarly = first == copy || cancellationToken.IsCancellationRequested;
-                    if (first != copy)
-                    {
-                        try
-                        {
-                            await session.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                        }
-                        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or EndOfStreamException or IOException)
-                        {
-                            // The process exited as the recording ended; what was recorded is kept.
-                            stoppedEarly = true;
-                        }
-                    }
-
-                    // A stopped session ends its stream after the rundown; one that never ends (the target hung) must not
-                    // hang the caller: give up after a while and keep what arrived (sprint 1.5 review).
-                    if (await Task.WhenAny(copy, Task.Delay(s_streamEndTimeout, CancellationToken.None)).ConfigureAwait(false) == copy)
-                    {
-                        await copy.ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        stoppedEarly = true;
-                        session.Dispose();
-                        try
-                        {
-                            await copy.ConfigureAwait(false);
-                        }
-                        catch (Exception ex) when (ex is ObjectDisposedException or IOException or OperationCanceledException)
-                        {
-                            // Disposing the session ended the copy; the trace so far is in the file.
-                        }
-                    }
-                }
+                using var session = await StartAsync(processId, Providers(profile), cancellationToken).ConfigureAwait(false);
+                stoppedEarly = await CopyAsync(session, file, duration, cancellationToken).ConfigureAwait(false);
             }
         }
         catch
@@ -169,6 +119,155 @@ public static class TraceRecorder
 
         File.Move(partial, fullPath, overwrite: false);
         return new TraceRecording(fullPath, new FileInfo(fullPath).Length, stopwatch.Elapsed, stoppedEarly);
+    }
+
+    /// <summary>
+    /// Records the allocations profile for a reader beside it (sprint 4.3, ADR-037): into <paramref name="path"/> itself, each chunk
+    /// of the stream written as it arrives, the file shared for reading and deleting. A System.Runtime counter each second makes the
+    /// runtime send a thread's last samples when it goes idle. Before it, a session with the rundown alone names the methods
+    /// compiled so far, into a partial file that the recording's end deletes; without it names come later.
+    /// </summary>
+    /// <param name="started">Called once the session records, off the caller's thread.</param>
+    /// <inheritdoc cref="RecordAsync" path="/exception"/>
+    public static async Task<TraceRecording> RecordLiveAsync(int processId, string path, TimeSpan duration, Action<LiveTraceStart>? started, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duration, TimeSpan.Zero);
+        var fullPath = Path.GetFullPath(path);
+        if (File.Exists(fullPath))
+        {
+            throw new DumpFileExistsException($"{fullPath} already exists; HeapScope never overwrites a file. Choose another file name.");
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        var stopwatch = Stopwatch.StartNew();
+        var names = PartialName(fullPath);
+        var stoppedEarly = false;
+        var created = false;
+        try
+        {
+            var problem = await RecordNamesAsync(processId, names, cancellationToken).ConfigureAwait(false);
+            var start = new LiveTraceStart(fullPath, problem is null ? names : null, problem, stopwatch.Elapsed);
+            stopwatch.Restart();
+            var file = PrivateFiles.Open(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read | FileShare.Delete, 1, FileOptions.Asynchronous);
+            created = true;
+            await using (file.ConfigureAwait(false))
+            {
+                using var session = await StartAsync(processId, [.. Providers(TraceProfile.Allocations), s_counterEachSecond], cancellationToken).ConfigureAwait(false);
+                started?.Invoke(start);
+                stoppedEarly = await CopyAsync(session, file, duration, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            if (created)
+            {
+                TryDelete(fullPath);
+            }
+
+            throw;
+        }
+        finally
+        {
+            TryDelete(names);
+        }
+
+        return new TraceRecording(fullPath, new FileInfo(fullPath).Length, stopwatch.Elapsed, stoppedEarly);
+    }
+
+    private static readonly EventPipeProvider s_counterEachSecond =
+        new("System.Runtime", EventLevel.Informational, 0, new Dictionary<string, string> { ["EventCounterIntervalSec"] = "1" });
+
+    /// <summary>How long the session of the names may take: a process that does not answer must not hold the recording up.</summary>
+    private static readonly TimeSpan s_namesTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>A session that is stopped at once, for its rundown: why it wrote none, or null.</summary>
+    private static async Task<string?> RecordNamesAsync(int processId, string path, CancellationToken cancellationToken)
+    {
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(s_namesTimeout);
+        try
+        {
+            var file = PrivateFiles.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.Asynchronous);
+            await using (file.ConfigureAwait(false))
+            {
+                using var session = await new DiagnosticsClient(processId)
+                    .StartEventPipeSessionAsync([new EventPipeProvider("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, LoaderKeyword)], requestRundown: true, circularBufferMB: 64, limit.Token)
+                    .ConfigureAwait(false);
+                var copy = session.EventStream.CopyToAsync(file, CancellationToken.None);
+                await session.StopAsync(limit.Token).ConfigureAwait(false);
+                await copy.WaitAsync(limit.Token).ConfigureAwait(false);
+            }
+
+            return null;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"not done in {s_namesTimeout.TotalSeconds:N0} s");
+        }
+        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException or IOException)
+        {
+            // The recording itself says what is wrong, if it fails too.
+            return $"{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    private static async Task<EventPipeSession> StartAsync(int processId, IReadOnlyList<EventPipeProvider> providers, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await new DiagnosticsClient(processId)
+                .StartEventPipeSessionAsync(providers, requestRundown: true, circularBufferMB: 256, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException)
+        {
+            throw Translate(processId, ex);
+        }
+    }
+
+    /// <summary>Copies the session's stream until its end, the duration's or the cancel; whether it stopped early.</summary>
+    private static async Task<bool> CopyAsync(EventPipeSession session, Stream file, TimeSpan duration, CancellationToken cancellationToken)
+    {
+        // The stream ends when the session stops (with the rundown that names methods) or the process exits.
+        var copy = session.EventStream.CopyToAsync(file, CancellationToken.None);
+        var elapsed = Task.Delay(duration, cancellationToken);
+        var first = await Task.WhenAny(copy, elapsed).ConfigureAwait(false);
+        var stoppedEarly = first == copy || cancellationToken.IsCancellationRequested;
+        if (first != copy)
+        {
+            try
+            {
+                await session.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or EndOfStreamException or IOException)
+            {
+                // The process exited as the recording ended; what was recorded is kept.
+                stoppedEarly = true;
+            }
+        }
+
+        // A stopped session ends its stream after the rundown; one that never ends (the target hung) must not
+        // hang the caller: give up after a while and keep what arrived (sprint 1.5 review).
+        if (await Task.WhenAny(copy, Task.Delay(s_streamEndTimeout, CancellationToken.None)).ConfigureAwait(false) == copy)
+        {
+            await copy.ConfigureAwait(false);
+        }
+        else
+        {
+            stoppedEarly = true;
+            session.Dispose();
+            try
+            {
+                await copy.ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or IOException or OperationCanceledException)
+            {
+                // Disposing the session ended the copy; the trace so far is in the file.
+            }
+        }
+
+        return stoppedEarly;
     }
 
     /// <summary>

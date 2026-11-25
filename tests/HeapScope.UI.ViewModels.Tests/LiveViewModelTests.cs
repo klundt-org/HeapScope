@@ -230,7 +230,7 @@ public sealed class LiveViewModelTests : IAsyncDisposable
     [Fact]
     public async Task A_refused_run_that_also_asked_for_a_trace_shows_only_the_refusal()
     {
-        static Task<TraceResult> Refused(int pid, string path, CancellationToken ct) =>
+        static Task<TraceResult> Refused(AllocationRecordingRequest request, CancellationToken ct) =>
             Task.FromException<TraceResult>(new CaptureFailedException(CaptureFailure.NeedsAdministrator, "cannot record its allocations", null));
 
         await using var live = new LiveViewModel(new MonitorService(_capture, new RefusingSource(), allocations: Refused), _capture, new ImmediateUiDispatcher(), interaction: _interaction);

@@ -132,7 +132,7 @@ says what to do first: the Live page's view model is 796 lines with three concer
 2. [x] The Live view model split (Backlog 3.8 P11): live monitoring, past runs, the run's files over one state (`LiveRunState`);
    replaced runs disposed; no file reads on the UI thread. No behavior change, but a past run still being read is not shown
    over a run that started meanwhile. Tests: the existing Live tests, plus one per concern.
-3. [ ] The live file: each chunk of the session's stream written as it arrives, under its final name, owner-only, shared for
+3. [x] The live file: each chunk of the session's stream written as it arrives, under its final name, owner-only, shared for
    reading and deleting; `AllocationRecording` says when it ended, after the flush. Tests: a reader beside the writer, an end
    in mid-chunk, a canceled run.
 4. [ ] A streaming reader in Loaders.Trace: tails the file, keeps aggregates (types and sizes per time bucket; stacks folded by

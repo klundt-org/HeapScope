@@ -95,6 +95,15 @@ public sealed class MonitorRun : IAsyncDisposable
     /// </summary>
     public event EventHandler<string>? TraceStopped;
 
+    /// <summary>The allocation trace is being written and can be read beside it (sprint 4.3, ADR-037).</summary>
+    public event EventHandler<LiveTraceStart>? TraceStarted;
+
+    /// <summary>
+    /// The allocation trace that <see cref="TraceStarted"/> named is written to its end and closed, whatever ended it. Raised
+    /// before <see cref="Completion"/> ends.
+    /// </summary>
+    public event EventHandler<string>? TraceEnded;
+
     /// <summary>The run's id in its session's record (sprint 3.4).</summary>
     public Guid Id { get; } = Guid.NewGuid();
 
@@ -221,7 +230,9 @@ public sealed class MonitorRun : IAsyncDisposable
 
         if (Options.RecordAllocations)
         {
-            _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, Options.TraceLimitBytes, _allocations, _time, _logger, PendingCaptures, TraceProblem);
+            _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, Options.TraceLimitBytes, _allocations, _time, _logger, PendingCaptures, TraceProblem,
+                start => Raise(TraceStarted, start, nameof(TraceStarted)),
+                path => Raise(TraceEnded, path, nameof(TraceEnded)));
         }
 
         Record(ended: null);

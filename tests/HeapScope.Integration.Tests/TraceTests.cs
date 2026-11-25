@@ -38,6 +38,9 @@ public sealed class TraceTests(RunningApi shared) : IClassFixture<RunningApi>, I
     private static readonly Guid s_sampleProfiler = new("3c530d44-97ae-513a-1e6d-783e8f8e03a9");
     private static readonly Guid s_rundown = new("a669021c-c450-4609-a035-5af59af4df18");
 
+    // An event source's id, from its name.
+    private static readonly Guid s_systemRuntime = System.Diagnostics.Tracing.EventSource.GetGuid(typeof(SystemRuntimeName));
+
     private readonly TempFolder _root = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -58,6 +61,58 @@ public sealed class TraceTests(RunningApi shared) : IClassFixture<RunningApi>, I
         var events = Read(path);
         events.GetValueOrDefault(s_sampleProfiler).ShouldBeGreaterThan(0, "CPU samples");
         events.GetValueOrDefault(s_rundown).ShouldBeGreaterThan(0, "the rundown that names methods");
+    }
+
+    /// <summary>Sprint 4.3 (ADR-037): the live file grows under its final name, can be read and deleted meanwhile, and ends whole.</summary>
+    [Fact]
+    public async Task A_live_trace_can_be_read_beside_its_recording_and_ends_whole()
+    {
+        var path = _root.File("live.nettrace");
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var started = new TaskCompletionSource<LiveTraceStart>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recording = TraceRecorder.RecordLiveAsync(shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), started.SetResult, stop.Token);
+
+        var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        start.Path.ShouldBe(path);
+        start.NamesProblem.ShouldBeNull();
+        var names = Read(start.NamesPath.ShouldNotBeNull());
+        names.GetValueOrDefault(s_rundown).ShouldBeGreaterThan(0, "the methods compiled before the recording");
+        names.Keys.ShouldNotContain(s_systemRuntime);
+
+        using (var beside = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        {
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+            var first = 0L;
+            var grown = Stopwatch.StartNew();
+            while (beside.Length == 0 || beside.Length == first || grown.Elapsed < TimeSpan.FromSeconds(3))
+            {
+                DateTime.UtcNow.ShouldBeLessThan(deadline, "the file did not grow beside its recording");
+                first = first == 0 ? beside.Length : first;
+                await shared.Api.PostWorkAsync(2, Ct);
+            }
+        }
+
+        await stop.CancelAsync();
+        var result = await recording;
+
+        (result.Path, result.Bytes).ShouldBe((path, new FileInfo(path).Length));
+        Directory.GetFiles(Path.GetDirectoryName(path)!, "*.partial").ShouldBeEmpty("the names are deleted with the recording's end");
+        var events = Read(path);
+        events.GetValueOrDefault(s_rundown).ShouldBeGreaterThan(0, "the finished file names its methods by itself");
+        events.GetValueOrDefault(s_systemRuntime).ShouldBeGreaterThan(0, "the counter that makes the runtime send what it holds");
+    }
+
+    [Fact]
+    public async Task A_live_trace_canceled_before_its_session_starts_keeps_nothing()
+    {
+        var path = _root.File("live-never-started.nettrace");
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        await cancel.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => new TraceService().RecordLiveAsync(shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), _ => Assert.Fail("started"), cancel.Token));
+
+        Directory.EnumerateFiles(_root.Path, "live-never-started*").ShouldBeEmpty();
     }
 
     [Fact]
@@ -150,4 +205,7 @@ public sealed class TraceTests(RunningApi shared) : IClassFixture<RunningApi>, I
         source.Process();
         return counts;
     }
+
+    [System.Diagnostics.Tracing.EventSource(Name = "System.Runtime")]
+    private sealed class SystemRuntimeName : System.Diagnostics.Tracing.EventSource;
 }

@@ -120,7 +120,7 @@ public sealed class LiveWorkflowTests
 
         // Until the session has started there is nothing to stop but the start (MonitorServiceTests), so wait for bytes, not for time.
         var folderOfRun = run.SessionFolder.ShouldNotBeNull();
-        await WaitUntilAsync(() => new DirectoryInfo(folderOfRun).EnumerateFiles("*.partial").Any(static f => new FileInfo(f.FullName).Length > 0));
+        await WaitUntilAsync(() => new DirectoryInfo(folderOfRun).EnumerateFiles("*.nettrace").Any(static f => new FileInfo(f.FullName).Length > 0));
         run.Stop();
         await run.Completion;
 

@@ -53,11 +53,18 @@ public sealed class TraceService(ILogger<TraceService>? logger = null)
     private readonly ILogger _logger = logger ?? NullLogger<TraceService>.Instance;
 
     /// <summary>Records <paramref name="processId"/> for <paramref name="duration"/> (or until canceled) into <paramref name="path"/>.</summary>
-    public async Task<TraceResult> RecordAsync(int processId, string path, TraceKind kind, TimeSpan duration, CancellationToken cancellationToken)
+    public Task<TraceResult> RecordAsync(int processId, string path, TraceKind kind, TimeSpan duration, CancellationToken cancellationToken) =>
+        RecordAsync(processId, () => TraceRecorder.RecordAsync(processId, path, (TraceProfile)(int)kind, duration, cancellationToken));
+
+    /// <summary>Records allocations into a file that a reader beside it follows (sprint 4.3, ADR-037).</summary>
+    public Task<TraceResult> RecordLiveAsync(int processId, string path, TimeSpan duration, Action<LiveTraceStart>? started, CancellationToken cancellationToken) =>
+        RecordAsync(processId, () => TraceRecorder.RecordLiveAsync(processId, path, duration, started, cancellationToken));
+
+    private async Task<TraceResult> RecordAsync(int processId, Func<Task<TraceRecording>> record)
     {
         try
         {
-            var recording = await TraceRecorder.RecordAsync(processId, path, (TraceProfile)(int)kind, duration, cancellationToken).ConfigureAwait(false);
+            var recording = await record().ConfigureAwait(false);
             return new TraceResult(recording.Path, recording.Bytes, recording.Duration, recording.StoppedEarly);
         }
         catch (Exception ex) when (Translate(ex) is { } failure)
