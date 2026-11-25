@@ -66,6 +66,35 @@ public class WorkerResourcesTests
         (a.WorkerId, b.WorkerId).ShouldNotBe(first);
     }
 
+    /// <summary>Sprint 4.4: a question about two kinds of resources gets one's id, reopened first and after "not loaded" like any other.</summary>
+    [Fact]
+    public async Task A_call_that_asks_the_worker_itself_gets_a_current_id()
+    {
+        var worker = new Client { Generation = 2 };
+        var reopens = 0;
+        var resources = Protocol(worker, (r, _) => { reopens++; r.Reopen(worker.Generation); return Task.CompletedTask; });
+        var a = new Resource(1);
+        var asked = new List<Guid>();
+
+        var id = await resources.UseIdAsync(a, (i, _) => { asked.Add(i); return asked.Count == 1 ? throw NotLoaded() : Task.FromResult(i); }, ex => ex, Ct);
+
+        (reopens, id).ShouldBe((2, a.WorkerId));
+        asked.Distinct().Count().ShouldBe(2);
+    }
+
+    /// <summary>What fails about the resource is told apart from what fails about the call.</summary>
+    [Fact]
+    public async Task A_resource_that_cannot_be_reopened_is_told_apart()
+    {
+        var worker = new Client { Generation = 2 };
+        var resources = Protocol(worker, (_, _) => Task.FromException(new WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "no memory", null)));
+
+        (await Should.ThrowAsync<HeapScope.Application.Allocations.AllocationsUnavailableException>(() => resources.UseIdAsync(
+            new Resource(1), (i, _) => Task.FromResult(i), ex => new HeapScope.Application.Allocations.AllocationsUnavailableException(ex.Message, ex), Ct))).Message.ShouldBe("no memory");
+        (await Should.ThrowAsync<WorkerOperationException>(() => resources.UseIdAsync<Guid>(
+            new Resource(2), (_, _) => throw new WorkerOperationException(HeapScopeErrorCode.InvalidArgument, "the call", null), ex => new HeapScope.Application.Allocations.AllocationsUnavailableException(ex.Message, ex), Ct))).Message.ShouldBe("the call");
+    }
+
     [Fact]
     public async Task Concurrent_callers_reopen_a_resource_once()
     {

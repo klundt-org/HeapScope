@@ -181,6 +181,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   trust. Needs an ADR and the owner's approval of every user-facing word.
 - The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
   86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
+- From the 4.4 review: the Allocations page filtered by method table, now that samples keep it; the flush before a gcdump checked on .NET 8
+  and 9; a bound on an interval's edges from the ticks' heap index.
 - From 4.4: rows in Compare for types that were allocated between two snapshots and have no object in either; `monitor --record-allocations`
   on the command line; a capture that says when another tool's session keeps a gcdump from naming its types; a trace recorded on the
   Processes page linked to the snapshots it lies between.

@@ -120,6 +120,8 @@ public sealed record SessionDocument(
 /// <param name="Rules">The rules as the user wrote them (labels), for the record.</param>
 /// <param name="ForcedGcs">When the run forced a garbage collection in the target (only collections whose end was seen).</param>
 /// <param name="TraceNote">Why the allocation trace was not recorded, or stopped before the run (review of 3.4).</param>
+/// <param name="ClockShiftSeconds">How far the machine's clock moved against its counter during the run (sprint 4.4): a trace counts the
+/// second, which stops while some systems sleep, and the heap times of a capture are of the first.</param>
 public sealed record SessionRun(
     Guid Id,
     string? ProcessName,
@@ -133,7 +135,8 @@ public sealed record SessionRun(
     string? Trace,
     IReadOnlyList<Guid> SnapshotIds,
     IReadOnlyList<DateTimeOffset>? ForcedGcs = null,
-    string? TraceNote = null)
+    string? TraceNote = null,
+    double? ClockShiftSeconds = null)
 {
     /// <summary>Members written by a newer HeapScope, kept when this build saves the document.</summary>
     [JsonExtensionData]

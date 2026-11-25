@@ -119,9 +119,65 @@ public sealed class CompareAllocatedTests : IDisposable
         await tab.LoadTask;
         Service.StackQueries[^1].TypeName.ShouldBe("Traced");
 
+        // Review M3: the rows are asked for with the trace, so closing it takes the allocations away, and says so.
+        var queries = Service.DiffQueries.Count;
         await _allocations.CloseCommand.ExecuteAsync(tab);
+        await WaitUntilAsync(() => Service.DiffQueries.Count == queries + 1);
+        await Compare.QueryTask;
+        (Compare.ShowAllocated, Compare.AllocatedShown, Compare.AllocatedNote).ShouldBe((false, false, AllocatedBetweenTexts.TraceClosed));
+        Service.DiffQueries[^1].Allocations.ShouldBeNull();
         Compare.ShowWhereAllocatedCommand.Execute(rows[0]);
         Compare.Status.ShouldBe(AllocatedBetweenTexts.TraceClosed);
+
+        await TickAsync(queries + 2);
+        (Compare.AllocatedShown, Service.TracesOpened.Count).ShouldBe((true, 2));
+    }
+
+    /// <summary>Review H2: a question asked again while the trace is read waits for the same read.</summary>
+    [Fact]
+    public async Task A_trace_is_read_once_however_often_the_question_changes_meanwhile()
+    {
+        await OpenBothAsync(recorded: true);
+        Service.OpenTraceGate = new TaskCompletionSource();
+        Compare.ShowAllocated = true;
+        await WaitUntilAsync(() => Service.TracesOpened.Count == 1);
+        Compare.ShowWhereAllocatedCommand.Execute(null);
+        Compare.Status.ShouldBe(AllocatedBetweenTexts.StillReading);
+
+        Compare.SortByCommand.Execute(TypeDiffColumns.Name);
+        Compare.ShowAllocated = false;
+        Compare.ShowAllocated = true;
+        Service.OpenTraceGate.SetResult();
+        await WaitUntilAsync(() => Compare.AllocatedShown);
+
+        (Service.TracesOpened.Count, _allocations.Traces.Count).ShouldBe((1, 1));
+    }
+
+    /// <summary>Review H1: a tab read before the file was complete is not the file's any more.</summary>
+    [Fact]
+    public async Task A_trace_that_changed_since_it_was_read_is_read_again()
+    {
+        await OpenBothAsync(recorded: true);
+        Service.TraceFileBytes = 1;
+        await _allocations.OpenPathAsync(Path.Combine(_library.Current.Folder, "run.nettrace"));
+        var early = _allocations.Selected;
+
+        await TickAsync();
+
+        Service.TracesOpened.Count.ShouldBe(2);
+        _allocations.Traces.ShouldHaveSingleItem().ShouldNotBe(early);
+        Compare.AllocatedShown.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Closing_a_snapshot_takes_the_note_with_the_rows()
+    {
+        await OpenBothAsync(recorded: true);
+        await TickAsync();
+
+        await _snapshots.CloseCommand.ExecuteAsync(Compare.Current);
+
+        (Compare.AllocatedShown, Compare.AllocatedNote).ShouldBe((false, null));
     }
 
     [Fact]
@@ -179,7 +235,10 @@ public sealed class CompareAllocatedTests : IDisposable
     private async Task OpenBothAsync(bool recorded)
     {
         var folder = _library.Current.Folder;
-        await File.WriteAllTextAsync(Path.Combine(folder, "run.nettrace"), "trace", Ct);
+        var trace = Path.Combine(folder, "run.nettrace");
+        await File.WriteAllTextAsync(trace, "trace", Ct);
+        File.SetLastWriteTimeUtc(trace, DateTime.UnixEpoch);
+        Service.TraceFileBytes = new FileInfo(trace).Length;
         foreach (var (name, at) in new[] { ("first.dmp", 1), ("second.dmp", 9) })
         {
             var path = Path.Combine(folder, name);

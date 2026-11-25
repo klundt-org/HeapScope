@@ -120,7 +120,7 @@ LoadGen whose process was killed before the rundown (5.6 MB, 45,110 samples) rea
 of LeakyApi under continuous load (25.6 MB, 168,073 samples) 1.1 s and 131 MB; 600 s (72 MB, 565,625 samples) 1.9 s and
 227 MB, about 76 MB plus 2.1 bytes per file byte. The worker reserves 96 MB plus 3 bytes per file byte while reading
 (`TraceStore.ReadReservation`, about 1.4 times the measured growth; sizes above 72 MB are extrapolated, and growth
-follows samples, about 240 bytes each, more than file bytes); an open trace keeps 25 bytes per sample plus its names (14 MB for the 600 s trace).
+follows samples, about 240 bytes each, more than file bytes); an open trace keeps 29 bytes per sample (25 before 4.4) plus its names (14 MB for the 600 s trace).
 Whole-trace queries take 2 to 13 ms (types 244 ms on the first call, JIT included). A 12 s trace of 5,000 requests
 (4.1 MB, 5,415 samples) lists the five leaks' `Grow` methods as its top five call stacks. The UI smoke run's
 allocations step (Release, the 150 s trace, after the Small-sized dump's phases): the cold first show 3.0 s with a

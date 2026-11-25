@@ -109,7 +109,7 @@ public sealed class TypeDiffSourceTests : IDisposable
     [Fact]
     public void Allocated_columns_are_estimates_and_empty_without_a_sample()
     {
-        var join = AllocationJoin.Join([new("App.Order", 0, 5_000, 2), new("App.Fresh", 0, 0, 1)], _baseline, _baselineAggregation, _current, _currentAggregation, TestContext.Current.CancellationToken);
+        var join = AllocationJoin.Join([new("App.Order", 0, 5_000, 2), new("App.Fresh", 0, 0, 1)], new HashSet<string>(), _baseline, _baselineAggregation, _current, _currentAggregation, TestContext.Current.CancellationToken);
         var source = TypeDiffSource.Create(
             _baseline, _baselineAggregation, _current, _currentAggregation, new TypeDiffRequest(Guid.Empty, Guid.Empty, SortColumn: TypeDiffColumns.AllocatedBytes),
             Core.SnapshotKind.FullDump, Core.SnapshotKind.FullDump, extras: new DiffExtras { Allocated = join });

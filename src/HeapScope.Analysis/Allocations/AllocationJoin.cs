@@ -22,6 +22,8 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 
+using System.Runtime.InteropServices;
+using System.Text;
 using HeapScope.Core.Allocations;
 using HeapScope.Core.Graph;
 
@@ -29,13 +31,15 @@ namespace HeapScope.Analysis.Allocations;
 
 /// <summary>
 /// Joins the sampled allocations of a trace to the types of two snapshots of the same process (sprint 4.4, ADR-028): by the
-/// tick's method table to a full dump's types, which is exact while the process runs, and by name to a gcdump's, which has no
-/// method tables and records names as the runtime's events do. The caller vouches that trace and snapshots are of one process.
+/// tick's method table to a full dump's types, where the name there is the tick's (an unloaded type's address may be another's later),
+/// and by name to a gcdump's, which has no method tables and records names as the runtime's events do. Only a name that the whole
+/// trace has for one method table is joined by name: of two types of one name a collection may leave objects of one. The caller
+/// vouches that trace and snapshots are of one process.
 /// </summary>
 public sealed class AllocationJoin
 {
     private const int CheckEvery = 0xFFFF;
-    private const int KeptAbsent = 5;
+    private const int Kept = 5;
 
     private AllocationJoin(AllocationJoinTotals totals, long[] baselineBytes, int[] baselineSamples, string?[] baselineNames, long[] currentBytes, int[] currentSamples, string?[] currentNames)
     {
@@ -71,28 +75,53 @@ public sealed class AllocationJoin
     {
         ArgumentNullException.ThrowIfNull(trace);
         var (start, end) = AllocationProfile.SampleRange(trace, filter);
-        var totals = new Dictionary<(int Type, int Table), (long Bytes, int Samples)>();
+        var totals = new Dictionary<long, (long Bytes, int Samples)>();
         for (var i = start; i < end; i++)
         {
-            var key = (trace.SampleTypes[i], trace.MethodTables?.Samples[i] ?? -1);
-            var (bytes, samples) = totals.GetValueOrDefault(key);
-            totals[key] = (bytes + trace.SampleBytes[i], samples + trace.CountOf(i));
-            if ((i & CheckEvery) == 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-            }
+            ref var total = ref CollectionsMarshal.GetValueRefOrAddDefault(totals, Key(trace, i), out _);
+            total = (total.Bytes + trace.SampleBytes[i], total.Samples + trace.CountOf(i));
+            Check(i, cancellationToken);
         }
 
         return
         [
-            .. totals.Select(t => new AllocatedType(trace.Types[t.Key.Type], t.Key.Table < 0 ? 0 : trace.MethodTables!.Distinct[t.Key.Table], t.Value.Bytes, t.Value.Samples))
+            .. totals.Select(t => new AllocatedType(trace.Types[(int)(t.Key >> 32)], TableOf(trace, (int)t.Key), t.Value.Bytes, t.Value.Samples))
                 .OrderByDescending(t => t.Bytes).ThenBy(t => t.Name, StringComparer.Ordinal).ThenBy(t => t.MethodTable),
         ];
     }
 
+    /// <summary>The names, in the form they are compared in, that the whole trace has for more than one method table.</summary>
+    public static IReadOnlySet<string> SharedNames(AllocationTrace trace, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trace);
+        var seen = new HashSet<long>();
+        for (var i = 0; i < trace.SampleCount; i++)
+        {
+            seen.Add(Key(trace, i));
+            Check(i, cancellationToken);
+        }
+
+        var forms = new Dictionary<int, string>();
+        return seen.GroupBy(key =>
+            {
+                var type = (int)(key >> 32);
+                if (!forms.TryGetValue(type, out var form))
+                {
+                    forms.Add(type, form = Form(trace.Types[type]));
+                }
+
+                return form;
+            })
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
     /// <summary>Joins <paramref name="allocated"/> to the types that have objects in either snapshot.</summary>
+    /// <param name="sharedNames">The trace's names that several types share (<see cref="SharedNames"/>).</param>
     public static AllocationJoin Join(
         IReadOnlyList<AllocatedType> allocated,
+        IReadOnlySet<string> sharedNames,
         HeapGraph baselineGraph,
         TypeAggregation baseline,
         HeapGraph currentGraph,
@@ -100,18 +129,17 @@ public sealed class AllocationJoin
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(allocated);
+        ArgumentNullException.ThrowIfNull(sharedNames);
         ArgumentNullException.ThrowIfNull(baselineGraph);
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(currentGraph);
         ArgumentNullException.ThrowIfNull(current);
-        var tables = new Dictionary<ulong, Target>();
+        var (currentTables, baselineTables) = (new Dictionary<ulong, int>(), new Dictionary<ulong, int>());
         var names = new Dictionary<string, Target>(StringComparer.Ordinal);
 
-        // The current snapshot first: a type in both is its row all the same, but a name is joined to one type only.
-        Index(currentGraph, current, isCurrent: true, tables, names);
-        cancellationToken.ThrowIfCancellationRequested();
-        Index(baselineGraph, baseline, isCurrent: false, tables, names);
-        cancellationToken.ThrowIfCancellationRequested();
+        // Which side's type index holds a joined name does not matter to a row both sides have.
+        var unnamed = Index(currentGraph, current, isCurrent: true, currentTables, names, cancellationToken)
+            + Index(baselineGraph, baseline, isCurrent: false, baselineTables, names, cancellationToken);
 
         var baselineBytes = new long[baseline.TypeCount];
         var baselineSamples = new int[baseline.TypeCount];
@@ -119,27 +147,56 @@ public sealed class AllocationJoin
         var currentBytes = new long[current.TypeCount];
         var currentSamples = new int[current.TypeCount];
         var currentNames = new string?[current.TypeCount];
-        long total = 0, byTable = 0, byName = 0, shared = 0, absent = 0;
+        long total = 0, byTable = 0, byName = 0;
         var samples = 0;
-        var otherNames = 0;
-        var absentTypes = new List<AllocatedType>();
-        foreach (var type in allocated)
+        var (absent, shared, other) = (new List<AllocatedType>(), new List<AllocatedType>(), new List<(AllocatedType Type, string Snapshot)>());
+        for (var i = 0; i < allocated.Count; i++)
         {
+            Check(i, cancellationToken);
+            var type = allocated[i];
             total += type.Bytes;
             samples += type.Samples;
-            if (type.MethodTable != 0 && tables.TryGetValue(type.MethodTable, out var target))
+            var form = Form(type.Name);
+            Target target;
+            if (type.MethodTable != 0 && (currentTables.ContainsKey(type.MethodTable) || baselineTables.ContainsKey(type.MethodTable)))
             {
-                byTable += type.Bytes;
-                if (Form(type.Name) != TypeNameForms.AsGcDumpName((target.IsCurrent ? currentGraph : baselineGraph).Types.GetName(target.Type)))
+                string? inSnapshot = null;
+                if (Is(currentGraph, currentTables, out var t))
                 {
-                    otherNames++;
+                    target = new Target(true, t, string.Empty, Shared: false);
+                }
+                else if (Is(baselineGraph, baselineTables, out t))
+                {
+                    target = new Target(false, t, string.Empty, Shared: false);
+                }
+                else
+                {
+                    other.Add((type, inSnapshot!));
+                    absent.Add(type);
+                    continue;
+                }
+
+                byTable += type.Bytes;
+
+                // Whether the snapshot's type at the tick's method table is the tick's: by the name without its generic arguments, which
+                // the runtime's events and a dump order differently where a declaring type has some. An unnamed type is taken for it.
+                bool Is(HeapGraph graph, Dictionary<ulong, int> tables, out int index)
+                {
+                    if (!tables.TryGetValue(type.MethodTable, out index))
+                    {
+                        return false;
+                    }
+
+                    var name = graph.Types.GetName(index);
+                    inSnapshot ??= name;
+                    return name.StartsWith("<unknown", StringComparison.Ordinal) || WithoutArguments(TypeNameForms.AsGcDumpName(name)) == WithoutArguments(form);
                 }
             }
-            else if (names.TryGetValue(Form(type.Name), out target))
+            else if (names.TryGetValue(form, out target))
             {
-                if (target.Shared)
+                if (target.Shared || sharedNames.Contains(form))
                 {
-                    shared += type.Bytes;
+                    shared.Add(type);
                     continue;
                 }
 
@@ -147,8 +204,7 @@ public sealed class AllocationJoin
             }
             else
             {
-                absent += type.Bytes;
-                absentTypes.Add(type);
+                absent.Add(type);
                 continue;
             }
 
@@ -158,7 +214,19 @@ public sealed class AllocationJoin
         }
 
         return new AllocationJoin(
-            new AllocationJoinTotals(total, samples, byTable, byName, shared, absent, absentTypes.Count, otherNames, [.. absentTypes.OrderByDescending(t => t.Bytes).Take(KeptAbsent)]),
+            new AllocationJoinTotals(
+                total,
+                samples,
+                byTable,
+                byName,
+                shared.Sum(t => t.Bytes),
+                absent.Sum(t => t.Bytes),
+                absent.Count,
+                other.Sum(t => t.Type.Bytes),
+                unnamed,
+                [.. absent.OrderByDescending(t => t.Bytes).Take(Kept)],
+                [.. shared.OrderByDescending(t => t.Bytes).Take(Kept)],
+                [.. other.OrderByDescending(t => t.Type.Bytes).Take(Kept)]),
             baselineBytes,
             baselineSamples,
             baselineNames,
@@ -170,13 +238,57 @@ public sealed class AllocationJoin
     /// <summary>A name as the trace records it, in the one form both are compared in.</summary>
     private static string Form(string recorded) => TypeNameForms.AsGcDumpName(TypeNameForms.FromRuntimeEvent(recorded));
 
+    /// <summary>A name without its generic argument lists (an angle bracket after a letter, a digit or an underscore opens one).</summary>
+    internal static string WithoutArguments(string name)
+    {
+        if (!name.Contains('<', StringComparison.Ordinal))
+        {
+            return name;
+        }
+
+        var text = new StringBuilder(name.Length);
+        var depth = 0;
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (c == '<' && (depth > 0 || (i > 0 && (char.IsLetterOrDigit(name[i - 1]) || name[i - 1] == '_'))))
+            {
+                depth++;
+            }
+            else if (c == '>' && depth > 0)
+            {
+                depth--;
+            }
+            else if (depth == 0)
+            {
+                text.Append(c);
+            }
+        }
+
+        return text.ToString();
+    }
+
+    private static long Key(AllocationTrace trace, int sample) => ((long)trace.SampleTypes[sample] << 32) | (uint)(trace.MethodTables?.Samples[sample] ?? -1);
+
+    private static ulong TableOf(AllocationTrace trace, int table) => table < 0 ? 0 : trace.MethodTables!.Distinct[table];
+
+    private static void Check(int i, CancellationToken cancellationToken)
+    {
+        if ((i & CheckEvery) == 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+    }
+
     // Types with a method table are found by it alone: the dump would have the type under the sample's table, so a name that
-    // matches another table's type is another type (two nested types of one name).
-    private static void Index(HeapGraph graph, TypeAggregation aggregation, bool isCurrent, Dictionary<ulong, Target> tables, Dictionary<string, Target> names)
+    // matches another table's type is another type (two nested types of one name). Returns the types without a name.
+    private static int Index(HeapGraph graph, TypeAggregation aggregation, bool isCurrent, Dictionary<ulong, int> tables, Dictionary<string, Target> names, CancellationToken cancellationToken)
     {
         var methodTables = graph.Types.MethodTables.Span;
+        var unnamed = 0;
         for (var t = 0; t < aggregation.TypeCount; t++)
         {
+            Check(t, cancellationToken);
             if (aggregation.Counts[t] == 0)
             {
                 continue;
@@ -184,18 +296,24 @@ public sealed class AllocationJoin
 
             if (methodTables[t] != 0)
             {
-                tables.TryAdd(methodTables[t], new Target(isCurrent, t, string.Empty, Shared: false));
+                tables.TryAdd(methodTables[t], t);
                 continue;
             }
 
             var module = TypeGroups.ModuleKey(graph.Types.GetModule(t));
             var name = TypeNameForms.AsGcDumpName(graph.Types.GetName(t));
-            if (!names.TryAdd(name, new Target(isCurrent, t, module, Shared: false))
+            if (name.StartsWith("UNKNOWN 0x", StringComparison.Ordinal) || name.StartsWith("<unknown", StringComparison.Ordinal))
+            {
+                unnamed++;
+            }
+            else if (!names.TryAdd(name, new Target(isCurrent, t, module, Shared: false))
                 && names[name] is { Shared: false } known && !string.Equals(known.Module, module, StringComparison.OrdinalIgnoreCase))
             {
                 names[name] = known with { Shared = true };
             }
         }
+
+        return unnamed;
     }
 
     private readonly record struct Target(bool IsCurrent, int Type, string Module, bool Shared);

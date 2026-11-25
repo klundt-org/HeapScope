@@ -87,8 +87,11 @@ notes who can capture whom.
   both were captured while one run on the Live page recorded allocations, tick Allocated between in Compare: each row says about how
   many bytes of its types were allocated between the two, estimated from samples (about one per 100 KB), and the note says how much was
   allocated in all. An empty cell means no sample, not no allocation. "Show where it was allocated" in a row's menu opens the
-  Allocations page at that time and type. Stop the run first: its trace is read when it is complete. A gcdump is joined by type name, and
-  types without an object in either snapshot have no row: the note says their bytes, and the Allocations page has them.
+  Allocations page at that time and type. Stop the run first: its trace is read when it is complete. Types
+  without an object in either snapshot have no row: the note says their bytes, and the Allocations page has them. A gcdump is joined by
+  type name, which for a nested type lacks the declaring type: a name several types share has no row, and a row can hold what another
+  type of its name allocated. At each end of the interval about 100 KB per GC heap is on either side, so with Server GC
+  a short interval is rough.
   On the command line: `diff --allocated`.
 - **Reading the Retainers chart.** Each bar is what the bar above it keeps alive, and its width is how much. The two band
   colors only separate the levels; a selected bar and its path turn amber. Most bars are too narrow for a label, so hover

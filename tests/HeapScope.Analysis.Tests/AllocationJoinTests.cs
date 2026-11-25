@@ -64,7 +64,7 @@ public sealed class AllocationJoinTests
         rows["A.One+Scope"].ShouldBe((300, 3));
         rows["B.Two+Scope"].ShouldBe((50, 1));
         rows["App.Old"].ShouldBe((20, 1), "a type the current snapshot lost takes its bytes in the baseline");
-        (totals.Bytes, totals.ByMethodTable, totals.ByName, totals.Absent, totals.AbsentTypes, totals.OtherNames).ShouldBe((377, 370, 0, 7, 1, 0));
+        (totals.Bytes, totals.ByMethodTable, totals.ByName, totals.Absent, totals.AbsentTypes, totals.OtherType).ShouldBe((377, 370, 0, 7, 1, 0));
         totals.TopAbsent.ShouldHaveSingleItem().MethodTable.ShouldBe(0x22UL, "a table no dump has is absent, however the name is spelled");
     }
 
@@ -82,6 +82,67 @@ public sealed class AllocationJoinTests
         rows["Entry<System.Int32, App.X>[]"].ShouldBe((300, 3));
         rows.Where(r => r.Key.StartsWith("Scope", StringComparison.Ordinal)).ShouldAllBe(r => r.Value.Bytes == null);
         (totals.Bytes, totals.ByMethodTable, totals.ByName, totals.SharedName, totals.Absent, totals.Samples).ShouldBe((357, 0, 300, 50, 7, 5));
+    }
+
+    /// <summary>Review H5: a collection left objects of one of two types of a name, so the name alone would give it the other's bytes.</summary>
+    [Fact]
+    public void A_name_the_trace_has_for_two_method_tables_goes_to_no_gcdump_row()
+    {
+        var (before, after) = (new SyntheticGraphBuilder(), new SyntheticGraphBuilder());
+        before.Object("<>c__DisplayClass0_0", 40, module: "App.dll");
+        after.Object("<>c__DisplayClass0_0", 40, module: "App.dll");
+
+        var (rows, totals) = Diff(before, after, [new("<>c__DisplayClass0_0", 0x21, 500, 5)], shared: ["<>c__DisplayClass0_0"]);
+
+        rows.ShouldHaveSingleItem().Value.Bytes.ShouldBeNull();
+        (totals.SharedName, totals.ByName, totals.Absent).ShouldBe((500, 0, 0));
+        totals.TopShared.ShouldHaveSingleItem().MethodTable.ShouldBe(0x21UL);
+    }
+
+    /// <summary>The whole trace tells, not the interval: the other type of the name may be sampled outside it.</summary>
+    [Fact]
+    public void Names_of_several_method_tables_are_found_in_the_whole_trace() =>
+        AllocationJoin.SharedNames(Trace(), Ct).ShouldBe(["Scope"]);
+
+    /// <summary>Review M1: an unloaded type's address is another type's later; the names tell.</summary>
+    [Fact]
+    public void A_method_table_of_another_type_is_not_joined_to_it()
+    {
+        var (before, after) = (new SyntheticGraphBuilder(), new SyntheticGraphBuilder());
+        before.Object("Plugin1.Row", 40, module: "Plugin1.dll", methodTable: 0x20);
+        before.Object("Kept", 40, module: "App.dll", methodTable: 0x50);
+        after.Object("Plugin2.Cache", 40, module: "Plugin2.dll", methodTable: 0x20);
+        after.Object("<unknown type 0x30>", 40, module: "App.dll", methodTable: 0x30);
+
+        var (rows, totals) = Diff(before, after, [new("Plugin1.Row", 0x20, 300, 3), new("Plugin2.Cache", 0x20, 50, 1), new("Plugin3.Late", 0x20, 7, 1), new("Lost", 0x30, 11, 1)]);
+
+        rows["Plugin1.Row"].ShouldBe((300, 3), "the baseline's type of that name");
+        rows["Plugin2.Cache"].ShouldBe((50, 1));
+        rows["<unknown type 0x30>"].ShouldBe((11, 1), "an unnamed type is taken for the tick's");
+        (totals.ByMethodTable, totals.Absent, totals.OtherType).ShouldBe((361, 7, 7));
+        totals.TopOtherType.ShouldHaveSingleItem().ShouldBe((new AllocatedType("Plugin3.Late", 0x20, 7, 1), "Plugin2.Cache"));
+    }
+
+    /// <summary>Names are compared without their generic arguments: the runtime's events and a dump order a declaring type's differently.</summary>
+    [Theory]
+    [InlineData("Entry<System.String, Lib.Multi+ValueSet<System.String, App.X>>[]", "Entry[]")]
+    [InlineData("<>c__DisplayClass19_0<System.Object, System.Int32>", "<>c__DisplayClass19_0")]
+    [InlineData("<<Main>$>d__0", "<<Main>$>d__0")]
+    [InlineData("<Select>d__2<A<B>, C>[,]", "<Select>d__2[,]")]
+    [InlineData("System.String", "System.String")]
+    public void Names_without_their_generic_arguments(string name, string expected) => AllocationJoin.WithoutArguments(name).ShouldBe(expected);
+
+    [Fact]
+    public void Types_of_a_gcdump_without_a_name_are_counted_and_joined_to_nothing()
+    {
+        var (before, after) = (new SyntheticGraphBuilder(), new SyntheticGraphBuilder());
+        before.Object("App.Order", 40, module: "App.dll");
+        after.Object("UNKNOWN 0x7ffb00", 40);
+
+        var (rows, totals) = Diff(before, after, [new("App.Order", 0x20, 300, 3), new("UNKNOWN 0x7ffb00", 0x21, 1, 1)]);
+
+        rows["App.Order"].ShouldBe((300, 3));
+        (totals.UnnamedTypes, totals.Absent).ShouldBe((1, 1));
     }
 
     [Fact]
@@ -121,13 +182,13 @@ public sealed class AllocationJoinTests
         methodTables: new AllocationMethodTables([0x10, 0x20, 0x21], [0, 0, 1, 2, 0]));
 
     private static (Dictionary<string, (long? Bytes, int? Samples)> Rows, AllocationJoinTotals Totals) Diff(
-        SyntheticGraphBuilder before, SyntheticGraphBuilder after, AllocatedType[] allocated, Func<string, string>? baselineNames = null)
+        SyntheticGraphBuilder before, SyntheticGraphBuilder after, AllocatedType[] allocated, Func<string, string>? baselineNames = null, string[]? shared = null)
     {
         using var baseline = before.Build();
         using var current = after.Build();
         var baselineTypes = TypeAggregation.Compute(baseline, cancellationToken: Ct);
         var currentTypes = TypeAggregation.Compute(current, cancellationToken: Ct);
-        var join = AllocationJoin.Join(allocated, baseline, baselineTypes, current, currentTypes, Ct);
+        var join = AllocationJoin.Join(allocated, shared?.ToHashSet() ?? [], baseline, baselineTypes, current, currentTypes, Ct);
         var rows = TypeDiff.Build(baseline, baselineTypes, current, currentTypes, GroupKey.Type, baselineNames, extras: new DiffExtras { Allocated = join });
         return (rows.ToDictionary(r => r.Name, r => (r.AllocatedBytes, r.AllocatedSamples)), join.Totals);
     }

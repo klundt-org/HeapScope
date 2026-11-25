@@ -549,20 +549,29 @@ internal sealed class HeapQueryHandler(
 
         var open = traces.TryGet(scope.TraceId) ?? throw AllocationTraceHandler.NotLoaded(scope.TraceId);
         var info = open.Trace.Info;
-        foreach (var snapshot in new[] { baseline.Info, current.Info })
+        var start = new DateTimeOffset(DateTime.SpecifyKind(info.StartUtc, DateTimeKind.Utc));
+        var (asked, until) = ((scope.FromUtc - start).TotalMilliseconds, (scope.ToUtc - start).TotalMilliseconds);
+
+        // An interval is half open: the last event of a recording is in one that reaches past its end.
+        var (from, to) = (Math.Max(0, asked), until >= info.DurationMs ? Math.Max(0, info.DurationMs) + 1 : until);
+        var question = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{request.BaselineId} and {request.CurrentId}: trace {scope.TraceId} ({open.Path}) of process {info.ProcessId}, recorded from {start:O} for {info.DurationMs / 1000:F3} s, asked {scope.FromUtc:O} to {scope.ToUtc:O} ({asked / 1000:F3} s to {until / 1000:F3} s of it)");
+        foreach (var (snapshot, side) in new[] { (baseline.Info, "baseline"), (current.Info, "current snapshot") })
         {
             if (info.ProcessId != 0 && snapshot.ProcessId is { } pid && pid != 0 && pid != info.ProcessId)
             {
-                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The allocation trace is of process {info.ProcessId}, and a snapshot is of process {pid}: allocations can be compared for one process only."));
+                Logger.LogInformation("Allocations between {Question}: refused, the {Side} is of process {ProcessId}", question, side, pid);
+                throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"The allocation trace is of process {info.ProcessId}, and the {side} is of process {pid}: allocations can be compared for one process only."));
             }
         }
 
-        var start = new DateTimeOffset(DateTime.SpecifyKind(info.StartUtc, DateTimeKind.Utc));
-        var (asked, until) = ((scope.FromUtc - start).TotalMilliseconds, (scope.ToUtc - start).TotalMilliseconds);
-        var (from, to) = (Math.Max(0, asked), Math.Min(Math.Max(info.DurationMs, 0), until));
-        if (to <= from)
+        if (to <= from || from > info.DurationMs || until <= 0)
         {
-            throw new RequestRefusedException("The recording does not lie between the two snapshots, so it has no allocations to show for them.");
+            Logger.LogInformation("Allocations between {Question}: refused, the recording does not lie between them", question);
+            throw new RequestRefusedException(until <= 0
+                ? string.Create(CultureInfo.InvariantCulture, $"The recording started {-until / 1000:N1} s after the later snapshot, so it has nothing that was allocated between the two. Capture both while the run records.")
+                : string.Create(CultureInfo.InvariantCulture, $"The recording ended {(asked - info.DurationMs) / 1000:N1} s before the earlier snapshot (the process exited, or the trace reached its size limit), so it has nothing that was allocated between the two. Capture both while the run records."));
         }
 
         progress?.Report(new JobProgress("Adding up the allocations between the snapshots", 0, null));
@@ -570,20 +579,14 @@ internal sealed class HeapQueryHandler(
             () =>
             {
                 var allocated = AllocationJoin.Types(open.Trace, new AllocationFilter(from, to), cancellationToken);
-                return (allocated, AllocationJoin.Join(allocated, baseline.Graph, baselineAggregation, current.Graph, currentAggregation, cancellationToken));
+                var shared = AllocationJoin.SharedNames(open.Trace, cancellationToken);
+                return (allocated, AllocationJoin.Join(allocated, shared, baseline.Graph, baselineAggregation, current.Graph, currentAggregation, cancellationToken));
             },
             cancellationToken).ConfigureAwait(false);
         var totals = join.Totals;
         Logger.LogInformation(
-            "Allocations between {Baseline} and {Current}: trace {Trace} of process {ProcessId}, recorded from {Start:O} for {Recorded:N3} s, asked {AskedFrom:O} to {AskedTo:O}, counted {From:N3} s to {To:N3} s: {Samples} samples of {Bytes} bytes in {Types} types (by name and method table); joined by method table {ByTable} bytes, by name {ByName} bytes, names several modules share {Shared} bytes, types without an object {Absent} bytes in {AbsentTypes} types (largest {TopAbsent}); {OtherNames} method tables with another name in the trace; {Lost} lost events",
-            request.BaselineId,
-            request.CurrentId,
-            scope.TraceId,
-            info.ProcessId,
-            start,
-            info.DurationMs / 1000,
-            scope.FromUtc,
-            scope.ToUtc,
+            "Allocations between {Question}: counted {From:F3} s to {To:F3} s, {Samples} samples of {Bytes} bytes in {Types} types (by name and method table); joined by method table {ByTable} bytes, by name {ByName} bytes; names several types share {Shared} bytes (largest {TopShared}); types without an object {Absent} bytes in {AbsentTypes} types (largest {TopAbsent}), of them {OtherType} bytes of method tables that are another type's in the dumps (largest {TopOther}); {Unnamed} gcdump types without a name; {Lost} lost events, {Issues} conversion problems",
+            question,
             from / 1000,
             to / 1000,
             totals.Samples,
@@ -592,11 +595,15 @@ internal sealed class HeapQueryHandler(
             totals.ByMethodTable,
             totals.ByName,
             totals.SharedName,
+            Describe(totals.TopShared),
             totals.Absent,
             totals.AbsentTypes,
-            string.Join("; ", totals.TopAbsent.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Name} {t.Bytes} bytes"))),
-            totals.OtherNames,
-            info.LostEvents);
+            Describe(totals.TopAbsent),
+            totals.OtherType,
+            string.Join("; ", totals.TopOtherType.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Type.Name} as {t.Snapshot} at 0x{t.Type.MethodTable:x} {t.Type.Bytes} bytes"))),
+            totals.UnnamedTypes,
+            info.LostEvents,
+            info.ConversionIssues);
         return (join, new DiffAllocationInfo(
             from / 1000,
             to / 1000,
@@ -609,7 +616,12 @@ internal sealed class HeapQueryHandler(
             totals.Absent,
             totals.AbsentTypes,
             totals.SharedName,
-            info.LostEvents));
+            info.LostEvents,
+            totals.ByName,
+            totals.UnnamedTypes,
+            info.ConversionIssues));
+
+        static string Describe(IReadOnlyList<AllocatedType> largest) => string.Join("; ", largest.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Name} at 0x{t.MethodTable:x} {t.Bytes} bytes")));
     }
 
     private void LogDiff(TypeDiffRequest request, Comparison comparison, TypeDiffSource source) =>

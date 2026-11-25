@@ -90,7 +90,17 @@ public sealed partial class AllocationsViewModel : ObservableObject
         Status = "Reading " + Path.GetFileName(path) + "...";
         try
         {
-            Show(await _session.StartOpen(path).Result);
+            var handle = await _session.OpenOnceAsync(path, CancellationToken.None);
+            if (Find(path) is { } opened)
+            {
+                Selected = opened;
+                TraceShown?.Invoke(this, EventArgs.Empty);
+            }
+            else
+            {
+                Show(handle);
+            }
+
             Status = null;
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
@@ -122,12 +132,19 @@ public sealed partial class AllocationsViewModel : ObservableObject
     /// The trace of a file for another page (Compare, sprint 4.4): its tab is added when it has none, without switching to this page,
     /// so the user can look at it and close it here. Read in the worker as a tracked job when it is not open yet.
     /// </summary>
-    public async Task<DiffAllocations> OpenBesideAsync(string path, DateTimeOffset fromUtc, DateTimeOffset toUtc)
+    public async Task<DiffAllocations> OpenBesideAsync(string path, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
+        if (Find(path) is { } stale && !stale.Trace.IsFileAsRead())
+        {
+            // Read before it was complete, or written again since: its figures are not the file's.
+            _logger.LogInformation("Allocations: {Path} changed since it was read, so it is read again", stale.Trace.Path);
+            await CloseAsync(stale);
+        }
+
         if (Find(path) is not { } tab)
         {
-            var handle = await _session.OpenOnceAsync(path);
+            var handle = await _session.OpenOnceAsync(path, cancellationToken);
             tab = Find(path) ?? Add(handle);
             Selected ??= tab;
         }

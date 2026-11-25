@@ -152,9 +152,8 @@ internal sealed class TraceStore
         }
 
         var kept = KeptBytes(trace);
-        var id = Guid.NewGuid();
         var open = new OpenTrace(path, trace);
-        _traces[id] = open;
+        var id = Add(open);
         var seconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
 
         // The trace's identity and what reading it found (the 2.5 review): a disputed figure is matched to this line.
@@ -201,6 +200,14 @@ internal sealed class TraceStore
             info.SamplesWithUnresolvedFrames,
             info.HasRundown,
             info.ConversionIssues);
+    }
+
+    /// <summary>Keeps an open trace under a new id.</summary>
+    internal Guid Add(OpenTrace open)
+    {
+        var id = Guid.NewGuid();
+        _traces[id] = open;
+        return id;
     }
 
     /// <summary>Follows a trace while it is recorded (sprint 4.3, ADR-037).</summary>

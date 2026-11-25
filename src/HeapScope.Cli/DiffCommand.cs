@@ -140,27 +140,30 @@ internal static partial class CliCommands
             var session = context.Get<SnapshotSession>();
             var sortName = parseResult.GetValue(sort)!;
             DiffAllocations? between = null;
+            double clockShift = 0;
             if (parseResult.GetValue(allocated))
             {
                 var found = await Task.Run(() => AllocatedBetween.Find(before.Path, after.Path), ct).ConfigureAwait(false);
                 context.Get<ILoggerFactory>().CreateLogger("HeapScope.Cli.Diff").LogInformation(
-                    "Allocations between {Baseline} and {Current}: {Outcome}",
+                    "Allocations between {Baseline} and {Current}: {Outcome}; {Evidence}",
                     before.Path,
                     after.Path,
-                    found.Reason ?? string.Create(CultureInfo.InvariantCulture, $"{found.TracePath} of run {found.RunId}, from {found.FromUtc:O} to {found.ToUtc:O}{(found.Late ? ", a gcdump's time being its file's" : string.Empty)}"));
+                    found.Reason is { } reason ? "none, said as: " + reason : string.Create(CultureInfo.InvariantCulture, $"{found.TracePath} from {found.FromUtc:O} to {found.ToUtc:O}"),
+                    found.Evidence);
                 if (found.TracePath is not { } tracePath)
                 {
                     await error.WriteLineAsync("Error: " + found.Reason).ConfigureAwait(false);
                     return Failure;
                 }
 
-                if (found.Late)
+                if (found.NoHeapTime)
                 {
-                    await error.WriteLineAsync("Caution: " + AllocatedBetweenTexts.Late).ConfigureAwait(false);
+                    await error.WriteLineAsync("Caution: " + AllocatedBetweenTexts.NoHeapTime).ConfigureAwait(false);
                 }
 
+                clockShift = found.ClockShiftSeconds;
                 var allocations = context.Get<AllocationSession>();
-                between = new DiffAllocations(allocations, await allocations.OpenOnceAsync(tracePath).ConfigureAwait(false), found.FromUtc, found.ToUtc);
+                between = new DiffAllocations(allocations, await AwaitJobAsync(context, allocations.StartOpen(tracePath), ct).ConfigureAwait(false), found.FromUtc, found.ToUtc);
             }
 
             var progress = parseResult.GetValue(retained) ? new StderrProgress(error) : null;
@@ -185,8 +188,8 @@ internal static partial class CliCommands
 
             if (result.Allocations is { } counted)
             {
-                await error.WriteLineAsync("Note: " + AllocatedBetweenTexts.Summary(counted, Mb, CultureInfo.InvariantCulture)).ConfigureAwait(false);
-                await error.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Where: allocations \"{between!.Trace.Path}\" --from {counted.FromSeconds:0.###} --to {counted.ToSeconds:0.###}")).ConfigureAwait(false);
+                await error.WriteLineAsync("Note: " + AllocatedBetweenTexts.Summary(counted, Mb, CultureInfo.InvariantCulture, clockShift)).ConfigureAwait(false);
+                await error.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Where: heapscope-cli allocations \"{between!.Trace.Path}\" --from {counted.FromSeconds:R} --to {counted.ToSeconds:R}")).ConfigureAwait(false);
             }
 
             if (result.ObjectsMatched)

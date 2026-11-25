@@ -156,11 +156,12 @@ public sealed class DumpCapturerTests : IDisposable
 
         if (ownTime)
         {
-            heap.UtcDateTime.ShouldBe(written);
+            (heap.Utc.UtcDateTime, heap.Source).ShouldBe((written, "the dump's last write"));
         }
         else
         {
-            heap.ShouldBeGreaterThanOrEqualTo(started);
+            heap.Utc.ShouldBeGreaterThanOrEqualTo(started);
+            heap.Source.ShouldStartWith("the runtime's answer");
         }
     }
 

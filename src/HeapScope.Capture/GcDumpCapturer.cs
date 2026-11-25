@@ -139,6 +139,8 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
         }
         finally
         {
+            // Sprint 4.4: whether the type table was flushed, and how long it took, to tell a gcdump whose types have no name.
+            _logger.LogInformation("gcdump pid {Pid}: {Flush}; heap walked at {At}", processId, string.Join(", ", log.Lines.Where(static l => l.Contains("lushing the type table", StringComparison.Ordinal)).Select(static l => l.Trim())), walked?.ToString("O", CultureInfo.InvariantCulture) ?? "no time");
             foreach (var line in log.Lines)
             {
                 var problem = line.Contains("[Error]", StringComparison.Ordinal) || line.Contains("Warning", StringComparison.OrdinalIgnoreCase)
@@ -234,7 +236,7 @@ public sealed class GcDumpCapturer(IElevationProbe? elevation = null, IGcDumpWri
     /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the runtime walked the heap,
     /// when its events said (sprint 4.4): seconds before the file is done.
     /// </summary>
-    public async Task<DateTimeOffset?> CaptureAsync(DotNetProcess process, string path, IProgress<CaptureProgress>? progress, TimeSpan? timeout, CancellationToken cancellationToken)
+    public async Task<HeapTime?> CaptureAsync(DotNetProcess process, string path, IProgress<CaptureProgress>? progress, TimeSpan? timeout, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -273,7 +275,7 @@ public sealed class GcDumpCapturer(IElevationProbe? elevation = null, IGcDumpWri
         }
 
         file.Commit();
-        return result.HeapUtc;
+        return result.HeapUtc is { } at ? new HeapTime(at, "the first heap node its collection reported") : null;
     }
 
     private static Exception Failure(DotNetProcess process, TimeSpan limit, GcDumpWriteResult result)

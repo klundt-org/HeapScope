@@ -55,12 +55,17 @@ public sealed class AllocatedBetweenTests : IDisposable
 
         var found = AllocatedBetween.Find(first, second);
 
-        found.ShouldBe(new AllocatedBetween(Path.Combine(_folder, "run.nettrace"), run, s_start.AddSeconds(9), s_start.AddSeconds(25), false, null));
-        AllocatedBetween.Find(second, first).ShouldBe(found, "the interval is the same whichever is the baseline");
+        (found.TracePath, found.RunId, found.FromUtc, found.ToUtc, found.NoHeapTime, found.Reason).ShouldBe(
+            (Path.Combine(_folder, "run.nettrace"), run, s_start.AddSeconds(9), s_start.AddSeconds(25), false, (string?)null));
+        found.Evidence.ShouldContain("its heap's time");
+        found.Evidence.ShouldNotContain("reverse order");
+        var reversed = AllocatedBetween.Find(second, first);
+        (reversed with { Evidence = found.Evidence }).ShouldBe(found, "the interval is the same whichever is the baseline");
+        reversed.Evidence.ShouldContain("in reverse order");
     }
 
     [Fact]
-    public void A_gcdump_of_before_the_heap_s_time_was_recorded_is_marked_late()
+    public void A_heap_whose_time_was_not_recorded_is_marked()
     {
         var first = Snapshot("a.dmp", 10);
         var second = Snapshot("b.gcdump", 30, kind: SnapshotKindDto.GcDump);
@@ -68,7 +73,8 @@ public sealed class AllocatedBetweenTests : IDisposable
 
         var found = AllocatedBetween.Find(first, second);
 
-        (found.Late, found.ToUtc).ShouldBe((true, s_start.AddSeconds(30)));
+        (found.NoHeapTime, found.ToUtc).ShouldBe((true, s_start.AddSeconds(30)));
+        found.Evidence.ShouldContain("its heap's time is not known");
     }
 
     [Fact]
@@ -81,10 +87,13 @@ public sealed class AllocatedBetweenTests : IDisposable
         Reason(first, Path.Combine(_folder, "unknown.dmp")).ShouldBe(AllocatedBetweenTexts.NotOneSession);
         Reason(first, second).ShouldBe(AllocatedBetweenTexts.NotOneRun);
 
-        // Still running, or the app ended without recording its end: no trace is in the record yet.
-        var run = Run(ended: null, trace: null);
+        // Review H1: the record of a running run has its trace's name already; a run that does not record has none.
+        var run = Run(ended: null, trace: "run.nettrace");
         Reason(first, second).ShouldBe(AllocatedBetweenTexts.NotEnded);
         Reason(first, other).ShouldBe(AllocatedBetweenTexts.NotOneRun);
+        AllocatedBetween.Find(first, other).Evidence.ShouldContain("another process");
+        Run(run, ended: null, trace: null);
+        Reason(first, second).ShouldBe(AllocatedBetweenTexts.NoTrace);
 
         Run(run, ended: 60, trace: null);
         Reason(first, second).ShouldBe(AllocatedBetweenTexts.NoTrace);
@@ -100,8 +109,37 @@ public sealed class AllocatedBetweenTests : IDisposable
         Reason(first, second)!.ShouldContain("not there any more");
         Run(run, ended: 20, trace: "run.nettrace");
         Reason(first, second).ShouldBe(AllocatedBetweenTexts.NotOneRun, "the run ended before the second snapshot");
+        AllocatedBetween.Find(first, second).Evidence.ShouldContain("ended before the later heap");
         Run(run, ended: 60, trace: "run.nettrace");
         AllocatedBetween.Find(first, second).Reason.ShouldBeNull();
+    }
+
+    /// <summary>Review M5: a run HeapScope did not live to end fits every later pair; the later run that ended has the trace.</summary>
+    [Fact]
+    public void A_later_run_that_ended_is_taken_before_one_whose_end_was_not_recorded()
+    {
+        var first = Snapshot("a.dmp", 10, heap: 10);
+        var second = Snapshot("b.dmp", 30, heap: 30);
+        File.WriteAllText(Path.Combine(_folder, "later.nettrace"), "trace");
+        Run(ended: null, trace: "run.nettrace");
+        var later = Run(trace: "later.nettrace", started: 5, shift: 2.5);
+
+        var found = AllocatedBetween.Find(first, second);
+
+        (found.RunId, Path.GetFileName(found.TracePath), found.ClockShiftSeconds).ShouldBe((later, "later.nettrace", 2.5));
+        found.Evidence.ShouldContain("not ended");
+    }
+
+    /// <summary>Review M6: a session that cannot be read says so, not that the snapshots are elsewhere.</summary>
+    [Fact]
+    public void A_session_that_cannot_be_read_says_why()
+    {
+        var first = Snapshot("a.dmp", 10);
+        var second = Snapshot("b.dmp", 30);
+        File.WriteAllText(Path.Combine(_folder, "session.json"), "{ damaged");
+        var read = SessionLibrary.Read(_folder);
+
+        Reason(first, second).ShouldBe($"{read.Reason} {read.NextStep}");
     }
 
     [Fact]
@@ -112,13 +150,17 @@ public sealed class AllocatedBetweenTests : IDisposable
 
         AllocatedBetweenTexts.Summary(whole, Bytes, CultureInfo.InvariantCulture)
             .ShouldBe("About 4000 B allocated between the snapshots (40 samples, 10.5 s), collected objects included.");
-        AllocatedBetweenTexts.Summary(whole with { AskedFromSeconds = -1.5, AskedToSeconds = 22, AbsentBytes = 10, AbsentTypes = 2, SharedNameBytes = 5, LostEvents = 3 }, Bytes, CultureInfo.InvariantCulture).ShouldBe(
+        AllocatedBetweenTexts.Summary(whole with { AskedFromSeconds = -1.5, AskedToSeconds = 22, AbsentBytes = 10, AbsentTypes = 2, SharedNameBytes = 5, LostEvents = 3, NameBytes = 20, UnnamedTypes = 4, ConversionIssues = 1 }, Bytes, CultureInfo.InvariantCulture, -2.5).ShouldBe(
             "About 4000 B allocated between the snapshots (40 samples, 10.5 s), collected objects included."
             + " 10 B of it in 2 types without an object in either snapshot, so without a row."
-            + " 5 B of type names several modules share, which a gcdump cannot tell apart."
+            + " 5 B of type names that several types share, which a gcdump cannot tell apart, so without a row."
+            + " 20 B of it is matched by name only, as a gcdump has nothing else: it names a nested type without its declaring type, so a row can hold what another type of its name allocated."
+            + " 4 types of a gcdump here have no name (another tool may have traced the process), so what was allocated of them has no row."
+            + " The machine's clock moved 2.5 s against the recording during the run (it slept, or its clock was set), so the interval may be off by as much."
             + " The recording started 1.5 s after the earlier snapshot: what was allocated before is not counted."
             + " The recording ended 2.0 s before the later snapshot: what was allocated after is not counted."
-            + " The runtime dropped 3 events while recording, so the figures are low.");
+            + " The runtime dropped 3 events while recording, so the figures may be low."
+            + " " + AllocationTexts.Damaged(1));
     }
 
     private static string? Reason(string first, string second) => AllocatedBetween.Find(first, second).Reason;
@@ -131,10 +173,10 @@ public sealed class AllocatedBetweenTests : IDisposable
         return path;
     }
 
-    private Guid Run(Guid? id = null, int? ended = 60, string? trace = "run.nettrace", string? note = null)
+    private Guid Run(Guid? id = null, int? ended = 60, string? trace = "run.nettrace", string? note = null, int started = 0, double? shift = null)
     {
         var run = id ?? Guid.NewGuid();
-        _library.RecordRun(_folder, new SessionRun(run, "app", 7, 1, "", SnapshotKindDto.FullDump, s_start, ended is { } e ? s_start.AddSeconds(e) : null, null, trace, [], TraceNote: note));
+        _library.RecordRun(_folder, new SessionRun(run, "app", 7, 1, "", SnapshotKindDto.FullDump, s_start.AddSeconds(started), ended is { } e ? s_start.AddSeconds(e) : null, null, trace, [], TraceNote: note, ClockShiftSeconds: shift));
         return run;
     }
 

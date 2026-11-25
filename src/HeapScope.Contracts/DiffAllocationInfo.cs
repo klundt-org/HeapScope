@@ -33,8 +33,11 @@ namespace HeapScope.Contracts;
 /// <param name="AskedToSeconds">The end that was asked for; past <paramref name="RecordedSeconds"/> when the recording ended earlier.</param>
 /// <param name="RowBytes">The bytes the diff's rows hold (before the filter).</param>
 /// <param name="AbsentBytes">Bytes of <paramref name="AbsentTypes"/> types without an object in either snapshot: allocated and collected between them.</param>
-/// <param name="SharedNameBytes">Bytes of a name that types of several modules share, which a gcdump cannot tell apart: no row holds them.</param>
-/// <param name="LostEvents">Events the runtime dropped while recording: the figures are low by their samples.</param>
+/// <param name="SharedNameBytes">Bytes of names that several types share, which a gcdump cannot tell apart: no row holds them.</param>
+/// <param name="LostEvents">Events the runtime dropped while recording, of any kind and at any time: the figures may be low.</param>
+/// <param name="NameBytes">The part of <paramref name="RowBytes"/> joined by name, to a gcdump's types.</param>
+/// <param name="UnnamedTypes">Types of a gcdump without a name, which nothing is joined to.</param>
+/// <param name="ConversionIssues">Problems reading the trace reported, such as a file cut short.</param>
 public sealed record DiffAllocationInfo(
     double FromSeconds,
     double ToSeconds,
@@ -47,4 +50,7 @@ public sealed record DiffAllocationInfo(
     long AbsentBytes,
     int AbsentTypes,
     long SharedNameBytes,
-    long LostEvents);
+    long LostEvents,
+    long NameBytes = 0,
+    int UnnamedTypes = 0,
+    int ConversionIssues = 0);

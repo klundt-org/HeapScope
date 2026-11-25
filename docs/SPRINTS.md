@@ -136,7 +136,7 @@ name for a type.
    one protocol bump. Tests: contract, worker, a real run.
 5. [x] Compare: a check box like New and dead objects, the note that says what the figures are, and a step from a row to the
    Allocations page with the interval and type chosen. Wording drafted for the owner. Tests: view models, views.
-6. [x] The command line: `diff --allocated`, with the trace found in the session or named. Tests: CLI.
+6. [x] The command line: `diff --allocated`, with the trace found in the session (decision below). Tests: CLI.
 7. [x] The sample's scenario and lesson (ADR-042), or why not; drafts for the owner.
 8. [x] Docs: ADR-028 amended, ARCHITECTURE pages, DEVELOPER, USER-GUIDE, info-text.md, the CLI's README, Backlog.
 

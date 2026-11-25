@@ -24,6 +24,7 @@
 using HeapScope.Application.Allocations;
 using HeapScope.Application.Jobs;
 using HeapScope.Application.Monitoring;
+using HeapScope.Application.Presentation;
 using HeapScope.Application.Sessions;
 using HeapScope.Application.Snapshots;
 using HeapScope.Application.Workers;
@@ -51,6 +52,9 @@ public sealed class RecordedRun : IAsyncLifetime
 
     /// <summary>The snapshots in the order they were captured: dump, dump, gcdump, gcdump.</summary>
     public IReadOnlyList<string> Snapshots { get; private set; } = [];
+
+    /// <summary>What was found for the first two while the run still recorded (review H1).</summary>
+    public AllocatedBetween WhileRecording { get; private set; } = null!;
 
     /// <summary>When each capture was asked for.</summary>
     public IReadOnlyList<DateTimeOffset> Asked { get; private set; } = [];
@@ -80,6 +84,7 @@ public sealed class RecordedRun : IAsyncLifetime
             snapshots.Add((await capture.StartCapture(api.ProcessId, kind: kind).Result).Path);
         }
 
+        WhileRecording = AllocatedBetween.Find(snapshots[0], snapshots[1]);
         run.Stop();
         await run.Completion;
         (Snapshots, Asked, RunId) = (snapshots, asked, SessionLibrary.TryRead(Folder)!.Document.Runs!.Single().Id);
@@ -124,6 +129,15 @@ public sealed class AllocatedBetweenTests(RecordedRun run) : IClassFixture<Recor
         }
     }
 
+    /// <summary>Review H1: the record of a running run names its trace already, which is not complete.</summary>
+    [Fact]
+    public void A_run_that_still_records_is_not_taken_for_one_that_ended()
+    {
+        run.WhileRecording.Reason.ShouldBe(AllocatedBetweenTexts.NotEnded);
+        run.WhileRecording.TracePath.ShouldBeNull();
+        Math.Abs(SessionLibrary.TryRead(run.Folder)!.Document.Runs!.Single().ClockShiftSeconds.ShouldNotBeNull()).ShouldBeLessThan(1);
+    }
+
     /// <summary>The same work between each two snapshots allocates the same, and between the dumps the heap keeps it.</summary>
     [Fact]
     public async Task The_same_work_allocates_the_same_whatever_the_snapshots_are()
@@ -164,10 +178,18 @@ public sealed class AllocatedBetweenTests(RecordedRun run) : IClassFixture<Recor
         info.SharedNameBytes.ShouldBe(0);
         rows.ShouldContain(r => r[TypeDiffColumns.AllocatedBytes] != null && r[TypeDiffColumns.Name]!.Contains('+'));
 
-        // Both dumps hold every type of the interval under the table the ticks name, and the trace spells it as the dump does.
-        var line = _logs.Records.Last(r => r.Message.Contains("Allocations between", StringComparison.Ordinal)).Message;
-        line.ShouldContain("by name 0 bytes");
-        line.ShouldContain("; 0 method tables with another name in the trace");
+        // Both dumps hold every type of the interval under the table the ticks name, and the trace spells it as the dump does. The
+        // worker's line comes by its own way, after the answer or before it.
+        info.NameBytes.ShouldBe(0);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        string? line;
+        while ((line = _logs.Records.LastOrDefault(r => r.Message.Contains("Allocations between", StringComparison.Ordinal)).Message) is null)
+        {
+            DateTime.UtcNow.ShouldBeLessThan(deadline, "the worker's line arrives");
+            await Task.Delay(50, Ct);
+        }
+
+        line.ShouldContain("of them 0 bytes of method tables that are another type's in the dumps");
     }
 
     [Fact]
@@ -214,11 +236,14 @@ public sealed class AllocatedBetweenTests(RecordedRun run) : IClassFixture<Recor
         var counted = json.RootElement.GetProperty("Allocations");
         counted.GetProperty("Bytes").GetInt64().ShouldBeGreaterThan(5_000_000);
         json.RootElement.GetProperty("Rows")[0].GetProperty("Name").GetString().ShouldBe("System.Byte[]");
-        diff.Output.ShouldContain("Where: allocations ");
+        diff.Output.ShouldContain("Where: heapscope-cli allocations ");
 
-        using var none = ChildProcess.Start(TestPaths.CliExe, "diff", run.Snapshots[0], _scratch.File("elsewhere.dmp"), "--allocated");
+        var elsewhere = _scratch.File("elsewhere.gcdump");
+        File.Copy(run.Snapshots[3], elsewhere);
+        using var none = ChildProcess.Start(TestPaths.CliExe, "diff", run.Snapshots[2], elsewhere, "--allocated");
         (await none.WaitForExitAsync(TimeSpan.FromMinutes(2))).ShouldBeTrue();
-        none.Process.ExitCode.ShouldBe(1);
+        none.Process.ExitCode.ShouldBe(1, none.Output);
+        none.Output.ShouldContain(AllocatedBetweenTexts.NotOneSession);
     }
 
     [Fact]
@@ -228,7 +253,7 @@ public sealed class AllocatedBetweenTests(RecordedRun run) : IClassFixture<Recor
 
         found.Reason.ShouldBeNull();
         found.RunId.ShouldBe(run.RunId);
-        found.Late.ShouldBeFalse();
+        found.NoHeapTime.ShouldBeFalse();
         found.FromUtc.ShouldBeLessThan(found.ToUtc);
         File.Exists(found.TracePath).ShouldBeTrue();
     }
@@ -239,7 +264,7 @@ public sealed class AllocatedBetweenTests(RecordedRun run) : IClassFixture<Recor
         found.Reason.ShouldBeNull();
         var baseline = await Snapshots.StartOpen(run.Snapshots[from]).Result;
         var current = await Snapshots.StartOpen(run.Snapshots[to]).Result;
-        var trace = await Allocations.OpenOnceAsync(found.TracePath!);
+        var trace = await Allocations.OpenOnceAsync(found.TracePath!, Ct);
         var diff = await Snapshots.QueryTypeDiffAsync(
             baseline, current, grouping, null, TypeDiffColumns.AllocatedBytes, true, null, Ct, allocations: new DiffAllocations(Allocations, trace, found.FromUtc, found.ToUtc));
         return (diff, diff.Result.Allocations.ShouldNotBeNull());

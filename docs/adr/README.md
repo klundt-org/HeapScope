@@ -32,7 +32,7 @@ section 13 links here).
 - [ADR-025](ADR-025-ui-platform-avalonia-on-windows-linux-and-macos.md) UI platform: Avalonia on Windows, Linux and macOS (added in sprint 2.3.5, amends ADR-001; amended by ADR-039 and sprints 4.1 and 4.2: capture on Linux and macOS)
 - [ADR-026](ADR-026-sharing-results-an-exported-analysis-analysis-only-by-defaul.md) Sharing results: an exported analysis, analysis only by default (added in sprint 2.3.5)
 - [ADR-027](ADR-027-dominator-children-kept-the-tree-served-flattened.md) Dominator children kept; the tree served flattened (added in sprint 2.4)
-- [ADR-028](ADR-028-allocation-traces-read-in-the-worker-from-eventpipe-allocati.md) Allocation traces read in the worker from EventPipe allocation ticks (added in sprint 2.5)
+- [ADR-028](ADR-028-allocation-traces-read-in-the-worker-from-eventpipe-allocati.md) Allocation traces read in the worker from EventPipe allocation ticks (added in sprint 2.5; amended in 2.5, 4.2.1 and 4.4)
 - [ADR-029](ADR-029-analysis-path-per-snapshot-bookmarks-by-snapshot-file.md) Analysis path per snapshot; bookmarks by snapshot file (added in sprint 2.7)
 - [ADR-030](ADR-030-object-sets-as-the-analysis-subject.md) Object sets as the analysis subject (added in sprint 3.1)
 - [ADR-031](ADR-031-similar-retention-and-the-key-paths-diagram.md) Similar Retention and the key paths diagram (added in sprint 3.2)

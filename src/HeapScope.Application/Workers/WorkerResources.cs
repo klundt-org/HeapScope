@@ -80,18 +80,23 @@ internal sealed class WorkerResources<T>(
 
     /// <summary>
     /// Runs <paramref name="call"/>, which asks the worker itself, with the resource's worker id: for a question about resources of
-    /// two kinds (sprint 4.4). Reopened before and once after <c>notLoaded</c>, as in <see cref="UseAsync"/>.
+    /// two kinds (sprint 4.4). Reopened before and once after <c>notLoaded</c>, as in <see cref="UseAsync"/>. What fails about the
+    /// resource itself is thrown as <paramref name="unavailable"/> makes it.
     /// </summary>
-    public async Task<TResult> UseIdAsync<TResult>(T resource, Func<Guid, CancellationToken, Task<TResult>> call, CancellationToken cancellationToken)
+    public async Task<TResult> UseIdAsync<TResult>(T resource, Func<Guid, CancellationToken, Task<TResult>> call, Func<WorkerException, Exception> unavailable, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentNullException.ThrowIfNull(call);
-        throwIfClosed(resource);
-        await worker.EnsureStartedAsync(cancellationToken).ConfigureAwait(false);
-        if (resource.Generation != worker.Generation)
+        ArgumentNullException.ThrowIfNull(unavailable);
+        await ReadyAsync(async () =>
         {
-            await ReopenOnceAsync(resource, resource.WorkerId, cancellationToken).ConfigureAwait(false);
-        }
+            throwIfClosed(resource);
+            await worker.EnsureStartedAsync(cancellationToken).ConfigureAwait(false);
+            if (resource.Generation != worker.Generation)
+            {
+                await ReopenOnceAsync(resource, resource.WorkerId, cancellationToken).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(false);
 
         var asked = resource.WorkerId;
         try
@@ -100,9 +105,24 @@ internal sealed class WorkerResources<T>(
         }
         catch (WorkerOperationException ex) when (ex.ErrorCode == notLoaded)
         {
-            throwIfClosed(resource);
-            await ReopenOnceAsync(resource, asked, cancellationToken).ConfigureAwait(false);
+            await ReadyAsync(async () =>
+            {
+                throwIfClosed(resource);
+                await ReopenOnceAsync(resource, asked, cancellationToken).ConfigureAwait(false);
+            }).ConfigureAwait(false);
             return await call(resource.WorkerId, cancellationToken).ConfigureAwait(false);
+        }
+
+        async Task ReadyAsync(Func<Task> ready)
+        {
+            try
+            {
+                await ready().ConfigureAwait(false);
+            }
+            catch (WorkerException ex)
+            {
+                throw unavailable(ex);
+            }
         }
     }
 

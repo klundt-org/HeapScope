@@ -180,6 +180,10 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     // The trace and interval of the allocations shown, for the step to the Allocations page.
     private (TraceHandle Trace, TimeInterval Interval)? _allocated;
 
+    // Queries that read the trace now; why Allocated between was unticked for the user.
+    private int _readingTrace;
+    private string? _untickedNote;
+
     [ObservableProperty]
     private SnapshotItemViewModel? _baseline;
 
@@ -244,6 +248,11 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         OpenSurvivedCommand = new RelayCommand<DiffRowItem?>(row => OpenChange(row, ObjectChange.Survived, navigator));
         ShowWhereAllocatedCommand = new RelayCommand<DiffRowItem?>(ShowWhereAllocated);
         _allocations = allocations;
+        if (allocations is not null)
+        {
+            allocations.Traces.CollectionChanged += OnTracesChanged;
+        }
+
         Trend = new TrendViewModel(session, snapshots, dispatcher, logger, navigator);
         _session = session ?? throw new ArgumentNullException(nameof(session));
         Snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
@@ -276,7 +285,33 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     partial void OnShowRetainedChanged(bool value) => RequeryIfPair();
 
-    partial void OnShowAllocatedChanged(bool value) => RequeryIfPair();
+    partial void OnShowAllocatedChanged(bool value)
+    {
+        if (value)
+        {
+            _untickedNote = null;
+        }
+
+        RequeryIfPair();
+    }
+
+    // The rows are asked for with the trace: without it they could not be loaded again.
+    private void OnTracesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_readingTrace == 0 && _allocated is { } shown && _allocations!.Traces.All(t => t.Trace != shown.Trace))
+        {
+            Logger.LogInformation("Compare: the allocation trace {Trace} was closed, so Allocated between is unticked", shown.Trace.Path);
+            _allocated = null;
+            _untickedNote = AllocatedBetweenTexts.TraceClosed;
+            ShowAllocated = false;
+        }
+    }
+
+    protected override void OnCleared()
+    {
+        (_allocated, AllocatedShown, AllocatedNote) = (null, false, null);
+        base.OnCleared();
+    }
 
     /// <summary>Whether the app has allocation traces at all (a smoke or test shell may not).</summary>
     public bool OffersAllocated => _allocations is not null;
@@ -286,6 +321,12 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     private void ShowWhereAllocated(DiffRowItem? row)
     {
+        if (_readingTrace > 0)
+        {
+            Status = AllocatedBetweenTexts.StillReading;
+            return;
+        }
+
         if (_allocated is not { } allocated || _allocations is null)
         {
             Status = AllocatedNote ?? AllocatedBetweenTexts.TickFirst;
@@ -303,39 +344,59 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
             return;
         }
 
-        Logger.LogInformation("Compare: opened {Trace} from {From} s to {To} s for a row (its type there: {Type})", allocated.Trace.Path, allocated.Interval.FromSeconds, allocated.Interval.ToSeconds, row.AllocatedType ?? "every type");
+        Logger.LogInformation(
+            "Compare: opened {Trace} from {From:R} s to {To:R} s for the row {Row} ({Bytes} bytes, {Samples} samples; its type there: {Type})",
+            allocated.Trace.Path,
+            allocated.Interval.FromSeconds,
+            allocated.Interval.ToSeconds,
+            row.Name,
+            row.AllocatedBytes,
+            row.AllocatedSamples,
+            row.AllocatedType ?? "several, so every type is shown");
         if (!_allocations.ShowInterval(allocated.Trace, allocated.Interval, row.AllocatedType))
         {
             Status = AllocatedBetweenTexts.TraceClosed;
         }
+        else if (row.AllocatedType is null)
+        {
+            Status = AllocatedBetweenTexts.EveryType;
+        }
     }
 
     /// <summary>The trace between the two snapshots and its interval, or why there is none. Reading a trace takes seconds, shown as a job.</summary>
-    private async Task<(DiffAllocations? Allocations, string? Note)> AllocationsAsync(string baseline, string current, CancellationToken cancellationToken)
+    private async Task<(DiffAllocations? Allocations, string? Note, double ClockShift)> AllocationsAsync(string baseline, string current, CancellationToken cancellationToken)
     {
         if (_allocations is null)
         {
-            return (null, null);
+            return (null, null, 0);
         }
 
         var found = await Task.Run(() => AllocatedBetween.Find(baseline, current), cancellationToken);
         Logger.LogInformation(
-            "Compare: allocations between {Baseline} and {Current}: {Outcome}",
+            "Allocations between {Baseline} and {Current}: {Outcome}; {Evidence}",
             baseline,
             current,
-            found.Reason ?? string.Create(CultureInfo.InvariantCulture, $"{found.TracePath} of run {found.RunId}, from {found.FromUtc:O} to {found.ToUtc:O}{(found.Late ? ", a gcdump's time being its file's" : string.Empty)}"));
+            found.Reason is { } reason ? "none, said as: " + reason : string.Create(CultureInfo.InvariantCulture, $"{found.TracePath} from {found.FromUtc:O} to {found.ToUtc:O}"),
+            found.Evidence);
         if (found.TracePath is not { } path)
         {
-            return (null, found.Reason);
+            return (null, found.Reason, 0);
         }
 
+        _readingTrace++;
         try
         {
-            return (await _allocations.OpenBesideAsync(path, found.FromUtc, found.ToUtc), found.Late ? AllocatedBetweenTexts.Late : null);
+            return (await _allocations.OpenBesideAsync(path, found.FromUtc, found.ToUtc, cancellationToken), found.NoHeapTime ? AllocatedBetweenTexts.NoHeapTime : null, found.ClockShiftSeconds);
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            return (null, ex.Message);
+            var note = ex is OperationCanceledException ? AllocatedBetweenTexts.ReadCanceled : ex.Message;
+            Logger.LogInformation("Compare: the trace {Trace} was not read, said as: {Note}", path, note);
+            return (null, note, 0);
+        }
+        finally
+        {
+            _readingTrace--;
         }
     }
 
@@ -430,7 +491,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         var scope = Scope(Baseline!.Handle.Descriptor.Kind, Current!.Handle.Descriptor.Kind);
         var (match, retained) = (MatchObjects, ShowRetained && groupBy != TypeGrouping.Interface);
         var (baseline, current) = (Baseline!.Handle, Current!.Handle);
-        var (allocations, allocatedNote) = ShowAllocated ? await AllocationsAsync(baseline.Path, current.Path, cancellationToken) : (null, null);
+        var (allocations, allocatedNote, clockShift) = ShowAllocated ? await AllocationsAsync(baseline.Path, current.Path, cancellationToken) : (null, _untickedNote, 0);
 
         // A sort by a column this query may not have falls back to bytes (as in the types grid).
         var unavailable = (!match && SortColumn is TypeDiffColumns.NewObjects or TypeDiffColumns.DeadObjects)
@@ -438,6 +499,11 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
             || (allocations is null && SortColumn is TypeDiffColumns.AllocatedBytes or TypeDiffColumns.AllocatedSamples)
             || (!HasGenerations && SortColumn is TypeDiffColumns.Gen0Delta or TypeDiffColumns.Gen1Delta or TypeDiffColumns.Gen2Delta or TypeDiffColumns.LohDelta or TypeDiffColumns.PohDelta);
         var sortColumn = unavailable ? TypeDiffColumns.BytesDelta : SortColumn;
+        if (unavailable)
+        {
+            Logger.LogInformation("Compare: sorted by {Used}, as this comparison has no {Asked}", sortColumn, SortColumn);
+        }
+
         var finished = false;
         var progress = retained ? new Progress<JobProgress>(p => Status = finished || cancellationToken.IsCancellationRequested ? Status : ReferrersText.Progress(p)) : null;
         var (filter, descending) = (Filter, Descending);
@@ -449,7 +515,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         catch (Exception ex) when (allocations is not null && !cancellationToken.IsCancellationRequested && IsAboutTheTrace(ex))
         {
             // The trace cannot be used (another process, not between them, its file changed): the comparison is shown without it.
-            Logger.LogInformation("Compare: the allocations were refused, so the comparison runs without them: {Reason}", ex.Message);
+            Logger.LogInformation("Compare: the allocations were refused, so the comparison runs without them, sorted by {Sort}; said as: {Reason}", sortColumn is TypeDiffColumns.AllocatedBytes or TypeDiffColumns.AllocatedSamples ? TypeDiffColumns.BytesDelta : sortColumn, ex.Message);
             (allocations, allocatedNote) = (null, ex.Message);
             sortColumn = sortColumn is TypeDiffColumns.AllocatedBytes or TypeDiffColumns.AllocatedSamples ? TypeDiffColumns.BytesDelta : sortColumn;
             diff = await _session.QueryTypeDiffAsync(baseline, current, groupBy, filter, sortColumn, descending, progress, cancellationToken, match, retained);
@@ -473,7 +539,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
                 _allocated = allocations is { } a && result.Allocations is { } shown ? (a.Trace, new TimeInterval(shown.FromSeconds, shown.ToSeconds)) : null;
                 AllocatedShown = result.Allocations is not null;
                 AllocatedNote = result.Allocations is { } info
-                    ? AllocatedBetweenTexts.Summary(info, Format.Bytes, CultureInfo.CurrentCulture) + (allocatedNote is { } late ? " " + late : string.Empty)
+                    ? AllocatedBetweenTexts.Summary(info, Format.Bytes, CultureInfo.CurrentCulture, clockShift) + (allocatedNote is { } heapTime ? " " + heapTime : string.Empty)
                     : allocatedNote;
                 Totals = string.Create(
                 CultureInfo.CurrentCulture,
@@ -484,7 +550,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     // A refusal of the question may be about the trace: without it, anything else is refused again and shown.
     private static bool IsAboutTheTrace(Exception ex) =>
-        ex is WorkerOperationException { ErrorCode: HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.TraceChanged or HeapScopeErrorCode.TraceNotLoaded or HeapScopeErrorCode.SnapshotFormat };
+        ex is AllocationsUnavailableException or WorkerOperationException { ErrorCode: HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.TraceNotLoaded };
 
     // What the totals count, with the caution for a full dump against a gcdump (garbage shows as a drop).
     private static string Scope(SnapshotKindDto baseline, SnapshotKindDto current) =>

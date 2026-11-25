@@ -62,7 +62,7 @@ public sealed class GcDumpCapturerTests : IDisposable
         var walked = new DateTimeOffset(2026, 11, 25, 12, 0, 0, TimeSpan.Zero);
         _writer.Result = new GcDumpWriteResult(GcDumpFailure.None) { HeapUtc = walked };
 
-        (await Capturer.CaptureAsync(Running(), File(), null, null, Ct)).ShouldBe(walked);
+        (await Capturer.CaptureAsync(Running(), File(), null, null, Ct)).ShouldNotBeNull().Utc.ShouldBe(walked);
     }
 
     [Fact]

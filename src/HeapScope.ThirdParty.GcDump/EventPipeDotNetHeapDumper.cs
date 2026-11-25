@@ -213,8 +213,11 @@ namespace Microsoft.Diagnostics.Tools.GCDump
                     dumpState.EventPipeDataPresent = true;
 
                     // HeapScope change (CHANGES.md): when the heap was walked.
-                    walked?.Invoke(data.TimeStamp);
-                    walked = null;
+                    if (gcNum >= 0)
+                    {
+                        walked?.Invoke(data.TimeStamp);
+                        walked = null;
+                    }
 
                     if ((getElapsed() - lastEventPipeUpdate).TotalMilliseconds > 500)
                     {

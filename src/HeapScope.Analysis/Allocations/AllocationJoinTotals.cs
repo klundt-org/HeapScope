@@ -27,7 +27,23 @@ namespace HeapScope.Analysis.Allocations;
 /// <summary>How an interval's sampled bytes met a diff's types (<see cref="AllocationJoin.Join"/>), for the result and the log.</summary>
 /// <param name="ByMethodTable">Bytes joined by method table, to a full dump's types.</param>
 /// <param name="ByName">Bytes joined by name, to a gcdump's types.</param>
-/// <param name="SharedName">Bytes of names that types of several modules share in a gcdump: no row takes them.</param>
+/// <param name="SharedName">
+/// Bytes of names that several types share, so a gcdump's row cannot be told: types of several modules with objects, or several
+/// method tables in the trace (a collection may have left objects of one of them only). No row takes them.
+/// </param>
 /// <param name="Absent">Bytes of types without an object in either snapshot.</param>
-/// <param name="OtherNames">A method table whose names differ in the trace and the dump (joined all the same), for the log.</param>
-public sealed record AllocationJoinTotals(long Bytes, int Samples, long ByMethodTable, long ByName, long SharedName, long Absent, int AbsentTypes, int OtherNames, IReadOnlyList<AllocatedType> TopAbsent);
+/// <param name="OtherType">The part of <paramref name="Absent"/> whose method table has another type in the dumps: the address was reused.</param>
+/// <param name="UnnamedTypes">Types of a gcdump without a name, which nothing is joined to.</param>
+public sealed record AllocationJoinTotals(
+    long Bytes,
+    int Samples,
+    long ByMethodTable,
+    long ByName,
+    long SharedName,
+    long Absent,
+    int AbsentTypes,
+    long OtherType,
+    int UnnamedTypes,
+    IReadOnlyList<AllocatedType> TopAbsent,
+    IReadOnlyList<AllocatedType> TopShared,
+    IReadOnlyList<(AllocatedType Type, string Snapshot)> TopOtherType);

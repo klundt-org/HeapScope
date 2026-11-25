@@ -196,7 +196,7 @@ public sealed class DumpCapturer(
     /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the dump was last
     /// written to, which is while the target is paused (sprint 4.4).
     /// </summary>
-    public async Task<DateTimeOffset> CaptureAsync(
+    public async Task<HeapTime> CaptureAsync(
         DotNetProcess process,
         string path,
         IProgress<CaptureProgress>? progress,
@@ -223,7 +223,7 @@ public sealed class DumpCapturer(
             estimate,
             "The runtime finishes writing the dump, then HeapScope deletes it")));
         var started = _time.GetUtcNow();
-        DateTimeOffset written;
+        HeapTime written;
         try
         {
             await _writer.WriteAsync(process.ProcessId, file.PartialPath).ConfigureAwait(false);
@@ -247,16 +247,18 @@ public sealed class DumpCapturer(
 
     // The runtime answers a moment after the target runs again (0.16 s measured, in which a busy process allocates 200 MB), so the
     // file's own time is taken where it is one of this write.
-    private static DateTimeOffset LastWritten(string path, DateTimeOffset started, DateTimeOffset answered)
+    private static HeapTime LastWritten(string path, DateTimeOffset started, DateTimeOffset answered)
     {
         try
         {
             var written = new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
-            return written >= started && written <= answered ? written : answered;
+            return written >= started && written <= answered
+                ? new HeapTime(written, "the dump's last write")
+                : new HeapTime(answered, string.Create(CultureInfo.InvariantCulture, $"the runtime's answer, as the dump's last write ({written:O}) is not of this capture"));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return answered;
+            return new HeapTime(answered, $"the runtime's answer, as the dump's last write could not be read ({ex.GetType().Name})");
         }
     }
 
