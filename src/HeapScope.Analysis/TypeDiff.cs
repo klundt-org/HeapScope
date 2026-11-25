@@ -21,6 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Analysis.Allocations;
 using HeapScope.Core.Graph;
 
 namespace HeapScope.Analysis;
@@ -65,6 +66,12 @@ public sealed record DiffRow(
     /// <summary>The row's bytes per heap kind in the current snapshot.</summary>
     public ulong[]? CurrentKinds { get; init; }
 
+    /// <summary>Sampled bytes allocated of the row's types between the snapshots (sprint 4.4, an estimate); null without a sample.</summary>
+    public long? AllocatedBytes { get; init; }
+
+    /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
+    public int? AllocatedSamples { get; init; }
+
     public long? RetainedDelta => BaselineRetained is { } before && CurrentRetained is { } after ? (long)after - (long)before : null;
 
     /// <summary>The byte delta of one heap kind (a side without the row counts 0).</summary>
@@ -73,8 +80,8 @@ public sealed record DiffRow(
     /// <summary>Rows are equal by value, their per-kind bytes compared element by element.</summary>
     public bool Equals(DiffRow? other) =>
         other is not null
-        && (Name, BaselineCount, BaselineBytes, CurrentCount, CurrentBytes, BaselineTypes, CurrentTypes, TypeName, Module, ComparesCopies, NewObjects, DeadObjects, BaselineRetained, CurrentRetained)
-            == (other.Name, other.BaselineCount, other.BaselineBytes, other.CurrentCount, other.CurrentBytes, other.BaselineTypes, other.CurrentTypes, other.TypeName, other.Module, other.ComparesCopies, other.NewObjects, other.DeadObjects, other.BaselineRetained, other.CurrentRetained)
+        && (Name, BaselineCount, BaselineBytes, CurrentCount, CurrentBytes, BaselineTypes, CurrentTypes, TypeName, Module, ComparesCopies, NewObjects, DeadObjects, BaselineRetained, CurrentRetained, AllocatedBytes, AllocatedSamples)
+            == (other.Name, other.BaselineCount, other.BaselineBytes, other.CurrentCount, other.CurrentBytes, other.BaselineTypes, other.CurrentTypes, other.TypeName, other.Module, other.ComparesCopies, other.NewObjects, other.DeadObjects, other.BaselineRetained, other.CurrentRetained, other.AllocatedBytes, other.AllocatedSamples)
         && (BaselineKinds ?? []).AsSpan().SequenceEqual(other.BaselineKinds ?? [])
         && (CurrentKinds ?? []).AsSpan().SequenceEqual(other.CurrentKinds ?? []);
 
@@ -132,8 +139,8 @@ public static class TypeDiff
         }
 
         extras ??= new DiffExtras();
-        Collect(baselineGraph, baseline, groupBy, baselineNames, baselineInterfaces, rows, isBaseline: true, extras.DeadPerBaselineType, extras.BaselineRetained);
-        Collect(currentGraph, current, groupBy, currentNames, currentInterfaces, rows, isBaseline: false, extras.NewPerCurrentType, extras.CurrentRetained);
+        Collect(baselineGraph, baseline, groupBy, baselineNames, baselineInterfaces, rows, isBaseline: true, extras.DeadPerBaselineType, extras.BaselineRetained, extras.Allocated);
+        Collect(currentGraph, current, groupBy, currentNames, currentInterfaces, rows, isBaseline: false, extras.NewPerCurrentType, extras.CurrentRetained, extras.Allocated);
         PlaceGroupRetained(rows, extras.BaselineRetained, isBaseline: true);
         PlaceGroupRetained(rows, extras.CurrentRetained, isBaseline: false);
 
@@ -163,6 +170,8 @@ public static class TypeDiff
                 CurrentRetained = extras.CurrentRetained is null ? null : r.Value.CurRetained,
                 BaselineKinds = extras.Kinds ? r.Value.BaseKinds ?? new ulong[TypeAggregation.HeapKindSlots] : null,
                 CurrentKinds = extras.Kinds ? r.Value.CurKinds ?? new ulong[TypeAggregation.HeapKindSlots] : null,
+                AllocatedBytes = r.Value.AllocatedSamples > 0 ? r.Value.AllocatedBytes : null,
+                AllocatedSamples = r.Value.AllocatedSamples > 0 ? r.Value.AllocatedSamples : null,
             };
         })];
     }
@@ -176,7 +185,8 @@ public static class TypeDiff
         Dictionary<(string Name, string Module), Totals> rows,
         bool isBaseline,
         long[]? unmatchedPerType,
-        GroupRetained? retained)
+        GroupRetained? retained,
+        AllocationJoin? allocated)
     {
         for (var t = 0; t < aggregation.TypeCount; t++)
         {
@@ -199,9 +209,12 @@ public static class TypeDiff
 
             // Retained bytes (sprint 3.3): per type in Type grouping (summed over its method tables), per group otherwise.
             var typeRetained = retained is { ByType: true } ? retained.Bytes[t] : 0UL;
+            var allocatedBytes = (isBaseline ? allocated?.BaselineBytes : allocated?.CurrentBytes)?[t] ?? 0;
+            var allocatedSamples = (isBaseline ? allocated?.BaselineSamples : allocated?.CurrentSamples)?[t] ?? 0;
             foreach (var key in keys)
             {
                 rows.TryGetValue(key, out var row);
+                row = row with { AllocatedBytes = row.AllocatedBytes + allocatedBytes, AllocatedSamples = row.AllocatedSamples + allocatedSamples };
                 var kinds = (isBaseline ? row.BaseKinds : row.CurKinds) ?? new ulong[TypeAggregation.HeapKindSlots];
                 for (var k = 0; k < TypeAggregation.HeapKindSlots; k++)
                 {
@@ -253,7 +266,9 @@ public static class TypeDiff
         ulong BaseRetained = 0,
         ulong CurRetained = 0,
         ulong[]? BaseKinds = null,
-        ulong[]? CurKinds = null);
+        ulong[]? CurKinds = null,
+        long AllocatedBytes = 0,
+        int AllocatedSamples = 0);
 }
 
 /// <summary>
@@ -271,6 +286,9 @@ public sealed class DiffExtras
     public GroupRetained? BaselineRetained { get; init; }
 
     public GroupRetained? CurrentRetained { get; init; }
+
+    /// <summary>The sampled allocations between the snapshots (sprint 4.4), joined to their types.</summary>
+    public AllocationJoin? Allocated { get; init; }
 
     /// <summary>Whether rows carry their bytes per heap kind (both snapshots have generations).</summary>
     public bool Kinds { get; init; }

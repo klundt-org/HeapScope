@@ -78,6 +78,34 @@ internal sealed class WorkerResources<T>(
         }
     }
 
+    /// <summary>
+    /// Runs <paramref name="call"/>, which asks the worker itself, with the resource's worker id: for a question about resources of
+    /// two kinds (sprint 4.4). Reopened before and once after <c>notLoaded</c>, as in <see cref="UseAsync"/>.
+    /// </summary>
+    public async Task<TResult> UseIdAsync<TResult>(T resource, Func<Guid, CancellationToken, Task<TResult>> call, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(call);
+        throwIfClosed(resource);
+        await worker.EnsureStartedAsync(cancellationToken).ConfigureAwait(false);
+        if (resource.Generation != worker.Generation)
+        {
+            await ReopenOnceAsync(resource, resource.WorkerId, cancellationToken).ConfigureAwait(false);
+        }
+
+        var asked = resource.WorkerId;
+        try
+        {
+            return await call(asked, cancellationToken).ConfigureAwait(false);
+        }
+        catch (WorkerOperationException ex) when (ex.ErrorCode == notLoaded)
+        {
+            throwIfClosed(resource);
+            await ReopenOnceAsync(resource, asked, cancellationToken).ConfigureAwait(false);
+            return await call(resource.WorkerId, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task ReopenOnceAsync(T resource, Guid missing, CancellationToken cancellationToken)
     {
         await resource.Reopening.WaitAsync(cancellationToken).ConfigureAwait(false);

@@ -22,6 +22,7 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Globalization;
+using HeapScope.Application.Allocations;
 using HeapScope.Application.Jobs;
 using HeapScope.Application.Workers;
 using HeapScope.Contracts;
@@ -267,7 +268,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// <summary>
     /// Compares two snapshots by type (sprint 1.4, ADR-018): deltas are <paramref name="current"/> minus
     /// <paramref name="baseline"/>. Like the type summary, the rows re-run the query (reopening either snapshot after a
-    /// worker restart) when the set is gone.
+    /// worker restart) when the set is gone. <paramref name="allocations"/> adds what was allocated between them (sprint 4.4).
     /// </summary>
     public async Task<SnapshotDiff> QueryTypeDiffAsync(
         SnapshotHandle baseline,
@@ -279,19 +280,24 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         IProgress<JobProgress>? progress,
         CancellationToken cancellationToken,
         bool matchObjects = false,
-        bool includeRetained = false)
+        bool includeRetained = false,
+        DiffAllocations? allocations = null)
     {
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(current);
+        Task<TypeDiffResult> DiffAsync(DiffAllocationScope? scope, CancellationToken ct) => UseBothAsync(
+            baseline,
+            current,
+            (service, baselineId, currentId, innerCt) => service.QueryTypeDiffAsync(
+                new TypeDiffRequest(baselineId, currentId, groupBy, filter, sortColumn, descending, matchObjects, includeRetained, scope), progress, innerCt),
+            ct);
+
         return await ResultQuery.RunAsync(
             worker,
             _logger,
-            ct => UseBothAsync(
-                baseline,
-                current,
-                (service, baselineId, currentId, innerCt) => service.QueryTypeDiffAsync(
-                    new TypeDiffRequest(baselineId, currentId, groupBy, filter, sortColumn, descending, matchObjects, includeRetained), progress, innerCt),
-                ct),
+            ct => allocations is { } a
+                ? a.Session.UseIdAsync(a.Trace, (traceId, innerCt) => DiffAsync(new DiffAllocationScope(traceId, a.FromUtc, a.ToUtc), innerCt), ct)
+                : DiffAsync(null, ct),
             result => result.Rows,
             (rows, result) => new SnapshotDiff(rows, result),
             cancellationToken).ConfigureAwait(false);

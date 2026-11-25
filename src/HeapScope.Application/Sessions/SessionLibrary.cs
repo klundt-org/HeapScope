@@ -58,7 +58,10 @@ public enum SnapshotSource
 /// <param name="Id">Stable id, so diffs and timelines (1.4, 1.7) can refer to a snapshot.</param>
 /// <param name="File">The file, relative to the session folder when inside it.</param>
 /// <param name="Label">Optional label such as "baseline".</param>
+/// <param name="CapturedUtc">When the capture was done and recorded.</param>
 /// <param name="RuntimeDirectory">Folder of the target's runtime at capture time (where its DAC came from).</param>
+/// <param name="HeapUtc">When the heap was as the snapshot holds it (sprint 4.4): within the target's pause, or the moment it ended. Null
+/// for a capture before 4.4. For a gcdump <paramref name="CapturedUtc"/> is seconds later (3 to 6 s measured).</param>
 public sealed record SessionSnapshot(
     Guid Id,
     string File,
@@ -70,7 +73,8 @@ public sealed record SessionSnapshot(
     SnapshotKindDto Kind = SnapshotKindDto.FullDump,
     SnapshotSource Source = SnapshotSource.Manual,
     string? Label = null,
-    string? RuntimeDirectory = null)
+    string? RuntimeDirectory = null,
+    DateTimeOffset? HeapUtc = null)
 {
     /// <summary>Members written by a newer HeapScope, kept when this build saves the document.</summary>
     [JsonExtensionData]

@@ -224,6 +224,9 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   one, for what was read so far: an interval counts whole stretches (`LiveTraceDto.BucketSeconds`) by their start. A live trace
   holds its memory reservation until it is read to its end. `AllocationIntervalDto` on the types and stacks answers is the interval
   a live trace counted; its timeline's stretch is a multiple of its own, and its tree is refused.
+  Version 24 (sprint 4.4, ADR-028): `TypeDiffRequest.Allocations` (`DiffAllocationScope`: an open trace and an interval on the
+  machine's clock), the diff's `AllocatedBytes` and `AllocatedSamples` columns, and `TypeDiffResult.Allocations`
+  (`DiffAllocationInfo`: what was counted and what no row holds). A live trace is refused.
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

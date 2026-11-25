@@ -44,9 +44,9 @@ public static class AllocationTraceReader
     /// <summary>
     /// Changes when how stacks, frames or samples are built changes (the worker's versions line, ARCHITECTURE.md 11), so a
     /// log line can be matched to the rules that produced it. 1: sprint 2.5. 2: 4.2.1 (amounts no process
-    /// allocates are refused, and running out of memory is).
+    /// allocates are refused, and running out of memory is). 3: 4.4 (a sample keeps its method table).
     /// </summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     /// <summary>TraceEvent's version, for the worker's versions line.</summary>
     public static string LibraryVersion { get; } = typeof(TraceLog).Assembly.GetName().Version?.ToString() ?? "unknown";
@@ -320,6 +320,8 @@ public static class AllocationTraceReader
         private readonly Dictionary<string, int> _frameIds = new(StringComparer.Ordinal);
         private readonly List<string> _types = [];
         private readonly Dictionary<string, int> _typeIds = new(StringComparer.Ordinal);
+        private readonly List<ulong> _tables = [];
+        private readonly Dictionary<ulong, int> _tableIds = [];
         private readonly List<int> _stackFrames = [];
         private readonly List<int> _stackParents = [];
         private readonly Dictionary<(int Parent, int Frame), int> _nodes = [];
@@ -328,6 +330,7 @@ public static class AllocationTraceReader
         private double[] _times = [];
         private int[] _stacks = [];
         private int[] _sampleTypes = [];
+        private int[] _sampleTables = [];
         private long[] _bytes = [];
         private AllocationKind[] _kinds = [];
         private int _count;
@@ -397,7 +400,7 @@ public static class AllocationTraceReader
             {
                 Checked = check.ToString(),
             };
-            return new AllocationTrace(_frames, _types, [.. _stackFrames], [.. _stackParents], _times, _stacks, _sampleTypes, _bytes, _kinds, info);
+            return new AllocationTrace(_frames, _types, [.. _stackFrames], [.. _stackParents], _times, _stacks, _sampleTypes, _bytes, _kinds, info, methodTables: new AllocationMethodTables([.. _tables], _sampleTables));
         }
 
         private void Allocate(int length)
@@ -407,6 +410,7 @@ public static class AllocationTraceReader
             Array.Resize(ref _sampleTypes, length);
             Array.Resize(ref _bytes, length);
             Array.Resize(ref _kinds, length);
+            Array.Resize(ref _sampleTables, length);
         }
 
         private void Add(GCAllocationTickTraceData data)
@@ -439,6 +443,13 @@ public static class AllocationTraceReader
                 _typeIds.Add(typeName, type);
             }
 
+            if (!_tableIds.TryGetValue(sample.MethodTable, out var table))
+            {
+                table = _tables.Count;
+                _tables.Add(sample.MethodTable);
+                _tableIds.Add(sample.MethodTable, table);
+            }
+
             var (stack, unresolved) = Leaf(sample.Stack);
             if (unresolved)
             {
@@ -454,6 +465,7 @@ public static class AllocationTraceReader
             _times[_count] = time;
             _stacks[_count] = stack;
             _sampleTypes[_count] = type;
+            _sampleTables[_count] = table;
             _bytes[_count] = sample.Bytes;
             _kinds[_count] = sample.Kind switch
             {
@@ -480,6 +492,7 @@ public static class AllocationTraceReader
             _sampleTypes = Permute(_sampleTypes, order);
             _bytes = Permute(_bytes, order);
             _kinds = Permute(_kinds, order);
+            _sampleTables = Permute(_sampleTables, order);
         }
 
         private static T[] Permute<T>(T[] values, int[] order)

@@ -149,6 +149,10 @@ public sealed record TypeSummaryResult(
 /// Adds each row's retained lower bound in both snapshots and the delta (sprint 3.3); computes or opens both snapshots'
 /// dominators. Not for interface rows.
 /// </param>
+/// <param name="Allocations">
+/// Adds <see cref="TypeDiffColumns.AllocatedBytes"/> and <see cref="TypeDiffColumns.AllocatedSamples"/> from a trace of the same
+/// process (sprint 4.4); null leaves them out.
+/// </param>
 public sealed record TypeDiffRequest(
     Guid BaselineId,
     Guid CurrentId,
@@ -157,7 +161,39 @@ public sealed record TypeDiffRequest(
     string? SortColumn = null,
     bool Descending = true,
     bool MatchObjects = false,
-    bool IncludeRetained = false);
+    bool IncludeRetained = false,
+    DiffAllocationScope? Allocations = null);
+
+/// <summary>
+/// The allocations a diff shows (sprint 4.4): an open allocation trace of the same process and the interval between the two
+/// heaps, on the machine's clock. What of it the trace does not cover is left out, and the result says what was counted.
+/// </summary>
+public sealed record DiffAllocationScope(Guid TraceId, DateTimeOffset FromUtc, DateTimeOffset ToUtc);
+
+/// <summary>
+/// The sampled allocations a diff counted (sprint 4.4). Sizes are estimates: what the runtime's samples stand for.
+/// </summary>
+/// <param name="FromSeconds">The start of what was counted, in seconds since the recording started.</param>
+/// <param name="ToSeconds">Its end.</param>
+/// <param name="AskedFromSeconds">The start that was asked for; before 0 when the recording started later.</param>
+/// <param name="AskedToSeconds">The end that was asked for; past <paramref name="RecordedSeconds"/> when the recording ended earlier.</param>
+/// <param name="RowBytes">The bytes the diff's rows hold (before the filter).</param>
+/// <param name="AbsentBytes">Bytes of <paramref name="AbsentTypes"/> types without an object in either snapshot: allocated and collected between them.</param>
+/// <param name="SharedNameBytes">Bytes of a name that types of several modules share, which a gcdump cannot tell apart: no row holds them.</param>
+/// <param name="LostEvents">Events the runtime dropped while recording: the figures are low by their samples.</param>
+public sealed record DiffAllocationInfo(
+    double FromSeconds,
+    double ToSeconds,
+    double AskedFromSeconds,
+    double AskedToSeconds,
+    double RecordedSeconds,
+    int Samples,
+    long Bytes,
+    long RowBytes,
+    long AbsentBytes,
+    int AbsentTypes,
+    long SharedNameBytes,
+    long LostEvents);
 
 /// <summary>Column names of a type diff result set.</summary>
 public static class TypeDiffColumns
@@ -208,6 +244,12 @@ public static class TypeDiffColumns
 
     public const string PohDelta = "PohDelta";
 
+    /// <summary>Sampled bytes of the row's types allocated between the snapshots (sprint 4.4, an estimate); empty without a sample.</summary>
+    public const string AllocatedBytes = "AllocatedBytes";
+
+    /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
+    public const string AllocatedSamples = "AllocatedSamples";
+
     /// <summary>The <see cref="Change"/> value of a row present only in the current snapshot.</summary>
     public const string New = "new";
 
@@ -231,7 +273,7 @@ public static class TypeDiffColumns
 /// <see cref="NewObjects"/> and <see cref="DeadObjects"/>), else <see cref="IdentityNote"/> says why not when asked (when
 /// matched, it holds a caution, such as few objects keeping their address);
 /// <see cref="KindDeltas"/> the whole heap's byte delta per heap kind when both snapshots have generations; the dominators'
-/// origins when retained bytes were asked for.
+/// origins when retained bytes were asked for. Since 4.4: <see cref="Allocations"/> when sampled allocations were asked for.
 /// </summary>
 public sealed record TypeDiffResult(
     ResultSetInfo Rows,
@@ -252,7 +294,8 @@ public sealed record TypeDiffResult(
     long DeadObjects = 0,
     IReadOnlyList<HeapKindTotal>? KindDeltas = null,
     DominatorIndexInfo? BaselineDominators = null,
-    DominatorIndexInfo? CurrentDominators = null);
+    DominatorIndexInfo? CurrentDominators = null,
+    DiffAllocationInfo? Allocations = null);
 
 /// <summary>
 /// A trend across several snapshots (sprint 3.3): rows per type, namespace, assembly or interface with objects and bytes

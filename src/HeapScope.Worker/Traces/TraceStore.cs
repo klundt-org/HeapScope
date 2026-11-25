@@ -274,6 +274,7 @@ internal sealed class TraceStore
         ((long)trace.SampleCount * AllocationTrace.BytesPerSample)
         + (trace.StackFrames.Length * 8L)
         + trace.Frames.Sum(f => 40L + (2L * f.Length))
+        + ((trace.MethodTables?.Distinct.Length ?? 0) * 8L)
         + trace.Types.Sum(t => 40L + (2L * t.Length));
 }
 

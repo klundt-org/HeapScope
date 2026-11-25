@@ -131,7 +131,8 @@ public sealed class DumpCapturer(
     IElevationProbe? elevation = null,
     IDiskSpace? disk = null,
     IDumpWriter? writer = null,
-    Func<DotNetProcess, long>? estimator = null)
+    Func<DotNetProcess, long>? estimator = null,
+    TimeProvider? timeProvider = null)
 {
     /// <summary>Free space HeapScope always leaves on the drive (the index cache and the system need room too).</summary>
     public const long ReserveBytes = 1L * 1024 * 1024 * 1024;
@@ -142,6 +143,7 @@ public sealed class DumpCapturer(
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
     private readonly IDiskSpace _disk = disk ?? VolumeDiskSpace.Instance;
     private readonly IDumpWriter _writer = writer ?? DiagnosticsDumpWriter.Instance;
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly Func<DotNetProcess, DumpEstimate> _estimate = estimator is null
         ? DumpSizeEstimator.Estimate
         : process => new DumpEstimate(estimator(process), null, process.PrivateBytes, 0, FromWalk: false);
@@ -191,9 +193,10 @@ public sealed class DumpCapturer(
     /// Captures a full dump of <paramref name="process"/> to <paramref name="path"/>. Throws
     /// <see cref="ElevationRequiredException"/>, <see cref="InsufficientDiskSpaceException"/>,
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
-    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>.
+    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the runtime was done writing:
+    /// the target is paused until a moment before, so nothing it allocates lies between (sprint 4.4).
     /// </summary>
-    public async Task CaptureAsync(
+    public async Task<DateTimeOffset> CaptureAsync(
         DotNetProcess process,
         string path,
         IProgress<CaptureProgress>? progress,
@@ -219,9 +222,11 @@ public sealed class DumpCapturer(
             "Canceling",
             estimate,
             "The runtime finishes writing the dump, then HeapScope deletes it")));
+        DateTimeOffset written;
         try
         {
             await _writer.WriteAsync(process.ProcessId, file.PartialPath).ConfigureAwait(false);
+            written = _time.GetUtcNow();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -236,6 +241,7 @@ public sealed class DumpCapturer(
         }
 
         file.Commit();
+        return written;
     }
 
     private Exception Translate(DotNetProcess process, string directory, Exception ex)

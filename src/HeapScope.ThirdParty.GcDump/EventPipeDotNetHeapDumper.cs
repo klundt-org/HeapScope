@@ -114,8 +114,9 @@ namespace Microsoft.Diagnostics.Tools.GCDump
         /// <param name="log">A writer that supports concurrent writes. This method may log from multiple tasks.</param>
         /// <param name="timeout"></param>
         /// <param name="dotNetInfo"></param>
+        /// <param name="walked">HeapScope change (CHANGES.md): called once with the time of the first heap node reported, while the target is paused.</param>
         /// <returns></returns>
-        public static bool DumpFromEventPipe(CancellationToken ct, int processId, string diagnosticPort, MemoryGraph memoryGraph, TextWriter log, int timeout, DotNetHeapInfo dotNetInfo)
+        public static bool DumpFromEventPipe(CancellationToken ct, int processId, string diagnosticPort, MemoryGraph memoryGraph, TextWriter log, int timeout, DotNetHeapInfo dotNetInfo, Action<DateTime> walked = null)
         {
             DateTime start = DateTime.Now;
             Func<TimeSpan> getElapsed = () => DateTime.Now - start;
@@ -207,6 +208,10 @@ namespace Microsoft.Diagnostics.Tools.GCDump
                     }
 
                     dumpState.EventPipeDataPresent = true;
+
+                    // HeapScope change (CHANGES.md): when the heap was walked.
+                    walked?.Invoke(data.TimeStamp);
+                    walked = null;
 
                     if ((getElapsed() - lastEventPipeUpdate).TotalMilliseconds > 500)
                     {

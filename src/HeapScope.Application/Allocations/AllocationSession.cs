@@ -268,6 +268,18 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         return Resources.UseAsync([handle], (service, ids, ct) => call(service, ids[0], ct), cancellationToken);
     }
 
+    /// <summary>Runs <paramref name="call"/> with the trace's worker id, for a question that is about snapshots too (sprint 4.4).</summary>
+    internal Task<T> UseIdAsync<T>(TraceHandle handle, Func<Guid, CancellationToken, Task<T>> call, CancellationToken cancellationToken) =>
+        Resources.UseIdAsync(handle, call, cancellationToken);
+
+    /// <summary>The open trace of a file, or it is opened now as a tracked job (sprint 4.4).</summary>
+    public async Task<TraceHandle> OpenOnceAsync(string path)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        var fullPath = System.IO.Path.GetFullPath(path);
+        return Traces.FirstOrDefault(t => t.Live is null && PathIdentity.Same(t.Path, fullPath)) ?? await StartOpen(fullPath).Result.ConfigureAwait(false);
+    }
+
     private WorkerResources<TraceHandle> Resources => _resources ??= new(worker, HeapScopeErrorCode.TraceNotLoaded, ReopenAsync, ThrowIfClosed);
 
     private async Task<TraceHandle> OpenAsync(string fullPath, IProgress<JobProgress>? progress, CancellationToken cancellationToken)

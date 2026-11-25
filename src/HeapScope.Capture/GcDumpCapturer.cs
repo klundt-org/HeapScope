@@ -59,6 +59,9 @@ public enum GcDumpFailure
 /// <param name="Reason">The first line of the error, when <paramref name="Failure"/> is <see cref="GcDumpFailure.Error"/>.</param>
 public sealed record GcDumpWriteResult(GcDumpFailure Failure, string? Reason = null)
 {
+    /// <summary>When the runtime walked the heap, in the target's pause (sprint 4.4); null when its events did not say.</summary>
+    public DateTimeOffset? HeapUtc { get; init; }
+
     public static GcDumpWriteResult Succeeded { get; } = new(GcDumpFailure.None);
 
     public bool Success => Failure == GcDumpFailure.None;
@@ -94,12 +97,13 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
     public async Task<GcDumpWriteResult> WriteAsync(int processId, string path, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var log = new LineLog();
+        DateTimeOffset? walked = null;
         var work = Task.Run(
             () =>
             {
                 var graph = new MemoryGraph(50_000);
                 var seconds = (int)Math.Ceiling(timeout.TotalSeconds);
-                if (!EventPipeDotNetHeapDumper.DumpFromEventPipe(cancellationToken, processId, null, graph, TextWriter.Synchronized(log), seconds, new DotNetHeapInfo()))
+                if (!EventPipeDotNetHeapDumper.DumpFromEventPipe(cancellationToken, processId, null, graph, TextWriter.Synchronized(log), seconds, new DotNetHeapInfo(), at => walked = new DateTimeOffset(at.ToUniversalTime())))
                 {
                     return false;
                 }
@@ -120,7 +124,7 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
                 return new GcDumpWriteResult(GcDumpFailure.TooLarge);
             }
 
-            return success ? GcDumpWriteResult.Succeeded : Classify(lines);
+            return success ? new GcDumpWriteResult(GcDumpFailure.None) { HeapUtc = walked } : Classify(lines);
         }
         catch (OperationCanceledException)
         {
@@ -227,9 +231,10 @@ public sealed class GcDumpCapturer(IElevationProbe? elevation = null, IGcDumpWri
     /// Captures a gcdump of <paramref name="process"/> to <paramref name="path"/>, waiting up to <paramref name="timeout"/>
     /// (<see cref="DefaultTimeout"/> when null) for the runtime. Throws <see cref="ElevationRequiredException"/>,
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
-    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>.
+    /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the runtime walked the heap,
+    /// when its events said (sprint 4.4): seconds before the file is done.
     /// </summary>
-    public async Task CaptureAsync(DotNetProcess process, string path, IProgress<CaptureProgress>? progress, TimeSpan? timeout, CancellationToken cancellationToken)
+    public async Task<DateTimeOffset?> CaptureAsync(DotNetProcess process, string path, IProgress<CaptureProgress>? progress, TimeSpan? timeout, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -268,6 +273,7 @@ public sealed class GcDumpCapturer(IElevationProbe? elevation = null, IGcDumpWri
         }
 
         file.Commit();
+        return result.HeapUtc;
     }
 
     private static Exception Failure(DotNetProcess process, TimeSpan limit, GcDumpWriteResult result)

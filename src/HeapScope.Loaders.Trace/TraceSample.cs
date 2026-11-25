@@ -27,4 +27,4 @@ using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>One allocation tick as TraceEvent gives it.</summary>
-internal readonly record struct TraceSample(string? TypeName, CallStackIndex Stack, double TimeMs, long Bytes, GCAllocationKind Kind);
+internal readonly record struct TraceSample(string? TypeName, CallStackIndex Stack, double TimeMs, long Bytes, GCAllocationKind Kind, ulong MethodTable);
