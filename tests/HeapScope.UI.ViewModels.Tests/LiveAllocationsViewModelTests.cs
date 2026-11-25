@@ -354,7 +354,7 @@ public sealed class LiveAllocationsViewModelTests
         await TickAsync(ends: true);
 
         (_live.Selection, _live.Interval, _live.Note).ShouldBe((null, "The whole run so far", "Too little memory."));
-        await WaitUntilAsync(() => _live.Stacks.Count == 2);
+        (_live.Stacks.Count, _live.StacksStatus).ShouldBe((0, "Too little memory."), "the stacks were of the choice that is gone");
         _live.SelectedType = _live.Types[1];
         (_live.Stacks.Count, _live.StacksStatus).ShouldBe((0, "Too little memory."));
     }

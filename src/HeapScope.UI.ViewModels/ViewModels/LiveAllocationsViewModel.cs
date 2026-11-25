@@ -443,8 +443,13 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         Note = reason;
         following.Over = true;
 
-        // A choice nobody answered is not what the figures are of.
-        Apply(_answered);
+        // A choice nobody answered is not what the figures are of, and its stacks are not of what is shown.
+        if (Selection != _answered)
+        {
+            ClearStacks();
+            Apply(_answered);
+        }
+
         if (ShowStacks && Stacks.Count == 0)
         {
             StacksStatus = reason;
