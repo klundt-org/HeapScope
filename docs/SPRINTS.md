@@ -119,10 +119,10 @@ Owner decisions, 2026-11-18:
 the whole code base as outsiders, ranked, each finding checked in the code.
 
 **Tasks**
-1. [ ] Five reviewers read the code base at sprint 4.4 (not a diff), each its area: solution architect, senior developer, CLR and GC
+1. [x] Five reviewers read the code base at sprint 4.4 (not a diff), each its area: solution architect, senior developer, CLR and GC
    specialist, support engineer, and DevSecOps (build, packages, CI, supply chain, threat surface). Each also says what stands between
    this and a first full release.
-2. [ ] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
+2. [x] The findings merged, the Critical and High ones checked in the code by the lead engineer ("verified"), ranked, in
    `docs/reviews/peer-review-4.5.md`.
 3. [ ] Anything Critical (wrong results, data loss, security) fixed at once as a patch, with the owner told.
 4. [ ] A proposed split into sprints, for the owner to decide; the Backlog updated.
