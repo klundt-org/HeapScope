@@ -210,6 +210,17 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   change, the other snapshot, how many of the inner set's objects it kept and the survivors in all; a trend logs its
   snapshots in order, grouping, rows and the first rows' growth; the CLI's growth gate logs what it checked (total or a
   heap kind, per row or summed) and how many rows exceeded.
+- Live traces (sprint 4.3): the run logs the trace it writes and whether the methods compiled so far could be named; the worker
+  logs a live trace's path, readers' versions, memory and names file when it opens, where it stands every minute and at its end
+  (the recording's end, or closed or stopped before it: samples, bytes, types, stretch, entries, lost events, unnamed frames, what
+  is past the limits, the longest delay, why there are no stacks or names, what the check walked, why it stopped), and each time
+  its stretches grow or its stacks are given up, with the numbers. The run logs when its trace is written and why it ended. The
+  page logs, under one activity per run, each interval chosen with what it showed and as of when (samples, seconds, the stretch,
+  the top types), a delay or note when it appears or goes, a worker that stopped and how often, and the figures at the end. The
+  stacks shown are logged as a finished trace's are, with as of when; their node numbers are of that moment, their frames hold in
+  the finished trace. The timeline and types, asked for every two seconds, are at Debug. The finished file is the record a
+  contested figure is checked against: one that ended by an error is kept, and one whose process exited has no rundown, so some
+  frames a live view named have no name in it.
 - Live workflow (sprint 3.4): a forced collection logs the target, whether its end was seen and the time; a refused
   capture or collection logs what it was, why it was asked and what was running; a run logs its id at the start, the
   allocation trace's path, size and length, and each time it is recorded in its session (snapshots, forced collections);

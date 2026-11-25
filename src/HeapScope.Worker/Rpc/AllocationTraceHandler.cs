@@ -48,8 +48,29 @@ internal sealed class AllocationTraceHandler(
     public Task<TraceDescriptor> OpenTraceAsync(OpenTraceRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
         GuardAsync(request, () => traces.OpenAsync(request, progress is null ? null : new ThrottledProgress<JobProgress>(progress), cancellationToken));
 
+    public Task<LiveTraceDescriptor> OpenLiveTraceAsync(OpenLiveTraceRequest request, CancellationToken cancellationToken) =>
+        GuardAsync(request, () => Task.Run(() => traces.OpenLive(request), cancellationToken));
+
+    // Asked a few times a second while a recording is shown: at Debug.
+    public Task<LiveTraceDto> QueryLiveTraceAsync(LiveTraceRequest request, CancellationToken cancellationToken) =>
+        GuardAsync(
+            request,
+            () =>
+            {
+                ArgumentNullException.ThrowIfNull(request);
+                return Task.Run(() => Live(request.TraceId).State(), cancellationToken);
+            },
+            LogLevel.Debug);
+
+    public Task EndLiveTraceAsync(Guid traceId, CancellationToken cancellationToken) =>
+        GuardAsync<bool>(traceId, () =>
+        {
+            Live(traceId).End();
+            return Task.FromResult(true);
+        });
+
     public Task CloseTraceAsync(Guid traceId, CancellationToken cancellationToken) =>
-        GuardAsync<bool>(traceId, () => Task.FromResult(traces.Close(traceId)));
+        GuardAsync<bool>(traceId, () => Task.Run(() => traces.Close(traceId)));
 
     public Task<AllocationTimelineResult> QueryAllocationTimelineAsync(AllocationTimelineRequest request, CancellationToken cancellationToken) =>
         GuardAsync(request, async () =>
@@ -61,24 +82,27 @@ internal sealed class AllocationTraceHandler(
             }
 
             var open = Trace(request.TraceId);
-            if (AllocationProfile.BucketCount(open.Trace, request.BucketSeconds * 1000) > AllocationTreeLimits.MaxBuckets)
+            var bucketSeconds = open.Live is { } live ? Math.Ceiling(request.BucketSeconds * 1000 / live.StretchMs) * live.StretchMs / 1000 : request.BucketSeconds;
+            if (AllocationProfile.BucketCount(open.Trace, bucketSeconds * 1000) > AllocationTreeLimits.MaxBuckets)
             {
                 throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"A timeline has at most {AllocationTreeLimits.MaxBuckets:N0} stretches; ask for longer ones (this trace is {open.Trace.Info.DurationMs / 1000:N1} s)."));
             }
 
-            var buckets = await Task.Run(() => AllocationProfile.Timeline(open.Trace, request.BucketSeconds * 1000, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var buckets = await Task.Run(() => AllocationProfile.Timeline(open.Trace, bucketSeconds * 1000, cancellationToken), cancellationToken).ConfigureAwait(false);
             var result = new AllocationTimelineResult(
                 [.. buckets.Select(b => new AllocationBucketDto(b.StartMs / 1000, b.Bytes, b.Samples))],
-                request.BucketSeconds,
-                open.Trace.Info.DurationMs / 1000);
-            Logger.LogInformation(
+                bucketSeconds,
+                open.Trace.Info.DurationMs / 1000,
+                Interval(open, AllocationFilter.All));
+            Logger.Log(
+                LevelOf(request.TraceId),
                 "Allocation timeline of trace {Id}: {Buckets} stretches of {Seconds} s, busiest {Busiest}",
                 request.TraceId,
                 buckets.Length,
-                request.BucketSeconds,
+                bucketSeconds,
                 string.Join("; ", buckets.OrderByDescending(b => b.Bytes).Take(3).Select(b => string.Create(CultureInfo.InvariantCulture, $"{b.StartMs / 1000:0.##} s {b.Bytes} bytes"))));
             return result;
-        });
+        }, LevelOf(request?.TraceId));
 
     public Task<AllocationTypesResult> QueryAllocationTypesAsync(AllocationTypesRequest request, CancellationToken cancellationToken) =>
         GuardAsync(request, async () =>
@@ -89,7 +113,8 @@ internal sealed class AllocationTraceHandler(
             var (rows, (bytes, samples)) = await Task.Run(
                 () => (AllocationProfile.Types(open.Trace, filter, cancellationToken), AllocationProfile.Totals(open.Trace, filter, cancellationToken)),
                 cancellationToken).ConfigureAwait(false);
-            Logger.LogInformation(
+            Logger.Log(
+                LevelOf(request.TraceId),
                 "Allocation types of trace {Id} from {From} s to {To}: {Types} types, {Samples} samples of {Bytes} bytes; top {Top}",
                 request.TraceId,
                 request.FromSeconds,
@@ -98,8 +123,8 @@ internal sealed class AllocationTraceHandler(
                 samples,
                 bytes,
                 string.Join("; ", rows.Take(LoggedAllocationRows).Select(r => string.Create(CultureInfo.InvariantCulture, $"{open.Trace.Types[r.Type]} {r.Bytes} bytes ({r.Samples} samples, LOH {r.LargeBytes}, POH {r.PinnedBytes})"))));
-            return new AllocationTypesResult(resultSets.Add(new AllocationTypesSource(open.Trace.Types, rows, bytes)), bytes, samples);
-        });
+            return new AllocationTypesResult(resultSets.Add(new AllocationTypesSource(open.Trace.Types, rows, bytes)), bytes, samples, Interval(open, filter));
+        }, LevelOf(request?.TraceId));
 
     public Task<AllocationStacksResult> QueryAllocationStacksAsync(AllocationStacksRequest request, CancellationToken cancellationToken) =>
         GuardAsync(request, async () =>
@@ -120,10 +145,11 @@ internal sealed class AllocationTraceHandler(
             // Every stack answered, with its rank, its innermost stack node (which rebuilds it from the same trace) and its
             // frames, allocating frame first: framework frames come first, so the disputed one may be deep (the 2.5 review).
             Logger.LogInformation(
-                "Allocation stacks of trace {Id} from {From} s to {To}, type {Type}: {Samples} samples of {Bytes} bytes, {Count} stacks: {Stacks}",
+                "Allocation stacks of trace {Id}{AsOf} from {From} s to {To}, type {Type}: {Samples} samples of {Bytes} bytes, {Count} stacks: {Stacks}",
                 request.TraceId,
-                request.FromSeconds,
-                To(request.ToSeconds),
+                AsOf(open),
+                filter.FromMs / 1000,
+                To(double.IsPositiveInfinity(filter.ToMs) ? null : filter.ToMs / 1000),
                 request.TypeName ?? "all",
                 samples,
                 bytes,
@@ -131,7 +157,7 @@ internal sealed class AllocationTraceHandler(
                 string.Join(" || ", top.Select((s, i) => string.Create(
                     CultureInfo.InvariantCulture,
                     $"#{i + 1} {s.Bytes} bytes ({s.Samples} samples) node {s.Node}, {stacks[i].Frames.Count} frames: {string.Join(" < ", stacks[i].Frames.Take(LoggedFrames))}{(stacks[i].Frames.Count > LoggedFrames ? " < ..." : string.Empty)}"))));
-            return new AllocationStacksResult(stacks, bytes, samples);
+            return new AllocationStacksResult(stacks, bytes, samples, Interval(open, filter));
         });
 
     public Task<AllocationTreeResult> QueryAllocationTreeAsync(AllocationTreeRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
@@ -149,6 +175,12 @@ internal sealed class AllocationTraceHandler(
             }
 
             var open = Trace(request.TraceId);
+            if (open.Live is not null)
+            {
+                // Its rows' keys are stack nodes, which are numbered anew when a live trace's names arrive.
+                throw new RequestRefusedException("A trace that is being recorded has no call tree. Open the finished trace for it.");
+            }
+
             var filter = Filter(open, request.FromSeconds, request.ToSeconds, request.TypeName);
             var kind = request.Kind == AllocationTreeKindDto.BackTraces ? AllocationTreeKind.BackTraces : AllocationTreeKind.CallTree;
             var expanded = request.Expanded.ToHashSet(StringComparer.Ordinal);
@@ -187,9 +219,16 @@ internal sealed class AllocationTraceHandler(
             return new AllocationTreeResult(resultSets.Add(new AllocationTreeSource(view)), view.TotalBytes, view.TotalSamples, view.Truncated, reveal);
         });
 
-    private OpenTrace Trace(Guid traceId) => traces.TryGet(traceId) ?? throw WorkerErrors.Create(
+    private OpenTrace Trace(Guid traceId) => traces.TryGet(traceId) ?? throw NotLoaded(traceId);
+
+    private LiveTrace Live(Guid traceId) => traces.TryGetLive(traceId) ?? throw NotLoaded(traceId);
+
+    private static Exception NotLoaded(Guid traceId) => WorkerErrors.Create(
         HeapScopeErrorCode.TraceNotLoaded,
         $"Allocation trace {traceId} is not open in the analysis worker: it was closed or the worker restarted. Open it again.");
+
+    /// <summary>A live trace's timeline and types are asked for every few seconds: at Debug, and its state is logged on its own.</summary>
+    private LogLevel LevelOf(Guid? traceId) => traceId is { } id && traces.IsLive(id) ? LogLevel.Debug : LogLevel.Information;
 
     private static AllocationFilter Filter(OpenTrace open, double fromSeconds, double? toSeconds, string? typeName)
     {
@@ -205,8 +244,24 @@ internal sealed class AllocationTraceHandler(
             throw new RequestRefusedException("No sample in this trace has that type. The types view ('allocations <trace> --view types' on the command line) lists the type names.");
         }
 
-        return new AllocationFilter(fromSeconds * 1000, toSeconds is { } end ? end * 1000 : double.PositiveInfinity, type);
+        var (fromMs, toMs) = (fromSeconds * 1000, toSeconds is { } end ? end * 1000 : double.PositiveInfinity);
+        if (open.Live is { } live)
+        {
+            (fromMs, toMs) = live.Whole(fromMs, toMs);
+        }
+
+        return new AllocationFilter(fromMs, toMs, type);
     }
+
+    /// <summary>The interval a live trace's query counted, for whoever shows it.</summary>
+    private static AllocationIntervalDto? Interval(OpenTrace open, AllocationFilter filter) => open.Live is { } live
+        ? new AllocationIntervalDto(filter.FromMs / 1000, double.IsPositiveInfinity(filter.ToMs) ? null : filter.ToMs / 1000, live.Version, open.Trace.Info.DurationMs / 1000, live.StretchMs / 1000)
+        : null;
+
+    /// <summary>As of when a live trace answered: its node numbers are of that moment, its frames hold in the finished trace.</summary>
+    private static string AsOf(OpenTrace open) => open.Live is { } live
+        ? string.Create(CultureInfo.InvariantCulture, $" (live, {live.Version} samples, {open.Trace.Info.DurationMs / 1000:0.0} s, stretches of {live.StretchMs:0} ms)")
+        : string.Empty;
 
     private static string To(double? toSeconds) => toSeconds is { } to ? to.ToString("0.###", CultureInfo.InvariantCulture) + " s" : "the end";
 }

@@ -22,7 +22,11 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Globalization;
+using HeapScope.Analysis.Allocations;
+using HeapScope.Capture;
+using HeapScope.Core.Allocations;
 using HeapScope.Integration.Tests.Infrastructure;
+using HeapScope.Loaders.Trace;
 
 namespace HeapScope.Integration.Tests;
 
@@ -82,6 +86,44 @@ public sealed class SampleTests : IDisposable
         using var types = ChildProcess.Start(TestPaths.CliExe, "allocations", trace, "--view", "types", "--types", "20");
         (await types.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(types.Output);
         types.StandardOutput.Split('\n').First(l => l.Contains("HeapScope.Sample.", StringComparison.Ordinal)).ShouldContain("HeapScope.Sample.PricedOrder");
+    }
+
+    /// <summary>
+    /// Sprint 4.3: the lesson's steps on the real sample. Followed live, its heartbeats are allocated most over the whole run, and its
+    /// report's rows within a burst, from the burst's call site.
+    /// </summary>
+    [Fact]
+    public async Task The_bursts_scenario_shows_its_answer_only_in_a_burst_s_interval()
+    {
+        using var sample = await FixtureProcess.StartSampleAsync("--scenarios", "AllocationBursts");
+        var path = _root.File("bursts.nettrace");
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var started = new TaskCompletionSource<LiveTraceStart>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recording = TraceRecorder.RecordLiveAsync(sample.ProcessId, path, TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(1), noNames: null, started.SetResult, stop.Token);
+        var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        using var live = LiveTraceReader.Start(path, start.NamesPath);
+
+        // A burst every ten seconds: two whole ones, wherever the recording starts.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(90);
+        while (live.Status().DurationMs < 24_000)
+        {
+            DateTime.UtcNow.ShouldBeLessThan(deadline, $"the live trace stayed at {live.Status()}");
+            await Task.Delay(200, Ct);
+        }
+
+        await stop.CancelAsync();
+        await recording;
+        live.End();
+        await live.Completion.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        var trace = live.View().Trace;
+        string Top(AllocationFilter filter) => AllocationProfile.Types(trace, filter, Ct).Select(t => trace.Types[t.Type]).First(t => t.StartsWith("HeapScope.Sample.", StringComparison.Ordinal));
+        var tallest = AllocationProfile.Timeline(trace, 1000, Ct).MaxBy(b => b.Bytes);
+        var burst = new AllocationFilter(tallest.StartMs, tallest.StartMs + 1000);
+        Top(AllocationFilter.All).ShouldBe("HeapScope.Sample.Heartbeat");
+        Top(burst).ShouldBe("HeapScope.Sample.ReportRow");
+        var rows = new AllocationFilter(burst.FromMs, burst.ToMs, trace.Types.ToList().IndexOf("HeapScope.Sample.ReportRow"));
+        var stack = AllocationProfile.TopStacks(trace, rows, 1, Ct).Single();
+        AllocationProfile.FramesOf(trace, stack.Node).Select(f => trace.Frames[f]).ShouldContain(f => f.Contains("AllocationBursts.BuildReport", StringComparison.Ordinal));
     }
 
     // Sprint 3.13 task 5: the app's service reads the real sample's catalog, starts it, knows it as a sample and stops it.

@@ -75,27 +75,54 @@ internal static class TraceFileCheck
     /// <exception cref="SnapshotFormatException">The file states what it cannot hold, or is another version of the format.</exception>
     public static TraceCheckResult Check(Stream stream, string path, CancellationToken cancellationToken)
     {
-        var length = stream.Length;
-        Span<byte> head = stackalloc byte[8 + 4 + 20];
-        if (!TryRead(stream, head) || BinaryPrimitives.ReadInt32LittleEndian(head[8..]) != 20 || !head[12..].SequenceEqual("!FastSerialization.1"u8))
-        {
-            // Version 6 and later: a reserved 0, then the version. Anything else is damage.
-            var newer = BinaryPrimitives.ReadInt32LittleEndian(head[12..]);
-            throw BinaryPrimitives.ReadInt32LittleEndian(head[8..]) == 0 && newer is > TraceVersion and < 100
-                ? OtherVersion(path, newer)
-                : Refuse(path, 8, "head", "it does not start as a trace");
-        }
-
-        Span<byte> word = stackalloc byte[4];
-        Span<byte> preamble = stackalloc byte[PreambleBytes];
-        Span<byte> nameBuffer = stackalloc byte[64];
-        var (blocks, descriptions, fields) = (0, 0, 0L);
-        var first = true;
+        var walk = new Walk(path);
         while (true)
         {
+            if (walk.Next(stream, cancellationToken) is { } end)
+            {
+                return end;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The walk over a trace, one object (a block, or the start) at a time, so that a file that still grows is checked as it does
+    /// (sprint 4.3, ADR-028): an object the file ends inside is walked again once there is more of it.
+    /// </summary>
+    internal sealed class Walk(string path)
+    {
+        private bool _headSeen;
+        private bool _first = true;
+        private int _blocks;
+        private int _descriptions;
+        private long _fields;
+
+        /// <summary>Where the next object starts: everything before it was walked.</summary>
+        public long Position { get; private set; }
+
+        /// <summary>How long a file must be before its start can be judged.</summary>
+        public const int HeadBytes = 8 + 4 + 20;
+
+        /// <summary>Walks one object from <see cref="Position"/>: null when it is sound, or why the walk stops there.</summary>
+        /// <exception cref="SnapshotFormatException">The file states what it cannot hold, or is another version of the format.</exception>
+        public TraceCheckResult? Next(Stream stream, CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
-            var at = stream.Position;
-            TraceCheckResult Stopped(string end) => new(end, at, blocks, descriptions, fields);
+            stream.Position = Position;
+            var length = stream.Length;
+            if (!_headSeen)
+            {
+                CheckHead(stream);
+                _headSeen = true;
+                Position = stream.Position;
+            }
+
+            var at = Position;
+            var (described, stated) = (_descriptions, _fields);
+            TraceCheckResult Stopped(string end) => new(end, at, _blocks, _descriptions, _fields);
+            Span<byte> word = stackalloc byte[4];
+            Span<byte> preamble = stackalloc byte[PreambleBytes];
+            Span<byte> nameBuffer = stackalloc byte[64];
             if (!TryRead(stream, preamble[..1]))
             {
                 return Stopped(TraceCheckResult.CutShort);
@@ -134,19 +161,18 @@ internal static class TraceFileCheck
                 return Stopped(TraceCheckResult.OtherTag);
             }
 
-            if (first != type.SequenceEqual("Trace"u8))
+            if (_first != type.SequenceEqual("Trace"u8))
             {
-                throw Refuse(path, at, "start", first ? "it does not start as a trace" : "it has a second start");
+                throw Refuse(path, at, "start", _first ? "it does not start as a trace" : "it has a second start");
             }
 
-            if (first && version != TraceVersion)
+            if (_first && version != TraceVersion)
             {
                 throw version is > 0 and < 100 ? OtherVersion(path, version) : Refuse(path, at, "version", $"its version is stated to be {version:N0}");
             }
 
-            if (first)
+            if (_first)
             {
-                first = false;
                 if (length - stream.Position < TraceObjectBytes + 1)
                 {
                     return Stopped(TraceCheckResult.CutShort);
@@ -190,7 +216,7 @@ internal static class TraceFileCheck
                             return Stopped(TraceCheckResult.CutShort);
                         }
 
-                        CheckDescriptions(block.AsSpan(0, size), path, start, ref descriptions, ref fields, cancellationToken);
+                        CheckDescriptions(block.AsSpan(0, size), path, start, ref described, ref stated, cancellationToken);
                     }
                     finally
                     {
@@ -203,7 +229,6 @@ internal static class TraceFileCheck
                 }
             }
 
-            blocks++;
             if (!TryRead(stream, word[..1]))
             {
                 return Stopped(TraceCheckResult.CutShort);
@@ -212,6 +237,24 @@ internal static class TraceFileCheck
             if (word[0] != EndObject)
             {
                 return Stopped(TraceCheckResult.OtherTag);
+            }
+
+            _first = false;
+            (_blocks, _descriptions, _fields) = (_blocks + 1, described, stated);
+            Position = stream.Position;
+            return null;
+        }
+
+        private void CheckHead(Stream stream)
+        {
+            Span<byte> head = stackalloc byte[HeadBytes];
+            if (!TryRead(stream, head) || BinaryPrimitives.ReadInt32LittleEndian(head[8..]) != 20 || !head[12..].SequenceEqual("!FastSerialization.1"u8))
+            {
+                // Version 6 and later: a reserved 0, then the version. Anything else is damage.
+                var newer = BinaryPrimitives.ReadInt32LittleEndian(head[12..]);
+                throw BinaryPrimitives.ReadInt32LittleEndian(head[8..]) == 0 && newer is > TraceVersion and < 100
+                    ? OtherVersion(path, newer)
+                    : Refuse(path, 8, "head", "it does not start as a trace");
             }
         }
     }

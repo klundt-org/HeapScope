@@ -200,7 +200,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   per handle for all its waiters) and `ResultQuery` (a query whose rows come back as a result set) [P5];
   `Events/SafeEvents` (events raised after state is final, outside locks, a throwing listener logged) [P9];
   `Presentation/` (column access by name, the texts and the monitor rules parser both front ends use) [P18];
-  `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed) and `RunRecord`, a file per type
+  `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed; since 4.3 live, `LiveTraceFile` and `TraceEnded` tell who follows it) and `RunRecord`, a file per type
   [P11]; `Sessions/SessionFileCheck` (a session's file, or which check refused it) [3.7 review M2].
   `Workers/` (`WorkerHost`, `IWorkerClient`, exceptions, log forwarding), `Jobs/JobTracker`,
   `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's setting and its
@@ -260,7 +260,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   types and instances grids (off by default, carried from the types grid into a type's objects) and the object's
   retained size with its immediate dominator as a link in the Retention tab [2.3]; `InspectionsViewModel` (tiles,
   fragmentation bars, rows as `CellRowItem`s, the generic row of any result set since 2.4) [1.6]; `LiveViewModel` and
-  `SnapshotCard` [1.7]; `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
+  `SnapshotCard` [1.7], since 4.3 monitoring alone over `LiveRunState` (what the page shows of a run), with
+  `LivePastRunsViewModel`, `LiveRunFilesViewModel` and `LiveAllocationsViewModel` (what the process allocates, as it does); `Navigation/` (`NavigationTarget`, `INavigator`, `INavigationSubject`, the tab enums: every link
   of the app is a target the Snapshots page routes), `RetainersViewModel` (the dominator tree grid with
   `DominatorRowItem`, the trail as `TrailItem`s, the icicle with `IcicleGeometry`), `RetainedBySetViewModel`,
   `ColumnGroups`, and `GridQueryViewModel.OnRowsApplied` (what refers to new rows runs after they are bound) [2.4].
@@ -282,7 +283,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   Sprint 3.3: Compare's New and Dead, retained and per-generation columns (`ColumnGroups.Identity`), a row's new, dead
   or survived objects as sets, and `TrendViewModel` (the ticked open snapshots, oldest first, as a dynamic-column grid).
   Sprint 3.4 to 3.6: deleting snapshots and sessions and the cleanup of old sessions (`SnapshotsViewModel`,
-  `PageViewModels`), past runs and forced collections on `LiveViewModel` (`PastRunItem`), and the DAC trust question in
+  `PageViewModels`), past runs and forced collections on the Live page (`PastRunItem`), and the DAC trust question in
   `SnapshotsViewModel`.
   Sprint 3.11: opening a dump again refreshes its row in place (`SnapshotItemViewModel.Reload`, `SnapshotsViewModel.ShowOpened`)
   and runs Compare and Trend again when they use it (`CompareViewModel.Reopened`, `TrendViewModel.Reopened`); `InfoTexts` and
@@ -354,7 +355,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   since 3.8] and `phase2-indices`,
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache
   (build, sidecar write, reopen in both modes) [2.1]; `retention`, the root path tree, key paths and object searches of
-  a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `dominators`, the reverse index and
+  a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `live-stacks`, its call stack gate, and `dump-kinds`, how long each snapshot stops a process [4.3]; `dominators`, the reverse index and
   dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread);
   `ui-stalls` (WPR recordings of the UI split by cause, `UiStallAttribution`, tested in tests/HeapScope.Benchmarks.Tests)
   and `cpu-profile` (where a process's busiest thread spent a recording) [3.12].
@@ -377,12 +378,14 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   sample its time, innermost stack node, type and bytes; `NoStackFrame`, unnamed frames labeled
   `[unresolved frame in <module>]`). Loaders.Trace: `TraceFileCheck` (what a trace states must
   fit in it; `TraceCheckResult` says what was walked), `TraceReads` (the calls into TraceEvent, so its errors are told from
-  HeapScope's) and `TraceSample` [4.2.1]; `AllocationTraceReader` (the `Nettrace` signature checked first,
+  HeapScope's) and `TraceSample` [4.2.1]; a trace while it is recorded [4.3]: `LiveTraceReader` (a thread that follows the file),
+  `LiveTraceStream` (only whole checked objects), `EventStackReader` (call stacks from TraceEvent's record), `LiveAllocations` and
+  `LiveAllocationLimits` (what is kept, bounded), `LiveMethodNames` and `LiveTraceView`; `AllocationTraceReader` (the `Nettrace` signature checked first,
   TraceEvent's `.etlx` written to a private folder (section 12) and deleted, every frame kept, unnamed ones labeled and
   counted, cancellation). Analysis: `Allocations/AllocationProfile` (sample
   ranges by binary search, the timeline, types, totals, top stacks, a stack's frames) and `AllocationTreeRows` (the call
   tree and back traces flattened from open keys like ADR-027, with `AllocationRow`, `AllocationTreeView`,
-  `AllocationFilter`). Worker: `Traces/TraceStore` (open traces, a memory reservation while reading,
+  `AllocationFilter`). Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
   `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource`. Application:
   `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, and
   `StartRecord`, which records into the current session's folder and opens the trace). UI.ViewModels:

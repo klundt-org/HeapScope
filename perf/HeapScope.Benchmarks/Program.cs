@@ -40,6 +40,8 @@ var benchmarks = new Dictionary<string, Func<BenchmarkArgs, int>>(StringComparer
     ["dominators"] = DominatorsBenchmark.Run,
     ["allocations"] = AllocationsBenchmark.Run,
     ["live-tail"] = LiveTailSpike.Run,
+    ["live-stacks"] = LiveStacksSpike.Run,
+    ["dump-kinds"] = DumpKindsBenchmark.Run,
 };
 
 if (args.Length == 0 || !benchmarks.TryGetValue(args[0], out var run))

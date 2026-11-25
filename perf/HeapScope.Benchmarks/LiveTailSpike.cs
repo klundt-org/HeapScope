@@ -156,7 +156,7 @@ internal static class LiveTailSpike
     }
 
     /// <summary>A read-only view of a file another process is still writing: at its end it waits for more until done.</summary>
-    private sealed class TailStream(FileStream inner, Func<bool> done) : Stream
+    internal sealed class TailStream(FileStream inner, Func<bool> done) : Stream
     {
         public override bool CanRead => true;
 

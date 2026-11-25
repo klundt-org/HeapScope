@@ -39,13 +39,11 @@ public sealed class AllocationRecordingTests : IDisposable
     [Fact]
     public async Task Disposing_waits_for_the_watch_which_waits_for_running_captures_before_stopping_the_trace()
     {
-        static async Task<TraceResult> Recorder(int pid, string path, CancellationToken ct)
+        static async Task<TraceResult> Recorder(AllocationRecordingRequest request, CancellationToken ct)
         {
-            var partial = TraceRecorder.PartialName(path);
-            await File.WriteAllBytesAsync(partial, new byte[4096], CancellationToken.None);
+            await File.WriteAllBytesAsync(request.Path, new byte[4096], CancellationToken.None);
             await Task.Delay(Timeout.Infinite, ct).ContinueWith(_ => { }, TaskScheduler.Default);
-            File.Move(partial, path);
-            return new TraceResult(path, 4096, TimeSpan.FromSeconds(1), StoppedEarly: true);
+            return new TraceResult(request.Path, 4096, TimeSpan.FromSeconds(1), StoppedEarly: true);
         }
 
         var capture = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -68,7 +66,8 @@ public sealed class AllocationRecordingTests : IDisposable
                 }
 
                 limitReached.TrySetResult();
-            });
+            },
+            TimeSpan.FromSeconds(1));
 
         await limitReached.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
         var disposing = recording.DisposeAsync().AsTask();

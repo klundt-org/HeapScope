@@ -33,6 +33,11 @@ references such as "ARCHITECTURE.md 8" still name the right section.
   most 94 to 109 ms; UI process 219 to 229 MB private (50 to 92 MB managed) after the Small or Medium smoke, with no
   whole-list grid walk (the prototype: 197 MB); the first window 2.2 s after process start warm (WPF the same), 8 to 15 s for the first launch after a build
   while its files are scanned. Every smoke run logs the first-window time and fails above 30 s (a start that hangs).
+- **Live traces (sprint 4.3)**: in the worker each is read by a thread of its own ("HeapScope live trace"), which waits for the
+  file in steps of 20 ms; the reader and whoever asks about it take one lock, held for a sample's adding up, a view (6 ms at the
+  limits) or the folding of stacks (at most every 2 s). Closing stops and joins the thread, off the RPC call's. On the Live page one
+  loop asks about the run's trace until another run takes its place; a choice the user makes is counted, so an answer to an older
+  one is dropped.
 - **Hybrid CPUs (ADR-019, sprint 1.5)**: on a CPU with performance and efficiency cores, Windows runs the threads of a
   window that is not in the foreground on efficiency cores (EcoQoS). The UI thread then did the same layout 2.5 to 5
   times slower (measured by pinning the UI process: performance cores 42 to 44 ms, efficiency cores 118 to 127 ms and up

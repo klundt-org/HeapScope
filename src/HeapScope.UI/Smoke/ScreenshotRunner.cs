@@ -286,10 +286,20 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             live.SelectedProcess = live.Processes.FirstOrDefault(p => p.ProcessId == pid)
                 ?? throw new InvalidOperationException($"The process {pid} is not among the .NET processes the Live page lists.");
             live.WriteTimeline = false;
-            live.RecordRuns = false;
+            // Under a data folder that was moved, the run records its allocations, and a picture shows them (sprint 4.3).
+            var records = HeapScope.Application.Sessions.MovedDataFolder.IsMoved;
+            live.RecordRuns = records;
+            live.RecordAllocations = records;
             await live.StartCommand.ExecuteAsync(null);
             await Task.Delay(LiveSeconds * 1000);
             await CaptureAsync("13-live");
+            if (records)
+            {
+                live.Allocations.ShowStacks = true;
+                await Task.Delay(2000);
+                await CaptureAsync("20-live-allocations");
+            }
+
             live.StopCommand.Execute(null);
             if (live.Run is { } run)
             {

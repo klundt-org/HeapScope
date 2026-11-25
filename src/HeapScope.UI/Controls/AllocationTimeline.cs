@@ -103,7 +103,10 @@ public sealed class AllocationTimeline : Control
             return;
         }
 
-        _dragStart = _dragNow = Math.Clamp(e.GetPosition(this).X, 0, Bounds.Width);
+        _dragNow = Math.Clamp(e.GetPosition(this).X, 0, Bounds.Width);
+
+        // In seconds: a live timeline grows under the pointer.
+        _dragStart = SecondsAt(_dragNow);
         e.Pointer.Capture(this);
         e.Handled = true;
         InvalidateVisual();
@@ -132,9 +135,9 @@ public sealed class AllocationTimeline : Control
         _dragStart = null;
         e.Pointer.Capture(null);
         var end = Math.Clamp(e.GetPosition(this).X, 0, Bounds.Width);
-        Selection = Math.Abs(end - start) < MinDrag
+        Selection = Math.Abs(end - XOf(start)) < MinDrag
             ? null
-            : new TimeInterval(SecondsAt(start), SecondsAt(end));
+            : new TimeInterval(start, SecondsAt(end));
         e.Handled = true;
         InvalidateVisual();
     }
@@ -155,7 +158,8 @@ public sealed class AllocationTimeline : Control
         var interval = Brush("Allocation.Interval") ?? Brushes.Gray;
         if (_dragStart is { } start)
         {
-            context.FillRectangle(interval, new Rect(Math.Min(start, _dragNow), 0, Math.Abs(_dragNow - start), size.Height));
+            var startX = XOf(start);
+            context.FillRectangle(interval, new Rect(Math.Min(startX, _dragNow), 0, Math.Abs(_dragNow - startX), size.Height));
         }
         else if (Selection is { } selection)
         {

@@ -217,6 +217,13 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   it says, and `ProbeSnapshotAsync` reports a cache an older loader wrote as `Invalid` (it is rebuilt on open). Also in
   3.12, without a version of their own: the dominator tree's `RetainedIs` column (M6), and `InvalidArgument` only for a
   `RequestRefusedException`, every other failure `Unknown` with a fixed message and an id (B5).
+  Version 23 (sprint 4.3, ADR-037): live traces. `OpenLiveTraceAsync` (`OpenLiveTraceRequest`: the trace being recorded and the
+  short trace that names the methods compiled before; `LiveTraceDescriptor`), `QueryLiveTraceAsync` (`LiveTraceDto`: a version
+  that grows with each sample, the recording's start, how far it was read, its delay, what was left out, and why reading
+  stopped), `EndLiveTraceAsync` (the recording ended and its file is closed). The queries of a finished trace answer for a live
+  one, for what was read so far: an interval counts whole stretches (`LiveTraceDto.BucketSeconds`) by their start. A live trace
+  holds its memory reservation until it is read to its end. `AllocationIntervalDto` on the types and stacks answers is the interval
+  a live trace counted; its timeline's stretch is a multiple of its own, and its tree is refused.
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

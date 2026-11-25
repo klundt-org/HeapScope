@@ -59,7 +59,7 @@ internal sealed record Scenario(
 internal static class ScenarioCatalog
 {
     /// <summary>The catalog's version (sprint 3.13 review M4): raised when a scenario is added or changes what it plants.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
     private const string FinalizerConflict = "both block the finalizer thread";
 
@@ -125,6 +125,16 @@ internal static class ScenarioCatalog
             null,
             [SteadyAllocation.LineType],
             static _ => SteadyAllocation.Start()),
+        new(
+            "AllocationBursts",
+            "Allocations in bursts",
+            "Heartbeats allocated evenly and, every ten seconds, a burst of rows for a report, so what a burst allocates shows only in its interval.",
+            null,
+            AllocationBursts.AnswerType,
+            [],
+            null,
+            [AllocationBursts.SteadyType],
+            static _ => AllocationBursts.Start()),
     ];
 
     /// <summary>The scenario named <paramref name="name"/> (without regard to case), or null.</summary>

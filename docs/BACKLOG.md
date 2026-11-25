@@ -181,8 +181,11 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md).
   trust. Needs an ADR and the owner's approval of every user-facing word.
 - The Retainers tab's first show is about 14 ms slower with the prewarm on (sprint 3.12, task 4; median about 100 ms against
   86 ms of longest operation in A/B smoke runs of 2026-11-14), with or without the tab among the prewarmed views: find why.
-- From 3.8 (decided autonomously): the Live page view model split into live monitoring, past runs and timeline actions
-  with a shared chart state (peer review P11, its view model half); an analysis workspace per snapshot, extracted from
+- From the 4.3 review: the names of a run's start kept for a trace whose process exited without a rundown; the delay measured across a
+  suspend or clock step; a 32-bit target's live call stacks; live wordings for two refusals (its Lows).
+- From 4.3: a stall of 140 to 170 ms, with no processor time used by the UI thread, in some runs of the live smoke runs on a real
+  window (3 of 11, with and without the live allocations, none headless): find what it waits for.
+- From 3.8 (decided autonomously): an analysis workspace per snapshot, extracted from
   the Snapshots page, with a design for the worker's result sets of hidden snapshots (P21, Phase 4); the Object view,
   the inspections page, the allocation trace page and the icicle loading through the query runner (P8's second wave);
   `OfTypeKeys` and `TypeGroups.MatchTypes` as one matcher (S5, both normalize the module since 3.8).

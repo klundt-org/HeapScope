@@ -85,7 +85,6 @@ src/HeapScope.UI.ViewModels/ViewModels/IcicleGeometry.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/InspectionsViewModel.cs 5
 src/HeapScope.UI.ViewModels/ViewModels/InstancesViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/KeyPathDiagram.cs 4
-src/HeapScope.UI.ViewModels/ViewModels/LiveViewModel.cs 3
 src/HeapScope.UI.ViewModels/ViewModels/Navigation/AnalysisPath.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/ObjectViewModel.cs 3
 src/HeapScope.UI.ViewModels/ViewModels/PageViewModels.cs 3

@@ -118,6 +118,59 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// Sprint 4.3 (ADR-037): a live reader beside a recording adds up to what the finished file holds, type by type and stack by
+    /// stack, however the file grows.
+    /// </summary>
+    [Theory]
+    [InlineData(1 << 20)]
+    [InlineData(100_003)]
+    public async Task A_recording_replayed_in_pieces_reads_as_the_finished_file(int piece)
+    {
+        var finished = AllocationTraceReader.Read(_shared.TracePath, null, _scratch.Path, Ct);
+        var bytes = await File.ReadAllBytesAsync(_shared.TracePath, Ct);
+        var path = _scratch.File($"replayed-{piece}.nettrace");
+        await using var writer = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read | FileShare.Delete, 1);
+        using var reader = LiveTraceReader.Start(path, namesPath: null);
+        for (var at = 0; at < bytes.Length; at += piece)
+        {
+            await writer.WriteAsync(bytes.AsMemory(at, Math.Min(piece, bytes.Length - at)), Ct);
+            await Task.Delay(1, Ct);
+        }
+
+        reader.End();
+        await reader.Completion.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+
+        var status = reader.Status();
+        (status.Problem, status.StackProblem, status.Completed, reader.Failure).ShouldBe((null, null, true, null));
+        status.Checked.ShouldNotBeNull().ShouldContain("whole");
+        var live = reader.View().Trace;
+        Types(live).ShouldBe(Types(finished));
+        var (liveStacks, finishedStacks) = (Stacks(live), Stacks(finished));
+        liveStacks.Keys.Except(finishedStacks.Keys).Take(3).ShouldBeEmpty("stacks only the live reader has");
+        finishedStacks.Keys.Except(liveStacks.Keys).Take(3).ShouldBeEmpty("stacks only the finished file has");
+        liveStacks.Where(s => finishedStacks[s.Key] != s.Value).Take(3).ShouldBeEmpty();
+        (live.Info.ProcessId, live.Info.LostEvents, live.Info.HasRundown, live.Info.SamplesWithoutStack).ShouldBe(
+            (finished.Info.ProcessId, finished.Info.LostEvents, finished.Info.HasRundown, finished.Info.SamplesWithoutStack));
+
+        static Dictionary<string, (long Bytes, int Samples)> Types(AllocationTrace trace) =>
+            AllocationProfile.Types(trace, AllocationFilter.All).ToDictionary(t => trace.Types[t.Type], t => (t.Bytes, t.Samples), StringComparer.Ordinal);
+
+        static Dictionary<string, (long Bytes, int Samples)> Stacks(AllocationTrace trace)
+        {
+            var stacks = new Dictionary<string, (long Bytes, int Samples)>(StringComparer.Ordinal);
+            foreach (var (bytes, node, samples) in AllocationProfile.TopStacks(trace, AllocationFilter.All, int.MaxValue))
+            {
+                // Unnamed frames read the same whatever module the finished file knows for them.
+                var key = string.Join(" < ", AllocationProfile.FramesOf(trace, node).Select(f => trace.Frames[f].StartsWith("[unresolved frame", StringComparison.Ordinal) ? "?" : trace.Frames[f]));
+                var (b, n) = stacks.GetValueOrDefault(key);
+                stacks[key] = (b + bytes, n + samples);
+            }
+
+            return stacks;
+        }
+    }
+
     [Fact]
     public void The_trace_holds_samples_of_LeakyApi_with_named_stacks_and_leaves_no_temporary_file()
     {
@@ -360,6 +413,124 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
 
         timeline.Buckets.ShouldNotBeEmpty();
         handle.Descriptor.TraceId.ShouldNotBe(id);
+    }
+
+    /// <summary>Sprint 4.3 (ADR-037): the worker follows a recording, answers for it, follows it again after a restart, and ends with it.</summary>
+    [Fact]
+    public async Task A_recording_is_followed_while_it_goes_on_across_a_worker_restart_to_its_end()
+    {
+        var path = _scratch.File("followed.nettrace");
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var started = new TaskCompletionSource<LiveTraceStart>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recording = new TraceService().RecordLiveAsync(_shared.Api.ProcessId, path, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(1), noNames: null, started.SetResult, stop.Token);
+        var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        var live = await _session.OpenLiveAsync(path, start.NamesPath, Ct);
+        _session.Traces.ShouldNotContain(live, "it is the Live page's own");
+
+        var first = await FollowAsync(live, s => s.Samples > 20);
+        (first.ProcessId, first.HasStacks, first.Completed, first.Problem).ShouldBe((_shared.Api.ProcessId, true, false, null));
+        first.DelaySeconds.ShouldNotBeNull();
+        var types = await _session.QueryTypesAsync(live, AllocationScope.All, Ct);
+        types.Result.Samples.ShouldBeGreaterThan(20);
+        var stacks = await _session.QueryStacksAsync(live, AllocationScope.All, 20, Ct);
+        stacks.Stacks.SelectMany(s => s.Frames).ShouldContain(f => f.Contains("Leak.Grow", StringComparison.Ordinal), "named by the rundown before the recording");
+        (await _session.QueryTimelineAsync(live, 1, Ct)).Buckets.Sum(b => b.Samples).ShouldBeGreaterThan(20);
+
+        // The worker is gone: the next question follows the file again, from its start.
+        using (var worker = System.Diagnostics.Process.GetProcessById((await _host.InvokeAsync((service, ct) => service.GetInfoAsync(WorkerProtocol.Version, ct), Ct)).ProcessId))
+        {
+            worker.Kill();
+            await worker.WaitForExitAsync(Ct);
+        }
+
+        var again = await FollowAsync(live, s => s.Samples >= first.Samples);
+        again.StartUtc.ShouldBe(first.StartUtc, "the same recording");
+
+        await stop.CancelAsync();
+        var written = await recording;
+        await _session.EndLiveAsync(live, Ct);
+        var last = await FollowAsync(live, s => s.Completed, work: false);
+        last.Problem.ShouldBeNull();
+        var finished = await _session.StartOpen(written.Path).Result;
+        (last.Samples, last.SampledBytes, last.LostEvents).ShouldBe((finished.Descriptor.Samples, finished.Descriptor.SampledBytes, finished.Descriptor.LostEvents));
+
+        await _session.CloseLiveAsync(live, Ct);
+        await Should.ThrowAsync<InvalidOperationException>(() => _session.QueryLiveAsync(live, Ct));
+
+        async Task<LiveTraceDto> FollowAsync(TraceHandle handle, Func<LiveTraceDto, bool> until, bool work = true)
+        {
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+            while (true)
+            {
+                LiveTraceDto? state = null;
+                try
+                {
+                    state = await _session.QueryLiveAsync(handle, Ct);
+                    if (until(state))
+                    {
+                        return state;
+                    }
+                }
+                catch (WorkerCrashedException)
+                {
+                    // The killed worker's connection was still being used: the next question starts another.
+                }
+
+                DateTime.UtcNow.ShouldBeLessThan(deadline, $"the live trace stayed at {state}");
+                if (work)
+                {
+                    await _shared.Api.PostWorkAsync(5, Ct);
+                }
+
+                await Task.Delay(100, Ct);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task What_is_not_live_is_refused_as_such_and_a_live_trace_that_cannot_open_says_why()
+    {
+        var finished = await _session.StartOpen(_shared.TracePath).Result;
+        var refused = await Should.ThrowAsync<WorkerOperationException>(() => _host.InvokeAsync((service, ct) => service.QueryLiveTraceAsync(new LiveTraceRequest(finished.Descriptor.TraceId), ct), Ct));
+        refused.ErrorCode.ShouldBe(HeapScopeErrorCode.InvalidArgument);
+        var unknown = await Should.ThrowAsync<WorkerOperationException>(() => _host.InvokeAsync((service, ct) => service.QueryLiveTraceAsync(new LiveTraceRequest(Guid.NewGuid()), ct), Ct));
+        unknown.ErrorCode.ShouldBe(HeapScopeErrorCode.TraceNotLoaded);
+        var gone = await Should.ThrowAsync<WorkerOperationException>(() => _session.OpenLiveAsync(_scratch.File("gone.nettrace"), null, Ct));
+        gone.ErrorCode.ShouldBe(HeapScopeErrorCode.SnapshotFormat);
+
+        // Another recording's file under the same name: its rows would be another process's.
+        var path = _scratch.File("replaced.nettrace");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.Copy(_shared.TracePath, path);
+        var live = await _session.OpenLiveAsync(path, null, Ct);
+        await _session.EndLiveAsync(live, Ct);
+        var state = await _session.QueryLiveAsync(live, Ct);
+        for (var i = 0; i < 100 && !state.Completed; i++)
+        {
+            await Task.Delay(100, Ct);
+            state = await _session.QueryLiveAsync(live, Ct);
+        }
+
+        state.StartUtc.ShouldNotBeNull();
+        var tree = await Should.ThrowAsync<WorkerOperationException>(() => _session.QueryTreeAsync(live, AllocationScope.All, AllocationTreeKindDto.BackTraces, [], null, null, Ct));
+        tree.ErrorCode.ShouldBe(HeapScopeErrorCode.InvalidArgument);
+        var types = await _session.QueryTypesAsync(live, new AllocationScope(0.5, 1.5), Ct);
+        types.Result.Interval.ShouldBe(new AllocationIntervalDto(0, 2, state.Version, state.DurationSeconds, 1), "whole stretches");
+        (await _session.QueryTimelineAsync(live, 1.5, Ct)).BucketSeconds.ShouldBe(2);
+        (await _session.QueryTypesAsync(finished, new AllocationScope(0.5, 1.5), Ct)).Result.Interval.ShouldBeNull("a finished trace counts what is asked");
+        var id = live.Descriptor.TraceId;
+        await _host.InvokeAsync((service, ct) => service.CloseTraceAsync(id, ct), Ct);
+        File.Delete(path);
+        await TraceRecorder.RecordAsync(_shared.Api.ProcessId, path, TraceProfile.Allocations, TimeSpan.FromSeconds(1), Ct);
+        var changed = await Should.ThrowAsync<WorkerOperationException>(async () =>
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                await _session.QueryLiveAsync(live, Ct);
+                await Task.Delay(100, Ct);
+            }
+        });
+        changed.ErrorCode.ShouldBe(HeapScopeErrorCode.TraceChanged);
     }
 
     [Fact]

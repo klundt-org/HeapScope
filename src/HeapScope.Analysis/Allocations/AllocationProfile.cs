@@ -73,7 +73,7 @@ public static class AllocationProfile
         {
             var bucket = Math.Clamp((int)(trace.SampleTimes[i] / bucketMs), 0, count - 1);
             bytes[bucket] += trace.SampleBytes[i];
-            samples[bucket]++;
+            samples[bucket] += trace.CountOf(i);
             Check(i, cancellationToken);
         }
 
@@ -105,7 +105,7 @@ public static class AllocationProfile
             if (filter.Type < 0 || trace.SampleTypes[i] == filter.Type)
             {
                 bytes += trace.SampleBytes[i];
-                samples++;
+                samples += trace.CountOf(i);
             }
 
             Check(i, cancellationToken);
@@ -128,7 +128,7 @@ public static class AllocationProfile
             var type = trace.SampleTypes[i];
             var amount = trace.SampleBytes[i];
             bytes[type] += amount;
-            samples[type]++;
+            samples[type] += trace.CountOf(i);
             switch (trace.SampleKinds[i])
             {
                 case AllocationKind.Large:
@@ -202,7 +202,7 @@ public static class AllocationProfile
             {
                 var node = trace.SampleStacks[i];
                 bytes[node] += trace.SampleBytes[i];
-                samples[node]++;
+                samples[node] += trace.CountOf(i);
             }
 
             Check(i, cancellationToken);

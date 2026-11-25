@@ -21,6 +21,16 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.3.0: Live allocations (sprint 4.3)
+
+- **What a process allocates, while it runs**: with Record allocations ticked, the Live page shows below its chart the bytes allocated
+  over time, the types that allocated most, and on demand the call stacks. Drag across the bars to choose an interval. The figures
+  are usually less than a second behind the process, and the trace is recorded as before.
+- **A recording that ends by an error is kept** up to there.
+- **A new lesson**, What a burst allocates, with its scenario in the sample.
+- **Limit**: in a run of more than half an hour the bars stand for longer stretches, and an interval is counted in whole ones. The
+  finished trace has every sample.
+
 ## 4.2.1: Damaged gcdumps and traces (sprint 4.2.1)
 
 - **Traces that state more than they hold are refused before they are read**: what a `.nettrace` file says about its own

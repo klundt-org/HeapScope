@@ -96,31 +96,31 @@
           </StackPanel>
         </Expander.Header>
         <WrapPanel>
-                  <ComboBox x:Name="PastRuns" Width="420" ItemsSource="{Binding PastRuns}" VerticalAlignment="Center">
+          <ComboBox x:Name="PastRuns" Width="420" ItemsSource="{Binding PastRuns.Runs}" VerticalAlignment="Center">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:PastRunItem">
                 <TextBlock Text="{Binding Title}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <Button Content="Show" Margin="6,0,0,0" Command="{Binding OpenPastRunCommand}" CommandParameter="{Binding #PastRuns.SelectedItem}" VerticalAlignment="Center" />
-          <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="6,0,0,0" Command="{Binding RefreshRunsCommand}" VerticalAlignment="Center" />
-          <Button Content="Open allocations" Margin="16,0,0,0" Command="{Binding OpenTraceCommand}" VerticalAlignment="Center" />
+          <Button Content="Show" Margin="6,0,0,0" Command="{Binding PastRuns.OpenPastRunCommand}" CommandParameter="{Binding #PastRuns.SelectedItem}" VerticalAlignment="Center" />
+          <Button ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Margin="6,0,0,0" Command="{Binding PastRuns.RefreshRunsCommand}" VerticalAlignment="Center" />
+          <Button Content="Open allocations" Margin="16,0,0,0" Command="{Binding Files.OpenTraceCommand}" VerticalAlignment="Center" />
         </WrapPanel>
       </Expander>
-      <Border Classes="info" IsVisible="{Binding RunWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-        <SelectableTextBlock x:Name="RunWarningText" TextWrapping="Wrap" Text="{Binding RunWarning}" />
+      <Border Classes="info" IsVisible="{Binding Shown.RunWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <SelectableTextBlock x:Name="RunWarningText" TextWrapping="Wrap" Text="{Binding Shown.RunWarning}" />
       </Border>
-      <ctl:NoteText Text="{Binding PastRunShown}" TextWrapping="Wrap" Margin="0,0,0,4" Classes="subtle" />
-      <ctl:NoteText Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,4" />
-      <WrapPanel Margin="0,0,0,6" IsVisible="{Binding HasTimeline}">
+      <ctl:NoteText Text="{Binding Shown.PastRunShown}" TextWrapping="Wrap" Margin="0,0,0,4" Classes="subtle" />
+      <ctl:NoteText Text="{Binding Shown.Status}" TextWrapping="Wrap" Margin="0,0,0,4" />
+      <WrapPanel Margin="0,0,0,6" IsVisible="{Binding Files.HasTimeline}">
         <TextBlock Text="Timeline:" VerticalAlignment="Center" Margin="0,0,6,0"
                    ToolTip.Tip="One row per sample (heap sizes, GC counts, time in GC) and one per snapshot, as CSV. Counters only, none of the process's data." />
-        <SelectableTextBlock Text="{Binding TimelinePath}" VerticalAlignment="Center" Margin="0,0,8,0" />
-        <Button Content="Open" Command="{Binding OpenTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0"
+        <SelectableTextBlock Text="{Binding Files.TimelinePath}" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Button Content="Open" Command="{Binding Files.OpenTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0"
                 ToolTip.Tip="Open the timeline in the app for CSV files, such as a spreadsheet." />
-        <Button ctl:ButtonIcon.Icon="OpenFile" Content="Show in folder" Command="{Binding ShowTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <Button ctl:ButtonIcon.Icon="Delete" Content="Delete..." Command="{Binding DeleteTimelineCommand}" VerticalAlignment="Center"
+        <Button ctl:ButtonIcon.Icon="OpenFile" Content="Show in folder" Command="{Binding Files.ShowTimelineCommand}" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <Button ctl:ButtonIcon.Icon="Delete" Content="Delete..." Command="{Binding Files.DeleteTimelineCommand}" VerticalAlignment="Center"
                 ToolTip.Tip="Deletes the timeline file after asking, and the run's snapshots are kept. That run can no longer be shown under Past runs." />
       </WrapPanel>
       <DockPanel Margin="0,0,0,6">
@@ -143,8 +143,8 @@
       </StackPanel>
     </StackPanel>
     <ScrollViewer DockPanel.Dock="Right" Width="300" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto"
-                  IsVisible="{Binding Snapshots.Count, Converter={x:Static ctl:SignConverters.HasItems}}">
-      <ItemsControl ItemsSource="{Binding Snapshots}">
+                  IsVisible="{Binding Shown.Snapshots.Count, Converter={x:Static ctl:SignConverters.HasItems}}">
+      <ItemsControl ItemsSource="{Binding Shown.Snapshots}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:SnapshotCard">
             <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,0,6">
@@ -153,17 +153,75 @@
                 <TextBlock Text="{Binding Summary}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" Classes="subtle" />
                 <Button ctl:ButtonIcon.Icon="OpenFile" Classes="compact" Content="Show in folder" Margin="0,4,0,0" HorizontalAlignment="Left"
                         IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        Command="{Binding $parent[ItemsControl].((vm:LiveViewModel)DataContext).ShowSnapshotCommand}" CommandParameter="{Binding}" />
+                        Command="{Binding $parent[ItemsControl].((vm:LiveViewModel)DataContext).Files.ShowSnapshotCommand}" CommandParameter="{Binding}" />
               </StackPanel>
             </Border>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
     </ScrollViewer>
+    <!-- Sprint 4.3: what the process allocates while the run records it, below the chart. -->
+    <Border x:Name="LiveAllocationsPanel" DockPanel.Dock="Bottom" Height="300" Margin="0,6,0,0" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="8,4"
+            IsVisible="{Binding Allocations.IsShown}">
+      <DockPanel DataContext="{Binding Allocations}" x:DataType="vm:LiveAllocationsViewModel">
+        <WrapPanel DockPanel.Dock="Top">
+          <TextBlock Text="Allocations" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <ctl:InfoIcon Text="{x:Static vm:InfoTexts.LiveAllocations}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <TextBlock x:Name="LiveDelay" Text="{Binding Delay}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,12,0"
+                     IsVisible="{Binding Delay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Text="{Binding Interval}" Classes="subtle" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <Button Classes="compact" Content="Whole run" Command="{Binding WholeRunCommand}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <CheckBox Content="Show call stacks" IsChecked="{Binding ShowStacks, Mode=TwoWay}" VerticalAlignment="Center" />
+        </WrapPanel>
+        <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Note}" TextWrapping="Wrap" Classes="subtle" />
+        <ctl:AllocationTimeline DockPanel.Dock="Top" x:Name="LiveAllocationTimeline" Height="56" Margin="0,4"
+                                Buckets="{Binding Buckets}" BucketSeconds="{Binding BucketSeconds}" DurationSeconds="{Binding DurationSeconds}"
+                                Selection="{Binding Selection, Mode=TwoWay}" />
+        <Grid ColumnDefinitions="2*,6,3*">
+          <DataGrid x:Name="LiveTypesGrid" ctl:GridExports.ExportName="LiveAllocatedTypes" Grid.Column="0" ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType, Mode=TwoWay}" CanUserSortColumns="False" IsReadOnly="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Type" x:DataType="vm:LiveTypeItem" Binding="{Binding Name, Mode=OneWay}" Width="*" MinWidth="160" />
+              <DataGridTextColumn Header="Bytes" x:DataType="vm:LiveTypeItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="110" CellStyleClasses="number" />
+              <DataGridTextColumn Header="%" x:DataType="vm:LiveTypeItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+              <DataGridTextColumn Header="Samples" x:DataType="vm:LiveTypeItem" Binding="{Binding Samples, StringFormat='{}{0:N0}', Mode=OneWay}" Width="80" CellStyleClasses="number" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <GridSplitter Grid.Column="1" ResizeDirection="Columns" IsVisible="{Binding ShowStacks}" />
+          <DockPanel Grid.Column="2" IsVisible="{Binding ShowStacks}">
+            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,2">
+              <TextBlock Text="Top call stacks of" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <TextBlock Text="{Binding StacksOf}" FontWeight="SemiBold" VerticalAlignment="Center" MaxWidth="300" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+              <Button Classes="compact" Content="All types" Command="{Binding AllTypesCommand}" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <Button Classes="compact" ctl:ButtonIcon.Icon="Refresh" Content="Refresh" Command="{Binding RefreshStacksCommand}" VerticalAlignment="Center" />
+            </WrapPanel>
+            <ctl:NoteText DockPanel.Dock="Top" Text="{Binding StacksStatus}" Classes="subtle" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="3*,6,2*">
+              <DataGrid x:Name="LiveStacksGrid" ctl:GridExports.ExportName="LiveAllocationStacks" Grid.Column="0" ItemsSource="{Binding Stacks}" SelectedItem="{Binding SelectedStack, Mode=TwoWay}" CanUserSortColumns="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Bytes" x:DataType="vm:AllocationStackItem" Binding="{Binding Bytes, StringFormat='{}{0:N0}', Mode=OneWay}" Width="100" CellStyleClasses="number" />
+                  <DataGridTextColumn Header="%" x:DataType="vm:AllocationStackItem" Binding="{Binding Percent, StringFormat='{}{0:N1}', Mode=OneWay}" Width="60" CellStyleClasses="number" />
+                  <DataGridTextColumn Header="Allocated in" x:DataType="vm:AllocationStackItem" Binding="{Binding Top, Mode=OneWay}" Width="*" MinWidth="200" />
+                </DataGrid.Columns>
+              </DataGrid>
+              <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+              <ListBox Grid.Column="2" x:Name="LiveFramesList" ItemsSource="{Binding SelectedFrames}">
+                <ListBox.Styles>
+                  <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="6,2" />
+                    <Setter Property="MinHeight" Value="22" />
+                  </Style>
+                </ListBox.Styles>
+              </ListBox>
+            </Grid>
+          </DockPanel>
+        </Grid>
+      </DockPanel>
+    </Border>
     <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Padding="4">
       <Grid>
-        <ctl:EmptyState Icon="Live" Text="{Binding EmptyText}" IsVisible="{Binding ShowEmptyState}" />
-        <ctl:TimelineChart x:Name="Chart" Samples="{Binding Samples}" RunStart="{Binding ChartStart}" Markers="{Binding Markers}" GcMarkers="{Binding GcMarkers}" Version="{Binding ChartVersion}" />
+        <ctl:EmptyState Icon="Live" Text="{Binding EmptyText}" IsVisible="{Binding Shown.ShowEmptyState}" />
+        <ctl:TimelineChart x:Name="Chart" Samples="{Binding Shown.Samples}" RunStart="{Binding Shown.ChartStart}" Markers="{Binding Shown.Markers}" GcMarkers="{Binding Shown.GcMarkers}" Version="{Binding Shown.ChartVersion}" />
       </Grid>
     </Border>
   </DockPanel>
