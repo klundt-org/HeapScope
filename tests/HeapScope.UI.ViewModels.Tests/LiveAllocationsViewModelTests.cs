@@ -372,7 +372,9 @@ public sealed class LiveAllocationsViewModelTests
         Service.LiveOpened.Count.ShouldBe(LiveAllocationsViewModel.MostCrashes);
 
         Service.LiveOpenCrashes = LiveAllocationsViewModel.MostCrashes;
+        var before = Volatile.Read(ref _waits);
         _live.Follow(TracePath, null);
+        await WaitsAsync(before + 1);
         for (var i = 1; i < LiveAllocationsViewModel.MostCrashes; i++)
         {
             await TickAsync(ends: i == LiveAllocationsViewModel.MostCrashes - 1);
