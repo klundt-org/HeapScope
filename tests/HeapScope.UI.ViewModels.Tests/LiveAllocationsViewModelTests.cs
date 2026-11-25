@@ -343,6 +343,23 @@ public sealed class LiveAllocationsViewModelTests
     }
 
     [Fact]
+    public async Task A_choice_that_is_never_answered_does_not_name_the_figures_shown()
+    {
+        await FollowAsync();
+        _live.ShowStacks = true;
+        await WaitUntilAsync(() => _live.Stacks.Count == 2);
+        _live.Selection = new TimeInterval(1, 2);
+        Service.TypesFailure = new WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Too little memory.", null);
+
+        await TickAsync(ends: true);
+
+        (_live.Selection, _live.Interval, _live.Note).ShouldBe((null, "The whole run so far", "Too little memory."));
+        await WaitUntilAsync(() => _live.Stacks.Count == 2);
+        _live.SelectedType = _live.Types[1];
+        (_live.Stacks.Count, _live.StacksStatus).ShouldBe((0, "Too little memory."));
+    }
+
+    [Fact]
     public async Task A_worker_that_stops_while_the_trace_opens_is_asked_again()
     {
         Service.LiveOpenCrashes = LiveAllocationsViewModel.MostCrashes - 1;

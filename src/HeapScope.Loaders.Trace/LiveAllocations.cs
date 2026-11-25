@@ -190,7 +190,7 @@ internal sealed class LiveAllocations(LiveMethodNames names, LiveAllocationLimit
         var renamed = new Dictionary<int, int>();
         foreach (var (frame, address) in _unnamed)
         {
-            if (names.Find(address) is { } name)
+            if (names.Find(address) is { } name && (_frameIds.ContainsKey(name) || _frameText + name.Length <= limits.MaxFrameText))
             {
                 renamed.Add(frame, FrameId(name));
             }

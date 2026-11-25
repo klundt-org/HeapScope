@@ -91,6 +91,14 @@ All four checked c2458a7. H1 to H6, M1 to M3, M5 to M14 and M16 to M20 confirmed
   interval (gc-specialist N7), the interval test, a recording once started is never deleted. Not fixed: overlaps in a names file
   resolved by address; names one by one at the end when none were recorded; a capture that starts during the names session.
 
+The second round (cafa77a) was checked by senior-dev and solution-architect: N1, N3 to N5 and N8 confirmed. N2 was not whole: a choice pending
+when following stopped kept its label, and another type's stacks stayed listed. Fixed; tests:
+`A_choice_that_is_never_answered_does_not_name_the_figures_shown`. Names given to unnamed frames count toward the text limit now
+(solution-architect, Low).
+
 ## Markdown sweep
 
-(after the confirmations)
+Every tracked Markdown file but the records (2026-11-25). Changed by the sweep: ARCHITECTURE.md, architecture/code-map.md, USER-GUIDE.md,
+RELEASE-NOTES.md (with the CLI package's notes, drafts for the owner), SPRINTS.md and sprints/phase-4.md. Changed with the sprint: ADR-037,
+architecture/{budgets,logging,process-model,security-privacy,threading,worker-memory}.md, DEVELOPER.md, BACKLOG.md,
+design/info-text.md. No package or license changed. No em or en dashes in changed files.

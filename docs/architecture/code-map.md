@@ -378,12 +378,14 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   sample its time, innermost stack node, type and bytes; `NoStackFrame`, unnamed frames labeled
   `[unresolved frame in <module>]`). Loaders.Trace: `TraceFileCheck` (what a trace states must
   fit in it; `TraceCheckResult` says what was walked), `TraceReads` (the calls into TraceEvent, so its errors are told from
-  HeapScope's) and `TraceSample` [4.2.1]; `AllocationTraceReader` (the `Nettrace` signature checked first,
+  HeapScope's) and `TraceSample` [4.2.1]; a trace while it is recorded [4.3]: `LiveTraceReader` (a thread that follows the file),
+  `LiveTraceStream` (only whole checked objects), `EventStackReader` (call stacks from TraceEvent's record), `LiveAllocations` and
+  `LiveAllocationLimits` (what is kept, bounded), `LiveMethodNames` and `LiveTraceView`; `AllocationTraceReader` (the `Nettrace` signature checked first,
   TraceEvent's `.etlx` written to a private folder (section 12) and deleted, every frame kept, unnamed ones labeled and
   counted, cancellation). Analysis: `Allocations/AllocationProfile` (sample
   ranges by binary search, the timeline, types, totals, top stacks, a stack's frames) and `AllocationTreeRows` (the call
   tree and back traces flattened from open keys like ADR-027, with `AllocationRow`, `AllocationTreeView`,
-  `AllocationFilter`). Worker: `Traces/TraceStore` (open traces, a memory reservation while reading,
+  `AllocationFilter`). Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
   `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource`. Application:
   `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, and
   `StartRecord`, which records into the current session's folder and opens the trace). UI.ViewModels:

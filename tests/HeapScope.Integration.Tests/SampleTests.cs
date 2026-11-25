@@ -111,17 +111,19 @@ public sealed class SampleTests : IDisposable
             await Task.Delay(200, Ct);
         }
 
+        await stop.CancelAsync();
+        await recording;
+        live.End();
+        await live.Completion.WaitAsync(TimeSpan.FromSeconds(60), Ct);
         var trace = live.View().Trace;
         string Top(AllocationFilter filter) => AllocationProfile.Types(trace, filter, Ct).Select(t => trace.Types[t.Type]).First(t => t.StartsWith("HeapScope.Sample.", StringComparison.Ordinal));
         var tallest = AllocationProfile.Timeline(trace, 1000, Ct).MaxBy(b => b.Bytes);
         var burst = new AllocationFilter(tallest.StartMs, tallest.StartMs + 1000);
         Top(AllocationFilter.All).ShouldBe("HeapScope.Sample.Heartbeat");
         Top(burst).ShouldBe("HeapScope.Sample.ReportRow");
-        var stack = AllocationProfile.TopStacks(trace, burst, 1, Ct).Single();
+        var rows = new AllocationFilter(burst.FromMs, burst.ToMs, trace.Types.ToList().IndexOf("HeapScope.Sample.ReportRow"));
+        var stack = AllocationProfile.TopStacks(trace, rows, 1, Ct).Single();
         AllocationProfile.FramesOf(trace, stack.Node).Select(f => trace.Frames[f]).ShouldContain(f => f.Contains("AllocationBursts.BuildReport", StringComparison.Ordinal));
-
-        await stop.CancelAsync();
-        await recording;
     }
 
     // Sprint 3.13 task 5: the app's service reads the real sample's catalog, starts it, knows it as a sample and stops it.

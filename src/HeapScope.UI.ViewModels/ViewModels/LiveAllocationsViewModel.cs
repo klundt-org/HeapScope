@@ -442,6 +442,9 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         Delay = null;
         Note = reason;
         following.Over = true;
+
+        // A choice nobody answered is not what the figures are of.
+        Apply(_answered);
         if (ShowStacks && Stacks.Count == 0)
         {
             StacksStatus = reason;
@@ -524,7 +527,7 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
 
     /// <summary>The stacks as they are by now.</summary>
     [RelayCommand]
-    private void RefreshStacks() => LoadStacks();
+    private void RefreshStacks() => LoadStacks(again: true);
 
     private AllocationScope Scope => new(Selection?.FromSeconds ?? 0, Selection?.ToSeconds, SelectedType?.Name);
 
@@ -683,7 +686,8 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         StacksStatus = null;
     }
 
-    private void LoadStacks()
+    /// <param name="again">Of the same choice: what is shown may stay.</param>
+    private void LoadStacks(bool again = false)
     {
         if (!ShowStacks || _following is not { } following)
         {
@@ -693,6 +697,13 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         if (following.Trace is not { } handle || following.Over)
         {
             StacksStatus = following.Over ? Note : null;
+            if (!again)
+            {
+                // Another type's are not shown under this one's name.
+                Stacks.Clear();
+                SelectedStack = null;
+            }
+
             return;
         }
 

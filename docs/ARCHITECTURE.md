@@ -13,7 +13,7 @@ traffic, takes snapshots over time, and uses HeapScope to find what is growing a
 - Discovering local .NET processes and capturing full dumps and gcdumps.
 - Loading snapshots into a compact in-memory object graph, cached on disk for fast reopen.
 - Type summaries, snapshot diffs, object inspection, simple inspections (duplicate strings, LOH, collections).
-- Live counters and timed snapshots.
+- Live counters, live allocations (sprint 4.3) and timed snapshots.
 - Reverse references, retention paths, dominator tree, retained sizes, smart leak detectors.
 - A CLI with the same capabilities as the UI, usable in automation.
 - Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture on Linux since sprint 4.1,
@@ -143,7 +143,7 @@ src/
   HeapScope.Capture            Process discovery, dump/gcdump capture, live counters, timed snapshots.
   HeapScope.Loaders.ClrMd      Full dump -> compact graph.
   HeapScope.Loaders.GcDump     gcdump -> compact graph (sprint 1.8).
-  HeapScope.Loaders.Trace      EventPipe trace -> sampled allocations (sprint 2.5, ADR-028).
+  HeapScope.Loaders.Trace      EventPipe trace -> sampled allocations (sprint 2.5, ADR-028), also while it is recorded (ADR-037).
   HeapScope.ThirdParty.GcDump  Vendored MIT gcdump reader and writer from dotnet/diagnostics (PerfView code), sprint 1.8.
   HeapScope.Contracts          IPC DTOs and service interfaces shared by UI, worker and CLI.
   HeapScope.Worker             Out-of-process analysis host (64-bit).

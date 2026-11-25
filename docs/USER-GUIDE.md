@@ -91,7 +91,8 @@ notes who can capture whom.
 - **Live allocations.** Tick Record allocations under Snapshot rules before Start, and the Live page shows below its chart what
   the process allocates while it runs, usually less than a second behind it: bars over time, the 20 types allocated most, and, when
   you tick Show call stacks, where. Drag across the bars to choose an interval; a click shows the whole run again. Sizes are
-  estimates from samples, about one for every 100 KB allocated. In a long run the bars stand for longer stretches. The trace is
+  estimates from samples, about one for every 100 KB allocated. In a long run the bars stand for longer stretches, and an interval is counted in whole ones. A
+  process that allocates nothing for a while may show its last samples one sampling interval late. The trace is
   recorded as before, and Open allocations opens it with everything once the run stopped.
 - **Live workflow.** When a process cannot be monitored, a warning says why: it runs elevated or as another user, so
   run HeapScope as administrator. A warning also appears when no samples arrive after about 10 seconds (or three
