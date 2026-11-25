@@ -161,7 +161,9 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         var title = string.Create(CultureInfo.InvariantCulture, $"Record allocations of {processName} ({processId})");
         return jobs.Start(title, async (progress, ct) =>
         {
-            var folder = library.Current.Folder;
+            // The current session takes the library's lock, which an open or a deletion can hold for seconds: not on the UI thread (peer
+            // review 4.5 H10, as LiveViewModel does since 3.4).
+            var folder = await Task.Run(() => library.Current.Folder, ct).ConfigureAwait(false);
             var path = UniquePath(folder, processName, processId);
             progress.Report(new JobProgress("Recording allocations", 0, null, string.Create(CultureInfo.InvariantCulture, $"Up to {duration.TotalSeconds:N0} s; Stop keeps what was recorded")));
             _logger.LogInformation("Recording allocations of {Name} (pid {Pid}) for up to {Seconds} s to {Path}", processName, processId, duration.TotalSeconds, path);

@@ -221,7 +221,8 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             WorkerSession session;
             try
             {
-                session = await StartSessionAsync(cancellationToken).ConfigureAwait(false);
+                // On the pool (peer review 4.5 H10): the gate's wait can end at once, and starting checks files and starts a process.
+                session = await Task.Run(() => StartSessionAsync(cancellationToken), CancellationToken.None).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

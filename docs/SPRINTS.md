@@ -134,7 +134,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 2. [x] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced
    collection and the counters; closing the app waits a bounded time for its host, logs what it waited for and always shuts down.
    Tests: the helper with a stop that never answers; a recording and a forced collection of a suspended process end.
-3. [ ] H10: a job's work starts on the thread pool, never on the caller's (UI) thread, and so does starting a worker. Test: work that
+3. [x] H10: the file and process work at a job's start runs on the thread pool, never on the caller's (UI) thread: the trusted DACs an open reads, the session a recording takes, starting a worker (all jobs on the pool broke the synchronous start the views rely on). Test: work that
    records its thread is never run on the caller's.
 4. [ ] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
    after a failed check, and stops recording with a message after several in a row. Tests: the probe on a folder, failures counted.
