@@ -406,6 +406,14 @@ The GC handles of Server GC processes (peer review 4.5). Approved by the owner o
 | Inspections | Note of a detector that counts reachable objects, then | Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted. | approved 2026-11-25 |
 | Inspections | Growing types, then | Growth cannot be measured: not all GC handles could be checked for {this snapshot, the baseline (file)} (see its notes), so objects held only by a handle could be counted on one side only. {Choose no baseline. Choose another baseline, or none.} | approved 2026-11-25 |
 
+## Sprint 4.6 additions
+
+Drafts for the owner (sprint 4.6, right answers; peer review 4.5).
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Live | A run's allocation trace whose checks failed five times in a row (H11) | The allocation trace stopped early because its size and the free space of its disk could not be checked; what it recorded is kept and the run goes on. | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

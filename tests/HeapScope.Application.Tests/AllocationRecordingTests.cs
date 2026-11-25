@@ -80,4 +80,73 @@ public sealed class AllocationRecordingTests : IDisposable
     }
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
+
+    // Peer review 4.5 H11: the disk of the trace's own folder, on every system; a check that fails is tried again, five in a row stop it.
+    [Theory]
+    [InlineData(4, false)]
+    [InlineData(AllocationRecording.MostFailedChecks, true)]
+    public async Task The_free_space_of_the_trace_s_folder_is_checked_and_failed_checks_are_tried_again(int failures, bool stops)
+    {
+        var disk = new Disk(failures);
+        var problems = new List<string>();
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recording = AllocationRecording.Start(
+            _folder,
+            Guid.NewGuid(),
+            42,
+            limitBytes: 1L << 40,
+            static async (request, ct) =>
+            {
+                await File.WriteAllBytesAsync(request.Path, new byte[16], CancellationToken.None);
+                await Task.Delay(Timeout.Infinite, ct).ContinueWith(_ => { }, TaskScheduler.Default);
+                return new TraceResult(request.Path, 16, TimeSpan.FromSeconds(1), StoppedEarly: true);
+            },
+            new FastTime(),
+            NullLogger.Instance,
+            () => [],
+            (message, _) =>
+            {
+                lock (problems)
+                {
+                    problems.Add(message);
+                }
+
+                stopped.TrySetResult();
+            },
+            TimeSpan.FromSeconds(1),
+            disk: disk);
+
+        await Task.WhenAny(stopped.Task, Task.Delay(TimeSpan.FromSeconds(3), Ct));
+        await recording.DisposeAsync();
+
+        disk.Asked.ShouldAllBe(f => f == Path.GetFullPath(_folder));
+        disk.Asked.Count.ShouldBeGreaterThanOrEqualTo(stops ? failures : failures + 1);
+        problems.Count.ShouldBe(stops ? 1 : 0);
+        if (stops)
+        {
+            problems[0].ShouldContain("could not be checked");
+        }
+    }
+
+    /// <summary>Free space that cannot be read the first <paramref name="failures"/> times, then plenty.</summary>
+    private sealed class Disk(int failures) : IDiskSpace
+    {
+        public List<string> Asked { get; } = [];
+
+        public long? AvailableBytes(string directory)
+        {
+            lock (Asked)
+            {
+                Asked.Add(directory);
+                return Asked.Count <= failures ? null : 1L << 40;
+            }
+        }
+    }
+
+    /// <summary>Time whose delays pass a hundred times faster.</summary>
+    private sealed class FastTime : TimeProvider
+    {
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            base.CreateTimer(callback, state, dueTime == Timeout.InfiniteTimeSpan ? dueTime : dueTime / 100, period == Timeout.InfiniteTimeSpan ? period : period / 100);
+    }
 }

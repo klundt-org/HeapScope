@@ -136,7 +136,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
    Tests: the helper with a stop that never answers; a recording and a forced collection of a suspended process end.
 3. [x] H10: the file and process work at a job's start runs on the thread pool, never on the caller's (UI) thread: the trusted DACs an open reads, the session a recording takes, starting a worker (all jobs on the pool broke the synchronous start the views rely on). Test: work that
    records its thread is never run on the caller's.
-4. [ ] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
+4. [x] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
    after a failed check, and stops recording with a message after several in a row. Tests: the probe on a folder, failures counted.
 5. [ ] H2: a detector that could not read objects says so: the result carries its counts (scanned, unread), the front ends show "not
    checked" for what was unread, and a detector that could read none of what it needs is a refusal. Tests per detector with fields
