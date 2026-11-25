@@ -307,6 +307,9 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
                 }
 
                 var state = await _session!.QueryLiveAsync(handle, ct);
+
+                // A run followed in its place shows its own figures, never these.
+                ct.ThrowIfCancellationRequested();
                 following.State = state;
                 ShowState(handle, state);
 

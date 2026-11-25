@@ -55,6 +55,13 @@ public sealed class LiveAllocationsViewModelTests
             {
                 Interlocked.Increment(ref _waits);
                 await _tick.WaitAsync(ct);
+
+                // A wait cancelled as it was let go still takes the tick (SemaphoreSlim): give it to the one it was for.
+                if (ct.IsCancellationRequested)
+                {
+                    _tick.Release();
+                    ct.ThrowIfCancellationRequested();
+                }
             },
         };
     }
