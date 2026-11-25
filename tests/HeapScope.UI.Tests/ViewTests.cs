@@ -520,6 +520,23 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             live.Allocations.Stacks.Add(new AllocationStackItem(1, 300, 75, 3, ["App.Grow", "App.Main"]));
             Dispatcher.UIThread.RunJobs();
 
+            // Figures that change the order change the rows shown, and the selected row stays the user's.
+            var types = live.Allocations.Types;
+            foreach (var name in new[] { "B", "C" })
+            {
+                types.Add(new LiveTypeItem(name));
+            }
+
+            live.Allocations.SelectedType = types[2];
+            Dispatcher.UIThread.RunJobs();
+            var grid = page.FindControl<DataGrid>("LiveTypesGrid").ShouldNotBeNull();
+            string[] Shown() => [.. grid.GetVisualDescendants().OfType<DataGridRow>().Where(r => r.IsVisible).OrderBy(r => r.Bounds.Y).Select(r => ((LiveTypeItem)r.DataContext!).Name)];
+            Shown().ShouldBe(["System.Byte[]", "B", "C"]);
+            live.Allocations.ShowTypes([("C", 30, 3), ("System.Byte[]", 20, 2), ("B", 10, 1)], 60);
+            Dispatcher.UIThread.RunJobs();
+            Shown().ShouldBe(["C", "System.Byte[]", "B"]);
+            (live.Allocations.SelectedType?.Name, ((LiveTypeItem?)grid.SelectedItem)?.Name).ShouldBe(("C", "C"));
+
             panel.Bounds.Height.ShouldBe(300);
             window.GetVisualDescendants().OfType<Controls.TimelineChart>().ShouldHaveSingleItem().Bounds.Height.ShouldBeGreaterThan(100, "the chart keeps its place");
             page.FindControl<Controls.AllocationTimeline>("LiveAllocationTimeline").ShouldNotBeNull().Bounds.Width.ShouldBeGreaterThan(500);

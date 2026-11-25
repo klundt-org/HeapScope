@@ -93,6 +93,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
             { SmokeSyntheticObjects: int objects } => await RunSmokeAsync(objects),
             { SmokeOpenPath: { } dump } => await RunSmokeOpenAsync(dump),
             { SmokeLiveSamples: int samples } => await RunSmokeLiveAsync(samples),
+            { SmokeLiveProcess: int pid } => await RunSmokeLiveProcessAsync(pid),
             _ => null,
         };
         if (result is null)
@@ -216,6 +217,75 @@ internal sealed class SmokeRunner(IServiceProvider services)
             stopwatch.Elapsed.TotalSeconds,
             live.Shown.Samples.Count,
             live.Shown.RunWarning ?? live.Shown.Status ?? "ok",
+            feed.Measured);
+        return SmokeVerdict.Phase(completed, feed.MaxOperation, feed.MaxLag);
+    }
+
+    /// <summary>How long the run with a real process watches it.</summary>
+    private static readonly TimeSpan s_liveProcessTime = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Watches a real process on the Live page while it records the process's allocations (sprint 4.3): its samples, the live
+    /// allocations and their call stacks, checked against the dispatcher budget. Records into a session, so only under a data folder
+    /// that was moved: nothing is left in the user's own.
+    /// </summary>
+    private async Task<int> RunSmokeLiveProcessAsync(int pid)
+    {
+        var services = _services;
+        var logger = services.GetRequiredService<ILogger<SmokeRunner>>();
+        if (HeapScope.Core.HeapScopeFolders.Default.Source != HeapScope.Core.HeapScopeFolders.EnvironmentVariable)
+        {
+            logger.LogError("Smoke live process: set {Variable}, this run records into a session", HeapScope.Core.HeapScopeFolders.EnvironmentVariable);
+            return SmokeVerdict.Phase(completed: false, TimeSpan.Zero, TimeSpan.Zero);
+        }
+
+        var watchdog = services.GetRequiredService<DispatcherWatchdog>();
+        var shell = services.GetRequiredService<ShellViewModel>();
+        var live = shell.Live ?? throw new InvalidOperationException("The Live page is not registered.");
+        var phases = new SmokePhases(watchdog);
+        shell.SelectedItem = shell.NavigationItems.Single(i => i.Page == live);
+        await IdleAsync();
+        await Task.Delay(500);
+        phases.Begin();
+        live.SelectedProcess = new ProcessRow(pid, "watched", string.Empty, string.Empty, 0, string.Empty, false);
+        live.RecordAllocations = true;
+        await live.StartCommand.ExecuteAsync(null);
+        var allocations = live.Allocations;
+        var until = DateTime.UtcNow + s_liveProcessTime;
+        while (DateTime.UtcNow < until && allocations.Types.Count == 0)
+        {
+            await Task.Delay(100);
+        }
+
+        // The panel's and its call stacks' first shows are cold costs, as a page's is.
+        allocations.ShowStacks = true;
+        await Task.Delay(2000);
+        logger.LogInformation("Smoke live process: allocations first shown (cold): {Measured}", phases.End("live allocations first show", cold: true).Measured);
+        phases.Begin();
+        var longest = 0.0;
+        while (DateTime.UtcNow < until)
+        {
+            await Task.Delay(1000);
+            allocations.RefreshStacksCommand.Execute(null);
+            longest = Math.Max(longest, allocations.DelaySeconds ?? 0);
+        }
+
+        var feed = phases.End("live allocations", cold: false);
+        live.StopCommand.Execute(null);
+        if (live.Run is { } run)
+        {
+            await run.Completion;
+        }
+
+        await allocations.FollowTask.WaitAsync(TimeSpan.FromSeconds(60));
+        var completed = allocations.Types.Count > 0 && allocations.Stacks.Count > 0 && string.IsNullOrEmpty(allocations.Note);
+        logger.LogInformation(
+            "Smoke live process: {Summary} {Types} types and {Stacks} stacks shown, longest delay {Delay:N2} s, note {Note}; {Measured}",
+            allocations.Summary,
+            allocations.Types.Count,
+            allocations.Stacks.Count,
+            longest,
+            string.IsNullOrEmpty(allocations.Note) ? "none" : allocations.Note,
             feed.Measured);
         return SmokeVerdict.Phase(completed, feed.MaxOperation, feed.MaxLag);
     }

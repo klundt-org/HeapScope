@@ -107,6 +107,16 @@ public sealed class LiveAllocationsViewModelTests
         Service.TypeRows = [["System.String", "500", "5", "100"]];
         await RefreshAsync(s => s with { Version = 10 });
         _live.Types.ShouldHaveSingleItem().ShouldBeSameAs(_live.SelectedType);
+
+        // It falls behind the types listed, and stays.
+        Service.TypeRows = [.. Enumerable.Range(0, 30).Select(i => (IReadOnlyList<string?>)[$"T{i}", "100", "1", "1"]), ["System.String", "50", "5", "1"]];
+        await RefreshAsync(s => s with { Version = 11 });
+        _live.Types.Count.ShouldBe(LiveAllocationsViewModel.TopTypes + 1);
+        (_live.Types[^1], _live.Types[^1].Bytes).ShouldBe((_live.SelectedType, 50L));
+
+        Service.TypeRows = [["App.Order", "200", "2", "25"]];
+        await RefreshAsync(s => s with { Version = 12 });
+        (_live.Types.Single().Name, _live.SelectedType).ShouldBe(("App.Order", null), "nothing of it is in the interval any more");
     }
 
     [Fact]

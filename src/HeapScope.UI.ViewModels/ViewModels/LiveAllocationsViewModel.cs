@@ -44,6 +44,9 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
     /// <summary>Types listed, most allocated first.</summary>
     public const int TopTypes = 20;
 
+    /// <summary>Types looked through for the selected one, which stays listed when it falls behind.</summary>
+    private const int LookedThrough = 500;
+
     /// <summary>Stacks listed, most allocated first.</summary>
     public const int TopStacks = 20;
 
@@ -62,6 +65,7 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
     private readonly AllocationSession? _session;
     private readonly ILogger _logger;
     private Following? _following;
+    private bool _updating;
 
     /// <summary>Whether a run's live allocations are shown: from its recording's start until another run takes their place.</summary>
     [ObservableProperty]
@@ -126,6 +130,9 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
     public ObservableCollection<AllocationStackItem> Stacks { get; } = [];
 
     public IReadOnlyList<string> SelectedFrames => SelectedStack?.Frames ?? [];
+
+    /// <summary>The delay last measured, said or not (smoke runs log it).</summary>
+    public double? DelaySeconds => _following?.State?.DelaySeconds;
 
     /// <summary>What the stacks are of.</summary>
     public string StacksOf => SelectedType is { } type ? type.Name : "all types";
@@ -341,7 +348,13 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         Ask("the interval");
     }
 
-    partial void OnSelectedTypeChanged(LiveTypeItem? value) => LoadStacks();
+    partial void OnSelectedTypeChanged(LiveTypeItem? value)
+    {
+        if (!_updating)
+        {
+            LoadStacks();
+        }
+    }
 
     partial void OnShowStacksChanged(bool value)
     {
@@ -424,7 +437,7 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         ResultPage page;
         try
         {
-            page = await answer.Rows.GetRowsAsync(0, Math.Min(TopTypes, answer.Result.Types.TotalCount), ct);
+            page = await answer.Rows.GetRowsAsync(0, Math.Min(SelectedType is null ? TopTypes : LookedThrough, answer.Result.Types.TotalCount), ct);
         }
         finally
         {
@@ -437,26 +450,37 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
         }
 
         (Buckets, BucketSeconds, DurationSeconds) = (timeline.Buckets, bucket, state.DurationSeconds);
-        ShowTypes(answer.Result, page);
+        var columns = answer.Result.Types.Columns.Select((c, i) => (c.Name, i)).ToDictionary(c => c.Name, c => c.i, StringComparer.Ordinal);
+        var (type, bytes, samples) = (columns[AllocationTypeColumns.Type], columns[AllocationTypeColumns.Bytes], columns[AllocationTypeColumns.Samples]);
+        ShowTypes([.. page.Rows.Select(r => (r[type] ?? string.Empty, Number(r[bytes]), Number(r[samples])))], answer.Result.SampledBytes);
+
+        static long Number(string? text) => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
         following.ShownVersion = state.Version;
     }
 
     /// <summary>Updates the rows in place, so that a selected type stays selected and only what changed is drawn again.</summary>
-    private void ShowTypes(AllocationTypesResult result, ResultPage page)
+    public void ShowTypes(IReadOnlyList<(string Name, long Bytes, long Samples)> found, long total)
     {
-        var columns = result.Types.Columns.Select((c, i) => (c.Name, i)).ToDictionary(c => c.Name, c => c.i, StringComparer.Ordinal);
-        var (type, bytes, samples) = (columns[AllocationTypeColumns.Type], columns[AllocationTypeColumns.Bytes], columns[AllocationTypeColumns.Samples]);
         var known = Types.ToDictionary(t => t.Name, StringComparer.Ordinal);
-        for (var i = 0; i < page.Rows.Count; i++)
+        var selected = SelectedType;
+        _updating = true;
+        var rows = found.Take(TopTypes).ToList();
+        if (selected is not null)
         {
-            var row = page.Rows[i];
-            var name = row[type] ?? string.Empty;
+            rows.AddRange(found.Skip(TopTypes).Where(r => r.Name == selected.Name));
+        }
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var (name, bytes, samples) = rows[i];
             if (known.Remove(name, out var item))
             {
                 var at = Types.IndexOf(item);
                 if (at != i)
                 {
-                    Types.Move(at, i);
+                    // Not moved: the grid keeps showing a moved row where it was.
+                    Types.RemoveAt(at);
+                    Types.Insert(i, item);
                 }
             }
             else
@@ -465,15 +489,21 @@ public sealed partial class LiveAllocationsViewModel : ObservableObject
                 Types.Insert(i, item);
             }
 
-            item.Update(Number(row[bytes]), Number(row[samples]), result.SampledBytes);
+            item.Update(bytes, samples, total);
         }
 
-        while (Types.Count > page.Rows.Count)
+        while (Types.Count > rows.Count)
         {
             Types.RemoveAt(Types.Count - 1);
         }
 
-        static long Number(string? text) => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
+        // The grid lets go of a row that was taken out to be put elsewhere; the user did not.
+        SelectedType = selected is not null && Types.Contains(selected) ? selected : null;
+        _updating = false;
+        if (selected != SelectedType)
+        {
+            LoadStacks();
+        }
     }
 
     private void ClearStacks()
