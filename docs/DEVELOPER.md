@@ -315,7 +315,13 @@ dotnet test --solution HeapScope.sln
   heaviest methods, inclusive and at the leaf.
 - Live sources (sprint 3.8, ADR-037): `dotnet run -c Release --project perf/HeapScope.Benchmarks -- live-tail --seconds
   10` records an allocating copy of itself and reads the trace file while it grows, reporting events read and lost,
-  the delay to the reader and its memory.
+  the delay to the reader and its memory. `live-stacks` (sprint 4.3; `--seconds`, `--pause-every`, `--depth`, `--stacks no`)
+  reads it in a process of its own, folds call stacks and compares them with TraceLog's for the finished file; set
+  `DOTNET_gcServer=0` for the memory figures. `--pid` reads another process, `--idle-ms 3000` makes the target idle between
+  seconds of work, `--counters-s 1` adds a counter to the session, `--cold-ms 5000` starts the target cold,
+  and `--keep <folder>` keeps the trace. `dump-kinds --cli <heapscope-cli.exe> --folder <folder>`
+  (`--mb 1000`, `--runs 5`) says how long a full dump, a heap-only dump and a gcdump stop a process; set
+  `HEAPSCOPE_DATA_FOLDER` for it.
 - Hybrid CPUs: when measuring UI responsiveness, remember Windows may put a background window's threads on efficiency
   cores. HeapScope's UI opts out (ADR-019); pinning a process (`ProcessorAffinity`) to performance or efficiency cores
   is how that was proven.

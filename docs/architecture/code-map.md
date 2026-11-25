@@ -354,7 +354,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   since 3.8] and `phase2-indices`,
   the Phase 2 index prototype (section 6.4) [1.9]; `reverse-index`, the reverse references index of a real index cache
   (build, sidecar write, reopen in both modes) [2.1]; `retention`, the root path tree, key paths and object searches of
-  a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `dominators`, the reverse index and
+  a real index cache [2.2]; `live-tail`, the live sources spike of ADR-037 [3.8]; `live-stacks`, its call stack gate, and `dump-kinds`, how long each snapshot stops a process [4.3]; `dominators`, the reverse index and
   dominators as the worker computes them, in either mode [2.3]; `stack-roots` (diagnostic: stack roots per thread);
   `ui-stalls` (WPR recordings of the UI split by cause, `UiStallAttribution`, tested in tests/HeapScope.Benchmarks.Tests)
   and `cpu-profile` (where a process's busiest thread spent a recording) [3.12].
