@@ -357,38 +357,38 @@ The sample's scenario and its lesson, approved too (`LessonCatalogTests` checks 
 
 ## Sprint 4.4 additions
 
-Drafts for the owner (sprint 4.4, what was allocated between two snapshots). `AllocatedBetweenTests`, `CompareAllocatedTests` and
+Approved by the owner on 2026-11-25 (sprint 4.4, what was allocated between two snapshots). `AllocatedBetweenTests`, `CompareAllocatedTests` and
 `UsageTests` check the messages, `InfoIconTests` the options text (Table 2, the paragraph that starts "Allocated between").
 
 | Page | Where | Text | Status |
 |---|---|---|---|
-| Compare | Check box | Allocated between | draft |
-| Compare | Column, its tooltip | Allocated (est.): Bytes of the row's types allocated between the two snapshots, what was collected since included. An estimate from the run's samples, about one per 100 KB: an empty cell means no sample, not no allocation. | draft |
-| Compare | Column | Samples | draft |
-| Compare | Row menu, its tooltip | Show where it was allocated: Opens the run's allocation trace on the Allocations page at the time between the snapshots, narrowed to this row's type. Needs Allocated between ticked. | draft |
-| Compare | Options icon (Table 2), its last paragraph | Allocated between adds ... so types can share a name there. | draft |
-| Compare, CLI | Note | About {size} allocated between the snapshots ({N} samples, {N} s), collected objects included. Then, where they apply: {size} of it in {N} types without an object in either snapshot, so without a row. / {size} of type names several modules share, which a gcdump cannot tell apart. / The recording started {N} s after the earlier snapshot: what was allocated before is not counted. / The recording ended {N} s before the later snapshot: what was allocated after is not counted. / The runtime dropped {N} events while recording, so the figures are low. | draft |
-| Compare, CLI | No trace: not one session | The two snapshots are not in one session folder, so no recorded run is known to lie between them. Capture both on the Live page with Record allocations ticked. | draft |
-| Compare, CLI | No trace: not one run | The two snapshots were not captured during one monitoring run, so no recording lies between them. Capture both on the Live page with Record allocations ticked. | draft |
-| Compare, CLI | No trace: not ended | The monitoring run of these snapshots has not ended. Stop it, then compare again: its allocation trace is read when it is complete. | draft |
-| Compare, CLI | No trace: not recorded | The monitoring run of these snapshots did not record allocations. Tick Record allocations on the Live page before Start. / The monitoring run of these snapshots has no allocation trace: {note} | draft |
-| Compare, CLI | No trace: its file | The run's allocation trace file is not there any more. (And the other refusals of a session's file.) | draft |
-| Compare, CLI | A gcdump captured before 4.4 | A gcdump here was captured by a version before 4.4, which recorded when its file was done: what was allocated in the seconds between counts on the wrong side of it. | draft |
-| Compare | The worker refuses the trace | The allocation trace is of process {N}, and a snapshot is of process {N}: allocations can be compared for one process only. / The recording does not lie between the two snapshots, so it has no allocations to show for them. / This trace is still being recorded. Its allocations can be compared when the recording has ended. | draft |
-| Compare | The row menu without allocations | Tick Allocated between first. / No allocation of this row was sampled between the snapshots. / The allocation trace was closed on the Allocations page. Tick Allocated between again to open it. | draft |
-| CLI | diff --allocated | Add what was allocated of each row between the two snapshots, what was collected since included: estimated from the allocation trace of the monitoring run (the app's Live page, Record allocations) during which both were captured. An empty cell means no sample. | draft |
-| CLI | diff --allocated, stderr | Where: allocations "{trace}" --from {N} --to {N} | draft |
-| CLI | Usage | --sort allocated needs --allocated. | draft |
+| Compare | Check box | Allocated between | approved 2026-11-25 |
+| Compare | Column, its tooltip | Allocated (est.): Bytes of the row's types allocated between the two snapshots, what was collected since included. An estimate from the run's samples, about one per 100 KB: an empty cell means no sample, not no allocation. | approved 2026-11-25 |
+| Compare | Column | Samples | approved 2026-11-25 |
+| Compare | Row menu, its tooltip | Show where it was allocated: Opens the run's allocation trace on the Allocations page at the time between the snapshots, narrowed to this row's type. Needs Allocated between ticked. | approved 2026-11-25 |
+| Compare | Options icon (Table 2), its last paragraph | Allocated between adds ... so types can share a name there. | approved 2026-11-25 |
+| Compare, CLI | Note | About {size} allocated between the snapshots ({N} samples, {N} s), collected objects included. Then, where they apply: {size} of it in {N} types without an object in either snapshot, so without a row. / {size} of type names several modules share, which a gcdump cannot tell apart. / The recording started {N} s after the earlier snapshot: what was allocated before is not counted. / The recording ended {N} s before the later snapshot: what was allocated after is not counted. / The runtime dropped {N} events while recording, so the figures are low. | approved 2026-11-25 |
+| Compare, CLI | No trace: not one session | The two snapshots are not in one session folder, so no recorded run is known to lie between them. Capture both on the Live page with Record allocations ticked. | approved 2026-11-25 |
+| Compare, CLI | No trace: not one run | The two snapshots were not captured during one monitoring run, so no recording lies between them. Capture both on the Live page with Record allocations ticked. | approved 2026-11-25 |
+| Compare, CLI | No trace: not ended | The monitoring run of these snapshots has not ended. Stop it, then compare again: its allocation trace is read when it is complete. | approved 2026-11-25 |
+| Compare, CLI | No trace: not recorded | The monitoring run of these snapshots did not record allocations. Tick Record allocations on the Live page before Start. / The monitoring run of these snapshots has no allocation trace: {note} | approved 2026-11-25 |
+| Compare, CLI | No trace: its file | The run's allocation trace file is not there any more. (And the other refusals of a session's file.) | approved 2026-11-25 |
+| Compare, CLI | A gcdump captured before 4.4 | A gcdump here was captured by a version before 4.4, which recorded when its file was done: what was allocated in the seconds between counts on the wrong side of it. | approved 2026-11-25 |
+| Compare | The worker refuses the trace | The allocation trace is of process {N}, and a snapshot is of process {N}: allocations can be compared for one process only. / The recording does not lie between the two snapshots, so it has no allocations to show for them. / This trace is still being recorded. Its allocations can be compared when the recording has ended. | approved 2026-11-25 |
+| Compare | The row menu without allocations | Tick Allocated between first. / No allocation of this row was sampled between the snapshots. / The allocation trace was closed on the Allocations page. Tick Allocated between again to open it. | approved 2026-11-25 |
+| CLI | diff --allocated | Add what was allocated of each row between the two snapshots, what was collected since included: estimated from the allocation trace of the monitoring run (the app's Live page, Record allocations) during which both were captured. An empty cell means no sample. | approved 2026-11-25 |
+| CLI | diff --allocated, stderr | Where: allocations "{trace}" --from {N} --to {N} | approved 2026-11-25 |
+| CLI | Usage | --sort allocated needs --allocated. | approved 2026-11-25 |
 
-The sample's scenario and its lesson, drafts too (`LessonCatalogTests` checks both, `SampleTests` follows the steps):
+The sample's scenario and its lesson, approved too (`LessonCatalogTests` checks both, `SampleTests` follows the steps):
 
 | Scenario | Title | Plants | Answer | Decoys | Status |
 |---|---|---|---|---|---|
-| Churn | Allocated and dropped | Exchange rates allocated all the time, of which only the latest are kept, and trades kept as they come, so what a comparison shows growing is not what is allocated most. | HeapScope.Sample.ExchangeRate | HeapScope.Sample.Trade | draft |
+| Churn | Allocated and dropped | Exchange rates allocated all the time, of which only the latest are kept, and trades kept as they come, so what a comparison shows growing is not what is allocated most. | HeapScope.Sample.ExchangeRate | HeapScope.Sample.Trade | approved 2026-11-25 |
 
 | Lesson | Title | Summary | Steps | Question | Status |
 |---|---|---|---|---|---|
-| allocated-between | What was allocated between two snapshots | Compare two snapshots of a recorded run to see what was allocated and is gone again. | 1. On the Live page, choose the process heapscope-sample, open Snapshot rules, tick Record allocations and press Start.<br>2. On the Processes page, select the sample's row (it says Sample in the Kind column), tick As gcdump and choose Capture dump. When it asks to open it, say yes. A gcdump holds only what a collection left, so what was dropped is not in it.<br>3. Wait about ten seconds, then capture and open a second gcdump. Then press Stop on the Live page.<br>4. On the Snapshots page, open the Compare tab, type HeapScope.Sample in the filter and sort by Bytes +/-: the top row is what grew.<br>5. Tick Allocated between and sort by Allocated (est.). The top row is now what was allocated most, most of it collected since: right-click it and choose Show where it was allocated. | Which of the sample's types was allocated most between the two snapshots? | draft |
+| allocated-between | What was allocated between two snapshots | Compare two snapshots of a recorded run to see what was allocated and is gone again. | 1. On the Live page, choose the process heapscope-sample, open Snapshot rules, tick Record allocations and press Start.<br>2. On the Processes page, select the sample's row (it says Sample in the Kind column), tick As gcdump and choose Capture dump. When it asks to open it, say yes. A gcdump holds only what a collection left, so what was dropped is not in it.<br>3. Wait about ten seconds, then capture and open a second gcdump. Then press Stop on the Live page.<br>4. On the Snapshots page, open the Compare tab, type HeapScope.Sample in the filter and sort by Bytes +/-: the top row is what grew.<br>5. Tick Allocated between and sort by Allocated (est.). The top row is now what was allocated most, most of it collected since: right-click it and choose Show where it was allocated. | Which of the sample's types was allocated most between the two snapshots? | approved 2026-11-25 |
 
 ## Evidence: the per-setting drafts
 
