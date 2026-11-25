@@ -55,7 +55,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.3 | Live session | Closed | 2026-11-25 | sprint-4.3 |
 | 4.4 | Allocated between two snapshots | Closed | 2026-11-25 | sprint-4.4 |
 | 4.5 | Peer review | Closed | 2026-11-25 | sprint-4.5 |
-| 4.6 | Right answers | Planned | | |
+| 4.6 | Right answers | In Progress | | |
 | 4.7 | Runtimes, Linux and large heaps | Planned | | |
 | 4.8 | Ready to release | Planned | | |
 | 4.9 | Workspaces | Planned | | |
@@ -119,6 +119,56 @@ Owner decisions, 2026-11-18:
 | 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.6: Right answers
+
+**Goal:** every answer HeapScope shows is about the snapshot it names, says when it did not check, and nothing hangs or crashes on the
+way there: the High and Moderate findings of [peer review 4.5](reviews/peer-review-4.5.md) planned here, with what its fixes left.
+
+**Tasks**
+1. [ ] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
+   heap bar and notes cleared first, also when the new query fails; Trend falls back to its default sort for a column gone; Compare and
+   Trend show the busy bar. Tests: a query of B that fails shows nothing of A, in Types, Compare and Trend; Trend after a close.
+2. [ ] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced
+   collection and the counters; closing the app waits a bounded time for its host, logs what it waited for and always shuts down.
+   Tests: the helper with a stop that never answers; a recording and a forced collection of a suspended process end.
+3. [ ] H10: a job's work starts on the thread pool, never on the caller's (UI) thread, and so does starting a worker. Test: work that
+   records its thread is never run on the caller's.
+4. [ ] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
+   after a failed check, and stops recording with a message after several in a row. Tests: the probe on a folder, failures counted.
+5. [ ] H2: a detector that could not read objects says so: the result carries its counts (scanned, unread), the front ends show "not
+   checked" for what was unread, and a detector that could read none of what it needs is a refusal. Tests per detector with fields
+   missing; the CLI's and the app's text.
+6. [ ] H3: the static storage bucket keeps its "static storage" detail always; statics of closed generic types and boxed struct statics
+   are named where ClrMD can read them; the growing static collections detector notes storage slots no static field names. Tests on a
+   fixture with `Cache<T>` statics and a struct static.
+7. [ ] H16: the CLI has a boundary around its start: a mistake in `appsettings.json` is said with the file, the line and how to write a
+   backslash in JSON, and logged; unhandled exceptions are logged. INSTALL gets a Windows example. Tests: a damaged and a mistyped file.
+8. [ ] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
+9. [ ] M6: one private JSON file helper (a lock, shared reads with retries, a flushed temp file, a replace with retries, unreadable is not
+   empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
+10. [ ] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
+    note); Compare and Trend query only while shown and catch up when shown. Tests per view.
+11. [ ] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and its
+    process kill tolerates an exited process; a recording from the Processes page marks its session in use, and an open trace keeps its
+    session. Tests: two callers of a crash; a throwing listener; deleting a session that records.
+12. [ ] M9: "no root found" in place of "unreachable" stated as fact where stack roots of a running process can be incomplete, and the
+    unreachable set's generation split. Wording drafts for the owner. Tests: the texts, the split.
+13. [ ] What 4.5's fixes left: Compare's retained columns say when only one side's GC handles were checked; a cached load whose handles
+    could not be checked is loaded again when its cause is gone (the second walk turned on again, the DAC found). Tests: both.
+14. [ ] The tests that failed in CI now and then: the run's trace that had no bytes for 60 s (a start that hangs, near task 2), the
+    bookmarks status of a damaged file on Linux, the live allocations follower (fixed 2026-11-25, watched). Each fixed or explained.
+
+**Decisions**
+- All of the findings the owner put in 4.6 (2026-11-25), in this order: what shows wrong answers first, then what hangs, then the rest.
+  Decided autonomously.
+- New user-facing texts are drafts in `docs/design/info-text.md` ("Sprint 4.6 additions") until the owner approves them; the sprint is built
+  with them. Decided autonomously.
+- A protocol change (task 5's counts, task 13's note) bumps the worker protocol once for the sprint. Decided autonomously.
+- Settings for the DAC on the Settings page (H15) stay in 4.8 with the rest of "Ready to release"; task 7 only says the file and line.
+  Decided autonomously.
 
 ---
 
