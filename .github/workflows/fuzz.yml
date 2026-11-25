@@ -61,3 +61,30 @@ jobs:
           path: ${{ runner.temp }}/fuzz-results
           if-no-files-found: warn
           retention-days: 14
+
+  # Peer review 4.5 H19: the nightly failed 15 of its first 23 nights and nobody saw it. A failed scheduled run opens an issue, or adds
+  # a comment to the one still open, with its seed and a link, so the owner is told by GitHub. A run by hand reports nothing.
+  report:
+    name: Report a failed night
+    needs: fuzz
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or comment on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SEED: ${{ github.run_number }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly fuzz failed"
+          body="The nightly fuzz failed with seed $SEED: $RUN. Its results (the seed, the iteration and any failing input) are kept 14 days. Replay it with HEAPSCOPE_FUZZ_SEED=$SEED (DEVELOPER.md)."
+          open=$(gh issue list --repo "$REPO" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$REPO" --body "$body"
+          else
+            gh issue create --repo "$REPO" --title "$title" --body "$body"
+          fi

@@ -55,7 +55,8 @@ dotnet test --solution HeapScope.sln
   the run number as the seed, on `develop`; a failure names its seed, iteration and exception type. The cache half replays
   from the seed alone. The gcdump half mutates a gcdump captured live, so it also needs that base: with
   `HEAPSCOPE_FUZZ_KEEP=<folder>` (set by the nightly, kept with its results) the test keeps the base (`base.gcdump`), the
-  iteration in progress and any failing input there, and `HEAPSCOPE_FUZZ_BASE=<base.gcdump>` replays from it; a trace likewise, with `base.nettrace` and `HEAPSCOPE_FUZZ_TRACE`.
+  iteration in progress and any failing input there, and `HEAPSCOPE_FUZZ_BASE=<base.gcdump>` replays from it; a trace likewise, with `base.nettrace` and `HEAPSCOPE_FUZZ_TRACE`. A failed
+  night opens the issue "Nightly fuzz failed", or comments on it while it is open, with the seed and the run (since 4.6, peer review 4.5 H19).
 - The DAC trust check on a real dump of any system: `HEAPSCOPE_FIXTURE_DUMP=<dump> dotnet test --project
   tests/HeapScope.Loaders.ClrMd.Tests --filter-class "*PlantedDacTests"` (CI's Linux job runs it, with
   `HEAPSCOPE_REQUIRE_FIXTURE=1` so a skip fails). It plants the DAC next to the dump and removes it after; a folder that

@@ -146,7 +146,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
    fixture with `Cache<T>` statics and a struct static.
 7. [x] H16: the CLI has a boundary around its start: a mistake in `appsettings.json` is said with the file, the line and how to write a
    backslash in JSON, and logged; unhandled exceptions are logged. INSTALL gets a Windows example. Tests: a damaged and a mistyped file.
-8. [ ] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
+8. [x] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
 9. [ ] M6: one private JSON file helper (a lock, shared reads with retries, a flushed temp file, a replace with retries, unreadable is not
    empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
 10. [ ] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
