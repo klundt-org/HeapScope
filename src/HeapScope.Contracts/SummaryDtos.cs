@@ -164,37 +164,6 @@ public sealed record TypeDiffRequest(
     bool IncludeRetained = false,
     DiffAllocationScope? Allocations = null);
 
-/// <summary>
-/// The allocations a diff shows (sprint 4.4): an open allocation trace of the same process and the interval between the two
-/// heaps, on the machine's clock. What of it the trace does not cover is left out, and the result says what was counted.
-/// </summary>
-public sealed record DiffAllocationScope(Guid TraceId, DateTimeOffset FromUtc, DateTimeOffset ToUtc);
-
-/// <summary>
-/// The sampled allocations a diff counted (sprint 4.4). Sizes are estimates: what the runtime's samples stand for.
-/// </summary>
-/// <param name="FromSeconds">The start of what was counted, in seconds since the recording started.</param>
-/// <param name="ToSeconds">Its end.</param>
-/// <param name="AskedFromSeconds">The start that was asked for; before 0 when the recording started later.</param>
-/// <param name="AskedToSeconds">The end that was asked for; past <paramref name="RecordedSeconds"/> when the recording ended earlier.</param>
-/// <param name="RowBytes">The bytes the diff's rows hold (before the filter).</param>
-/// <param name="AbsentBytes">Bytes of <paramref name="AbsentTypes"/> types without an object in either snapshot: allocated and collected between them.</param>
-/// <param name="SharedNameBytes">Bytes of a name that types of several modules share, which a gcdump cannot tell apart: no row holds them.</param>
-/// <param name="LostEvents">Events the runtime dropped while recording: the figures are low by their samples.</param>
-public sealed record DiffAllocationInfo(
-    double FromSeconds,
-    double ToSeconds,
-    double AskedFromSeconds,
-    double AskedToSeconds,
-    double RecordedSeconds,
-    int Samples,
-    long Bytes,
-    long RowBytes,
-    long AbsentBytes,
-    int AbsentTypes,
-    long SharedNameBytes,
-    long LostEvents);
-
 /// <summary>Column names of a type diff result set.</summary>
 public static class TypeDiffColumns
 {

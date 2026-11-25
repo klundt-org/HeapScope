@@ -291,3 +291,7 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   `dotnet` as its path; its header's folder is the tool's `worker` folder. A worker that cannot start says which case it
   is (no worker in the folder, an assembly without a dotnet host, a 32-bit host, a configured path not found) with a
   next step.
+- Allocated between (sprint 4.4): a capture's line says its heap's time. The front end logs which run's trace lies between two snapshots
+  and the interval, or the reason there is none (`Allocations between ...: ...`); the worker logs the trace, the interval asked for and
+  counted, the samples and bytes, and how they were joined: by method table, by name, shared names, types without an object (the largest
+  five), and how many method tables the trace names otherwise.

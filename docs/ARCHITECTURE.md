@@ -95,7 +95,7 @@ Capture and sessions (sprint 1.1):
 - Application: `SessionLibrary` keeps sessions under `%LOCALAPPDATA%\HeapScope\sessions` (`Sessions:Root`; a relative
   root is under `%LOCALAPPDATA%\HeapScope`), one folder per session (`yyyyMMdd-HHmmss[-name]`, claimed by creating its
   `session.json` exclusively, so parallel runs never share one) with `session.json` (format version 1: name, created,
-  last opened, snapshots with id, file, label, kind, source, process, runtime version and folder, capture time, size;
+  last opened, snapshots with id, file, label, kind, source, process, runtime version and folder, capture time, size, and since 4.4 its heap's time;
   since 3.4 `Runs`, the monitoring runs with their process, interval, rules, kind, start and end, timeline and trace
   files and the ids of their snapshots and forced collections; unknown members are kept on save, on the document and on
   each run, so an older build never drops what a newer one wrote). Since 3.4 a snapshot of a session is deleted with

@@ -13,7 +13,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
   string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
-  [1.6] and `TypeNameForms` (a full dump's type name in the form a gcdump records it) [1.8]; types without a method
+  [1.6] and `TypeNameForms` (a full dump's type name in the form a gcdump records it [1.8], and a runtime event's in the snapshots' spelling [4.4]); types without a method
   table are told apart by name and module [1.8]. `Loading/`: the loader contract both loaders share (`ISnapshotLoader`
   with its `Version`, `LoadResult`, `LoadProgress`, `LoadTimings`, `LoadDiagnostics`) and `SnapshotFileSignature` (a
   file's first bytes tell a minidump, `MDMP`, from a gcdump, a FastSerialization stream whose first object is a
@@ -382,11 +382,13 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `LiveTraceStream` (only whole checked objects), `EventStackReader` (call stacks from TraceEvent's record), `LiveAllocations` and
   `LiveAllocationLimits` (what is kept, bounded), `LiveMethodNames` and `LiveTraceView`; `AllocationTraceReader` (the `Nettrace` signature checked first,
   TraceEvent's `.etlx` written to a private folder (section 12) and deleted, every frame kept, unnamed ones labeled and
-  counted, cancellation). Analysis: `Allocations/AllocationProfile` (sample
+  counted, cancellation). Analysis: `Allocations/AllocationJoin` (sampled allocations joined to a diff's types) [4.4] and
+  `Allocations/AllocationProfile` (sample
   ranges by binary search, the timeline, types, totals, top stacks, a stack's frames) and `AllocationTreeRows` (the call
   tree and back traces flattened from open keys like ADR-027, with `AllocationRow`, `AllocationTreeView`,
   `AllocationFilter`). Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
   `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource`. Application:
+  `Allocations/AllocatedBetween` (which run's trace lies between two snapshots, or why none does) [4.4] and
   `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, and
   `StartRecord`, which records into the current session's folder and opens the trace). UI.ViewModels:
   `AllocationsViewModel` (the page), `AllocationTraceViewModel` (a trace: interval, type, stacks), `AllocationTypesViewModel`,

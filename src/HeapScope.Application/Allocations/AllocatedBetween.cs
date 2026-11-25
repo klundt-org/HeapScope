@@ -85,6 +85,3 @@ public sealed record AllocatedBetween(string? TracePath, Guid RunId, DateTimeOff
     private static SessionSnapshot? SnapshotAt(Session session, string path) =>
         session.Document.Snapshots.FirstOrDefault(s => Session.IsLocal(session.PathOf(s)) && PathIdentity.Same(Path.GetFullPath(session.PathOf(s)), Path.GetFullPath(path)));
 }
-
-/// <summary>The allocations a comparison shows (sprint 4.4): an open trace and the interval between the two heaps.</summary>
-public sealed record DiffAllocations(AllocationSession Session, TraceHandle Trace, DateTimeOffset FromUtc, DateTimeOffset ToUtc);

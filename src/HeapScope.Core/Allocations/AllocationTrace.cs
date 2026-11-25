@@ -180,9 +180,6 @@ public sealed class AllocationTrace
     public const int BytesPerSample = 29;
 }
 
-/// <summary>The method tables of a trace's samples (sprint 4.4): the distinct ones, and for each sample which.</summary>
-public sealed record AllocationMethodTables(ulong[] Distinct, int[] Samples);
-
 /// <summary>What a trace says about itself, and what reading it found.</summary>
 /// <param name="ProcessId">The traced process (from its first allocation tick), or 0 when the trace has none.</param>
 /// <param name="ProcessName">The traced process's name, when known.</param>

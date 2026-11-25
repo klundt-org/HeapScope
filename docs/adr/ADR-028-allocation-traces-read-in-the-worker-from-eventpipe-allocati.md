@@ -36,3 +36,13 @@
   there (it opens with what came before, and a note); while reading samples, the file is refused. Damage within an event's
   bounds is not noticed. Look at the check again when TraceEvent (DEVELOPER.md 2 says how) or the runtime's format changes. 4.3's live reader needs it resumable: the
   walk keeps its place in a file that grows, and only whole, checked blocks reach TraceEvent.
+- Amended in 4.4 (the join, "allocated between"): a sample keeps its tick's type id, which is the type's method table, so two full dumps
+  of the traced process are joined to a trace exactly, whatever the names. A gcdump has no method tables: it is joined by name, in the
+  one form both can be brought to (`TypeNameForms.FromRuntimeEvent`, then `AsGcDumpName`; the runtime's events name a nested type by
+  its innermost name, as a gcdump does). A name that types of several modules share in a gcdump goes to no row, and the answer says how
+  many bytes that is, as for types without an object in either snapshot. A method table of an unloaded type may be another's later: the
+  current snapshot's type has it. One clock: a snapshot's record has the time of its heap (`SessionSnapshot.HeapUtc`: a full dump's last
+  write, a gcdump's first heap node, both in the target's pause), and the trace's start is the same machine's clock; a step of the clock
+  during a run shifts the interval by as much, and nothing says so. The interval is half open, so it is the one the Allocations page
+  shows for the same seconds. Linked only within a monitoring run: the run of the session during which both were captured, by process
+  and time.

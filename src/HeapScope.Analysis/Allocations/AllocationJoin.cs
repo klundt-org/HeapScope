@@ -27,18 +27,6 @@ using HeapScope.Core.Graph;
 
 namespace HeapScope.Analysis.Allocations;
 
-/// <summary>Sampled allocations of one type of an interval, as the trace tells types apart: by name and method table.</summary>
-/// <param name="MethodTable">The tick's type id, or 0 when the trace has none.</param>
-public readonly record struct AllocatedType(string Name, ulong MethodTable, long Bytes, int Samples);
-
-/// <summary>How an interval's sampled bytes met a diff's types (<see cref="AllocationJoin.Join"/>), for the result and the log.</summary>
-/// <param name="ByMethodTable">Bytes joined by method table, to a full dump's types.</param>
-/// <param name="ByName">Bytes joined by name, to a gcdump's types.</param>
-/// <param name="SharedName">Bytes of names that types of several modules share in a gcdump: no row takes them.</param>
-/// <param name="Absent">Bytes of types without an object in either snapshot.</param>
-/// <param name="OtherNames">A method table whose names differ in the trace and the dump (joined all the same), for the log.</param>
-public sealed record AllocationJoinTotals(long Bytes, int Samples, long ByMethodTable, long ByName, long SharedName, long Absent, int AbsentTypes, int OtherNames, IReadOnlyList<AllocatedType> TopAbsent);
-
 /// <summary>
 /// Joins the sampled allocations of a trace to the types of two snapshots of the same process (sprint 4.4, ADR-028): by the
 /// tick's method table to a full dump's types, which is exact while the process runs, and by name to a gcdump's, which has no

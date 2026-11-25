@@ -124,28 +124,50 @@ session (`SessionRun`: `SnapshotIds`, `Trace`), each with a time; ADR-028 left o
 name for a type.
 
 **Tasks**
-1. [ ] Measured before building: how a capture's recorded time lies to the trace's (the target is paused while a dump is written), and
+1. [x] Measured before building: how a capture's recorded time lies to the trace's (the target is paused while a dump is written), and
    how much of the sampled bytes join a diff row by name, for full dumps and gcdumps (generics, arrays, nested types, names in two
    modules). If names do not join for most of the bytes, stop and report. Proof: the numbers in Findings and ADR-028's amendment.
-2. [ ] Which trace lies between two snapshots: the run of one session that holds both and a trace, the interval, and a reason when
+2. [x] Which trace lies between two snapshots: the run of one session that holds both and a trace, the interval, and a reason when
    there is none (another process, another run, no trace, a trace that ended before). Tests: each reason; a received session's
    paths.
-3. [ ] One name for a type: the trace's names brought to the snapshots' form in one place, tested against real dumps. Tests: table and
+3. [x] One name for a type: the trace's names brought to the snapshots' form in one place, tested against real dumps. Tests: table and
    integration.
-4. [ ] The worker: a diff with a trace and an interval gets Allocated columns (estimates), with the sampled bytes that no row took;
+4. [x] The worker: a diff with a trace and an interval gets Allocated columns (estimates), with the sampled bytes that no row took;
    one protocol bump. Tests: contract, worker, a real run.
-5. [ ] Compare: a check box like New and dead objects, the note that says what the figures are, and a step from a row to the
+5. [x] Compare: a check box like New and dead objects, the note that says what the figures are, and a step from a row to the
    Allocations page with the interval and type chosen. Wording drafted for the owner. Tests: view models, views.
-6. [ ] The command line: `diff --allocated`, with the trace found in the session or named. Tests: CLI.
-7. [ ] The sample's scenario and lesson (ADR-042), or why not; drafts for the owner.
-8. [ ] Docs: ADR-028 amended, ARCHITECTURE pages, DEVELOPER, USER-GUIDE, info-text.md, the CLI's README, Backlog.
+6. [x] The command line: `diff --allocated`, with the trace found in the session or named. Tests: CLI.
+7. [x] The sample's scenario and lesson (ADR-042), or why not; drafts for the owner.
+8. [x] Docs: ADR-028 amended, ARCHITECTURE pages, DEVELOPER, USER-GUIDE, info-text.md, the CLI's README, Backlog.
 
 **Decisions**
 - Only a trace of the same monitoring run is linked. A trace recorded on the Processes page between two captures is not looked for: its
   session does not say what it belongs to. Decided autonomously.
 - Figures are estimates and marked so, as everywhere; rows without a sample say nothing rather than zero bytes. Decided autonomously.
-- A type name in several modules is shown once per name with a note, since the tick has no module. Decided autonomously; revisited if
-  task 1 shows the tick's type id can tell them apart cheaply.
+- Task 1 showed that the tick's type id is the type's method table, so full dumps are joined by it, not by name. Only a gcdump is joined by
+  name; a name that types of several modules share goes to no row, and the note says how many bytes that is. Decided autonomously.
+- The run is found by its process and time, not by its list of captures, so a capture from the Processes page during the run counts too.
+  Decided autonomously.
+- When a capture is asked for what was allocated since, its heap's time counts, not its file's: `SessionSnapshot.HeapUtc`. Decided
+  autonomously.
+- Types without an object in either snapshot have no row; the note says their bytes, and the Allocations page has them. Rows for them are in
+  the Backlog. Decided autonomously.
+- `diff --allocated` takes the session's trace only; a trace named by the user has no heap times to go with it. Decided autonomously.
+- Task 7: a scenario of its own, Churn, since the bursts keep nothing a comparison could have a row for. Decided autonomously.
+
+**Findings** (task 1, .NET 10.0, Windows, LeakyApi under LoadGen and DenseHeap compiling with Roslyn, 2026-11-25)
+- Time. The recorded time of a full dump lay 3 to 160 ms after the target's pause (up to 220 MB at the rate DenseHeap allocates), that
+  of a gcdump 3 to 6 s after (170 MB of LeakyApi's, up to 1,860 MB of DenseHeap's). A dump's own time has whole seconds only. Now: a full
+  dump's last write and a gcdump's first heap node, within the pause or at most 3 ms after it (0 to 1.9 MB).
+- Names. Of the sampled bytes between two full dumps, 78 to 83% join by name and 97.5 to 100% by the tick's type id; the rest are types
+  without an object in either dump. The runtime's events name a nested type by its innermost name, as a gcdump does: between gcdumps 81
+  to 92% join by name, and the rest are types that left nothing behind (Activity, log scopes, compiler temporaries). Names several
+  modules share: 0 to 0.4%.
+- Every gcdump but the first that was captured while a trace recorded had types without a name (it said that it was incomplete). The
+  runtime describes a type once while a session has its type keyword, and forgets only when the keyword is turned off, which the flush
+  before a gcdump did not do beside another session. So since 3.4, when runs could record allocations, the second gcdump of such a run
+  was of no use. Fixed in the vendored flush, for HeapScope's three kinds of recording; another tool's session that has the type
+  keyword still does it (Backlog). Test: `Each_gcdump_beside_a_recording_names_its_types`, failing without the fix for all three.
 
 ---
 
