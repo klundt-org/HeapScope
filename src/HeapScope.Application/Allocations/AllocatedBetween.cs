@@ -67,12 +67,12 @@ public sealed record AllocatedBetween(string? TracePath, Guid RunId, DateTimeOff
 
         if (SnapshotAt(session, baselinePath) is not { } baseline)
         {
-            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the baseline among its {session.Document.Snapshots.Count} snapshots on this machine ({session.Document.UnknownSnapshots.Count} of a newer version set aside)");
+            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the baseline among its {session.Document.Snapshots.Count} snapshots, at a path on this machine ({session.Document.UnknownSnapshots.Count} of a newer version set aside)");
         }
 
         if (SnapshotAt(session, currentPath) is not { } current)
         {
-            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the current snapshot among its {session.Document.Snapshots.Count} snapshots on this machine ({session.Document.UnknownSnapshots.Count} of a newer version set aside)");
+            return None(AllocatedBetweenTexts.NotOneSession, $"the session of {folder} does not record the current snapshot among its {session.Document.Snapshots.Count} snapshots, at a path on this machine ({session.Document.UnknownSnapshots.Count} of a newer version set aside)");
         }
 
         var heaps = string.Create(CultureInfo.InvariantCulture, $"baseline {Describe(baseline)}, current {Describe(current)}{(Heap(baseline) <= Heap(current) ? string.Empty : ", in reverse order")}");

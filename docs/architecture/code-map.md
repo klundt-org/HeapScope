@@ -388,7 +388,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   tree and back traces flattened from open keys like ADR-027, with `AllocationRow`, `AllocationTreeView`,
   `AllocationFilter`). Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
   `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource`. Application:
-  `Allocations/AllocatedBetween` (which run's trace lies between two snapshots, or why none does) [4.4] and
+  `Allocations/AllocatedBetween` (which run's trace lies between two snapshots, or why none does), `DiffAllocations` and
+  `AllocationsUnavailableException` (the trace of a question about snapshots cannot be used) [4.4] and
   `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, and
   `StartRecord`, which records into the current session's folder and opens the trace). UI.ViewModels:
   `AllocationsViewModel` (the page), `AllocationTraceViewModel` (a trace: interval, type, stacks), `AllocationTypesViewModel`,

@@ -179,6 +179,9 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
     /// <summary>Why the worker refuses a diff's allocations (sprint 4.4).</summary>
     public string? AllocatedRefusal { get; set; }
 
+    /// <summary>Runs before a diff with allocations is answered.</summary>
+    public Action? BeforeDiffAnswer { get; set; }
+
     public async Task<TypeDiffResult> QueryTypeDiffAsync(TypeDiffRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         DiffQueries.Add(request);
@@ -216,6 +219,7 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
         // Sprint 4.4: the first row has a sample, the others have none.
         if (request.Allocations is not null)
         {
+            BeforeDiffAnswer?.Invoke();
             names = [.. names, TypeDiffColumns.AllocatedBytes, TypeDiffColumns.AllocatedSamples, TypeDiffColumns.AllocatedType];
             rows = [.. rows.Select((r, i) => (IReadOnlyList<string?>)[.. r, .. Enumerable.Repeat<string?>(null, 12 - Math.Min(12, r.Count)), i == 0 ? "5000" : null, i == 0 ? "2" : null, i == 0 ? "Traced" : null])];
         }

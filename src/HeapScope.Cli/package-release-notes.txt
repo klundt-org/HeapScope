@@ -1,4 +1,4 @@
-4.3.0: capture on Linux, and on macOS untested (4.2.0); damaged traces and gcdumps refused (4.2.1).
+4.4.0: capture on Linux, and on macOS untested (4.2.0); damaged traces and gcdumps refused (4.2.1).
 
 - heapscope-cli list, capture (full dumps and gcdumps), monitor and trace now run on Linux, as on Windows. Another user's
   process needs heapscope-cli run as that user, or with sudo; as root, a full dump of another user's process goes to a
@@ -14,6 +14,9 @@
 - heapscope-cli allocations reads traces of format version 4, which the .NET runtime writes; another version is refused with
   a message (4.2.1).
 - Every command that opens a gcdump refuses a damaged one as damaged (4.2.1).
-- heapscope-cli sample has a scenario of allocation bursts (4.3.0).
+- heapscope-cli diff --allocated adds what was allocated between two snapshots that the app captured during one run that
+  recorded allocations (4.4.0).
+- heapscope-cli capture --kind gcdump keeps the names of the types when a trace of the process is recorded meanwhile (4.4.0).
+- heapscope-cli sample has scenarios of allocation bursts (4.3.0) and of objects allocated and dropped (4.4.0).
 
 All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md

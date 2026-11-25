@@ -39,6 +39,7 @@ namespace HeapScope.UI.ViewModels;
 public sealed partial class AllocationsViewModel : ObservableObject
 {
     private readonly AllocationSession _session;
+    private readonly object _adding = new();
     private readonly IUiDispatcher _dispatcher;
     private readonly IUserInteraction _interaction;
     private readonly ILoggerFactory? _loggers;
@@ -157,7 +158,13 @@ public sealed partial class AllocationsViewModel : ObservableObject
         }
 
         var handle = await _session.OpenOnceAsync(path, CancellationToken.None);
-        var tab = Find(path) ?? Add(handle);
+        AllocationTraceViewModel tab;
+        lock (_adding)
+        {
+            // One tab, however many questions waited (on one thread in the app, on any in tests).
+            tab = Find(path) ?? Add(handle);
+        }
+
         Selected ??= tab;
         return tab;
     }

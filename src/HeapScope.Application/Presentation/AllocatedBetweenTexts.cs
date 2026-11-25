@@ -51,7 +51,7 @@ public static class AllocatedBetweenTexts
 
     public const string TraceClosed = "The allocation trace was closed on the Allocations page. Tick Allocated between again to open it.";
 
-    public static string Unreadable(string reason) => "The session of these snapshots cannot be read (" + reason + "), so no recorded run is known to lie between them.";
+    public static string Unreadable(string reason) => "The session of these snapshots cannot be read (" + reason + "), so no recorded run is known to lie between them. Close programs that may hold its session.json and try again, or open the run's trace on the Allocations page.";
 
     /// <summary>On the Allocations page, for a row of a nested type: the trace has only its innermost name.</summary>
     public static string EveryOfName(string name) => "The trace names a nested type by its own name only, so this shows every type named " + name + ", which can be more than the row in Compare.";

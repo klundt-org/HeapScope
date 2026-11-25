@@ -97,7 +97,7 @@ Capture and sessions (sprint 1.1):
   `session.json` exclusively, so parallel runs never share one) with `session.json` (format version 1: name, created,
   last opened, snapshots with id, file, label, kind, source, process, runtime version and folder, capture time, size, and since 4.4 its heap's time;
   since 3.4 `Runs`, the monitoring runs with their process, interval, rules, kind, start and end, timeline and trace
-  files and the ids of their snapshots and forced collections; unknown members are kept on save, on the document and on
+  files, the ids of their snapshots and forced collections, and since 4.4 how far the clock moved against the recording; unknown members are kept on save, on the document and on
   each run, so an older build never drops what a newer one wrote). Since 3.4 a snapshot of a session is deleted with
   its index caches and sidecars (next to it and in the fallback folder, named by Core's `IndexCachePaths`), and a session
   whole; only files inside the session folder are deleted (no link is followed; dumps a session records elsewhere are

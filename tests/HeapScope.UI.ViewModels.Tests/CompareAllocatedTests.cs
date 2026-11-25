@@ -153,6 +153,40 @@ public sealed class CompareAllocatedTests : IDisposable
         (Service.TracesOpened.Count, _allocations.Traces.Count).ShouldBe((1, 1));
     }
 
+    /// <summary>The trace is closed after the worker answered, before the answer is shown.</summary>
+    [Fact]
+    public async Task A_trace_closed_while_the_answer_is_shown_unticks_the_box()
+    {
+        await OpenBothAsync(recorded: true);
+        Service.BeforeDiffAnswer = () =>
+        {
+            Service.BeforeDiffAnswer = null;
+            _allocations.CloseCommand.Execute(_allocations.Traces.Single());
+        };
+
+        await TickAsync(queries: 3);
+        await WaitUntilAsync(() => Compare.Rows.Count == 2);
+
+        (Compare.ShowAllocated, Compare.AllocatedShown, Compare.AllocatedNote).ShouldBe((false, false, AllocatedBetweenTexts.TraceClosed));
+        Service.DiffQueries[^1].Allocations.ShouldBeNull();
+        (await RowsAsync())[0].Name.ShouldNotBeEmpty();
+    }
+
+    /// <summary>A page that cannot be asked again since the trace cannot be used: the comparison comes back without it.</summary>
+    [Fact]
+    public async Task A_page_that_cannot_be_read_with_the_trace_unticks_the_box()
+    {
+        await OpenBothAsync(recorded: true);
+        Service.PageFailure = new AllocationsUnavailableException("gone", new InvalidOperationException());
+        Compare.ShowAllocated = true;
+        await WaitUntilAsync(() => !Compare.ShowAllocated);
+        Service.PageFailure = null;
+        await WaitUntilAsync(() => Service.DiffQueries.Count >= 3 && Service.DiffQueries[^1].Allocations is null);
+        await Compare.QueryTask;
+
+        (Compare.AllocatedShown, Compare.AllocatedNote).ShouldBe((false, "gone"));
+    }
+
     /// <summary>A read nobody waits for any more still gets its tab, where it can be closed.</summary>
     [Fact]
     public async Task A_read_that_is_not_waited_for_gets_its_tab()
