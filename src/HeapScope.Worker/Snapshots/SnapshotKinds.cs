@@ -243,6 +243,7 @@ internal sealed class SnapshotKinds
             DacChosen = dacChosen,
             IsTrustedDac = trustedDacs.ContainsKey,
             TrustedDacCopyFolder = options.Folders.DacCopies,
+            EdgeFolder = options.Folders.Edges,
 
             // A machine without the dump's runtime, for tests (WorkerOptions.HideInstalledDacsSwitch).
             InstalledRuntimeRoots = options.HideInstalledDacs ? [] : null,

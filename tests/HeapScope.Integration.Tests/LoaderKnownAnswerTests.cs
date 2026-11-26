@@ -26,6 +26,7 @@ using HeapScope.Core.Graph;
 using HeapScope.Core.Loading;
 using HeapScope.Integration.Tests.Infrastructure;
 using HeapScope.Loaders.ClrMd;
+using HeapScope.Tests.Shared;
 
 namespace HeapScope.Integration.Tests;
 
@@ -171,6 +172,32 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         handed.Addresses.Span.SequenceEqual(Graph.Addresses.Span).ShouldBeTrue();
         handed.Sizes.Span.SequenceEqual(Graph.Sizes.Span).ShouldBeTrue();
         handed.Flags.Span.SequenceEqual(Graph.Flags.Span).ShouldBeTrue();
+    }
+
+    // Sprint 4.7 task 10: the references written to a temporary file as they are read, and the file mapped, as the worker loads
+    // a dump, build the graph the loader builds in memory; the load says where they were kept, and the file goes with the graph.
+    [Fact]
+    public void A_load_that_writes_its_references_to_a_file_builds_the_same_graph()
+    {
+        var folder = Directory.CreateTempSubdirectory("heapscope-edges-").FullName;
+        try
+        {
+            var loaded = new ClrMdDumpLoader(new ClrMdLoaderOptions { EdgeFolder = folder }).Load(shared.Source.DumpPath, cancellationToken: TestContext.Current.CancellationToken);
+            using (var graph = loaded.Graph)
+            {
+                loaded.Diagnostics.Edges.ShouldStartWith("written to a temporary file and mapped");
+                (graph.ObjectCount, graph.EdgeCount).ShouldBe((Graph.ObjectCount, Graph.EdgeCount));
+                graph.EdgeStarts.Span.SequenceEqual(Graph.EdgeStarts.Span).ShouldBeTrue();
+                graph.Edges.Span.SequenceEqual(Graph.Edges.Span).ShouldBeTrue();
+                shared.Result.Diagnostics.Edges.ShouldBe("in memory");
+            }
+
+            Directory.GetFiles(folder).ShouldBeEmpty();
+        }
+        finally
+        {
+            TestFolders.Delete(folder);
+        }
     }
 
     // Sprint 3.12 review M8: a length that runs past its segment is a damaged object, not a big one: counted as unreadable,

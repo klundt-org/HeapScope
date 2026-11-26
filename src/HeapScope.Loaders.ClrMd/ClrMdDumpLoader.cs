@@ -137,7 +137,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         var open = meter.End("open");
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var builder = new HeapGraphBuilder();
+        using var builder = new HeapGraphBuilder(edgeFolder: _options.EdgeFolder);
         var (unreadable, incompleteSegments, freeBytes, clrTypes) = AddObjects(heap, builder, (_options.FallBackAtObjectForTests, _options.OverrunAtObjectForTests), progress, cancellationToken);
         var objects = meter.End("objects");
 
@@ -200,7 +200,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             graph,
             info,
             capabilities,
-            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk, staticSlots.Describe()),
+            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk, staticSlots.Describe(), builder.EdgesKept),
             new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
     }
 

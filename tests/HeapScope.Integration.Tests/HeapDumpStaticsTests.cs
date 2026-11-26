@@ -81,5 +81,8 @@ public sealed class HeapDumpStaticsTests
         log.ShouldContain("First load of " + folder.File("app.dmp"));
         log.ShouldContain(" done: ");
         log.ShouldContain(" reserved; ");
+
+        // Task 10: the worker writes the references to a temporary file as it reads them, and says so.
+        log.ShouldContain("; references written to a temporary file and mapped (");
     }
 }

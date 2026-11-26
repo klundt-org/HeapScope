@@ -104,6 +104,12 @@ public sealed record ClrMdLoaderOptions
     /// </summary>
     public bool SecondHandleWalk { get; init; } = true;
 
+    /// <summary>
+    /// A folder for the references' temporary file while a dump loads (sprint 4.7, task 10): they are written there as they
+    /// are read and the file is mapped, so the load never holds them twice. Null keeps them in memory.
+    /// </summary>
+    public string? EdgeFolder { get; init; }
+
     /// <summary>Reads GC handles as from a dump that does not record its processors (a core file), for tests.</summary>
     internal bool IgnoreProcessorsForTests { get; init; }
 }

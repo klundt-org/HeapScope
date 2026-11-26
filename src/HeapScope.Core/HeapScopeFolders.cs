@@ -85,4 +85,12 @@ public sealed class HeapScopeFolders
     public string Etlx => _isDefault && OperatingSystem.IsWindows()
         ? Path.Combine(Path.GetTempPath(), "HeapScope", "etlx")
         : Path.Combine(Root, "etlx");
+
+    /// <summary>
+    /// The references' temporary files while a dump loads (sprint 4.7): where <see cref="Etlx"/> goes, for the same reasons.
+    /// Each is deleted when its snapshot closes, or by the system when the worker dies (Windows) or as it is opened (elsewhere).
+    /// </summary>
+    public string Edges => _isDefault && OperatingSystem.IsWindows()
+        ? Path.Combine(Path.GetTempPath(), "HeapScope", "edges")
+        : Path.Combine(Root, "edges");
 }

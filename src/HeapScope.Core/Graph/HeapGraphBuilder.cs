@@ -62,16 +62,25 @@ public sealed class HeapGraphBuilder : IDisposable
 
     // Phase 2.
     private Memory<int> _edgeStarts;
-    private ChunkedBuffer<int>? _edgeBuffer;
+    private readonly string? _edgeFolder;
+    private EdgeStore? _edgeBuffer;
     private int _nextSource;
     private bool _referencesStarted;
     private readonly List<(int Primary, int Secondary)> _dependentEdges = [];
     private int _dependentCursor;
     private readonly ChunkedBuffer<GcRoot> _roots = new(1 << 14);
+    private string? _edgesKept;
+    private IDisposable? _edgeOwner;
 
-    public HeapGraphBuilder(IColumnAllocator? allocator = null)
+    /// <param name="allocator">The final columns' memory; null allocates managed arrays.</param>
+    /// <param name="edgeFolder">
+    /// A folder for the references' temporary file (sprint 4.7): they are written there as they are added and the file is
+    /// mapped as the edges column, so a load never holds them twice. Null keeps them in memory.
+    /// </param>
+    public HeapGraphBuilder(IColumnAllocator? allocator = null, string? edgeFolder = null)
     {
         _allocator = allocator ?? ManagedColumnAllocator.Instance;
+        _edgeFolder = edgeFolder;
         Strings = new StringTableBuilder();
         Types = new TypeTableBuilder(Strings);
     }
@@ -121,6 +130,9 @@ public sealed class HeapGraphBuilder : IDisposable
     public long DroppedReferenceCount { get; private set; }
 
     public long DroppedRootCount { get; private set; }
+
+    /// <summary>Where the references were kept, and why if not where asked (for the load's log); null before the reference phase.</summary>
+    public string? EdgesKept => _edgeBuffer?.Where ?? _edgesKept;
 
     /// <summary>Adds one object. Free objects must not be added.</summary>
     public void AddObject(ulong address, int typeIndex, ulong size, HeapKind heapKind, ObjectFlags flags = ObjectFlags.None)
@@ -201,7 +213,7 @@ public sealed class HeapGraphBuilder : IDisposable
 
             _addressIndex = AddressIndex.Build(_addresses.Span);
             _edgeStarts = _allocator.Allocate<int>("EdgeStarts", count + 1);
-            _edgeBuffer = new ChunkedBuffer<int>();
+            _edgeBuffer = new EdgeStore(_edgeFolder);
             _phase = BuildPhase.References;
             return count;
         }
@@ -369,7 +381,10 @@ public sealed class HeapGraphBuilder : IDisposable
             PrepareDependentEdges();
             FinishRowsBefore(count, cancellationToken);
             _edgeStarts.Span[count] = (int)_edgeBuffer!.Count;
-            var edges = CopyAndRelease(ref _edgeBuffer, "Edges", (int)_edgeBuffer!.Count);
+            var edges = _edgeBuffer.Finish(_allocator, out var edgeOwner);
+            _edgesKept = _edgeBuffer.Where;
+            _edgeBuffer = null;
+            _edgeOwner = edgeOwner;
             cancellationToken.ThrowIfCancellationRequested();
 
             var roots = new GcRoot[_roots.Count];
@@ -398,7 +413,7 @@ public sealed class HeapGraphBuilder : IDisposable
                 strings,
                 DroppedReferenceCount,
                 DroppedRootCount,
-                _allocator.DetachOwner(),
+                Owners(_allocator.DetachOwner(), TakeEdgeOwner()),
                 Column<DependentHandle>.FromArray([.. _dependentEdges.Distinct().Select(e => new DependentHandle(e.Primary, e.Secondary))]));
             _phase = BuildPhase.Built;
             return graph;
@@ -424,10 +439,22 @@ public sealed class HeapGraphBuilder : IDisposable
         _sizeBuffer = null;
         _kindBuffer = null;
         _flagBuffer = null;
+        _edgeBuffer?.Dispose();
         _edgeBuffer = null;
         _roots.Clear();
         _allocator.DetachOwner()?.Dispose();
+        TakeEdgeOwner()?.Dispose();
     }
+
+    private IDisposable? TakeEdgeOwner()
+    {
+        var owner = _edgeOwner;
+        _edgeOwner = null;
+        return owner;
+    }
+
+    private static IDisposable? Owners(IDisposable? first, IDisposable? second) =>
+        first is null ? second : second is null ? first : new OwnerPair(first, second);
 
     private static RootFlags Normalize(RootKind kind, RootFlags flags) =>
         kind == RootKind.WeakHandle ? flags & ~RootFlags.Retaining : flags;
@@ -640,5 +667,21 @@ public sealed class HeapGraphBuilder : IDisposable
             BuildPhase.Disposed => new ObjectDisposedException(nameof(HeapGraphBuilder)),
             _ => new InvalidOperationException($"This operation needs the {expected} phase; the builder is in the {_phase} phase."),
         };
+    }
+
+    /// <summary>Disposes both owners of a graph's memory: the allocator's columns and the references' mapping.</summary>
+    private sealed class OwnerPair(IDisposable first, IDisposable second) : IDisposable
+    {
+        public void Dispose()
+        {
+            try
+            {
+                first.Dispose();
+            }
+            finally
+            {
+                second.Dispose();
+            }
+        }
     }
 }

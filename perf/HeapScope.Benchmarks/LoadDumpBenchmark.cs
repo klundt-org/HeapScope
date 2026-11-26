@@ -32,7 +32,7 @@ namespace HeapScope.Benchmarks;
 /// <summary>
 /// Loads a dump with HeapScope's loader into the compact graph, writes the index cache, then measures the switch to
 /// mapped mode and both reopens (ARCHITECTURE.md 6.5 and 10). Memory is peak private bytes.
-/// Usage: load-dump --dump &lt;path&gt; [--cache-mb 512] [--keep-cache 1] [--cancel-at &lt;phase&gt;].
+/// Usage: load-dump --dump &lt;path&gt; [--cache-mb 512] [--keep-cache 1] [--edges memory] [--cancel-at &lt;phase&gt;].
 /// Budgets (ARCHITECTURE.md 10, exit code 1 when missed): first load under 20 s for dumps under 1 GB, otherwise under
 /// 3 min; peak private bytes under 1.5x the managed heap and under 4 GB; reopen in memory under 20 s, mapped under 2 s.
 /// <c>--cancel-at "Reading references"</c> (any phase name, or "Opening dump") cancels as that phase starts and reports
@@ -45,10 +45,13 @@ internal static class LoadDumpBenchmark
         var path = Path.GetFullPath(args.Get("dump") ?? throw new ArgumentException("--dump <path> is required."));
         var cacheMb = args.GetInt("cache-mb", 512);
         var keep = args.GetInt("keep-cache", 0) != 0;
+
+        // The references' temporary file, as the worker keeps it (sprint 4.7); --edges memory measures the load before it.
+        var edgeFolder = args.Get("edges") == "memory" ? null : Path.Combine(Path.GetTempPath(), "HeapScopeBench", "edges");
         var cache = path + IndexCacheFormat.Extension;
         if (args.Get("cancel-at") is { } cancelPhase)
         {
-            return MeasureCancel(path, cacheMb, cancelPhase);
+            return MeasureCancel(path, cacheMb, edgeFolder, cancelPhase);
         }
 
         Console.WriteLine($"load-dump: {path} ({Measurement.Mb(new FileInfo(path).Length)}), ClrMD cache {cacheMb} MB");
@@ -63,8 +66,9 @@ internal static class LoadDumpBenchmark
 
         using var sampler = new PrivateBytesSampler();
         var stopwatch = Stopwatch.StartNew();
-        var loader = new ClrMdDumpLoader(new ClrMdLoaderOptions { MaxDumpCacheBytes = cacheMb * 1024L * 1024L });
+        var loader = new ClrMdDumpLoader(new ClrMdLoaderOptions { MaxDumpCacheBytes = cacheMb * 1024L * 1024L, EdgeFolder = edgeFolder });
         var result = loader.Load(path, new PhaseLogger(sampler));
+        Measurement.Line("References kept", result.Diagnostics.Edges ?? "in memory");
         var graph = result.Graph;
         var managedHeap = (long)graph.TotalSize;
         var t = result.Timings;
@@ -142,14 +146,14 @@ internal static class LoadDumpBenchmark
     }
 
     /// <summary>Cancels a load as <paramref name="phase"/> starts and reports how long the loader took to stop.</summary>
-    private static int MeasureCancel(string path, int cacheMb, string phase)
+    private static int MeasureCancel(string path, int cacheMb, string? edgeFolder, string phase)
     {
         using var cancellation = new CancellationTokenSource();
         var canceledAt = Stopwatch.StartNew();
         var progress = new CancelAtPhase(phase, cancellation, canceledAt);
         try
         {
-            new ClrMdDumpLoader(new ClrMdLoaderOptions { MaxDumpCacheBytes = cacheMb * 1024L * 1024L }).Load(path, progress, cancellation.Token).Graph.Dispose();
+            new ClrMdDumpLoader(new ClrMdLoaderOptions { MaxDumpCacheBytes = cacheMb * 1024L * 1024L, EdgeFolder = edgeFolder }).Load(path, progress, cancellation.Token).Graph.Dispose();
             Measurement.Line($"Cancel at {phase}", "the phase was never reached; the load completed");
             return 1;
         }

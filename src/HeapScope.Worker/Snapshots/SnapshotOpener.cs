@@ -398,7 +398,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             diagnostics.Handles);
         var timings = loaded.Timings;
         logger.LogInformation(
-            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots} ({Statics}), debuggable modules {Debuggable}; GC handles {Handles}",
+            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots} ({Statics}), debuggable modules {Debuggable}; GC handles {Handles}; references {Edges}",
             path,
             timings.Total.TotalSeconds,
             timings.Open.TotalSeconds,
@@ -413,7 +413,8 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             diagnostics.StaticFieldRoots,
             diagnostics.Statics ?? "not checked",
             diagnostics.DebuggableModules.Count,
-            Describe(diagnostics.Handles, metadata.Info.Kind));
+            Describe(diagnostics.Handles, metadata.Info.Kind),
+            diagnostics.Edges ?? "in memory");
 
         // Nothing else may reference the built graph, or the mapped transition below cannot free it.
         loaded = null;
