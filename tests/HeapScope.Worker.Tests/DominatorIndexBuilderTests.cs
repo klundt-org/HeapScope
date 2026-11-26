@@ -194,6 +194,7 @@ public sealed class DominatorIndexBuilderTests : IDisposable
 
         full.Note.ShouldBeNull("garbage in a full dump retains nothing by definition");
         gcdump.Note.ShouldNotBeNull().ShouldContain("10 objects (3.0 MB) of this gcdump");
+        Rpc.DerivedQueries.Info(index, Core.SnapshotKind.FullDump, 100, completeGraph: true, handlesChecked: false).Note.ShouldNotBeNull().ShouldStartWith("Not all GC handles could be checked");
         (truncated.CompleteGraph, truncated.Note).ShouldBe((false, "This snapshot is incomplete, so some references are missing and retained sizes may be overstated."));
     }
 

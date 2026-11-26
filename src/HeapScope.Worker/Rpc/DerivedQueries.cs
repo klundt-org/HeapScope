@@ -55,7 +55,7 @@ internal sealed class DerivedQueries(SnapshotStore snapshots)
         var snapshot = snapshots.TryGet(snapshotId) ?? throw SnapshotAccess.NotLoaded(snapshotId);
         var index = await snapshots.GetDominatorsAsync(snapshotId, progress, cancellationToken).ConfigureAwait(false)
             ?? throw SnapshotAccess.NotLoaded(snapshotId);
-        return (index, Info(index, snapshot.Info.Kind, snapshot.Graph.ObjectCount, SnapshotAccess.IsComplete(snapshot)));
+        return (index, Info(index, snapshot.Info.Kind, snapshot.Graph.ObjectCount, SnapshotAccess.IsComplete(snapshot), SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info)));
     }
 
     /// <summary>
@@ -63,13 +63,19 @@ internal sealed class DerivedQueries(SnapshotStore snapshots)
     /// misses references, and a gcdump's survivors whose root it did not record retain nothing, so in both cases the
     /// retained sizes of the objects that share with them may be overstated.
     /// </summary>
-    public static DominatorIndexInfo Info(DominatorIndex index, SnapshotKind kind, long objectCount, bool completeGraph)
+    public static DominatorIndexInfo Info(DominatorIndex index, SnapshotKind kind, long objectCount, bool completeGraph, bool handlesChecked = true)
     {
         ArgumentNullException.ThrowIfNull(index);
         var notes = new List<string>();
         if (!completeGraph)
         {
             notes.Add("This snapshot is incomplete, so some references are missing and retained sizes may be overstated.");
+        }
+
+        // Said wherever retained sizes are shown, Compare's two sides included (peer review 4.5): a side without them all counts less.
+        if (!handlesChecked)
+        {
+            notes.Add("Not all GC handles could be checked for this snapshot (see its notes), so what only a handle holds retains nothing here.");
         }
 
         var unrooted = objectCount - index.Reachable;

@@ -79,6 +79,19 @@ public sealed class SnapshotKindsTests : IDisposable
         }
     }
 
+    // Peer review 4.5: a cache written with the second walk of GC handles off is loaded again once it is on, and only then.
+    [Fact]
+    public void A_cache_whose_handles_were_not_checked_with_the_walk_off_is_loaded_again_once_it_is_on()
+    {
+        var off = Metadata(SnapshotKind.FullDump, SnapshotCapabilities.FullDump) with { Handles = new HeapScope.Core.Loading.HandleWalk(HeapScope.Core.Loading.HandleWalkOutcome.Unknown, 2, 2, 24, 0, "the second walk is turned off (Worker:SecondHandleWalk)") };
+        var doubt = off with { Handles = off.Handles! with { How = "failed: made up" } };
+
+        _kinds.For(SnapshotKind.FullDump).WhyLoadAgain(off).ShouldNotBeNull().ShouldContain("it is on now");
+        _kinds.For(SnapshotKind.FullDump).WhyLoadAgain(doubt).ShouldBeNull("a walk in doubt is in doubt again");
+        new SnapshotKinds(new WorkerOptions("pipe", null) { SecondHandleWalk = false }).For(SnapshotKind.FullDump).WhyLoadAgain(off).ShouldBeNull();
+        _kinds.For(SnapshotKind.GcDump).WhyLoadAgain(off).ShouldBeNull();
+    }
+
     [Fact]
     public void Missing_facts_and_cross_kind_names_are_explained_per_kind()
     {
