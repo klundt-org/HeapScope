@@ -61,21 +61,10 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool
     public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings)
     {
         ArgumentNullException.ThrowIfNull(folders);
-        settings = new HeapScopeSettings();
-        try
-        {
-            using var stream = new FileStream(PathIn(folders), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            settings = JsonSerializer.Deserialize<HeapScopeSettings>(stream, s_json) ?? new HeapScopeSettings();
-            return true;
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return false;
-        }
+        // Through the one helper (review of 4.6): a file held for a moment is read again.
+        var (read, outcome, _) = PrivateJsonFile.Read<HeapScopeSettings>(PathIn(folders), s_json);
+        settings = read ?? new HeapScopeSettings();
+        return outcome is JsonFileRead.Read or JsonFileRead.Missing;
     }
 
     /// <summary>The file's full path under <paramref name="folders"/>.</summary>

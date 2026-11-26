@@ -54,6 +54,10 @@ public static class PrivateJsonFile
             {
                 Thread.Sleep(50);
             }
+            catch (IOException ex)
+            {
+                throw new IOException($"{Path.GetFileName(path)} is being changed by another HeapScope window or process; try again in a moment.", ex);
+            }
         }
     }
 

@@ -94,9 +94,6 @@ public sealed class BookmarkStore
     /// <summary>The format written; a newer format is read as empty and never overwritten.</summary>
     public const int FormatVersion = 1;
 
-    /// <summary>How long a change waits for another window's change to finish.</summary>
-    public static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(5);
-
     private static readonly JsonSerializerOptions s_json = new()
     {
         WriteIndented = true,
@@ -168,7 +165,7 @@ public sealed class BookmarkStore
         lock (_gate)
         {
             HeapScope.Core.PrivateFiles.CreateDirectory(Folder);
-            using var fileLock = AcquireLock();
+            using var fileLock = HeapScope.Core.PrivateJsonFile.Lock(Path);
             var all = Read();
             if (Problem is BookmarkFileProblem.NewerFormat or BookmarkFileProblem.Unreadable)
             {
@@ -187,74 +184,38 @@ public sealed class BookmarkStore
         }
     }
 
-    private FileStream AcquireLock()
-    {
-        var deadline = DateTime.UtcNow + LockTimeout;
-        while (true)
-        {
-            try
-            {
-                // The lock file stays: deleting it on close would let two processes lock two files of one name on
-                // Linux and macOS, where the lock is on the open file (review).
-                return HeapScope.Core.PrivateFiles.Open(Path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1);
-            }
-            catch (IOException) when (DateTime.UtcNow < deadline)
-            {
-                Thread.Sleep(50);
-            }
-            catch (IOException ex)
-            {
-                throw new IOException("Another HeapScope window is saving bookmarks; try again in a moment.", ex);
-            }
-        }
-    }
-
+    // Through the one helper (review of 4.6): a file held for a moment is read again, one that cannot be read is never taken as empty.
     private List<Bookmark> Read()
     {
         Problem = BookmarkFileProblem.None;
-        var bookmarks = new List<Bookmark>();
-        try
+        var (document, outcome, _) = HeapScope.Core.PrivateJsonFile.Read<Document>(Path, s_json);
+        switch (outcome)
         {
-            if (!File.Exists(Path))
-            {
-                return bookmarks;
-            }
+            case HeapScope.Core.JsonFileRead.Damaged:
+                // A damaged file is set aside, each with its own time, rather than lost; the next save writes a new one.
+                Problem = BookmarkFileProblem.Damaged;
+                try
+                {
+                    File.Move(Path, string.Create(CultureInfo.InvariantCulture, $"{Path}.damaged-{DateTime.UtcNow:yyyyMMddHHmmss}"), overwrite: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Problem = BookmarkFileProblem.Unreadable;
+                }
 
-            // Shared, so another window's replace is not refused while this reads (peer review 4.5 M6).
-            Document? document;
-            using (var stream = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            {
-                document = JsonSerializer.Deserialize<Document>(stream, s_json);
-            }
-
-            if (document is { FormatVersion: > FormatVersion })
-            {
-                Problem = BookmarkFileProblem.NewerFormat;
-            }
-            else if (document?.Bookmarks is { } stored)
-            {
-                bookmarks.AddRange(stored.Where(b => b?.Snapshot?.Path is not null && b.TypeName is not null));
-            }
-        }
-        catch (JsonException)
-        {
-            // A damaged file is set aside, each with its own time, rather than lost; the next save writes a new one.
-            Problem = BookmarkFileProblem.Damaged;
-            try
-            {
-                File.Move(Path, string.Create(CultureInfo.InvariantCulture, $"{Path}.damaged-{DateTime.UtcNow:yyyyMMddHHmmss}"), overwrite: true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
+                return [];
+            case HeapScope.Core.JsonFileRead.Unreadable:
                 Problem = BookmarkFileProblem.Unreadable;
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Problem = BookmarkFileProblem.Unreadable;
+                return [];
         }
 
-        return bookmarks;
+        if (document is { FormatVersion: > FormatVersion })
+        {
+            Problem = BookmarkFileProblem.NewerFormat;
+            return [];
+        }
+
+        return [.. (document?.Bookmarks ?? []).Where(b => b?.Snapshot?.Path is not null && b.TypeName is not null)];
     }
 
     // Owner-only off Windows, like HeapScope's other files (it names dump paths); the old file or the new one, never a short one, and no
