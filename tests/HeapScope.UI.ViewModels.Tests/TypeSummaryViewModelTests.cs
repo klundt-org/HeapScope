@@ -330,6 +330,7 @@ public sealed class TypeSummaryViewModelTests : IDisposable
         await _types.QueryTask;
 
         (_types.Rows.Count, _types.Totals, _types.HeapKinds.Count, _types.Status).ShouldBe((0, (string?)null, 0, "Not enough memory."));
+        (_types.RetainedNote, _types.GenerationsExplanation, _types.HasGenerations).ShouldBe(((string?)null, (string?)null, false));
     }
 
     private async Task ShowAsync() => await (await StartShowAsync()).QueryTask;

@@ -338,6 +338,7 @@ public sealed class CompareViewModelTests : IDisposable
         await Compare.QueryTask;
 
         (Compare.Rows.Count, Compare.Totals, Compare.Status).ShouldBe((0, (string?)null, "Not enough memory."));
+        (Compare.IdentityNote, Compare.RetainedNote, Compare.HasGenerations).ShouldBe(((string?)null, (string?)null, false));
     }
 
     [Fact]
@@ -363,7 +364,7 @@ public sealed class CompareViewModelTests : IDisposable
         _worker.Service.QueryFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Not enough memory.", null);
         trend.Choices[2].IsIncluded = true;
         await trend.QueryTask;
-        (trend.Rows.Count, trend.Totals, trend.Status).ShouldBe((0, (string?)null, "Not enough memory."));
+        (trend.Rows.Count, trend.Totals, trend.Status, trend.Columns.Count, trend.Ordered.Count).ShouldBe((0, (string?)null, "Not enough memory.", 0, 0));
     }
 
     // Peer review 4.5 M7: hidden, Compare computes nothing; shown, it compares the pair it has then.

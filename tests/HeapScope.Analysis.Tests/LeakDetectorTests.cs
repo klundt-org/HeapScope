@@ -75,6 +75,20 @@ public sealed class LeakDetectorTests
         Run("growing-static-collections", Statics(cache: 9_000, bounded: 1_000).Graph, Statics(cache: 9_000, bounded: 1_000).Reader).Count.ShouldBe(0);
     }
 
+    // Review of 4.6 (High): a collection it counts whose count cannot be read is not checked, and said so, never "not counted".
+    [Fact]
+    public void A_static_collection_whose_count_cannot_be_read_is_not_checked_and_said_so()
+    {
+        var (graph, reader) = Statics(cache: 12_000, bounded: 1_000);
+        reader.Fields.Remove((graph.Addresses[0], "_size"));
+
+        var result = Run("growing-static-collections", graph, reader);
+
+        (result.Count, result.Unread).ShouldBe((0, new InspectionUnread(1, 2, "static collections")));
+        result.Basis.ShouldNotBeNull().ShouldContain("count unreadable");
+        result.Basis.ShouldNotContain("collection type not counted");
+    }
+
     [Fact]
     public void An_event_holding_many_subscribers_is_named_by_publisher_and_field_and_delegates_in_a_list_are_not_events()
     {

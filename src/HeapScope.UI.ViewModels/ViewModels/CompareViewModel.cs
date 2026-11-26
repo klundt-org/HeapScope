@@ -316,6 +316,9 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     protected override void OnCleared()
     {
         (_allocated, AllocatedShown, AllocatedNote, _untickedNote) = (null, false, null, null);
+
+        // Everything the last answer set, so nothing of an old pair is shown (review of 4.6).
+        (IdentityNote, IdentityShown, RetainedNote, RetainedShown, HasGenerations) = (null, false, null, false, false);
         base.OnCleared();
     }
 

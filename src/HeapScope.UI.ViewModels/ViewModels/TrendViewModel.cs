@@ -112,6 +112,13 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         }
     }
 
+    // Everything the last answer set, so nothing of an old set of snapshots is shown (review of 4.6).
+    protected override void OnCleared()
+    {
+        (Columns, Ordered, OrderNote) = ([], [], null);
+        base.OnCleared();
+    }
+
     // Whether a sort column is one a trend of this many snapshots has.
     private static bool Exists(string column, int snapshots) =>
         System.Text.RegularExpressions.Regex.Match(column, "^(?:Objects|Bytes)([0-9]+)$") is not { Success: true } perSnapshot

@@ -406,7 +406,9 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         Requery(subjectChanged: true);
     }
 
-    protected override void OnCleared() => HeapKinds = [];
+    // Everything the last answer set, so nothing of an old subject is shown (review of 4.6).
+    protected override void OnCleared() =>
+        (HeapKinds, RetainedNote, GenerationsExplanation, RetainedColumnShown, HasGenerations) = ([], null, null, false, false);
 
     partial void OnShowRetainedChanged(bool value)
     {

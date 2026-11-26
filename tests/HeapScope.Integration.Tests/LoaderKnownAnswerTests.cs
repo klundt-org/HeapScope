@@ -287,9 +287,10 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         Graph.Roots.GetRoots(box).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && Graph.Strings[r.DetailId] == "Fixtures.Leaks.StructStatics.s_holder");
 
         using var reader = new ClrMdObjectReader(shared.Source.DumpPath, new ClrMdLoaderOptions(), () => { });
-        var detector = HeapScope.Analysis.Inspections.InspectionCatalog.Find("growing-static-collections")!;
-        var result = detector.Run(new HeapScope.Analysis.Inspections.InspectionContext(Graph, shared.Result.Info, reader, null, TestContext.Current.CancellationToken));
-        result.Note.ShouldNotBeNull().ShouldContain("have no field HeapScope can name");
+        // The fixture's generic static is one of them (the detector itself counts only those large enough to report).
+        var (count, types) = HeapScope.Analysis.Inspections.GrowingStaticCollectionsDetector.Unnamed(Graph, reader, AllLeaksDump.RuntimeItems, TestContext.Current.CancellationToken);
+        count.ShouldBeGreaterThanOrEqualTo(1);
+        types.ShouldContain("System.Collections.Generic.List<Fixtures.Leaks.GenericStaticEntry>");
     }
 
     [Theory]
