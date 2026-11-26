@@ -457,7 +457,7 @@ and Moderate fixed and confirmed, one Moderate deferred to 4.6.
 ## Sprint 4.6: Right answers
 
 **Goal:** every answer HeapScope shows is about the snapshot it names, says when it did not check, and nothing hangs or crashes on the
-way there: the High and Moderate findings of [peer review 4.5](reviews/peer-review-4.5.md) planned here, with what its fixes left.
+way there: the High and Moderate findings of [peer review 4.5](../reviews/peer-review-4.5.md) planned here, with what its fixes left.
 
 **Tasks**
 1. [x] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
