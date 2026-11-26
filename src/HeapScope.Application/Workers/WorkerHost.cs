@@ -221,7 +221,8 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             WorkerSession session;
             try
             {
-                session = await StartSessionAsync(cancellationToken).ConfigureAwait(false);
+                // On the pool (peer review 4.5 H10): the gate's wait can end at once, and starting checks files and starts a process.
+                session = await Task.Run(() => StartSessionAsync(cancellationToken), CancellationToken.None).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -558,6 +559,10 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             catch (OperationCanceledException)
             {
                 // Still running although the pipe broke: report without an exit code.
+            }
+            catch (InvalidOperationException)
+            {
+                // Another caller's restart disposed the process meanwhile (peer review 4.5 M8): it is still a crash, without an exit code.
             }
         }
 

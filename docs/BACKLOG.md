@@ -160,6 +160,12 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- From sprint 4.6 (decided autonomously; [reviews/sprint-4.6.md](reviews/sprint-4.6.md) M15 to M19 and H5): the settings and lesson progress
+  saves off the UI thread; the unread counts as data in the inspection DTO; the event handler detector, the disposed objects detector with no
+  flag readable, and the collection inspections with an items field unread saying what they could not read, with a test per detector with
+  fields missing; collections inside struct statics checked; a stop let go after its wait logged everywhere; an open allocation trace keeping
+  its session; tests of H10's thread, the worker crash race, a throwing sample listener, a recording's session in use, Retainers and Object
+  retry, hidden Trend, and a forced collection of a suspended process.
 - Capture on Linux, what sprint 4.1 left out (decided autonomously): finding a process whose diagnostics socket is in
   another temp folder (discovery looks only in this user's `TMPDIR`; the refusal says which `TMPDIR` to start HeapScope
   with); a run on a real Linux machine besides CI (none on the development machine; the owner's planned Ubuntu laptop

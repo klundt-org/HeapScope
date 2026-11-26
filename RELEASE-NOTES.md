@@ -22,6 +22,22 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.6.0: Right answers (sprint 4.6)
+
+- **A clean answer means checked**: a leak detector that could not read some of what it checks says how many, and one that could read
+  none of it says so instead of "0 found". The growing static collections detector also says how many collections of generic statics it
+  could not check.
+- **Grids show nothing of the snapshot before**: after another snapshot or pair is chosen, or when its query fails.
+- **A process stopped in a debugger no longer hangs HeapScope**: stopping a recording, the counters or a forced collection, and closing
+  the app, give up after a while and say so.
+- **Struct statics are named by their field** in retention paths and roots. Opening a dump again rebuilds its index cache.
+- **Try again** in Inspections, and an object's failed tab runs again when shown again. Compare and Trend work only while shown.
+- **heapscope-cli** says an `appsettings.json` it cannot read with its file and line, and an object no root reaches is said as found,
+  not as a fact.
+- **Lesson progress, bookmarks and settings** are kept when two HeapScope windows write them at once.
+- **Limits**: collections inside struct statics and in generic statics are not checked; three detectors can still give a clean answer
+  when they cannot read their fields (Backlog).
+
 ## 4.5.0: GC handles of Server GC processes (sprint 4.5)
 
 - **Wrong until now**: in full dumps of Server GC processes with fewer heaps than processors (most ASP.NET Core services, since

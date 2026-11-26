@@ -406,6 +406,27 @@ The GC handles of Server GC processes (peer review 4.5). Approved by the owner o
 | Inspections | Note of a detector that counts reachable objects, then | Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted. | approved 2026-11-25 |
 | Inspections | Growing types, then | Growth cannot be measured: not all GC handles could be checked for {this snapshot, the baseline (file)} (see its notes), so objects held only by a handle could be counted on one side only. {Choose no baseline. Choose another baseline, or none.} | approved 2026-11-25 |
 
+## Sprint 4.6 additions
+
+Drafts for the owner (sprint 4.6, right answers; peer review 4.5).
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Live | A run's allocation trace whose checks failed five times in a row (H11) | The allocation trace stopped early because its size and the free space of its disk could not be checked; what it recorded is kept and the run goes on. | draft |
+| CLI | A start that fails on appsettings.json that is not JSON (H16) | HeapScope's settings could not be read: {file}, line {N} is not valid JSON ({the parser's reason}). In JSON, write each \ in a path twice, as in "C:\\dumps". Fix the file, then run the command again. | draft |
+| CLI | A start that fails on a value of the wrong kind (H16) | A setting has a value HeapScope cannot use: {the binder's message} Fix it in appsettings.json or the environment, then run the command again. | draft |
+| CLI | Any other start failure (H16) | HeapScope could not start: {type}: {message} Details are in HeapScope's log in {folder}. | draft |
+| Why alive, retained bytes, dominator tree, Similar Retention | An object no root reaches in a full dump (M9; was "No root reaches it: it is garbage not yet collected, or held only weakly (weak handles, weak references).") | No root HeapScope found reaches it: it is most likely garbage not yet collected, or held only weakly (weak handles, weak references). A thread that was running when the dump was taken can hold short-lived objects no root shows. | draft |
+| Types, Compare, CLI | Retained sizes of a snapshot whose GC handles were not all checked | Not all GC handles could be checked for this snapshot (see its notes), so what only a handle holds retains nothing here. | draft |
+| Live | The counters of a run whose process does not answer their start (the second review of 4.6) | Process {pid} did not answer the start of its counters within 30 s. If it is stopped in a debugger, let it run, then start again. | draft |
+| Live, Processes, CLI | A recording whose process does not answer its start (review of 4.6) | Process {pid} did not answer the start of a recording within 30 s. If it is stopped in a debugger, let it run, then record again. | draft |
+| Inspections | The growth detectors could not be run again (was without a next step) | The growth detectors could not be run again. Details are in the log; press Try again. | draft |
+| Inspections | Try again, its button and tooltip (M7) | Try again; tooltip: Runs every inspection of this snapshot again. | draft |
+| Inspections | The run failed (M7; was "select the snapshot again to retry") | The inspections could not be run. Details are in the log; press Try again. | draft |
+| Inspections, CLI | Growing static collections, collections no field names (H3), in its note | {N} collections in the runtime's storage of static fields, large enough to report, have no field HeapScope can name (such as statics of generic types), so they were not checked. | draft |
+| Inspections, CLI | A detector that could not read some of what it checks (H2), in its note | {N} of {M} {reachable timers, reachable service scopes, reachable HttpClients, reachable async state machines, reachable objects with a disposed flag, collections, static collections} could not be read, so they were not checked. | draft |
+| Inspections, CLI | A detector that could read none of it (H2), a refusal | {Title} checked nothing: none of the {M} {reachable timers, and the others as above} in this snapshot could be read. The .NET {version} of this dump may lay them out differently from the versions HeapScope knows; HeapScope's log has what was probed, for an issue on HeapScope's site. | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

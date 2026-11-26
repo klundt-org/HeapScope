@@ -23,4 +23,8 @@
 
 using HeapScope.Cli;
 
+// Last chances (peer review 4.5 H16), as the app and the worker have: logged before the process ends.
+AppDomain.CurrentDomain.UnhandledException += (_, e) => CliApp.LogFatal("heapscope-cli ends: an exception nothing handled", e.ExceptionObject as Exception ?? new InvalidOperationException(e.ExceptionObject?.ToString()));
+TaskScheduler.UnobservedTaskException += (_, e) => CliApp.LogFatal("A task's exception nobody observed (the command goes on)", e.Exception, critical: false);
+
 return await CliApp.RunAsync(args, Console.Out, Console.Error, CliHost.Build, errorIsConsole: !Console.IsErrorRedirected).ConfigureAwait(false);

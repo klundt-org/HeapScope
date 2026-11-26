@@ -114,6 +114,10 @@ public sealed partial class InspectionsViewModel : ObservableObject
     private Task _runAll = Task.CompletedTask;
     private bool _started;
 
+    /// <summary>Whether the run or one of its inspections failed, so Try again is offered (peer review 4.5 M7).</summary>
+    [ObservableProperty]
+    private bool _canTryAgain;
+
     [ObservableProperty]
     private InspectionTileViewModel? _selected;
 
@@ -168,8 +172,12 @@ public sealed partial class InspectionsViewModel : ObservableObject
     private readonly INavigator? _navigator;
 
     /// <summary>Shows <paramref name="snapshot"/>'s inspections (null clears); they run when the tab is active.</summary>
-    public void Show(SnapshotHandle? snapshot)
+    public void Show(SnapshotHandle? snapshot) => Show(snapshot, keepBaseline: false);
+
+    /// <param name="keepBaseline">Whether a chosen baseline that is still open stays chosen (Try again).</param>
+    private void Show(SnapshotHandle? snapshot, bool keepBaseline)
     {
+        var (kept, wasChosen) = (Baseline?.Snapshot, _baselineChosen);
         _running?.Cancel();
         _running?.Dispose();
         _running = null;
@@ -186,14 +194,34 @@ public sealed partial class InspectionsViewModel : ObservableObject
         OnPropertyChanged(nameof(UsesBaseline));
         Selected = null;
         Status = null;
+        CanTryAgain = false;
         Snapshot = snapshot;
         _started = false;
         _baselineChosen = false;
         ChooseBaselines(snapshot);
+        if (keepBaseline && wasChosen && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
+        {
+            // Before the run starts, so its growth tiles run with it (the second review).
+            _choosingBaseline = true;
+            Baseline = same;
+            _choosingBaseline = false;
+            _baselineChosen = true;
+        }
+
         if (IsActive)
         {
             Start();
         }
+    }
+
+    /// <summary>Runs every inspection of the snapshot again, after a failure.</summary>
+    [RelayCommand]
+    private void TryAgain()
+    {
+        _logger.LogInformation("Inspections: tried again for {Snapshot}, baseline {Baseline}", Snapshot?.Path, Baseline?.Snapshot?.Path ?? "none");
+
+        // The baseline chosen stays chosen (review of 4.6).
+        Show(Snapshot, keepBaseline: true);
     }
 
     partial void OnIsActiveChanged(bool value)
@@ -398,12 +426,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
             // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
             _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
+            CanTryAgain = true;
         }
         catch (Exception ex)
         {
             // The run is not awaited by anyone: its failure must be logged and shown, never lost (review of 1.6).
             _logger.LogError(ex, "Running the inspections failed");
-            Status = "The inspections could not be run. Details are in the log; select the snapshot again to retry.";
+            Status = "The inspections could not be run. Details are in the log; press Try again.";
+            CanTryAgain = true;
         }
     }
 
@@ -470,6 +500,9 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
+
+            // A refusal is the same answer again (review of 4.6): only a failure is offered another try.
+            CanTryAgain |= ex is WorkerCrashedException || (ex is WorkerOperationException { ErrorCode: var code } && code is not (HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.CapabilityNotSupported));
         }
         catch (InvalidOperationException ex)
         {
@@ -477,6 +510,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
             // the whole run, and every inspection after it reported as failed.
             _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
             tile.Status = "This result could not be shown: " + ex.Message;
+            CanTryAgain = true;
         }
     }
 
@@ -622,12 +656,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogInformation("{Section} shown as: {Message}", "Inspections against a baseline", ex.Message);
             Status = ex.Message;
+            CanTryAgain = true;
         }
         catch (Exception ex)
         {
             // Not awaited by anyone (review M5): logged and shown, never lost.
             _logger.LogError(ex, "Running the growth detectors again failed");
-            Status = "The growth detectors could not be run again. Details are in the log.";
+            Status = "The growth detectors could not be run again. Details are in the log; press Try again.";
+            CanTryAgain = true;
         }
     }
 

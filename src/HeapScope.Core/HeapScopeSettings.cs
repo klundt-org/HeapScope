@@ -58,24 +58,14 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool
     /// a file is there and cannot be read now (in use, damaged, not this user's), with the defaults in <paramref name="settings"/>.
     /// A caller that must not fail open on a setting (the logs' privacy, sprint 3.12 review H5) tells the two apart.
     /// </summary>
-    public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings)
+    /// <param name="wait">Whether to wait while another process holds the file (a save does; the log's privacy check does not, review of 4.6).</param>
+    public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings, bool wait = true)
     {
         ArgumentNullException.ThrowIfNull(folders);
-        settings = new HeapScopeSettings();
-        try
-        {
-            using var stream = new FileStream(PathIn(folders), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            settings = JsonSerializer.Deserialize<HeapScopeSettings>(stream, s_json) ?? new HeapScopeSettings();
-            return true;
-        }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return false;
-        }
+        // Through the one helper (review of 4.6): a file held for a moment is read again.
+        var (read, outcome, _) = PrivateJsonFile.Read<HeapScopeSettings>(PathIn(folders), s_json, wait);
+        settings = read ?? new HeapScopeSettings();
+        return outcome is JsonFileRead.Read or JsonFileRead.Missing;
     }
 
     /// <summary>The file's full path under <paramref name="folders"/>.</summary>
@@ -91,28 +81,6 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool
     {
         var path = PathIn(folders);
         PrivateFiles.CreateDirectory(folders.Root);
-        var temp = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = PrivateFiles.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                JsonSerializer.Serialize(stream, this, s_json);
-
-                // On the disk before it replaces the file: a power loss must not leave an empty file in its place (review H5).
-                if (stream is FileStream file)
-                {
-                    file.Flush(flushToDisk: true);
-                }
-            }
-
-            File.Move(temp, path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temp))
-            {
-                File.Delete(temp);
-            }
-        }
+        PrivateJsonFile.Write(path, this, s_json);
     }
 }

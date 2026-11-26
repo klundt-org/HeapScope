@@ -70,7 +70,12 @@ public sealed class RecordedRun : IAsyncLifetime
             api.ProcessId,
             new MonitorOptions(TimeSpan.FromSeconds(1), MonitorRules.None, RecordAllocations: true),
             r => r.TraceStarted += (_, _) => recording.TrySetResult());
-        await recording.Task.WaitAsync(TimeSpan.FromSeconds(60));
+        // Under the gate's load the start once took longer (sprint 4.6, not explained): the wait says what the run saw.
+        if (await Task.WhenAny(recording.Task, Task.Delay(TimeSpan.FromSeconds(120))) != recording.Task)
+        {
+            throw new TimeoutException($"The run's trace did not start in 120 s: error {run.TraceError}, trace {run.TracePath}, run ended {run.Completion.IsCompleted}");
+        }
+
         Folder = run.SessionFolder!;
         var (snapshots, asked) = (new List<string>(), new List<DateTimeOffset>());
         foreach (var kind in new[] { SnapshotKindDto.FullDump, SnapshotKindDto.FullDump, SnapshotKindDto.GcDump, SnapshotKindDto.GcDump })

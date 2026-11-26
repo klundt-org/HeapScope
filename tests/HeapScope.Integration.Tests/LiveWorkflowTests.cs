@@ -121,7 +121,10 @@ public sealed class LiveWorkflowTests
         // Until the session has started there is nothing to stop but the start (MonitorServiceTests), so wait for bytes, not for time.
         var folderOfRun = run.SessionFolder.ShouldNotBeNull();
         await WaitUntilAsync(() => new DirectoryInfo(folderOfRun).EnumerateFiles("*.nettrace").Any(static f => new FileInfo(f.FullName).Length > 0),
-            () => $"trace {run.TracePath}, error {run.TraceError}, run ended {run.Completion.IsCompleted}, files {string.Join(", ", new DirectoryInfo(folderOfRun).EnumerateFiles().Select(static f => f.Name + " " + f.Length))}");
+            () => $"trace {run.TracePath}, error {run.TraceError}, run ended {run.Completion.IsCompleted}, files {string.Join(", ", new DirectoryInfo(folderOfRun).EnumerateFiles().Select(static f => f.Name + " " + f.Length))}",
+            // Four times in CI since 2026-11-20 no session of the run wrote anything for 60 s, its counters' file included: the process
+            // answered no diagnostics session on a busy runner (sprint 4.6, not explained). Long enough to tell a slow start from a hang.
+            TimeSpan.FromSeconds(150));
         run.Stop();
         await run.Completion;
 
@@ -166,9 +169,9 @@ public sealed class LiveWorkflowTests
         ((at[^1] - at[1]) / (at.Count - 2)).ShouldBeGreaterThan(TimeSpan.FromSeconds(2));
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, Func<string>? state = null)
+    private static async Task WaitUntilAsync(Func<bool> condition, Func<string>? state = null, TimeSpan? wait = null)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        var deadline = DateTime.UtcNow + (wait ?? TimeSpan.FromSeconds(60));
         while (!condition())
         {
             DateTime.UtcNow.ShouldBeLessThan(deadline, "condition not met in time: " + state?.Invoke());

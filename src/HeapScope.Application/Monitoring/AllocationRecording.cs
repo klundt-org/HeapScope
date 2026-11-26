@@ -38,6 +38,11 @@ internal sealed class AllocationRecording : IAsyncDisposable
 {
     private static readonly TimeSpan s_checkInterval = TimeSpan.FromSeconds(2);
 
+    /// <summary>Checks in a row that may fail before the trace stops: a size nobody watches is not left to fill a disk.</summary>
+    internal const int MostFailedChecks = 5;
+
+    private IDiskSpace _disk = VolumeDiskSpace.Instance;
+
     private readonly CancellationTokenSource _stop = new();
     private readonly ILogger _logger;
     private readonly Guid _runId;
@@ -88,9 +93,10 @@ internal sealed class AllocationRecording : IAsyncDisposable
         TimeSpan counterInterval,
         Func<bool>? busy = null,
         Action<LiveTraceStart>? started = null,
-        Action<string>? ended = null)
+        Action<string>? ended = null,
+        IDiskSpace? disk = null)
     {
-        var recording = new AllocationRecording(runId, processId, limitBytes, time, logger, pendingCaptures, problem) { _started = started, _ended = ended };
+        var recording = new AllocationRecording(runId, processId, limitBytes, time, logger, pendingCaptures, problem) { _started = started, _ended = ended, _disk = disk ?? VolumeDiskSpace.Instance };
         try
         {
             var target = folder ?? throw new IOException("The run has no session folder to record the allocation trace into.");
@@ -198,21 +204,39 @@ internal sealed class AllocationRecording : IAsyncDisposable
         }
     }
 
-    /// <summary>Stops the trace at its size limit or when the disk has less than <see cref="MonitorRun.TraceMinimumFreeBytes"/> free.</summary>
+    /// <summary>
+    /// Stops the trace at its size limit or when the disk has less than <see cref="MonitorRun.TraceMinimumFreeBytes"/> free: the disk of
+    /// the trace's own folder, on every system (peer review 4.5 H11). A check that fails is tried again; after
+    /// <see cref="MostFailedChecks"/> in a row the trace stops, since nothing would stop it at its limit any more.
+    /// </summary>
     private async Task WatchAsync(string path)
     {
+        var folder = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path))!;
+        var failed = 0;
         try
         {
             while (!_stop.IsCancellationRequested && _trace is { IsCompleted: false })
             {
                 await Task.Delay(s_checkInterval, _time, _stop.Token).ConfigureAwait(false);
-                // The recorder writes the file under its final name (4.3), once its session starts.
-                var file = new FileInfo(path);
-                var size = file.Exists ? file.Length : 0;
-                var free = new DriveInfo(System.IO.Path.GetPathRoot(System.IO.Path.GetFullPath(path))!).AvailableFreeSpace;
-                string? why = size >= _limitBytes
-                    ? string.Create(CultureInfo.InvariantCulture, $"it reached its limit of {_limitBytes / (1024 * 1024)} MB")
-                    : free < MonitorRun.TraceMinimumFreeBytes ? string.Create(CultureInfo.InvariantCulture, $"the disk has {free / (1024 * 1024)} MB free") : null;
+                string? why;
+                try
+                {
+                    // The recorder writes the file under its final name (4.3), once its session starts.
+                    var file = new FileInfo(path);
+                    var size = file.Exists ? file.Length : 0;
+                    var free = _disk.AvailableBytes(folder) ?? throw new IOException($"the free space of {folder} could not be read");
+                    failed = 0;
+                    why = size >= _limitBytes
+                        ? string.Create(CultureInfo.InvariantCulture, $"it reached its limit of {_limitBytes / (1024 * 1024)} MB")
+                        : free < MonitorRun.TraceMinimumFreeBytes ? string.Create(CultureInfo.InvariantCulture, $"the disk has {free / (1024 * 1024)} MB free") : null;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    failed++;
+                    _logger.LogWarning("Monitoring run {RunId}: the allocation trace's size or disk could not be checked ({Failed} of {Most} in a row): {Error}", _runId, failed, MostFailedChecks, ex.Message);
+                    why = failed >= MostFailedChecks ? "its size and the free space of its disk could not be checked" : null;
+                }
+
                 if (why is not null)
                 {
                     _problem($"The allocation trace stopped early because {why}; what it recorded is kept and the run goes on.", null);
@@ -227,10 +251,6 @@ internal sealed class AllocationRecording : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            _logger.LogWarning(ex, "Monitoring run {RunId}: the allocation trace's size could not be checked", _runId);
         }
     }
 }

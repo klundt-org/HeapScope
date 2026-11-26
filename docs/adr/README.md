@@ -24,7 +24,7 @@ section 13 links here).
 - [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035)
 - [ADR-018](ADR-018-diffs-compare-per-type-totals-no-object-identity-across-dump.md) Diffs compare per-type totals; no object identity across dumps (added in sprint 1.4; amended by ADR-032)
 - [ADR-019](ADR-019-the-ui-process-is-never-power-throttled.md) The UI process is never power-throttled (added in sprint 1.5)
-- [ADR-020](ADR-020-inspections-are-analysis-plugins-with-declared-capabilities.md) Inspections are Analysis plugins with declared capabilities (added in sprint 1.6)
+- [ADR-020](ADR-020-inspections-are-analysis-plugins-with-declared-capabilities.md) Inspections are Analysis plugins with declared capabilities (added in sprint 1.6, amended in 4.6: what could not be read is said)
 - [ADR-021](ADR-021-live-monitoring-reads-eventcounters-in-the-front-end-s-proce.md) Live monitoring reads EventCounters in the front end's process (added in sprint 1.7)
 - [ADR-022](ADR-022-license-agplv3-only-with-additional-terms-attribution-on-the.md) License: AGPLv3 only with additional terms, attribution on the main screen (added before sprint 1.8)
 - [ADR-023](ADR-023-gcdump-capture-moves-to-the-worker.md) gcdump capture moves to the worker (added in sprint 1.9, amended by ADR-037: it stays in the front end)

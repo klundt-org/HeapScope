@@ -1,10 +1,8 @@
-4.5.0: GC handles of Server GC processes.
+4.6.0: Right answers.
 
-- Full dumps of Server GC processes with fewer heaps than processors lacked GC handles in every earlier version, so live objects
-  could look unreachable and be left out by inspect, retained-by and paths. Open such dumps again: their index cache is rebuilt (4.5.0).
-- heapscope-cli diff --allocated adds what was allocated between two snapshots that the app captured during one run that
-  recorded allocations (4.4.0).
-- heapscope-cli capture --kind gcdump keeps the names of the types when a trace of the process is recorded meanwhile (4.4.0).
-- heapscope-cli sample has scenarios of allocation bursts (4.3.0) and of objects allocated and dropped (4.4.0).
+- inspect says how many objects a detector could not read, and refuses an answer that read none of them, instead of "0 found" (4.6.0).
+- Every command says an appsettings.json it cannot read with its file and line, and logs a start that fails (4.6.0).
+- A recording whose process stops answering, as in a debugger, ends after a while and says so (4.6.0).
+- Struct statics are named by their field in paths and object; the index cache of a dump opened again is rebuilt (4.6.0).
 
 All release notes: https://github.com/klundt-org/HeapScope/blob/main/RELEASE-NOTES.md

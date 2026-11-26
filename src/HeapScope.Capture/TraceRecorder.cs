@@ -216,7 +216,7 @@ public static class TraceRecorder
 
                 // One that is not waited for (the limit passed) ends with the session: its error is nobody's.
                 _ = copy.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
-                await session.StopAsync(limit.Token).ConfigureAwait(false);
+                await SessionStop.StopAsync(session, s_namesTimeout).ConfigureAwait(false);
                 await copy.WaitAsync(limit.Token).ConfigureAwait(false);
             }
 
@@ -226,20 +226,28 @@ public static class TraceRecorder
         {
             return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"not done in {s_namesTimeout.TotalSeconds:N0} s");
         }
-        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException or IOException or ObjectDisposedException)
         {
-            // The recording itself says what is wrong, if it fails too.
+            // The recording itself says what is wrong, if it fails too; a names session let go ends its copy this way.
             return $"{ex.GetType().Name}: {ex.Message}";
         }
     }
 
     private static async Task<EventPipeSession> StartAsync(int processId, IReadOnlyList<EventPipeProvider> providers, CancellationToken cancellationToken)
     {
+        // Bounded (review of 4.6): a process that does not answer the start (frozen) ends the recording with a reason, not a wait.
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(s_startWait);
         try
         {
             return await new DiagnosticsClient(processId)
-                .StartEventPipeSessionAsync(providers, requestRundown: true, circularBufferMB: 256, cancellationToken)
+                .StartEventPipeSessionAsync(providers, requestRundown: true, circularBufferMB: 256, limit.Token)
+                .WaitAsync(limit.Token)
                 .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TargetUnavailableException(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Process {processId} did not answer the start of a recording within {s_startWait.TotalSeconds:N0} s. If it is stopped in a debugger, let it run, then record again."));
         }
         catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException)
         {
@@ -255,24 +263,23 @@ public static class TraceRecorder
         var elapsed = Task.Delay(duration, cancellationToken);
         var first = await Task.WhenAny(copy, elapsed).ConfigureAwait(false);
         var stoppedEarly = first == copy || cancellationToken.IsCancellationRequested;
-        if (first != copy)
-        {
-            try
-            {
-                await session.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or EndOfStreamException or IOException)
-            {
-                // The process exited as the recording ended; what was recorded is kept.
-                stoppedEarly = true;
-            }
-        }
+        // A target that does not answer the stop (frozen in a debugger) has its session let go, which ends the copy (peer review 4.5 H9).
+        // The stop writes the rundown that names methods, which takes seconds in a large process: the trace waits longer than a counter.
+        var letGo = first != copy && !await SessionStop.StopAsync(session, s_stopWait).ConfigureAwait(false);
+        stoppedEarly |= letGo;
 
         // A stopped session ends its stream after the rundown; one that never ends (the target hung) must not
         // hang the caller: give up after a while and keep what arrived (sprint 1.5 review).
         if (await Task.WhenAny(copy, Task.Delay(s_streamEndTimeout, CancellationToken.None)).ConfigureAwait(false) == copy)
         {
-            await copy.ConfigureAwait(false);
+            try
+            {
+                await copy.ConfigureAwait(false);
+            }
+            catch (Exception ex) when (letGo && ex is ObjectDisposedException or IOException or OperationCanceledException)
+            {
+                // The session let go ended the copy; the trace so far is in the file.
+            }
         }
         else
         {
@@ -303,6 +310,12 @@ public static class TraceRecorder
 
     /// <summary>How long a stopped session may take to end its stream (the rundown) before the recording stops waiting.</summary>
     private static readonly TimeSpan s_streamEndTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>How long a recording's start waits for the target.</summary>
+    private static readonly TimeSpan s_startWait = TimeSpan.FromSeconds(30);
+
+    /// <summary>How long a recording's stop waits for the target, its rundown included (peer review 4.5 H9).</summary>
+    private static readonly TimeSpan s_stopWait = TimeSpan.FromSeconds(30);
 
     private static void TryDelete(string path)
     {

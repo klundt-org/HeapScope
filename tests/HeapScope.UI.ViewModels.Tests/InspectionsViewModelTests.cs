@@ -47,6 +47,23 @@ public sealed class InspectionsViewModelTests : IDisposable
 
     private InspectionsViewModel Inspections => _snapshots.Inspections;
 
+    // Peer review 4.5 M7: an inspection that failed (the worker stopped) can be run again, with one snapshot open too.
+    [Fact]
+    public async Task A_failed_inspection_offers_try_again_which_runs_them_all_again()
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        _worker.Service.InspectionFailure = new HeapScope.Application.Workers.WorkerCrashedException("The analysis worker stopped.");
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await Inspections.RunTask;
+        (Inspections.CanTryAgain, Inspections.Tiles[0].Status).ShouldBe((true, "The analysis worker stopped."));
+
+        Inspections.TryAgainCommand.Execute(null);
+        await Inspections.RunTask;
+
+        (Inspections.CanTryAgain, Inspections.Tiles[0].Status).ShouldBe((false, (string?)null));
+        _worker.Service.InspectionRuns.Count(r => r == "duplicate-strings").ShouldBe(2);
+    }
+
     [Fact]
     public async Task Inspections_run_only_once_the_tab_is_shown_and_fill_their_tiles()
     {

@@ -305,3 +305,11 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   count), ending at 25 tables; added ... by kind; ... not used; 9 walks, 0.1 s)`), `Complete`, or `Unknown` with the reason: the first doubt with
   the count tried and what it gave, or an exception with the method it came from. Caches from before say "not recorded". A detector over
   reachable objects logs its note, and a refused baseline is logged as every refusal is. The walk is a phase of its own, "handles".
+- Right answers (sprint 4.6): an inspection that could not read some of what it checks logs "could not read N of M {what}" with its rule,
+  version and basis (which names what it probed), and says it in the answer's note; one that read none is refused with the same line before
+  it. The growing static collections detector's basis names the collections in static storage no field names, by type, and the counts it
+  could not read ("count unreadable"). The unreachable set's line gives its unreachable bytes by heap kind. A run's trace logs each check of
+  its size or disk that fails ("N of 5 in a row") and the stop after five. The CLI logs a failed start, an unhandled exception and an
+  unobserved task to the file log with the command line described as every command's is (a filter's text only when the setting allows it),
+  and names the folder in its message. Closing the app logs the jobs it cancels and any still running after five minutes, and a host
+  dispose that did not end. A lesson progress that cannot be read now is logged with what was found and is not written over.

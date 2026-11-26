@@ -31,6 +31,9 @@ namespace HeapScope.UI.ViewModels.Tests;
 /// <summary>The fake worker's Inspections (<see cref="IInspectionService"/>).</summary>
 internal sealed partial class FakeWorkerService : IInspectionService
 {
+    /// <summary>When set, the next inspection run fails with it.</summary>
+    public Exception? InspectionFailure { get; set; }
+
     public Task<IReadOnlyList<InspectionInfo>> ListInspectionsAsync(Guid snapshotId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<InspectionInfo>>([.. Inspections]);
 
@@ -38,6 +41,12 @@ internal sealed partial class FakeWorkerService : IInspectionService
     {
         InspectionRuns.Add(request.Name);
         InspectionRequests.Add(request);
+        if (InspectionFailure is { } failure)
+        {
+            InspectionFailure = null;
+            throw failure;
+        }
+
         if (InspectionGate is { } gate)
         {
             await gate.Task.WaitAsync(cancellationToken);

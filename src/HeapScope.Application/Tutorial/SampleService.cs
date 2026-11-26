@@ -24,6 +24,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
+using HeapScope.Application.Events;
 using HeapScope.Application.Workers;
 using HeapScope.Core;
 using Microsoft.Extensions.Logging;
@@ -144,7 +145,7 @@ public sealed class SampleService : IDisposable
             using var process = StartProcess(launch, [.. launch.Prefix, "--list"]);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(_readyTimeout);
-            await using var killOnTimeout = timeout.Token.Register(process.Kill).ConfigureAwait(false);
+            await using var killOnTimeout = timeout.Token.Register(() => KillQuietly(process)).ConfigureAwait(false);
             string? json = null;
             try
             {
@@ -290,7 +291,7 @@ public sealed class SampleService : IDisposable
         }
 
         _logger.LogInformation("Sample {Pid} stopped ({Reason}): {Scenarios}, after {Seconds:N0} s", processId, reason, string.Join(", ", entry.Sample.Scenarios), (DateTimeOffset.UtcNow - entry.Sample.StartedUtc).TotalSeconds);
-        Changed?.Invoke(this, EventArgs.Empty);
+        SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         return true;
     }
 
@@ -381,7 +382,7 @@ public sealed class SampleService : IDisposable
             timeout.CancelAfter(_readyTimeout);
 
             // Review M11: the timeout kills the sample, which ends the read whether or not the pipe honors cancellation.
-            await using var killOnTimeout = timeout.Token.Register(process.Kill).ConfigureAwait(false);
+            await using var killOnTimeout = timeout.Token.Register(() => KillQuietly(process)).ConfigureAwait(false);
             while (await process.ReadLineAsync(timeout.Token).ConfigureAwait(false) is { } line)
             {
                 if (line.StartsWith("READY pid=", StringComparison.Ordinal))
@@ -405,20 +406,20 @@ public sealed class SampleService : IDisposable
         }
         catch (IOException ex)
         {
-            process.Kill();
+            KillQuietly(process);
             process.Dispose();
             throw Refused($"The sample's output could not be read ({ex.Message}). Try again; if it fails again, HeapScope's log has the details.", LogLevel.Warning);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            process.Kill();
+            KillQuietly(process);
             process.Dispose();
             _logger.LogWarning("Sample for {Scenarios} was not ready within {Seconds:N0} s and was stopped", string.Join(", ", names), _readyTimeout.TotalSeconds);
             throw new SampleRefusedException($"The sample did not get ready within {_readyTimeout.TotalSeconds:N0} seconds and was stopped. The computer may be busy; try again.");
         }
         catch
         {
-            process.Kill();
+            KillQuietly(process);
             process.Dispose();
             throw;
         }
@@ -449,8 +450,21 @@ public sealed class SampleService : IDisposable
             toReady.TotalSeconds,
             launch.FileName,
             string.Join(' ', arguments));
-        Changed?.Invoke(this, EventArgs.Empty);
+        SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         return sample;
+    }
+
+    // A kill a timer fires (peer review 4.5 M8): a process exiting meanwhile must not end HeapScope, so its failure is logged, not thrown.
+    private void KillQuietly(ISampleProcess process)
+    {
+        try
+        {
+            process.Kill();
+        }
+        catch (Win32Exception ex)
+        {
+            _logger.LogWarning("The sample could not be stopped at its timeout: {Error}", ex.Message);
+        }
     }
 
     // Review H3 and L17: an exit is reported when it happens, the process released, and the reason told apart.
@@ -473,7 +487,7 @@ public sealed class SampleService : IDisposable
         DeleteRecord(entry.Sample.ProcessId);
         if (wasRunning)
         {
-            Changed?.Invoke(this, EventArgs.Empty);
+            SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         }
 
         _ = ReportExitAsync(entry, reason);
@@ -524,7 +538,7 @@ public sealed class SampleService : IDisposable
     }
 
     // Review M11: its standard error is read to the end before it is reported.
-    private static async Task<(int? Code, string Error)> ExitOfAsync(ISampleProcess process)
+    private async Task<(int? Code, string Error)> ExitOfAsync(ISampleProcess process)
     {
         try
         {
@@ -532,7 +546,7 @@ public sealed class SampleService : IDisposable
         }
         catch (TimeoutException)
         {
-            process.Kill();
+            KillQuietly(process);
         }
 
         return (process.ExitCode, process.Error);

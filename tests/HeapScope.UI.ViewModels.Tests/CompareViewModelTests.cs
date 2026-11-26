@@ -325,6 +325,64 @@ public sealed class CompareViewModelTests : IDisposable
         trend.Hint.ShouldNotBeNull().ShouldContain("Tick two or more");
     }
 
+    // Peer review 4.5 H4: another pair whose comparison fails shows nothing of the pair before; a trend's sort by a snapshot's column
+    // that is gone falls back to the change.
+    [Fact]
+    public async Task Another_pair_whose_comparison_fails_shows_nothing_of_the_one_before()
+    {
+        await OpenBothAsync();
+        Compare.Rows.Count.ShouldBeGreaterThan(0);
+        _worker.Service.QueryFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Not enough memory.", null);
+
+        Compare.SwapCommand.Execute(null);
+        await Compare.QueryTask;
+
+        (Compare.Rows.Count, Compare.Totals, Compare.Status).ShouldBe((0, (string?)null, "Not enough memory."));
+        (Compare.IdentityNote, Compare.RetainedNote).ShouldBe(((string?)null, (string?)null));
+    }
+
+    [Fact]
+    public async Task A_trend_sorted_by_a_snapshot_that_is_gone_sorts_by_the_change_and_a_failed_one_shows_nothing()
+    {
+        _worker.Service.TrendRows.Add(("App.Leak", [1, 3, 5]));
+        foreach (var name in new[] { "first.dmp", "second.dmp", "third.dmp" })
+        {
+            await _snapshots.OpenPathAsync(Dump(name));
+        }
+
+        var trend = Compare.Trend;
+        Compare.IsTrendShown = true;
+        await WaitUntilAsync(() => _worker.Service.TrendQueries.Count == 1);
+        await trend.QueryTask;
+        trend.SortByCommand.Execute(TypeTrendColumns.Bytes(3));
+        await trend.QueryTask;
+
+        trend.Choices[2].IsIncluded = false;
+        await trend.QueryTask;
+        (_worker.Service.TrendQueries[^1].SortColumn, trend.SortColumn).ShouldBe((TypeTrendColumns.BytesDelta, TypeTrendColumns.BytesDelta));
+
+        _worker.Service.QueryFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Not enough memory.", null);
+        trend.Choices[2].IsIncluded = true;
+        await trend.QueryTask;
+        (trend.Rows.Count, trend.Totals, trend.Status, trend.Columns.Count, trend.Ordered.Count).ShouldBe((0, (string?)null, "Not enough memory.", 0, 0));
+    }
+
+    // Peer review 4.5 M7: hidden, Compare computes nothing; shown, it compares the pair it has then.
+    [Fact]
+    public async Task Compare_waits_while_its_tab_is_hidden_and_compares_when_shown()
+    {
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await _snapshots.OpenPathAsync(Dump("earlier-name.dmp"));
+        await _snapshots.OpenPathAsync(Dump("later-name.dmp"));
+        _worker.Service.DiffQueries.ShouldBeEmpty();
+
+        _snapshots.Tab = SnapshotTabs.Compare;
+        await Compare.QueryTask;
+
+        _worker.Service.DiffQueries.ShouldHaveSingleItem();
+        Compare.Rows.Count.ShouldBeGreaterThan(0);
+    }
+
     [Fact]
     public async Task Snapshots_from_different_session_folders_compare_like_any_two()
     {

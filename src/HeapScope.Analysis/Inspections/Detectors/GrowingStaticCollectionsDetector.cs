@@ -73,11 +73,12 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
     {
         var ct = context.CancellationToken;
         var skipped = new Exclusions();
-        var current = Collections(context.Graph, Readers.Of(context), ct, skipped);
+        var current = Collections(context.Graph, Readers.Of(context), ct, skipped, out var unread, out var countable);
+        var baselineSkipped = new Exclusions();
 
         // The worker refuses a baseline it cannot read (review H8): one without a reader here is a caller's mistake.
         var baseline = context.Baseline is { } b
-            ? Collections(b.Graph, b.Reader ?? throw new InvalidOperationException("The baseline snapshot has no field values; choose a full dump."), ct, new Exclusions())
+            ? Collections(b.Graph, b.Reader ?? throw new InvalidOperationException("The baseline snapshot has no field values; choose a full dump."), ct, baselineSkipped, out _, out _)
             : null;
         var rows = new List<Row>();
         var nearMisses = new List<Row>();
@@ -98,6 +99,14 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
                 continue;
             }
 
+            // A count the baseline could not read is no growth from 0 (review of 4.6): not checked, and said so.
+            if (baselineSkipped.Has("count unreadable", field))
+            {
+                unread++;
+                skipped.Add("count unreadable in the baseline", field);
+                continue;
+            }
+
             var before = baseline.TryGetValue(field, out var then) ? then.Count : 0;
             var growth = found.Count - before;
             if (growth >= MinGrowth && growth >= MinGrowthShare * Math.Max(before, 1))
@@ -111,12 +120,20 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         }
 
         var ordered = rows.OrderByDescending(r => r.Growth ?? r.Collection.Count).ThenBy(r => r.Field, StringComparer.Ordinal).ToArray();
+        var (unnamed, unnamedTypes) = Unnamed(context.Graph, Readers.Of(context), baseline is null ? MinLarge : MinGrowth, ct);
         var note = baseline is null
             ? string.Create(CultureInfo.InvariantCulture, $"No baseline snapshot: these are the application's static collections of at least {MinLarge:N0} elements (the framework's own are left out); whether they grow is unknown. Choose an earlier snapshot of the same process as the baseline (in the CLI, --baseline) to see growth.")
             : BaselineWarning(context.Info, context.Baseline!.Info);
+        if (unnamed > 0)
+        {
+            // Peer review 4.5 H3: statics of closed generic types are in the runtime's storage, but no static field names them.
+            var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unnamed:N0} collections in the runtime's storage of static fields, large enough to report, have no field HeapScope can name (such as statics of generic types), so they were not checked.");
+            note = note is null ? notChecked : note + " " + notChecked;
+        }
+
         var basis = string.Create(
             CultureInfo.InvariantCulture,
-            $"{current.Count} static collections counted{(baseline is null ? string.Empty : $", {baseline.Count} in the baseline")}; {skipped}; reported: {Describe(ordered)}; largest growth below the thresholds: {Describe(nearMisses.OrderByDescending(r => r.Growth).Take(5))}");
+            $"{unnamed} collections in static storage without a named field ({unnamedTypes}); {current.Count} static collections counted{(baseline is null ? string.Empty : $", {baseline.Count} in the baseline")}; {skipped}; reported: {Describe(ordered)}; largest growth below the thresholds: {Describe(nearMisses.OrderByDescending(r => r.Growth).Take(5))}");
         return new InspectionResult(
             ordered.Length,
             ordered.Sum(r => r.Collection.Bytes),
@@ -132,7 +149,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
                 cells[5] = InspectionRows.Number(row.Collection.Bytes);
                 cells[6] = InspectionRows.Hex(row.Collection.Address);
             }),
-            basis, Counts: new(current.Count, skipped.Total, ListsRows: true));
+            basis, Counts: new(current.Count, skipped.Total, ListsRows: true), Unread: new(unread, countable, "static collections"));
     }
 
     /// <summary>Why a growth comparison may mislead (review M8): a baseline captured later, or from another process.</summary>
@@ -157,10 +174,54 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         return text.Length == 0 ? "none" : text;
     }
 
+    /// <summary>
+    /// The collections the runtime's static storage holds that no static field root names (such as statics of generic types), of at least
+    /// <paramref name="minimum"/> elements (a framework's empty arrays could never be a finding), with their most common types for the log.
+    /// </summary>
+    internal static (long Count, string Types) Unnamed(HeapGraph graph, IObjectReader reader, long minimum, CancellationToken cancellationToken)
+    {
+        var named = new HashSet<int>();
+        var storage = new List<int>();
+        foreach (var root in graph.Roots.Roots.Span)
+        {
+            if (root.Kind == RootKind.StaticField)
+            {
+                named.Add(root.ObjectIndex);
+            }
+            else if (root.Kind == RootKind.StrongHandle && graph.Strings[root.DetailId] == StaticStorage)
+            {
+                storage.Add(root.ObjectIndex);
+            }
+        }
+
+        var seen = new HashSet<int>();
+        var types = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (var bucket in storage.Distinct())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var held in graph.GetReferences(bucket))
+            {
+                var type = graph.Types.GetName(graph.TypeIndices[held]);
+                if (!named.Contains(held) && seen.Add(held) && Count(graph, reader, held, type, cancellationToken) >= minimum)
+                {
+                    types[type] = types.GetValueOrDefault(type) + 1;
+                }
+            }
+        }
+
+        return (types.Values.Sum(), DetectorGraph.Top(types, 5));
+    }
+
+    /// <summary>The detail of the runtime's static storage roots (the loader's).</summary>
+    private const string StaticStorage = "static storage";
+
     /// <summary>The collections static fields hold, by "DeclaringType.field", with their element counts.</summary>
-    internal static Dictionary<string, Collection> Collections(HeapGraph graph, IObjectReader reader, CancellationToken cancellationToken, Exclusions skipped)
+    /// <param name="unread">Static collections of a counted type whose count could not be read (review of 4.6): not checked.</param>
+    /// <param name="countable">Static collections of a counted type.</param>
+    internal static Dictionary<string, Collection> Collections(HeapGraph graph, IObjectReader reader, CancellationToken cancellationToken, Exclusions skipped, out long unread, out long countable)
     {
         var found = new Dictionary<string, Collection>(StringComparer.Ordinal);
+        (unread, countable) = (0, 0);
         foreach (var root in graph.Roots.Roots.Span)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -171,6 +232,8 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
 
             var obj = root.ObjectIndex;
             var type = graph.Types.GetName(graph.TypeIndices[obj]);
+            var counted = IsCounted(graph, obj, type);
+            countable += counted ? 1 : 0;
             if (found.ContainsKey(field))
             {
                 skipped.Add("field name seen twice", field);
@@ -178,6 +241,12 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
             else if (Count(graph, reader, obj, type, cancellationToken) is { } count)
             {
                 found[field] = new Collection(type, count, Bytes(graph, reader, obj, type), graph.Addresses[obj]);
+            }
+            else if (counted)
+            {
+                // A type it counts whose count could not be read: not checked, and said so, never "not counted".
+                unread++;
+                skipped.Add("count unreadable", field);
             }
             else if (type.Contains("Collection", StringComparison.Ordinal) || type.Contains("Concurrent", StringComparison.Ordinal) || type.Contains("Linked", StringComparison.Ordinal) || type.Contains("Sorted", StringComparison.Ordinal))
             {
@@ -217,6 +286,20 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
     /// queues, stacks, dictionaries, sets, hash tables, concurrent dictionaries and reference arrays are counted; the
     /// other collections are not (Backlog).
     /// </summary>
+    // Whether Count reads this object's count: a reference array, or one of the collections it knows.
+    private static bool IsCounted(HeapGraph graph, int obj, string type)
+    {
+        if (InspectionRows.IsArray(graph, obj))
+        {
+            return graph.Types.Kinds[graph.TypeIndices[obj]].HasFlag(TypeKind.ReferenceArray);
+        }
+
+        var open = type.IndexOf('<', StringComparison.Ordinal);
+        return (open < 0 ? type : type[..open]) is "System.Collections.Generic.List" or "System.Collections.Generic.Queue" or "System.Collections.Generic.Stack"
+            or "System.Collections.ArrayList" or "System.Collections.Generic.Dictionary" or "System.Collections.Generic.HashSet" or "System.Collections.Hashtable"
+            or "System.Collections.Concurrent.ConcurrentDictionary";
+    }
+
     private static long? Count(HeapGraph graph, IObjectReader reader, int obj, string type, CancellationToken cancellationToken)
     {
         var address = graph.Addresses[obj];

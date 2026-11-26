@@ -453,3 +453,72 @@ the whole code base as outsiders, ranked, each finding checked in the code.
 **Review summary:** 1 Critical and 1 High fixed (GC handles of Server GC processes; a program by its bare name), 20 High and 16 Moderate ranked
 ([docs/reviews/peer-review-4.5.md](../reviews/peer-review-4.5.md)) and split into sprints 4.6 to 4.12. The fixes were reviewed by four: every High
 and Moderate fixed and confirmed, one Moderate deferred to 4.6.
+
+## Sprint 4.6: Right answers
+
+**Goal:** every answer HeapScope shows is about the snapshot it names, says when it did not check, and nothing hangs or crashes on the
+way there: the High and Moderate findings of [peer review 4.5](../reviews/peer-review-4.5.md) planned here, with what its fixes left.
+
+**Tasks**
+1. [x] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
+   heap bar and notes cleared first, also when the new query fails; Trend falls back to its default sort for a column gone; Compare and
+   Trend show the busy bar. Tests: a query of B that fails shows nothing of A, in Types, Compare and Trend (notes included); Trend
+   unticked to fewer snapshots sorts by the change.
+2. [x] H9: stopping an EventPipe session waits a bounded time, then lets it go, in one helper (`SessionStop`): 5 s for the forced
+   collection and the counters, 30 s for a recording, whose stop writes its rundown; a recording's and the counters' start wait 30 s;
+   closing the app waits 15 s for its host, logs what it waited for and always shuts down. Tests: the helper with a stop that never
+   answers; a recording of a suspended process ends. Deferred (Backlog): a forced collection of a suspended process.
+3. [x] H10: the file and process work at a job's start runs on the thread pool, never on the caller's (UI) thread: the trusted DACs an open reads, the session a recording takes, starting a worker (all jobs on the pool broke the synchronous start the views rely on). Deferred (Backlog): a test. Was: work that
+   records its thread is never run on the caller's.
+4. [x] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
+   after a failed check, and stops recording with a message after several in a row. Tests: the probe on a folder, failures counted.
+5. [x] H2: a detector that could not read objects says so: the result carries its counts (scanned, unread), the front ends show "not
+   checked" for what was unread, and a detector that could read none of what it needs is a refusal. Tests per detector with fields
+   missing; the CLI's and the app's text.
+6. [x] H3: the static storage bucket keeps its "static storage" detail always; statics of closed generic types and boxed struct statics
+   are named where ClrMD can read them; the growing static collections detector notes storage slots no static field names. Tests on a
+   fixture with `Cache<T>` statics and a struct static.
+7. [x] H16: the CLI has a boundary around its start: a mistake in `appsettings.json` is said with the file, the line and how to write a
+   backslash in JSON, and logged; unhandled exceptions are logged. INSTALL gets a Windows example. Tests: a damaged and a mistyped file.
+8. [x] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
+9. [x] M6: one private JSON file helper (a lock, shared reads with retries, a flushed temp file, a replace with retries, unreadable is not
+   empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
+10. [x] M7: Inspections has Try again (for a failure, not a refusal; the chosen baseline kept); the Retainers tree and an object's tabs
+    that failed run again when shown again; Compare and Trend query only while shown and catch up when shown. Tests: Inspections, hidden
+    Compare. Deferred (Backlog): Retainers and Object retry tests, a hidden Trend test, a Try again in their status.
+11. [x] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and a kill its
+    timeout fires is logged, not thrown; a recording from the Processes page marks its session in use. Test: an architecture rule against raw
+    event raises in Application. Deferred (Backlog): an open trace keeping its session, and tests of the crash race, a throwing listener and a
+    recording's session in use.
+12. [x] M9: "no root found" in place of "unreachable" stated as fact where stack roots of a running process can be incomplete, and the
+    unreachable set's generation split. Wording drafts for the owner. Tests: the texts, the split.
+13. [x] What 4.5's fixes left: retained sizes (Compare's two sides, the Types grid, the CLI) say when a snapshot's GC handles were not all
+    checked. Test: `DominatorIndexBuilderTests`. A cache loaded again by itself once the second walk is on was built and taken out after the
+    review: the dump that needed the walk off would end the worker on every open. `heapscope-cli open --rebuild` is the step, as the note says.
+14. [x] The tests that failed in CI now and then: the run's trace that had no bytes for 60 s (a start that hangs, near task 2), the
+    bookmarks status of a damaged file on Linux, the live allocations follower (fixed 2026-11-25, watched). Each fixed or explained.
+
+**Decisions**
+- All of the findings the owner put in 4.6 (2026-11-25), in this order: what shows wrong answers first, then what hangs, then the rest.
+  Decided autonomously.
+- New user-facing texts are drafts in `docs/design/info-text.md` ("Sprint 4.6 additions") until the owner approves them; the sprint is built
+  with them. Decided autonomously.
+- No protocol change after all: task 5's counts and task 13's caution reach clients in the notes that exist (process-model.md). Decided
+  autonomously.
+- Settings for the DAC on the Settings page (H15) stay in 4.8 with the rest of "Ready to release"; task 7 only says the file and line.
+  Decided autonomously.
+
+**Findings** (2026-11-25)
+- Statics: on .NET 10 a struct static with references is boxed in the runtime's storage; HeapScope now roots the box by its field. Statics
+  of closed generic types stay in that storage with no field to name them (ClrMD lists none), so the growing static collections detector
+  says how many of their collections it could not check.
+- The known answers' own walk (ClrMD's) lacked the GC handles 4.5's second walk finds in LeakyApi, a Server GC process: the unreachable set
+  disagreed by up to 100 objects, wrongly on the test's side. Its walk now adds them.
+- A recording's stop writes its rundown, which took more than 5 s in the gate; recordings wait 30 s.
+- A recording's start took more than 60 s once under the gate's load (CI saw it four times): not explained; bounded at 30 s with a message,
+  and the tests say what they saw.
+
+**Review summary:** 6 High and 19 Moderate, and in the confirmations 4 Moderate and some Low
+([docs/reviews/sprint-4.6.md](../reviews/sprint-4.6.md)); every High fixed and confirmed, 14 Moderate fixed and 5 deferred (Backlog), the
+confirmations' fixed. Gate: pass, 0 warnings, 2,207 tests.
+

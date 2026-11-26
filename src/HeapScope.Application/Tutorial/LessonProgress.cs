@@ -30,8 +30,9 @@ namespace HeapScope.Application.Tutorial;
 
 /// <summary>
 /// The lessons a user finished (sprint 3.13): their ids in <c>learn-progress.json</c> in the data folder, written owner-only and
-/// whole (to a new file, then moved over the old one). A file that cannot be read counts as no progress, is logged and kept
-/// beside as <c>.bak</c> before it is replaced, so nothing is lost silently (review M7); nothing in it comes from a dump.
+/// whole, under a lock (<see cref="PrivateJsonFile"/>). A damaged file counts as no progress, is logged and kept beside as
+/// <c>.bak</c> before it is replaced (review M7); one that cannot be read now (held by another process) is never written over, so
+/// no progress is lost (peer review 4.5 M6). Nothing in it comes from a dump.
 /// </summary>
 public sealed class LessonProgress
 {
@@ -51,40 +52,36 @@ public sealed class LessonProgress
     public IReadOnlySet<string> Done => Read(out _);
 
     /// <summary>Records <paramref name="lessonId"/> as finished.</summary>
-    /// <exception cref="IOException">The file could not be written.</exception>
+    /// <exception cref="IOException">The file could not be read now, or not written.</exception>
     /// <exception cref="UnauthorizedAccessException">The file could not be written.</exception>
     public void MarkDone(string lessonId)
     {
-        var done = new HashSet<string>(Read(out var damaged), StringComparer.Ordinal) { lessonId };
-        PrivateFiles.CreateDirectory(_root);
-        if (damaged)
+        using var fileLock = PrivateJsonFile.Lock(FilePath);
+        var done = new HashSet<string>(Read(out var outcome), StringComparer.Ordinal) { lessonId };
+        if (outcome == JsonFileRead.Unreadable)
+        {
+            throw new IOException($"The lesson progress {FilePath} cannot be read now, so it is not written over. Close other HeapScope windows and try again.");
+        }
+
+        if (outcome == JsonFileRead.Damaged)
         {
             File.Copy(FilePath, FilePath + ".bak", overwrite: true);
             _logger.LogWarning("The damaged lesson progress {Path} was kept as {Backup}", FilePath, FilePath + ".bak");
         }
 
-        var temporary = FilePath + ".tmp";
-        using (var stream = PrivateFiles.Open(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, done.Order(StringComparer.Ordinal));
-        }
-
-        File.Move(temporary, FilePath, overwrite: true);
+        PrivateJsonFile.Write(FilePath, done.Order(StringComparer.Ordinal));
         _logger.LogInformation("Lesson {Lesson} done; {Count} lessons done in {Path}", lessonId, done.Count, FilePath);
     }
 
-    private HashSet<string> Read(out bool damaged)
+    private HashSet<string> Read(out JsonFileRead outcome)
     {
-        damaged = false;
-        try
+        var (value, read, error) = PrivateJsonFile.Read<HashSet<string>>(FilePath);
+        outcome = read;
+        if (error is not null)
         {
-            return File.Exists(FilePath) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(FilePath)) ?? [] : [];
+            _logger.LogWarning("The lesson progress {Path} could not be read ({Outcome}), so no lesson counts as done: {Error}", FilePath, read, error.Message);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            damaged = ex is JsonException;
-            _logger.LogWarning("The lesson progress {Path} could not be read, so no lesson counts as done: {Error}", FilePath, ex.Message);
-            return [];
-        }
+
+        return value ?? [];
     }
 }

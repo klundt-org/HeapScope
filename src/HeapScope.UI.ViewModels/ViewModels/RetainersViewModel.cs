@@ -478,7 +478,8 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
     /// <summary>Queries the tree and the icicle once per snapshot and focus, when the tab is shown.</summary>
     private void Start()
     {
-        if (!CanQuery || _queried)
+        // A tree whose query failed runs again when the tab is shown again (peer review 4.5 M7).
+        if (!CanQuery || (_queried && !LastQueryFailed))
         {
             return;
         }

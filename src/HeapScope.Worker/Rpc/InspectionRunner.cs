@@ -22,6 +22,7 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using System.Diagnostics;
+using System.Globalization;
 using HeapScope.Analysis.Inspections;
 using HeapScope.Contracts;
 using HeapScope.Core;
@@ -125,6 +126,24 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             }
 
             throttled.Flush();
+
+            // What could not be read was not checked (peer review 4.5 H2): a clean answer means checked.
+            if (result.Unread is { Count: > 0 } unread)
+            {
+                // With the rule and its basis, which names what was probed: a refusal below is backed up by this line (review of 4.6).
+                logger.LogInformation(
+                    "Inspection {Inspection} v{Version} ({Parameters}) on snapshot {Id} could not read {Count} of {Of} {What}; basis: {Basis}",
+                    inspection.Name,
+                    inspection.Version,
+                    inspection.Parameters.Length == 0 ? "no thresholds" : inspection.Parameters,
+                    request.SnapshotId,
+                    unread.Count,
+                    unread.Of,
+                    unread.What,
+                    (result.Counts is { } counted ? counted + "; " : string.Empty) + (result.Basis ?? "not recorded"));
+                result = Checked(inspection.Title, snapshot.Info.RuntimeVersion, result);
+            }
+
             if (inspection.UsesReachable && !HandlesChecked(snapshot))
             {
                 const string Unchecked = "Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted.";
@@ -160,6 +179,24 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             lease.Dispose();
             throw;
         }
+    }
+
+    /// <summary>The answer with what it could not read in its note; refused when it could read none of it.</summary>
+    /// <exception cref="RequestRefusedException">Nothing of what the inspection needs could be read.</exception>
+    internal static InspectionResult Checked(string title, string? runtimeVersion, InspectionResult result)
+    {
+        if (result.Unread is not { Count: > 0 } unread)
+        {
+            return result;
+        }
+
+        if (unread.Count >= unread.Of)
+        {
+            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"{title} checked nothing: none of the {unread.Of:N0} {unread.What} in this snapshot could be read. The .NET {runtimeVersion ?? "version"} of this dump may lay them out differently from the versions HeapScope knows; HeapScope's log has what was probed, for an issue on HeapScope's site."));
+        }
+
+        var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unread.Count:N0} of {unread.Of:N0} {unread.What} could not be read, so they were not checked.");
+        return result with { Note = result.Note is null ? notChecked : result.Note + " " + notChecked };
     }
 
     private static bool HandlesChecked(ISnapshot snapshot) => Snapshots.SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info);

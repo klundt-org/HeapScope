@@ -127,8 +127,13 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         var title = string.Create(CultureInfo.InvariantCulture, $"Open {System.IO.Path.GetFileName(fullPath)}");
         return jobs.Start(title, async (progress, ct) =>
         {
-            var request = new OpenSnapshotRequest(fullPath, rebuild, mode, TrustedDacs: TrustedDacs?.All(), CheckDac: checkDac ?? CheckDacOnCacheOpen);
-            LogTrustedDacs(fullPath);
+            // The trusted DACs are files, read with retries under a lock: never on the caller's (the UI's) thread (peer review 4.5 H10).
+            var trusted = await Task.Run(() =>
+            {
+                LogTrustedDacs(fullPath);
+                return TrustedDacs?.All();
+            }, ct).ConfigureAwait(false);
+            var request = new OpenSnapshotRequest(fullPath, rebuild, mode, TrustedDacs: trusted, CheckDac: checkDac ?? CheckDacOnCacheOpen);
             var (descriptor, generation) = await OpenInWorkerAsync(request, progress, ct).ConfigureAwait(false);
             SnapshotHandle handle;
             lock (_gate)

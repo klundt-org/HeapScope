@@ -275,6 +275,35 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         public void Bytes(byte[] data) => WriteEvent(2, data);
     }
 
+    // Peer review 4.5 H9: a target that stops answering (a breakpoint in a debugger) does not hold the recording's end.
+    [Fact]
+    public async Task A_recording_of_a_process_that_stops_answering_ends_anyway()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Suspends the process with ntdll (Windows).");
+        using var api = await FixtureProcess.StartApiAsync();
+        var path = _scratch.File("frozen.nettrace");
+        var recording = TraceRecorder.RecordAsync(api.ProcessId, path, TraceProfile.Allocations, TimeSpan.FromSeconds(3), Ct);
+        await Task.Delay(TimeSpan.FromSeconds(1), Ct);
+        using var process = System.Diagnostics.Process.GetProcessById(api.ProcessId);
+        NtSuspendProcess(process.Handle).ShouldBe(0);
+        try
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            (await recording.WaitAsync(TimeSpan.FromSeconds(90), Ct)).StoppedEarly.ShouldBeTrue();
+            clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(45), "the stop waits 30 s for the target and its rundown, then lets the session go");
+        }
+        finally
+        {
+            NtResumeProcess(process.Handle);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("ntdll.dll")]
+    private static extern int NtSuspendProcess(IntPtr process);
+
+    [System.Runtime.InteropServices.DllImport("ntdll.dll")]
+    private static extern int NtResumeProcess(IntPtr process);
+
     [Fact]
     public async Task A_recording_whose_process_exits_has_no_rundown_and_says_so()
     {

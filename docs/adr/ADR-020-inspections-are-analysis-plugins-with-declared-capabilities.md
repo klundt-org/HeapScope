@@ -32,3 +32,7 @@
   single delegate in a field named as a field-like event; a timer is a periodic one in the queue; HttpClients count by
   the distinct handlers they own; what is left out is logged by reason with its most common keys. A detector row opens the type's reachable objects (`InstanceScope.Reachable`), never the whole
   type, so whole-type actions such as Retained by set stay with whole-type rows.
+- Amended in 4.6 (peer review 4.5 H2): an inspection that reads fields says what it could not read (`InspectionResult.Unread`: how many of
+  how many, and of what). The worker adds it to the answer's note ("N of M reachable timers could not be read, so they were not checked"),
+  and refuses an answer that could read none of it: a clean answer means checked, but for the detectors the Backlog names (review of
+  4.6, M17). The DTO keeps its shape; the counts reach clients as words.

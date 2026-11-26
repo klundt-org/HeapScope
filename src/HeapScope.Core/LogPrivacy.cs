@@ -140,7 +140,7 @@ public sealed class LogPrivacy
             return;
         }
 
-        if (!HeapScopeSettings.TryRead(_folders, out var settings))
+        if (!HeapScopeSettings.TryRead(_folders, out var settings, wait: false))
         {
             // There and unreadable now (sprint 3.12 review H5): never fall back to the default "on" (see SetUnreadable); the write
             // time is not recorded, so the next check reads again.

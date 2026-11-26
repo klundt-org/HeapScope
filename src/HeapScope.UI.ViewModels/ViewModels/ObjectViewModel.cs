@@ -282,22 +282,32 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
 
     partial void OnReferencesTabChanged(int value)
     {
+        // A step that failed (the worker restarted meanwhile) runs again when its tab is shown again (peer review 4.5 M7).
         if (value == 1 && !_incomingStarted)
         {
             _incomingStarted = true;
-            IncomingTask = LoadIncomingAsync(_lifetime.Token);
+            IncomingTask = UnlatchOnFailure(LoadIncomingAsync(_lifetime.Token), () => _incomingStarted = false);
         }
         else if (value == 2 && !_retentionStarted)
         {
             _retentionStarted = true;
-            RetentionTask = LoadRetentionAsync(_lifetime.Token);
+            var retention = LoadRetentionAsync(_lifetime.Token);
+            RetentionTask = UnlatchOnFailure(retention, () => _retentionStarted = false);
             RetainedTask = LoadRetainedAfterAsync(RetentionTask, _lifetime.Token);
         }
     }
 
     partial void OnShowFrameworkStepsChanged(bool value) => ShowPaths();
 
-    private Task LoadRetentionAsync(CancellationToken cancellationToken)
+    private static async Task UnlatchOnFailure(Task<bool> shown, Action unlatch)
+    {
+        if (!await shown)
+        {
+            unlatch();
+        }
+    }
+
+    private Task<bool> LoadRetentionAsync(CancellationToken cancellationToken)
     {
         RetentionStatus = "Finding the shortest paths from roots (the first query of a snapshot indexes its incoming references)...";
         return QueryRunner.RunAsync(
@@ -379,7 +389,7 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
     }
 
     // The first query builds the snapshot's index in the worker: its phases replace the busy text (review M7).
-    private Task LoadIncomingAsync(CancellationToken cancellationToken)
+    private Task<bool> LoadIncomingAsync(CancellationToken cancellationToken)
     {
         IncomingStatus = "Finding referrers (the first query of a snapshot indexes its incoming references)...";
         return QueryRunner.RunAsync(

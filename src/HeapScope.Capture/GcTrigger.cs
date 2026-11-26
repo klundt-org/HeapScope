@@ -109,14 +109,9 @@ public static class GcTrigger
             // Ends at the collection's end, the deadline, or when the stream ends (the target exited).
             await Task.WhenAny(completed.Task, processing, Task.Delay(Timeout.Infinite, deadline.Token)).ConfigureAwait(false);
             var finished = completed.Task.IsCompleted;
-            try
-            {
-                await session.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or EndOfStreamException or IOException)
-            {
-                // The target exited after the collection.
-            }
+
+            // Bounded, so a target frozen after its session started does not keep the gate (peer review 4.5 H9).
+            await SessionStop.StopAsync(session).ConfigureAwait(false);
 
             await Task.WhenAny(processing, Task.Delay(TimeSpan.FromSeconds(10), CancellationToken.None)).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();

@@ -45,6 +45,7 @@ namespace HeapScope.UI;
 public sealed partial class App : Avalonia.Application
 {
     private static readonly TimeSpan s_stopTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan s_disposeTimeout = TimeSpan.FromSeconds(15);
 
     private readonly string[] _args;
     private IClassicDesktopStyleApplicationLifetime? _desktop;
@@ -231,12 +232,19 @@ public sealed partial class App : Avalonia.Application
             window.Title += " (finishing running jobs, a canceled capture removes its dump first)";
         }
 
+        var logger = services.GetService<ILogger<App>>();
+        logger?.LogInformation("Closing: canceling {Count} running jobs: {Jobs}", running.Count, string.Join(", ", running.Select(static j => $"{j.Id} {j.Title}")));
         foreach (var job in running)
         {
             job.Cancel();
         }
 
         await Task.WhenAny(Task.WhenAll(running.Select(j => j.Completion)), Task.Delay(TimeSpan.FromMinutes(5)));
+        if (running.Where(static j => !j.Completion.IsCompleted).ToList() is { Count: > 0 } left)
+        {
+            // A canceled capture still running may leave its dump behind: said (review of 4.6).
+            logger?.LogWarning("Closing: {Count} jobs still running after 5 minutes: {Jobs}", left.Count, string.Join(", ", left.Select(static j => $"{j.Id} {j.Title}")));
+        }
     }
 
     private async void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
@@ -275,13 +283,15 @@ public sealed partial class App : Avalonia.Application
             var logger = host.Services.GetService<ILogger<App>>();
             try
             {
-                if (host is IAsyncDisposable asyncDisposable)
+                // Bounded (peer review 4.5 H9): a run whose target does not answer must not keep HeapScope running without a window.
+                var disposing = host is IAsyncDisposable asyncDisposable ? asyncDisposable.DisposeAsync().AsTask() : Task.Run(host.Dispose);
+                if (await Task.WhenAny(disposing, Task.Delay(s_disposeTimeout)) != disposing)
                 {
-                    await asyncDisposable.DisposeAsync();
+                    logger?.LogWarning("Host dispose did not end in {Seconds} s (a monitoring run or a worker that does not answer); HeapScope ends without waiting for it", s_disposeTimeout.TotalSeconds);
                 }
                 else
                 {
-                    host.Dispose();
+                    await disposing;
                 }
             }
             catch (Exception ex)

@@ -316,6 +316,10 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     protected override void OnCleared()
     {
         (_allocated, AllocatedShown, AllocatedNote, _untickedNote) = (null, false, null, null);
+
+        // Everything the last answer set, so nothing of an old pair is shown (review of 4.6).
+        // Not HasGenerations: the next query's sort depends on it (the second review), and its answer sets it again.
+        (IdentityNote, IdentityShown, RetainedNote, RetainedShown) = (null, false, null, false);
         base.OnCleared();
     }
 
@@ -407,6 +411,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     partial void OnIsTrendShownChanged(bool value)
     {
+        Trend.IsActive = value && IsActive;
         if (value)
         {
             Trend.Start();
@@ -415,9 +420,13 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     private void RequeryIfPair()
     {
-        if (CanQuery)
+        if (CanQuery && IsActive)
         {
             Requery();
+        }
+        else
+        {
+            _pending = CanQuery;
         }
     }
 
@@ -718,15 +727,42 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
                 current.Handle.Descriptor.CaptureTimeFromFile ? ", the file's time" : string.Empty);
         }
 
-        if (CanQuery)
+        if (CanQuery && IsActive)
         {
-            Requery();
+            Requery(subjectChanged: true);
         }
         else
         {
+            // Hidden, nothing is computed (peer review 4.5 M7): the comparison runs when the tab is shown.
             ClearResults();
+            _pending = CanQuery;
         }
     }
+
+    /// <summary>Whether the Compare tab is shown: hidden, a new pair waits (peer review 4.5 M7). True until a tab is chosen.</summary>
+    public bool IsActive
+    {
+        get => _isActive;
+        set
+        {
+            if (_isActive == value)
+            {
+                return;
+            }
+
+            _isActive = value;
+            Trend.IsActive = value && IsTrendShown;
+            if (value && _pending)
+            {
+                _pending = false;
+                OnPairChanged("run when the tab was shown");
+            }
+        }
+    }
+
+    private bool _isActive = true;
+
+    private bool _pending;
 
     private void OnSnapshotsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {

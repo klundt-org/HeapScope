@@ -49,6 +49,9 @@ internal sealed class Exclusions
         keys[key] = keys.GetValueOrDefault(key) + 1;
     }
 
+    /// <summary>Whether <paramref name="key"/> was left out for <paramref name="reason"/>.</summary>
+    public bool Has(string reason, string key) => _byReason.TryGetValue(reason, out var keys) && keys.ContainsKey(key);
+
     /// <summary>Everything left out, every reason together.</summary>
     public long Total => _byReason.Values.Sum(keys => keys.Values.Sum());
 

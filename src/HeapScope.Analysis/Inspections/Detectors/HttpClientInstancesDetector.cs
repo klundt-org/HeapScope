@@ -90,6 +90,6 @@ internal sealed class HttpClientInstancesDetector : IInspection
             ? [new DetectorTypeRow(ClientType, InspectionRows.Number(handlers.Count), owning, bytes, ClientType, DetectorGraph.Module(graph, type), [.. clients])]
             : [];
         var basis = string.Create(CultureInfo.InvariantCulture, $"{owning} reachable HttpClients owning their handler ({handlers.Count} distinct handlers), {sharing} sharing one, {unreadable} unreadable; {Reachability.Describe(reachable)}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Handlers"), basis, Counts: new(owning + sharing + unreadable, unreadable));
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Handlers"), basis, Counts: new(owning + sharing + unreadable, unreadable), Unread: new(unreadable, owning + sharing + unreadable, "reachable HttpClients"));
     }
 }

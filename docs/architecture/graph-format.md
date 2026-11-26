@@ -149,9 +149,10 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
   as detail, the f-reachable queue). On .NET 9 and 10 it also reports the static storage bucket as `StaticVar` and
   thread statics as `ThreadStaticVar`: the bucket maps to `StrongHandle` with the detail "static storage" and is kept
   once (the detail on its own strong handle since 4.5); thread statics map to `Other`. `StaticField` roots come from `ClrModule.EnumerateTypesWithStaticFields` per
-  module and app domain (initialized reference statics, detail `Namespace.Type.field`). Statics of generic
-  instantiations missing from a module's type map are not reported; their values stay reachable through the storage
-  handle.
+  module and app domain (initialized reference statics, detail `Namespace.Type.field`; since 4.6, loader version 6, a struct static
+  with references too, rooted at its box). Statics of generic instantiations missing from a module's type map are not reported;
+  their values stay reachable through the storage handle, and the growing static collections detector's note counts the collections
+  it holds that no field names (peer review 4.5 H3).
 - GC handles of Server GC processes (peer review 4.5, loader version 5): the runtime keeps a handle table per processor and its debugging
   library walks one per GC heap, so with fewer heaps than processors (DATAS, `GCHeapCount`) handles were left out (measured on 24
   processors: 785 of 2,400 at 8 heaps, 200 at 2, 103 at 1). `HandleTables` walks again through a second target whose reader

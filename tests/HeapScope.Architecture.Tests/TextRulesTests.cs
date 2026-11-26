@@ -78,6 +78,15 @@ public class TextRulesTests
             .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
             .ShouldBeEmpty();
 
+    // Peer review 4.5 M8: an event of the application layer is raised through SafeEvents, so a listener that throws cannot end the app.
+    [Fact]
+    public void Application_events_are_raised_safely() =>
+        Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src", "HeapScope.Application"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && Path.GetFileName(f) != "SampleProcessStarter.cs")
+            .Where(f => File.ReadAllText(f).Contains("?.Invoke(this", StringComparison.Ordinal))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ShouldBeEmpty();
+
     // One path rule (sprint 3.12, B3 and the review's M3): no file but PathIdentity.cs decides by system how paths compare, so
     // the rule cannot drift apart in copies (DacLocator kept one, ProcessDiscovery ignored case everywhere).
     [Fact]

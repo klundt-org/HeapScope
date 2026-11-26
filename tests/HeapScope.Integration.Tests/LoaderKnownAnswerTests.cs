@@ -278,6 +278,21 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         }
     }
 
+    // Peer review 4.5 H3: a struct static is named by its field (its box is the root); a generic type's static is in the runtime's
+    // storage with no field to name it, which the growing static collections detector counts in its note.
+    [Fact]
+    public void A_struct_static_is_named_by_its_field_and_a_generic_static_is_counted_as_unnamed()
+    {
+        var box = GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.StructStaticHolder).FullName!).ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(box).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && Graph.Strings[r.DetailId] == "Fixtures.Leaks.StructStatics.s_holder");
+
+        using var reader = new ClrMdObjectReader(shared.Source.DumpPath, new ClrMdLoaderOptions(), () => { });
+        // The fixture's generic static is one of them (the detector itself counts only those large enough to report).
+        var (count, types) = HeapScope.Analysis.Inspections.GrowingStaticCollectionsDetector.Unnamed(Graph, reader, AllLeaksDump.RuntimeItems, TestContext.Current.CancellationToken);
+        count.ShouldBeGreaterThanOrEqualTo(1);
+        types.ShouldContain("System.Collections.Generic.List<Fixtures.Leaks.GenericStaticEntry>");
+    }
+
     [Theory]
     [MemberData(nameof(LeakNames))]
     public void Static_storage_is_rooted_as_recorded(string leak)
