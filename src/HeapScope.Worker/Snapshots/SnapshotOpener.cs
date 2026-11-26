@@ -346,14 +346,6 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             return null;
         }
 
-        // A load that could not check something then, which it can now (peer review 4.5: the second walk of GC handles turned on again).
-        if (written is not null && _kinds.For(written.Info.Kind).WhyLoadAgain(written) is { } again)
-        {
-            logger.LogInformation("Index cache {Path} not used: {Why}", cachePath, again);
-            rebuildReason = again;
-            return null;
-        }
-
         var mode = MemoryModeSelector.Select(required.Value, MemoryBudget.Current(forced: forced));
         var result = IndexCacheReader.Open(cachePath, _signer, fingerprint, mode, cancellationToken);
 

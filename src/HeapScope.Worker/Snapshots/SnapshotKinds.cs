@@ -60,9 +60,6 @@ internal abstract class SnapshotKindHandler
     /// </summary>
     public abstract ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged, ValueReadsRefused? refused = null);
 
-    /// <summary>Why a cache of the current loader is loaded again from the dump, or null: what it could not check then, it can now.</summary>
-    public virtual string? WhyLoadAgain(IndexCacheMetadata metadata) => null;
-
     /// <summary>Notes on what this kind of snapshot can and cannot answer, given what its loader recorded.</summary>
     public abstract void AddNotes(IndexCacheMetadata metadata, List<string> notes);
 
@@ -201,12 +198,6 @@ internal sealed class SnapshotKinds
             $"{title} needs data newer versions of HeapScope record, and this snapshot's index cache is older. Reopen the dump with Rebuild.";
 
         public override string? WhyNoGarbage => null;
-
-        // A cache written with the second walk of GC handles turned off, once it is on again (peer review 4.5).
-        public override string? WhyLoadAgain(IndexCacheMetadata metadata) =>
-            options.SecondHandleWalk && metadata.Handles is { Outcome: HandleWalkOutcome.Unknown, How: var how } && how.StartsWith("the second walk is turned off", StringComparison.Ordinal)
-                ? "its GC handles were not all checked, as the second walk of them was turned off; it is on now, so they were checked."
-                : null;
 
         public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
 

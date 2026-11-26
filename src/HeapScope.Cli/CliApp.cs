@@ -52,6 +52,7 @@ internal static class CliApp
         IHost? host = null;
         var root = CliCommands.Build(() => host!.Services);
         var parseResult = root.Parse(args);
+        s_parsed = parseResult;
         var configuration = CliCommands.CreateInvocationConfiguration(output, error);
 
         // The Attribution Notice (ADDITIONAL-TERMS.md 1.4) ends help output (version output prints it itself) and starts
@@ -94,8 +95,8 @@ internal static class CliApp
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             host?.Dispose();
-            LogFatalStart(args, ex);
-            await error.WriteLineAsync(StartFailure(ex)).ConfigureAwait(false);
+            var folder = LogFatal("heapscope-cli could not start", ex);
+            await error.WriteLineAsync(StartFailure(ex, folder)).ConfigureAwait(false);
             return 1;
         }
 
@@ -120,7 +121,7 @@ internal static class CliApp
     }
 
     /// <summary>What a failed start says: a settings file that is not JSON with its file and line, a value of the wrong kind, else the error.</summary>
-    internal static string StartFailure(Exception ex)
+    internal static string StartFailure(Exception ex, string? logFolder = null)
     {
         var json = Find<System.Text.Json.JsonException>(ex);
         var file = Find<InvalidDataException>(ex)?.Message is { } loading && loading.IndexOf('\'', StringComparison.Ordinal) is var start and >= 0
@@ -136,7 +137,7 @@ internal static class CliApp
             return $"A setting has a value HeapScope cannot use: {message} Fix it in appsettings.json or the environment, then run the command again.";
         }
 
-        return $"HeapScope could not start: {ex.GetType().Name}: {ex.Message} Details are in HeapScope's log.";
+        return $"HeapScope could not start: {ex.GetType().Name}: {ex.Message} Details are in HeapScope's log{(logFolder is null ? string.Empty : $" in {logFolder}")}.";
     }
 
     private static T? Find<T>(Exception? ex)
@@ -153,17 +154,31 @@ internal static class CliApp
         return null;
     }
 
-    /// <summary>A start failure in the file log, which the host's own logging never set up: the folder of <c>Logging__File__Directory</c>, else the default.</summary>
-    internal static void LogFatalStart(string[] args, Exception exception)
+    // The command line of this run, for the log lines written when there is no host (a failed start, a crash).
+    private static System.CommandLine.ParseResult? s_parsed;
+
+    /// <summary>
+    /// A failure in the file log when the host's own logging cannot be used (a failed start, a crash or an unobserved task in a run):
+    /// the folder of <c>Logging__File__Directory</c>, else the default, which it returns. The arguments are described as every
+    /// command's are, a filter's text only when the setting allows it (peer review of 4.6: never the raw command line).
+    /// </summary>
+    /// <summary>This run's command line as a log line describes it: a filter's text only with <paramref name="includeFilterText"/>.</summary>
+    internal static string Arguments(bool includeFilterText, System.CommandLine.ParseResult? parsed = null) => (parsed ?? s_parsed) is { } line ? CliCommands.DescribeTokens(line, includeFilterText) : "not parsed";
+
+    internal static string? LogFatal(string what, Exception exception)
     {
         try
         {
             using var provider = new HeapScope.Application.Logging.FileLoggerProvider(Environment.GetEnvironmentVariable("Logging__File__Directory"), app: "cli");
-            Microsoft.Extensions.Logging.LoggerExtensions.LogCritical(provider.CreateLogger("HeapScope.Cli"), exception, "heapscope-cli could not start; arguments {Arguments}", string.Join(' ', args));
+            var includeFilterText = HeapScope.Core.HeapScopeSettings.TryRead(HeapScope.Core.HeapScopeFolders.Default, out var settings) && settings.IncludeFilterTextInLogs;
+            var arguments = Arguments(includeFilterText);
+            Microsoft.Extensions.Logging.LoggerExtensions.LogCritical(provider.CreateLogger("HeapScope.Cli"), exception, "{What}; arguments {Arguments}", what, arguments);
+            return provider.Directory;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // The message on stderr is what is left.
+            return null;
         }
     }
 }

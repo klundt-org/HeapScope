@@ -55,7 +55,19 @@ public sealed class StartFailureTests : IDisposable
         (code, error.Trim()).ShouldBe((1, "A setting has a value HeapScope cannot use: " + wrongKind.Message + " Fix it in appsettings.json or the environment, then run the command again."));
 
         (_, _, error) = await InProcessCli.RunAsync((_, _, _) => throw new UnauthorizedAccessException("Access denied."), "summary", "app.dmp");
-        error.Trim().ShouldBe("HeapScope could not start: UnauthorizedAccessException: Access denied. Details are in HeapScope's log.");
+        error.Trim().ShouldStartWith("HeapScope could not start: UnauthorizedAccessException: Access denied. Details are in HeapScope's log in ");
+    }
+
+    // Review of 4.6 (High): a failed start or a crash logs the command line as every command's line describes it, so a filter's text
+    // stays out when Include filter text in logs is off.
+    [Fact]
+    public void The_command_line_of_a_failed_start_is_logged_without_the_filter_text_unless_allowed()
+    {
+        var line = CliCommands.Build(() => throw new InvalidOperationException("No host.")).Parse(["summary", "app.dmp", "--filter", "SecretTypeName"]);
+
+        CliApp.Arguments(includeFilterText: false, line).ShouldNotContain("SecretTypeName");
+        CliApp.Arguments(includeFilterText: false, line).ShouldContain("summary");
+        CliApp.Arguments(includeFilterText: true, line).ShouldContain("SecretTypeName");
     }
 
     public void Dispose() => Directory.Delete(_folder, recursive: true);
