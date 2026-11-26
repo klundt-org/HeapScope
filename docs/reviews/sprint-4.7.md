@@ -91,8 +91,9 @@ High:
 - F1 (support-engineer) A fallback to memory was said only in a successful load's line, so a load that failed afterwards (the
   fallback brings the doubled peak back) lost its cause. Fixed: the store reports each fallback when it happens; the worker
   logs it as a warning with the dump, the reason and the next step (`ClrMdLoaderOptions.EdgesKeptInMemory`). Status: Fixed.
-- F2 (gc-specialist) The 8 GB dump was not measured after the fix. Status: open; the 2 GB dump is measured (budgets.md), and the
-  8 GB rerun waits for the owner (claude-dev-2's application control blocked the rebuilt benchmark).
+- F2 (gc-specialist) The 8 GB dump was not measured after the fix. Fixed: measured on claude-dev-2 (through `dotnet`, owner's
+  choice, as Smart App Control blocks a newly built program there): first load peak 3,569 MB, under 4 GB, the same graph hash
+  (budgets.md). Status: Fixed.
 
 Moderate, fixed:
 - F3 (senior-dev, gc-specialist) A failure between the build and the load's result (a cancel in the truncation check) leaked the
@@ -113,8 +114,10 @@ Moderate, fixed:
 - F9 (solution-architect) ADR-015, graph-format.md 6.1 and 6.5, ARCHITECTURE.md's Core rule and SPRINTS.md said otherwise.
   Fixed: ADR-015 amended (why not the cache: the count is not known until the pass ends), the rest brought in line.
 - F10 (support-engineer) The success line named no file. Fixed: its path (Windows) or folder, and the count.
-- Deferred until the 8 GB rerun, as part of closing task 10: F11 (gc-specialist) `FirstLoadEstimate` is now about 2.15 times the
-  2 GB dump's peak (2,498 MB against 1,161 MB); refitted once the 8 GB dump is measured. Deferred (Backlog): F12 (support-engineer) a snapshot note for a load that fell back (user-facing
+- F11 (gc-specialist) `FirstLoadEstimate` was about 2.15 times the 2 GB dump's peak (2,498 MB against 1,161 MB). Fixed with
+  task 10: refitted to 0.45 bytes per dump byte plus 704 MB, above every measured peak (3.10's Medium sets the fixed part), 4,778 MB
+  for the 8 GB dump's 3,569 MB. Found measuring it, Backlog for 4.8: the drop before the mapped switch leaves about 1 to 1.9 GB
+  committed (the same at sprint 4.6), and `load-dump`'s 4 GB check used the whole run's peak (fixed: the first load's). Deferred (Backlog): F12 (support-engineer) a snapshot note for a load that fell back (user-facing
   wording; the log has it); F13 (solution-architect) `ColumnBytes` split into private and file-backed for the mode log.
 
 Confirmations (all four reviewers, 2026-11-26): F1 and F3 to F10 confirmed; F2 open until the 8 GB rerun; the deferrals accepted.

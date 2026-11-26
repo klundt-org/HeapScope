@@ -169,7 +169,9 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   late start once in the 4.6 gate (`AllocatedBetweenTests`), which the file buffer of 4.7 does not explain.
   From the task 10 follow-up (F12, F13): a snapshot note when a load kept its references in memory for lack of space or a
   failed file (user-facing wording; the log says it); `ColumnBytes` split into private and file-backed bytes, for the memory mode
-  log and choice.
+  log and choice. The memory the drop before the mapped switch does not return: `load-dump`'s private bytes after the drop were
+  1,866 MB on the 8 GB DenseHeap dump and 1,003 MB on a 2 GB one at sprint 4.6 already, against 34 MB in 3.12 (budgets.md); find
+  what holds it (the GC's regions, ClrMD's or the DAC's native memory) for the worker's mapped mode on 16 GB machines (4.8).
 - From sprint 4.6 (decided autonomously; [reviews/sprint-4.6.md](reviews/sprint-4.6.md) M15 to M19 and H5): the settings and lesson progress
   saves off the UI thread; the unread counts as data in the inspection DTO; the event handler detector, the disposed objects detector with no
   flag readable, and the collection inspections with an items field unread saying what they could not read, with a test per detector with

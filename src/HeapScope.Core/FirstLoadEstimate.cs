@@ -25,17 +25,18 @@ namespace HeapScope.Core;
 
 /// <summary>
 /// The worker's peak memory for a first load of a dump (ARCHITECTURE.md 10): the front ends warn with it before they ask, and since
-/// sprint 4.7 the worker reserves it while it loads and logs it against what the load used (peer review 4.5 H5). Calibrated in sprint
-/// 1.2 on the sample dumps (memory-mapped dump reading, ClrMD cache capped at 512 MB): Small 568 MB dump peaked at 227 MB, Medium
-/// 4.0 GB at 2.4 GB. The fixed part leaves room for ClrMD's cache and denser heaps than the fixtures.
+/// sprint 4.7 the worker reserves it while it loads and logs it against what the load used (peer review 4.5 H5). Refitted in sprint
+/// 4.7, when a load's references went to a mapped file (budgets.md): above every first load peak measured (ClrMD cache capped at
+/// 512 MB), the highest per dump byte being sprint 3.10's Medium (3,984 MB dump, 2,470 MB, before the file) and, after it, an 8 GB
+/// DenseHeap dump (9,054 MB, 3,569 MB) and a 2 GB one (3,145 MB, 1,161 MB).
 /// </summary>
 public static class FirstLoadEstimate
 {
     /// <summary>Peak private bytes per byte of dump, with headroom for denser heaps than the fixtures.</summary>
-    public const double BytesPerDumpByte = 0.55;
+    public const double BytesPerDumpByte = 0.45;
 
     /// <summary>Fixed part: ClrMD's capped cache, runtime structures and the worker itself.</summary>
-    public const long FixedBytes = 768L * 1024 * 1024;
+    public const long FixedBytes = 704L * 1024 * 1024;
 
     /// <summary>The part of <see cref="FixedBytes"/> a worker holds before any load (its runtime and code): not reserved again.</summary>
     public const long WorkerIdleBytes = 256L * 1024 * 1024;

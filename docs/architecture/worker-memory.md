@@ -31,8 +31,8 @@ and `build/check-tool.sh`) and `ToolWorkerTests` on the dotnet host start.
   file as they are read and mapped, so the load never holds them twice and their pages are the file's, not the worker's
   (graph-format.md 6.3).
 - Hot loops avoid LINQ, closures, boxing and per-item allocations. `ArrayPool<T>` for temporary buffers.
-- Sprint 4.7 (peer review 4.5 H5 to H8, M11): a first load of a full dump reserves `FirstLoadEstimate.PeakBytes` (0.55 bytes per dump
-  byte and 768 MB) less the worker's idle 256 MB while it loads, and logs it against the peak; one that does not fit is logged, not
+- Sprint 4.7 (peer review 4.5 H5 to H8, M11): a first load of a full dump reserves `FirstLoadEstimate.PeakBytes` (0.45 bytes per dump
+  byte and 704 MB, refitted in 4.7) less the worker's idle 256 MB while it loads, and logs it against the peak; one that does not fit is logged, not
   refused (the front ends warn and `--no-overcommit` refuses before asking). Every inspection reserves `IInspection.WorkingBytes` (a
   byte per object by default; Duplicate strings 49 bytes per string and its 10,000 rows) around its run, refused with the reservations'
   next step. The incoming references index built without a cache reserves its 4 bytes per object and per edge. The budget's figures

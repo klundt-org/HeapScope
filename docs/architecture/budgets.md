@@ -79,8 +79,8 @@ costs) and returns 1 when one is missed; the DenseHeap run met all of them (firs
 peak 2.6 GB, mapped transition 1.0 s down to 33 MB private).
 
 Before opening a dump without an index cache, the Application layer estimates the first-load peak
-(`SnapshotMemoryEstimate`: 0.55 bytes per dump byte plus 768 MB, calibrated on the samples above; for the dense dump it
-gives 3.2 GB against the measured 2.6 GB; since 4.7 it is Core's `FirstLoadEstimate`, which the worker also reserves while it
+(`SnapshotMemoryEstimate`: 0.55 bytes per dump byte plus 768 MB, calibrated on the samples above, until 4.7's refit to 0.45
+bytes plus 704 MB, below; for the dense dump it gave 3.2 GB against the measured 2.6 GB; since 4.7 it is Core's `FirstLoadEstimate`, which the worker also reserves while it
 loads, less its idle 256 MB, and logs against the load's peak) and warns when it exceeds available physical memory: the UI asks to
 continue, the CLI prints the warning (or fails with `--no-overcommit`). `SnapshotSession.GetOpenWarningAsync` holds the
 rule for both front ends; it asks the worker (`ProbeSnapshotAsync`) whether a valid index cache exists where the
@@ -111,7 +111,23 @@ MB file, 33.1M objects, 100.7M references; the primary machine, 24 logical cores
 | References in a file | 1,411 MB | 13.5 s | e8a102e4d933d936 |
 | References in a file, chunks collected at freeze | 1,161 MB (0.56x the heap) | 14.5 s | e8a102e4d933d936 |
 
-The 8 GB dump after the fix: to be measured (claude-dev-2's application control blocked the rebuilt benchmark).
+The 8 GB dump after the fix (the same machine, run through `dotnet` as Smart App Control blocks a newly built program there):
+
+| Measure | Before | After | Budget |
+|---|---|---|---|
+| Peak private bytes, first load (load and cache write) | 5,279 MB | 3,569 MB (0.54x the heap) | < 4 GB, met; < 1.5x the heap, met |
+| First load | 37.3 s | 37.1 s (references 22.0 s; the file 1,222 MB) | < 180 s, met |
+| Graph hash | 76113b829ffe3268 | 76113b829ffe3268 | |
+| Mapped transition, reopen in memory | 1.1 s, 1.5 s | 1.2 s, 1.3 s | met |
+| Indices in memory | 12.6 s, 7,594 MB | 12.1 s, 7,594 MB | as before |
+| Indices mapped | 17.8 s, 1,287 MB | 17.1 s, 1,287 MB | met |
+
+The benchmark's check used the whole run's peak, which includes reopening the 3.45 GB graph in memory after the drop; it checks the
+first load's since 4.7 and prints the whole run's beside it. Found on the way: after the graph is dropped for the mapped switch, the
+process still held 1,866 MB on the 8 GB dump (3,092 MB before the fix) and about 1,000 MB on the 2 GB one, the same at sprint 4.6
+(1,003 MB), where 3.12 measured 34 MB on its DenseHeap dump: memory the drop does not return (Backlog, for 4.8).
+`FirstLoadEstimate` refitted to 0.45 bytes per dump byte plus 704 MB, above every peak measured (the highest per dump byte, 3.10's
+Medium, needs 677 MB at that slope): 4,778 MB for the 8 GB dump (5,748 MB before), 2,119 MB for the 2 GB one.
 
 Comparing (sprint 1.4): `diff` of Medium against DenseHeap from their index caches takes 2.8 to 2.9 s end to end.
 Inspecting (sprint 1.5): the UI smoke drill on Medium opens the instances of `System.Byte[]` (16M objects), the largest

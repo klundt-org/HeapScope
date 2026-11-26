@@ -102,6 +102,9 @@ internal static class LoadDumpBenchmark
         Measurement.Line("First load total", $"{firstLoad.TotalSeconds:N1} s");
         Measurement.Line("Peak private bytes (load + write)", Measurement.Mb(sampler.Peak));
 
+        // The budgets are the first load's: the reopens below hold a second graph beside what the drop did not return.
+        var loadPeak = sampler.Peak;
+
         // Switch to mapped mode (ARCHITECTURE.md 6.5): drop the built graph, compact once, reopen mapped.
         var transition = Stopwatch.StartNew();
         graph.Dispose();
@@ -127,7 +130,8 @@ internal static class LoadDumpBenchmark
             File.Delete(cache);
         }
 
-        var peak = sampler.Peak;
+        var peak = loadPeak;
+        Measurement.Line("Peak private bytes, whole run", $"{Measurement.Mb(sampler.Peak)} (with the reopens; not a budget)");
         var loadBudget = new FileInfo(path).Length < 1024L * 1024 * 1024 ? TimeSpan.FromSeconds(20) : TimeSpan.FromMinutes(3);
         var checks = new (string Name, bool Met)[]
         {
