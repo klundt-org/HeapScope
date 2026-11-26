@@ -70,7 +70,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   release PR #66, the push run only: its wait ended 64 ms past its deadline; the rerun passed),
   `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
   beside four reviewers and a build; both passed alone), `AllocationTraceTests` (2026-11-15, the 3.13 wrap's full Debug run:
-  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `AllocationTraceTests` in CI (2026-11-21, PR #78: its recording's session did not start within 60 s; the rerun passed. Diagnose it if it comes back), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
+  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `AllocationTraceTests` in CI (2026-11-21, PR #78: its recording's session did not start within 60 s; the rerun passed. Explained in sprint 4.7, task 12: the recording was written through a 64 KB buffer, so an idle target's file stayed empty and the test's wait for bytes ran out; written unbuffered since), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait), `SampleTests` churn scenario (2026-11-26, the 4.7 gate: its recording did not start within 60 s; passed alone). Three gate runs on sprint
   3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
   little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
   most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has
@@ -160,6 +160,18 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- From sprint 4.7 (decided autonomously; [reviews/sprint-4.7.md](reviews/sprint-4.7.md) M10 to M13): a reverse index whose sidecar could
+  not be written is built in memory without a reservation; the inspections that list rows other than Duplicate strings (sparse arrays,
+  large arrays) estimate a byte per object; a virtual display mode of the smoke run that exempts its timing gates as the headless run
+  does, so the X11 run in CI can require exit 0; a lowered trace limit said in the stop's text; a parent cgroup's lower memory limit;
+  the worker refusing a first load that does not fit when the open says it may not overcommit (a protocol field); the 1 GB trace
+  reader replaced by one streaming reader (H8, L); a real Linux desktop run of the app (claude-dev-3); the cause of a live recording's
+  late start once in the 4.6 gate (`AllocatedBetweenTests`), which the file buffer of 4.7 does not explain.
+  From the task 10 follow-up (F12, F13): a snapshot note when a load kept its references in memory for lack of space or a
+  failed file (user-facing wording; the log says it); `ColumnBytes` split into private and file-backed bytes, for the memory mode
+  log and choice. The memory the drop before the mapped switch does not return: `load-dump`'s private bytes after the drop were
+  1,866 MB on the 8 GB DenseHeap dump and 1,003 MB on a 2 GB one at sprint 4.6 already, against 34 MB in 3.12 (budgets.md); find
+  what holds it (the GC's regions, ClrMD's or the DAC's native memory) for the worker's mapped mode on 16 GB machines (4.8).
 - From sprint 4.6 (decided autonomously; [reviews/sprint-4.6.md](reviews/sprint-4.6.md) M15 to M19 and H5): the settings and lesson progress
   saves off the UI thread; the unread counts as data in the inspection DTO; the event handler detector, the disposed objects detector with no
   flag readable, and the collection inspections with an items field unread saying what they could not read, with a test per detector with
@@ -247,7 +259,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   2.3.6):
   - Unix file semantics stated by tests: replacing or deleting a mapped index cache on Linux and macOS succeeds and
     the open graph keeps reading the old file; the Windows-only tests skip there today. (Capture.Tests joined the Linux
-    CI job in sprint 4.1.)
+    CI job in sprint 4.1, and the light integration tier in 4.7.)
 - gcdump survivors without a recorded root as path and dominator sources (from the 2.3 review M6; agreed with the
   product owner on 2026-10-25 to defer the fix). Today they retain nothing, and the note beside retained sizes gives their
   count and bytes. The fix marks them "root not recorded" sources in `PathRoots.Sources` (so paths and dominators keep

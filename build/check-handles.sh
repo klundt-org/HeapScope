@@ -29,6 +29,8 @@
 set -euo pipefail
 cli="$1"
 work="$2"
+# Never the user's own HeapScope folder (sessions, logs, trusted DACs) (sprint 4.7).
+export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$work/data}"
 mkdir -p "$work"
 here="$(dirname "$0")"
 export DOTNET_gcServer=1 DOTNET_GCHeapCount=2 DOTNET_GCDynamicAdaptationMode=0

@@ -5,6 +5,13 @@ LeakyConsole or LeakyApi must find. Integration tests (`KnownAnswerTests`, `Leak
 `DisabledLeakTests`) verify every statement against real dumps with ClrMD; HeapScope's own analysis features are
 then tested against the same files.
 
+## Runtimes
+
+Since sprint 4.7 the fixtures build for net8.0, net9.0 and net10.0, and `HEAPSCOPE_FIXTURE_RUNTIME` picks the one the tests
+and `build/fixture-dump.sh` run (net10.0 when unset). CI checks the answers on .NET 8 and 9 as well as 10, on Windows and
+Linux (the known answer classes and `check-known-answers.sh`). No answer differs by runtime; one that does is stated in its file.
+A heap dump of .NET 8 taken on Windows leaves out the statics, so the tests take full dumps of .NET 8.
+
 ## Format version 1
 
 | Field | Required for | Meaning |

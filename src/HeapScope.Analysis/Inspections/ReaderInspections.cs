@@ -245,6 +245,16 @@ internal sealed class DuplicateStringsInspection : IInspection
     /// <summary>Characters of a value shown in a row.</summary>
     public const int ShownLength = 100;
 
+    /// <summary>
+    /// The values listed, those that waste the most (peer review 4.5 H6: 20M strings in pairs made 10M rows, 1.3 to 2.8 GB); the totals
+    /// count every duplicate, and the note says how many more there were.
+    /// </summary>
+    public const int MostRows = 10_000;
+
+    // Per string: its index and size (12 bytes), and in the largest size group its address, hash, flag and key (37); and the rows.
+    private const long BytesPerString = 12 + 37;
+    private const long RowBytes = 64 + (2 * (ShownLength + 1)) + 32;
+
     private static readonly InspectionColumn[] s_columns =
     [
         new(InspectionColumns.Value, InspectionColumnKind.Text, HasValues: true),
@@ -260,8 +270,21 @@ internal sealed class DuplicateStringsInspection : IInspection
     public string Name => "duplicate-strings";
 
     // Version 2 (sprint 2.3.7): unreadable strings are counted and named in the note; the note says unreachable strings
-    // are included.
-    public int Version => 2;
+    // are included. Version 3 (sprint 4.7): the rows are the values that waste the most, at most MostRows, and the note says how many
+    // more there were.
+    public int Version => 3;
+
+    public long WorkingBytes(HeapGraph graph)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        long strings = 0;
+        for (var i = 0; i < graph.ObjectCount; i++)
+        {
+            strings += graph.Types.Kinds[graph.TypeIndices[i]].HasFlag(TypeKind.String) ? 1 : 0;
+        }
+
+        return (strings * BytesPerString) + (MostRows * RowBytes);
+    }
 
     public string Parameters => "equal UTF-16 text by 64-bit XxHash3 within equal sizes; reachable and unreachable strings";
 
@@ -305,7 +328,7 @@ internal sealed class DuplicateStringsInspection : IInspection
         }
 
         Array.Sort(sizes, sorted);
-        var rows = new List<DuplicateRow>();
+        var rows = new TopRows(MostRows);
         var done = 0;
         var groups = 0;
         long hashed = 0;
@@ -331,9 +354,10 @@ internal sealed class DuplicateStringsInspection : IInspection
         }
 
         // Text for the rows: the first characters of one copy each.
-        var shown = new string?[rows.Count];
-        reader.ReadStrings([.. rows.Select(r => graph.Addresses[r.Representative])], ShownLength + 1, (i, text) => shown[i] = text, context.CancellationToken);
-        var table = rows.Select((r, i) => r with { Text = Shorten(shown[i]) })
+        var kept = rows.Rows();
+        var shown = new string?[kept.Length];
+        reader.ReadStrings([.. kept.Select(r => graph.Addresses[r.Representative])], ShownLength + 1, (i, text) => shown[i] = text, context.CancellationToken);
+        var table = kept.Select((r, i) => r with { Text = Shorten(shown[i]) })
             .OrderByDescending(r => r.Wasted).ThenBy(r => r.Representative)
             .ToArray();
         // Every string in the dump counts, reachable or not: a full dump also holds garbage the next collection frees, the
@@ -341,8 +365,13 @@ internal sealed class DuplicateStringsInspection : IInspection
         var note = unreadable > 0
             ? $"{unreadable:N0} strings could not be read from the dump and were left out. Unreachable strings are included."
             : "Unreachable strings (garbage the next collection would free) are included.";
-        var basis = $"strings {total}, size groups hashed {groups}, strings hashed {hashed}, unreadable {unreadable}";
-        return new InspectionResult(table.Length, table.Sum(r => r.Copies * r.Size), table.Sum(r => r.Wasted), note, new RowTable<DuplicateRow>(s_columns, table, 80 + (2 * ShownLength), (row, cells) =>
+        if (rows.Dropped > 0)
+        {
+            note += $" The {MostRows:N0} values that waste the most are listed; {rows.Dropped:N0} more, wasting {rows.DroppedWasted:N0} bytes, are counted in the totals but not listed.";
+        }
+
+        var basis = $"strings {total}, size groups hashed {groups}, strings hashed {hashed}, unreadable {unreadable}, values {rows.Count}, listed {table.Length}";
+        return new InspectionResult(rows.Count, rows.Bytes, rows.Wasted, note, new RowTable<DuplicateRow>(s_columns, table, 80 + (2 * ShownLength), (row, cells) =>
         {
             var type = graph.TypeIndices[row.Representative];
             cells[0] = row.Text;
@@ -360,7 +389,7 @@ internal sealed class DuplicateStringsInspection : IInspection
     /// Hashes one size group and adds a row per hash shared by two or more strings (sorting the hashes, no table). Returns
     /// how many strings of the group could not be read.
     /// </summary>
-    private static int HashGroup(HeapGraph graph, IObjectReader reader, int[] group, long size, List<DuplicateRow> rows, CancellationToken cancellationToken)
+    private static int HashGroup(HeapGraph graph, IObjectReader reader, int[] group, long size, TopRows rows, CancellationToken cancellationToken)
     {
         var addresses = new ulong[group.Length];
         for (var k = 0; k < group.Length; k++)
@@ -404,4 +433,41 @@ internal sealed class DuplicateStringsInspection : IInspection
         text is not null && text.Length > ShownLength ? string.Concat(text.AsSpan(0, ShownLength), "...") : text;
 
     private sealed record DuplicateRow(int Representative, long Copies, long Size, long Wasted, string? Text);
+
+    /// <summary>The rows that waste the most, at most a bound, and the totals of every row added.</summary>
+    private sealed class TopRows(int most)
+    {
+        // The least wasteful row kept is first: it goes when a more wasteful one comes (a lower index wins a tie, as in the order shown).
+        private readonly PriorityQueue<DuplicateRow, (long Wasted, int Index)> _kept = new(Comparer<(long Wasted, int Index)>.Create(
+            static (a, b) => a.Wasted != b.Wasted ? a.Wasted.CompareTo(b.Wasted) : b.Index.CompareTo(a.Index)));
+
+        public long Count { get; private set; }
+
+        public long Bytes { get; private set; }
+
+        public long Wasted { get; private set; }
+
+        public long Dropped { get; private set; }
+
+        public long DroppedWasted { get; private set; }
+
+        public void Add(DuplicateRow row)
+        {
+            Count++;
+            Bytes += row.Copies * row.Size;
+            Wasted += row.Wasted;
+            if (_kept.Count < most)
+            {
+                _kept.Enqueue(row, (row.Wasted, row.Representative));
+                return;
+            }
+
+            // Full: the least wasteful of the kept rows and this one goes.
+            var dropped = _kept.EnqueueDequeue(row, (row.Wasted, row.Representative));
+            Dropped++;
+            DroppedWasted += dropped.Wasted;
+        }
+
+        public DuplicateRow[] Rows() => [.. _kept.UnorderedItems.Select(static e => e.Element)];
+    }
 }

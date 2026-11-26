@@ -138,7 +138,9 @@ HeapScope is in pre-release. Plainly:
   which is untested too.
 - **Unsigned builds.** Windows SmartScreen will warn you. [INSTALL.md](INSTALL.md) shows how to check a download against its
   checksums and build provenance.
-- **Modern .NET only.** It analyzes .NET 5 and later, not .NET Framework.
+- **Modern .NET only.** It analyzes .NET 5 and later, not .NET Framework. Its answers are checked on every change against
+  dumps of .NET 8, 9 and 10; a full dump of another version opens with a note that its answers are not checked. A heap dump of
+  .NET 8 taken on Windows (`dotnet-dump collect --type Heap`) leaves out the static fields: take a full dump.
 - **A size limit.** It is built for dumps up to about 8 GB and 50 million objects, and measured so far up to 4.4 GB and 58
   million objects. Larger ones are not a target yet.
 

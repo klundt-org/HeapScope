@@ -23,6 +23,7 @@
 
 using System.Globalization;
 using System.Text.RegularExpressions;
+using HeapScope.Tests.Shared;
 using Microsoft.Diagnostics.NETCore.Client;
 
 namespace HeapScope.Integration.Tests.Infrastructure;
@@ -52,9 +53,12 @@ public sealed partial class FixtureProcess : IDisposable
 
     public string Output => _process.Output;
 
-    public static async Task<FixtureProcess> StartConsoleAsync(params string[] arguments)
+    public static Task<FixtureProcess> StartConsoleAsync(params string[] arguments) => StartConsoleOnAsync(TestPaths.FixtureRuntime, arguments);
+
+    /// <summary>Starts LeakyConsole on <paramref name="runtime"/> (net8.0, net9.0 or net10.0) with <paramref name="arguments"/>.</summary>
+    public static async Task<FixtureProcess> StartConsoleOnAsync(string runtime, params string[] arguments)
     {
-        var child = ChildProcess.Start(TestPaths.LeakyConsoleExe, [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
+        var child = ChildProcess.Start(TestPaths.LeakyConsoleExeOn(runtime), [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
         await WaitReadyAsync(child).ConfigureAwait(false);
         return new FixtureProcess(child, null);
     }
@@ -97,12 +101,18 @@ public sealed partial class FixtureProcess : IDisposable
         return new FixtureProcess(child, new Uri(match.Groups["url"].Value));
     }
 
-    /// <summary>Writes a dump of the fixture (heap only by default, enough for ClrMD analysis).</summary>
-    public void CaptureDump(string path, DumpType type = DumpType.WithHeap)
+    /// <summary>The dump a test takes unless it asks for another: see <see cref="CaptureDump"/>.</summary>
+    public static DumpType DefaultDumpType => TestPaths.FixtureRuntimeMajor < 9 ? DumpType.Full : DumpType.WithHeap;
+
+    /// <summary>
+    /// Writes a dump of the fixture: heap only by default, enough for ClrMD analysis from .NET 9 on. A heap dump of .NET 8 leaves out
+    /// the loader heap that holds its statics, so its default is a full dump (sprint 4.7).
+    /// </summary>
+    public void CaptureDump(string path, DumpType? type = null)
     {
         try
         {
-            new DiagnosticsClient(ProcessId).WriteDump(type, path, logDumpGeneration: false);
+            new DiagnosticsClient(ProcessId).WriteDump(type ?? DefaultDumpType, path, logDumpGeneration: false);
         }
         catch (Exception ex) when (ex is ServerNotAvailableException or UnauthorizedAccessException)
         {
@@ -152,27 +162,17 @@ public sealed partial class FixtureProcess : IDisposable
     private static partial Regex ReadyUrl();
 }
 
-/// <summary>A temporary folder for dumps, deleted on dispose (best effort).</summary>
+/// <summary>
+/// A temporary folder for dumps, deleted on dispose with retries (a scanner or a worker may hold a dump for a moment); one that
+/// stays is said on the error stream and swept by a later run (sprint 4.7: silent failures here once left 17 GB behind).
+/// </summary>
 public sealed class TempFolder : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "HeapScopeTests", Guid.NewGuid().ToString("N"));
+    public string Path { get; } = System.IO.Path.Combine(TestFolders.Root, Guid.NewGuid().ToString("N"));
 
     public TempFolder() => Directory.CreateDirectory(Path);
 
     public string File(string name) => System.IO.Path.Combine(Path, name);
 
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(Path, recursive: true);
-        }
-        catch (IOException)
-        {
-            // A scanner may still hold a dump briefly; the folder is under %TEMP%.
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
+    public void Dispose() => TestFolders.Delete(Path);
 }

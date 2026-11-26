@@ -29,12 +29,28 @@ public sealed class SnapshotMemoryEstimateTests
 {
     private const long Gb = 1024L * 1024 * 1024;
 
-    [Fact]
-    public void Estimate_covers_the_measured_sample_peaks()
+    private const long Mb = 1024L * 1024;
+
+    // load-dump's first load peaks (budgets.md): dump MB, peak MB. Sprint 1.2 and 3.10 before the references' file (Small, Medium,
+    // DenseHeap), sprint 4.7 after it (DenseHeap 2 GB and 8 GB).
+    [Theory]
+    [InlineData(568, 227)]
+    [InlineData(4_022, 2_395)]
+    [InlineData(3_984, 2_470)]
+    [InlineData(4_440, 2_636)]
+    [InlineData(4_017, 2_364)]
+    [InlineData(3_145, 1_161)]
+    [InlineData(9_054, 3_569)]
+    public void Estimate_covers_the_measured_first_load_peaks(long dumpMb, long peakMb)
     {
-        // Sprint 1.2 measurements (load-dump): Small 568 MB dump peaked at 227 MB (1,049 MB before the memory-mapped reader), Medium 4,022 MB at 2,395 MB.
-        SnapshotMemoryEstimate.FirstLoadPeakBytes(568L * 1024 * 1024).ShouldBeGreaterThan(1_049L * 1024 * 1024);
-        SnapshotMemoryEstimate.FirstLoadPeakBytes(4_022L * 1024 * 1024).ShouldBeGreaterThan(2_395L * 1024 * 1024);
+        SnapshotMemoryEstimate.FirstLoadPeakBytes(dumpMb * Mb).ShouldBeGreaterThan(peakMb * Mb);
+    }
+
+    [Fact]
+    public void Estimate_of_a_large_dump_is_not_far_above_its_peak()
+    {
+        // The worker reserves it while it loads: the 8 GB DenseHeap dump's 3,569 MB within a third.
+        SnapshotMemoryEstimate.FirstLoadPeakBytes(9_054 * Mb).ShouldBeLessThan(3_569 * Mb * 4 / 3 + (100 * Mb));
     }
 
     [Fact]
@@ -49,7 +65,7 @@ public sealed class SnapshotMemoryEstimateTests
         var warning = SnapshotMemoryEstimate.Warn(8 * Gb, new PhysicalMemory(16 * Gb, 3 * Gb));
 
         warning.ShouldNotBeNull();
-        warning.ShouldContain("about 5.1 GB");
+        warning.ShouldContain("about 4.3 GB");
         warning.ShouldContain("only 3.0 GB of 16.0 GB");
     }
 

@@ -31,10 +31,14 @@ set -euo pipefail
 mkdir -p "$(dirname "$1")"
 dump="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 capture="$2"
+# Never the user's own HeapScope folder (sessions, logs, trusted DACs): a run by hand without it once wrote there (sprint 4.7).
+export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$(dirname "$dump")/data}"
 configuration="${3:-Release}"
 log="$(dirname "$dump")/fixture.log"
 cd "$(dirname "$0")/.."
-fixture="fixtures/LeakyConsole/bin/$configuration/net10.0/LeakyConsole.dll"
+# The runtime the fixture runs on: net8.0, net9.0 or net10.0 (sprint 4.7, peer review 4.5 H1).
+runtime="${HEAPSCOPE_FIXTURE_RUNTIME:-net10.0}"
+fixture="fixtures/LeakyConsole/bin/$configuration/$runtime/LeakyConsole.dll"
 # --parent-pid: the fixture exits with this script even when the script is killed (review). Git Bash's $$ is its own
 # process number, not Windows's, which /proc/$$/winpid gives (re-review).
 parent=$$

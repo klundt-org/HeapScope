@@ -33,7 +33,7 @@ namespace HeapScope.Tests.Shared;
 /// </summary>
 internal static class TestDataFolder
 {
-    public static string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "HeapScopeTests", "data");
+    public static string Path { get; } = System.IO.Path.Combine(TestFolders.Root, "data");
 
 #pragma warning disable CA2255 // Test assemblies only: the folder must be set before any test touches HeapScope's folders.
     [ModuleInitializer]
@@ -44,5 +44,8 @@ internal static class TestDataFolder
         {
             Environment.SetEnvironmentVariable("HEAPSCOPE_DATA_FOLDER", Path);
         }
+
+        // What a killed or failed run left behind goes before this run adds its own (sprint 4.7).
+        TestFolders.SweepStale();
     }
 }

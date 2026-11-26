@@ -30,7 +30,10 @@ set -euo pipefail
 cli="$1"
 dump="$2"
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+# On failure, HeapScope's log goes with the work folder: its tail first (the review of 4.7).
+trap 'code=$?; if [ $code -ne 0 ]; then for f in "$HEAPSCOPE_DATA_FOLDER"/logs/*.log; do [ -f "$f" ] && { echo "== $f" >&2; tail -40 "$f" >&2; }; done; fi; rm -rf "$work"' EXIT
+# Never the user's own HeapScope folder (sessions, logs, trusted DACs): a run by hand without it once wrote there (sprint 4.7).
+export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$work/data}"
 
 "$cli" open "$dump" --top 5 | tee "$work/open.txt"
 "$cli" summary "$dump" --filter Fixtures.Leaks --format json > "$work/summary.json"

@@ -41,7 +41,10 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
 {
     private readonly ConcurrentDictionary<Guid, Entry> _snapshots = new();
     private readonly SemaphoreSlim _loadGate = new(1, 1);
-    private readonly SnapshotKinds _kinds = new(options, choice => LogDac(logger, choice));
+    private readonly SnapshotKinds _kinds = new(
+        options,
+        choice => LogDac(logger, choice),
+        (dump, reason) => logger.LogWarning("References of {Dump} kept {Reason}; from there on they take 4 bytes each of the worker's memory", dump, reason));
     private readonly IndexCacheSigner _signer = signer;
     private readonly ReverseIndexBuilder _reverseBuilder = new(logger, signer);
     private SnapshotOpener? _opener;
@@ -262,5 +265,5 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
         init => Opener.ProcessNameForTests = value;
     }
 
-    private SnapshotOpener Opener => LazyInitializer.EnsureInitialized(ref _opener, () => new SnapshotOpener(locator, _signer, _kinds, logger));
+    private SnapshotOpener Opener => LazyInitializer.EnsureInitialized(ref _opener, () => new SnapshotOpener(locator, _signer, _kinds, logger, _reservations));
 }

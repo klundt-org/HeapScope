@@ -79,11 +79,55 @@ costs) and returns 1 when one is missed; the DenseHeap run met all of them (firs
 peak 2.6 GB, mapped transition 1.0 s down to 33 MB private).
 
 Before opening a dump without an index cache, the Application layer estimates the first-load peak
-(`SnapshotMemoryEstimate`: 0.55 bytes per dump byte plus 768 MB, calibrated on the samples above; for the dense dump it
-gives 3.2 GB against the measured 2.6 GB) and warns when it exceeds available physical memory: the UI asks to
+(`SnapshotMemoryEstimate`: 0.55 bytes per dump byte plus 768 MB, calibrated on the samples above, until 4.7's refit to 0.45
+bytes plus 704 MB, below; for the dense dump it gave 3.2 GB against the measured 2.6 GB; since 4.7 it is Core's `FirstLoadEstimate`, which the worker also reserves while it
+loads, less its idle 256 MB, and logs against the load's peak) and warns when it exceeds available physical memory: the UI asks to
 continue, the CLI prints the warning (or fails with `--no-overcommit`). `SnapshotSession.GetOpenWarningAsync` holds the
 rule for both front ends; it asks the worker (`ProbeSnapshotAsync`) whether a valid index cache exists where the
 locator puts it, so a reopen from cache never warns.
+
+Large heaps (sprint 4.7, task 10): an 8 GB DenseHeap dump (9,054 MB file, 6.6 GB managed heap, 106.2M objects, 320.4M
+references, 3.02 per object) on claude-dev-2 (12 logical cores, 32 GB, Windows 11, runtime 10.0.15, the worker's GC settings),
+before the references went to a file:
+
+| Measure | Result | Budget |
+|---|---|---|
+| First load (with the cache write) | 37.3 s (objects 8.4 s, references 21.9 s, cache write 4.1 s) | < 180 s, met |
+| Peak private bytes, first load | 5,279 MB (0.80x the managed heap); `FirstLoadEstimate` 5,748 MB | < 4 GB, missed; < 1.5x the heap, met |
+| Graph columns | 3,451 MB (34.1 bytes per object) | |
+| Mapped transition, reopen in memory | 1.1 s (3,092 MB private after the drop), 1.5 s | < 2 s, < 20 s, met |
+| Indices in memory (reverse references, dominators) | 12.6 s, peak 7,594 MB | < 60 s met; 4 GB missed (the mode chooses mapped where it would not fit) |
+| Indices mapped | 17.8 s, peak 1,287 MB, peak working set 7,060 MB | met |
+| Indices mapped, working set capped at 4 GB | 18.9 s, peak 1,287 MB, 4.1M page faults | met |
+
+The peak was the build's copy of the chunked references into one array while the chunks were held (1.3 GB), and below it
+freezing, which held the object chunks and columns together until the GC ran (3,850 MB). Both fixed: the references go to a
+mapped temporary file as they are read, and freezing collects its chunks (graph-format.md 6.3). On a 2 GB DenseHeap dump (3,145
+MB file, 33.1M objects, 100.7M references; the primary machine, 24 logical cores), `load-dump --edges memory` against the default:
+
+| Load | Peak private bytes | First load | Graph hash |
+|---|---|---|---|
+| References in memory, before the fix | 1,920 MB | 14.3 s | e8a102e4d933d936 |
+| References in a file | 1,411 MB | 13.5 s | e8a102e4d933d936 |
+| References in a file, chunks collected at freeze | 1,161 MB (0.56x the heap) | 14.5 s | e8a102e4d933d936 |
+
+The 8 GB dump after the fix (the same machine, run through `dotnet` as Smart App Control blocks a newly built program there):
+
+| Measure | Before | After | Budget |
+|---|---|---|---|
+| Peak private bytes, first load (load and cache write) | 5,279 MB | 3,569 MB (0.54x the heap) | < 4 GB, met; < 1.5x the heap, met |
+| First load | 37.3 s | 37.1 s (references 22.0 s; the file 1,222 MB) | < 180 s, met |
+| Graph hash | 76113b829ffe3268 | 76113b829ffe3268 | |
+| Mapped transition, reopen in memory | 1.1 s, 1.5 s | 1.2 s, 1.3 s | met |
+| Indices in memory | 12.6 s, 7,594 MB | 12.1 s, 7,594 MB | as before |
+| Indices mapped | 17.8 s, 1,287 MB | 17.1 s, 1,287 MB | met |
+
+The benchmark's check used the whole run's peak, which includes reopening the 3.45 GB graph in memory after the drop; it checks the
+first load's since 4.7 and prints the whole run's beside it. Found on the way: after the graph is dropped for the mapped switch, the
+process still held 1,866 MB on the 8 GB dump (3,092 MB before the fix) and about 1,000 MB on the 2 GB one, the same at sprint 4.6
+(1,003 MB), where 3.12 measured 34 MB on its DenseHeap dump: memory the drop does not return (Backlog, for 4.8).
+`FirstLoadEstimate` refitted to 0.45 bytes per dump byte plus 704 MB, above every peak measured (the highest per dump byte, 3.10's
+Medium, needs 677 MB at that slope): 4,778 MB for the 8 GB dump (5,748 MB before), 2,119 MB for the 2 GB one.
 
 Comparing (sprint 1.4): `diff` of Medium against DenseHeap from their index caches takes 2.8 to 2.9 s end to end.
 Inspecting (sprint 1.5): the UI smoke drill on Medium opens the instances of `System.Byte[]` (16M objects), the largest
@@ -122,7 +166,8 @@ LoadGen whose process was killed before the rundown (5.6 MB, 45,110 samples) rea
 of LeakyApi under continuous load (25.6 MB, 168,073 samples) 1.1 s and 131 MB; 600 s (72 MB, 565,625 samples) 1.9 s and
 227 MB, about 76 MB plus 2.1 bytes per file byte. The worker reserves 96 MB plus 3 bytes per file byte while reading
 (`TraceStore.ReadReservation`, about 1.4 times the measured growth; sizes above 72 MB are extrapolated, and growth
-follows samples, about 240 bytes each, more than file bytes); an open trace keeps 29 bytes per sample (25 before 4.4) plus its names (14 MB for the 600 s trace, 2.3 MB more since 4.4).
+follows samples, about 240 bytes each, more than file bytes; `TraceReadCost` since 4.7, where a recording's limit is fitted so its
+read takes at most a quarter of physical memory, and the default limit is 512 MB, a 1.6 GB read beside two snapshots on 16 GB); an open trace keeps 29 bytes per sample (25 before 4.4) plus its names (14 MB for the 600 s trace, 2.3 MB more since 4.4).
 Whole-trace queries take 2 to 13 ms (types 244 ms on the first call, JIT included). A 12 s trace of 5,000 requests
 (4.1 MB, 5,415 samples) lists the five leaks' `Grow` methods as its top five call stacks. The UI smoke run's
 allocations step (Release, the 150 s trace, after the Small-sized dump's phases): the cold first show 3.0 s with a

@@ -36,3 +36,7 @@
   how many, and of what). The worker adds it to the answer's note ("N of M reachable timers could not be read, so they were not checked"),
   and refuses an answer that could read none of it: a clean answer means checked, but for the detectors the Backlog names (review of
   4.6, M17). The DTO keeps its shape; the counts reach clients as words.
+- Amended in 4.7 (peer review 4.5 H6): an inspection declares the memory it works in (`IInspection.WorkingBytes`: a byte per object by
+  default, Duplicate strings 49 bytes per string and its rows), and the worker runs it inside a memory reservation of that size,
+  refused with the reservations' next step when it cannot fit. Duplicate strings lists the 10,000 values that waste the most and
+  counts the rest in its totals and note (version 3).

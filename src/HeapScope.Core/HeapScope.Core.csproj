@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Core references nothing: no projects, no packages (ARCHITECTURE.md 3.1). -->
+  <PropertyGroup>
+    <!-- The system memory readers call the system (sprint 4.7, peer review 4.5 H7). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="HeapScope.Core.Tests" />
   </ItemGroup>

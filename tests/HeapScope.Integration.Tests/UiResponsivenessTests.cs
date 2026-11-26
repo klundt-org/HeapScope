@@ -40,6 +40,7 @@ public sealed class UiResponsivenessTests : IDisposable
     [Fact]
     public async Task Ui_stays_responsive_during_a_5M_synthetic_job()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The window of the app is measured; on Linux CI the window runs under a virtual display (sprint 4.7).");
         using var ui = ChildProcess.Start(TestPaths.UiExe, "--smoke-synthetic", "5000000", "--Logging:File:Directory", _logDirectory);
 
         (await ui.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue();

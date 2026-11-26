@@ -56,7 +56,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.4 | Allocated between two snapshots | Closed | 2026-11-25 | sprint-4.4 |
 | 4.5 | Peer review | Closed | 2026-11-25 | sprint-4.5 |
 | 4.6 | Right answers | Closed | 2026-11-25 | sprint-4.6 |
-| 4.7 | Runtimes, Linux and large heaps | Planned | | |
+| 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
 | 4.8 | Ready to release | Planned | | |
 | 4.9 | Workspaces | Planned | | |
 | 4.10 | Analysis tabs | Planned | | |
@@ -120,6 +120,12 @@ Owner decisions, 2026-11-18:
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
 
+---
+
+## Sprint 4.7: Runtimes, Linux and large heaps
+
+Closed 2026-11-26; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.7.md](reviews/sprint-4.7.md). ADR-002, ADR-015, ADR-020, ADR-025, ADR-033, ADR-034, ADR-037 and ADR-041 are amended for it.
 ---
 
 ## Sprint 4.6: Right answers

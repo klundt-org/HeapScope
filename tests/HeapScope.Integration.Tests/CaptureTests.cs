@@ -62,8 +62,9 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         process.Name.ShouldBe("LeakyApi");
         process.RuntimeVersion.ShouldNotBeNull().ShouldStartWith("10.");
         process.CommandLine.ShouldNotBeNull().ShouldContain("LeakyApi");
-        // A child of the test run shares its elevation (CI's runners run elevated, sprint 3.6).
-        process.Elevation.ShouldBe(WindowsElevationProbe.Instance.IsCurrentProcessElevated ? ElevationState.Elevated : ElevationState.NotElevated);
+        // A child of the test run shares its elevation (CI's runners run elevated, sprint 3.6); off Windows, its user.
+        process.Elevation.ShouldBe(!OperatingSystem.IsWindows() ? ElevationState.NotElevated
+            : WindowsElevationProbe.Instance.IsCurrentProcessElevated ? ElevationState.Elevated : ElevationState.NotElevated);
         process.WorkingSetBytes.ShouldNotBeNull().ShouldBeGreaterThan(0);
         new ProcessDiscovery().List(Ct).ShouldNotContain(p => p.ProcessId == Environment.ProcessId, "HeapScope's own processes are not listed");
     }
@@ -78,11 +79,14 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         var session = result.Session.ShouldNotBeNull();
         Path.GetDirectoryName(result.Path).ShouldBe(session.Folder);
         session.Folder.ShouldStartWith(_root.Path);
-        File.Exists(Path.Combine(session.Folder, "dac", result.Process.RuntimeVersion!, "mscordaccore.dll"))
+        File.Exists(Path.Combine(session.Folder, "dac", result.Process.RuntimeVersion!, OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so"))
             .ShouldBeTrue("the target's DAC is kept next to the dump, per runtime version");
         File.Exists(result.Path).ShouldBeTrue();
         result.SizeBytes.ShouldBeGreaterThan(10L * 1024 * 1024);
-        MinidumpHeader.Read(result.Path).HasHeapMemory.ShouldBeTrue("a full dump");
+        if (OperatingSystem.IsWindows())
+        {
+            MinidumpHeader.Read(result.Path).HasHeapMemory.ShouldBeTrue("a full dump");
+        }
         var recorded = SessionLibrary.TryRead(session.Folder)!.Document.Snapshots.ShouldHaveSingleItem();
         recorded.ProcessId.ShouldBe(shared.Api.ProcessId);
         recorded.ProcessName.ShouldBe("LeakyApi");
@@ -101,7 +105,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         var ex = await Should.ThrowAsync<CaptureFailedException>(() => service.StartCapture(shared.Api.ProcessId).Result);
 
         ex.Reason.ShouldBe(CaptureFailure.NeedsAdministrator);
-        ex.Message.ShouldContain("Run HeapScope as administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsWindows() ? "Run HeapScope as administrator" : "Run HeapScope as that user");
         (await service.ListProcessesAsync(Ct)).Single(p => p.ProcessId == shared.Api.ProcessId).NeedsAdministrator.ShouldBeTrue();
         Directory.EnumerateFiles(_root.Path, "*.dmp", SearchOption.AllDirectories).ShouldBeEmpty();
         Directory.EnumerateDirectories(_root.Path).ShouldBeEmpty("a refused capture leaves no empty session");
@@ -140,7 +144,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         // runtime on this machine changes. The capture trusted the DAC it copied (sprint 3.6), so it loads without asking,
         // unless HeapScope runs elevated (CI's runners do): the target's runtime folder may then belong to a less
         // privileged user, and the open asks instead (review).
-        if (WindowsElevationProbe.Instance.IsCurrentProcessElevated)
+        if (OperatingSystem.IsWindows() && WindowsElevationProbe.Instance.IsCurrentProcessElevated)
         {
             trusted.Kept().ShouldBeEmpty();
             Should.Throw<UntrustedDacException>(() => new ClrMdDumpLoader(new ClrMdLoaderOptions { InstalledRuntimeRoots = [], SearchDumpedRuntimeDirectory = false, IsTrustedDac = trusted.All().Contains })
@@ -190,6 +194,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     [Fact]
     public async Task A_real_elevated_process_gives_the_administrator_message()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Administrator is a Windows rule; off Windows another user is, which the capture checks cover.");
         Assert.SkipWhen(WindowsElevationProbe.Instance.IsCurrentProcessElevated, "The test run is elevated, so every process can be dumped.");
         var elevated = new ProcessDiscovery().List(Ct).FirstOrDefault(p => p.Elevation == ElevationState.Elevated);
         Assert.SkipWhen(elevated is null, "No elevated .NET process is running on this machine.");
@@ -203,12 +208,13 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     [Fact]
     public async Task A_process_that_is_not_dotnet_is_a_plain_error()
     {
-        using var notDotNet = ChildProcess.Start("cmd.exe", "/c", "ping -n 30 127.0.0.1 > nul");
+        using var notDotNet = ChildProcess.StartIdle(30);
 
         var ex = await Should.ThrowAsync<CaptureFailedException>(() => Service().StartCapture(notDotNet.Process.Id).Result);
 
         ex.Reason.ShouldBe(CaptureFailure.ProcessNotFound);
-        ex.Message.ShouldContain("No running .NET process");
+        // Linux tells a process that is not .NET from one that is gone (sprint 4.1); Windows lists only .NET processes.
+        ex.Message.ShouldContain(OperatingSystem.IsWindows() ? "No running .NET process" : "is not a .NET process");
     }
 
     [Fact]
@@ -250,7 +256,16 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     [Fact]
     public async Task Cli_capture_of_a_missing_process_fails()
     {
-        using var capture = ChildProcess.Start(TestPaths.CliExe, "capture", "--pid", "1", "--out", _root.File("none.dmp"));
+        // A process that has just exited: pid 1 is the system's own off Windows (init).
+        int gone;
+        using (var idle = ChildProcess.StartIdle(30))
+        {
+            gone = idle.Process.Id;
+            idle.Process.Kill();
+            await idle.WaitForExitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        using var capture = ChildProcess.Start(TestPaths.CliExe, "capture", "--pid", gone.ToString(System.Globalization.CultureInfo.InvariantCulture), "--out", _root.File("none.dmp"));
 
         (await capture.WaitForExitAsync(TimeSpan.FromSeconds(60))).ShouldBeTrue(capture.Output);
         capture.Process.ExitCode.ShouldBe(1, capture.Output);

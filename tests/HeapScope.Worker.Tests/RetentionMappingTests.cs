@@ -35,7 +35,7 @@ namespace HeapScope.Worker.Tests;
 public sealed class RetentionMappingTests : IDisposable
 {
     private static readonly ReverseIndexInfo s_index = new(false, SnapshotMemoryMode.InMemory, 0, 0, true);
-    private static readonly SnapshotInfo s_info = new(SnapshotKind.FullDump, "a.dmp", Facts: SnapshotFacts.HandlesChecked);
+    private static readonly SnapshotInfo s_info = new(SnapshotKind.FullDump, "a.dmp", Facts: SnapshotFacts.HandlesChecked | SnapshotFacts.StaticsChecked);
 
     private readonly HeapGraph _graph;
     private readonly ReverseReferences _reverse;

@@ -81,6 +81,12 @@ internal abstract class SnapshotKindHandler
     /// </summary>
     public virtual bool HandlesChecked(SnapshotInfo info) => true;
 
+    /// <summary>
+    /// Why the roots of a snapshot of this kind are not all known (its GC handles, its static fields), or null when they are: an
+    /// object held only by one it lacks can look unreachable (sprint 4.7).
+    /// </summary>
+    public virtual UncheckedRoots? Unchecked(SnapshotInfo info) => null;
+
     /// <summary>What "no root reaches it" means for an object of a snapshot of this kind (review M3).</summary>
     public abstract string UnreachableNote(SnapshotInfo info);
 
@@ -113,6 +119,7 @@ internal abstract class SnapshotKindHandler
 
 /// <summary>The handlers of every kind, chosen by kind or by a file's first bytes.</summary>
 /// <param name="dacChosen">Told which DAC each full dump's runtime was created with (sprint 2.3.7).</param>
+/// <param name="edgesKeptInMemory">Told a dump's path and why when its load keeps the references in memory (sprint 4.7).</param>
 internal sealed class SnapshotKinds
 {
     // For what does not depend on the worker's options (texts, name forms, versions): explanations and diffs.
@@ -124,9 +131,9 @@ internal sealed class SnapshotKinds
 
     private readonly SnapshotKindHandler[] _handlers;
 
-    public SnapshotKinds(WorkerOptions options, Action<DacChoice>? dacChosen = null)
+    public SnapshotKinds(WorkerOptions options, Action<DacChoice>? dacChosen = null, Action<string, string>? edgesKeptInMemory = null)
     {
-        _handlers = [new FullDumpKind(options, dacChosen, _trustedDacs), new GcDumpKind()];
+        _handlers = [new FullDumpKind(options, dacChosen, edgesKeptInMemory, _trustedDacs), new GcDumpKind()];
     }
 
     /// <summary>Adds the DACs an open request trusts.</summary>
@@ -152,7 +159,7 @@ internal sealed class SnapshotKinds
     public SnapshotKindHandler ForFile(string path) =>
         SnapshotFileSignature.Detect(path) is { } kind ? For(kind) : throw new SnapshotFormatException(SnapshotFileSignature.DescribeUnknown(path));
 
-    private sealed class FullDumpKind(WorkerOptions options, Action<DacChoice>? dacChosen, ConcurrentDictionary<string, byte> trustedDacs) : SnapshotKindHandler
+    private sealed class FullDumpKind(WorkerOptions options, Action<DacChoice>? dacChosen, Action<string, string>? edgesKeptInMemory, ConcurrentDictionary<string, byte> trustedDacs) : SnapshotKindHandler
     {
         public override SnapshotKind Kind => SnapshotKind.FullDump;
 
@@ -188,6 +195,12 @@ internal sealed class SnapshotKinds
                 notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, run heapscope-cli open with --rebuild on this dump.");
             }
 
+            // A cache from before loader version 7 recorded no check: its older cache note says it (SnapshotOpener.OlderCacheNote).
+            if (metadata.LoaderVersion >= StaticsCheckedSince && !metadata.Info.Facts.HasFlag(SnapshotFacts.StaticsChecked))
+            {
+                notes.Add("HeapScope could not read the runtime's own static fields in this dump, so it could not read the others either. A heap dump of .NET 8 taken on Windows (dotnet-dump collect --type Heap) leaves them out. Objects held only by a static field, and what they hold, can look unreachable, and leak detectors can miss them. If this is such a dump, capture a full dump instead (heapscope-cli capture, or dotnet-dump collect --type Full); HeapScope's log says what it found.");
+            }
+
             if (metadata.Info.Facts.HasFlag(SnapshotFacts.CaptureTimeFromFile))
             {
                 notes.Add("This core dump does not record when it was taken; its capture time is the file's time, which a copy of the file can change.");
@@ -201,9 +214,21 @@ internal sealed class SnapshotKinds
 
         public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
 
-        public override string UnreachableNote(SnapshotInfo info) => HandlesChecked(info)
-            ? "No root HeapScope found reaches it: it is most likely garbage not yet collected, or held only weakly (weak handles, weak references). A thread that was running when the dump was taken can hold short-lived objects no root shows."
-            : "No root HeapScope could read reaches it. Not all GC handles could be checked for this snapshot (see its notes), so it may still be alive.";
+        /// <summary>The loader version that checks the statics (<see cref="SnapshotFacts.StaticsChecked"/>).</summary>
+        public const int StaticsCheckedSince = 8;
+
+        public override UncheckedRoots? Unchecked(SnapshotInfo info) =>
+            (info.Facts.HasFlag(SnapshotFacts.StaticsChecked), HandlesChecked(info)) switch
+            {
+                (true, true) => null,
+                (true, false) => UncheckedRoots.Handles,
+                (false, true) => UncheckedRoots.Statics,
+                (false, false) => UncheckedRoots.Both,
+            };
+
+        public override string UnreachableNote(SnapshotInfo info) => Unchecked(info) is { } roots
+            ? $"No root HeapScope could read reaches it. {roots.Sentence} (see its notes), so it may still be alive."
+            : "No root HeapScope found reaches it: it is most likely garbage not yet collected, or held only weakly (weak handles, weak references). A thread that was running when the dump was taken can hold short-lived objects no root shows.";
 
         public override string? WhyNoObjectIdentity => null;
 
@@ -219,6 +244,8 @@ internal sealed class SnapshotKinds
             DacChosen = dacChosen,
             IsTrustedDac = trustedDacs.ContainsKey,
             TrustedDacCopyFolder = options.Folders.DacCopies,
+            EdgeFolder = options.Folders.Edges,
+            EdgesKeptInMemory = edgesKeptInMemory,
 
             // A machine without the dump's runtime, for tests (WorkerOptions.HideInstalledDacsSwitch).
             InstalledRuntimeRoots = options.HideInstalledDacs ? [] : null,

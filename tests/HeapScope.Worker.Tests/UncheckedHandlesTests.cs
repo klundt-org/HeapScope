@@ -36,7 +36,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.Worker.Tests;
 
-/// <summary>A snapshot whose GC handles could not all be checked (peer review 4.5): its note, and what rests on reachable objects.</summary>
+/// <summary>
+/// A snapshot whose GC handles could not all be checked (peer review 4.5), or whose statics could not be read (sprint 4.7): its note, and
+/// what rests on reachable objects.
+/// </summary>
 public sealed class UncheckedHandlesTests : IDisposable
 {
     private readonly string _folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "HeapScopeTests", Guid.NewGuid().ToString("N"))).FullName;
@@ -96,6 +99,28 @@ public sealed class UncheckedHandlesTests : IDisposable
         result.Note.ShouldNotBeNull().Contains("may not all be counted", StringComparison.Ordinal).ShouldBe(noted);
     }
 
+    // Sprint 4.7: a heap dump of .NET 8 leaves out its statics, which the loader says by leaving out StaticsChecked; everything that rests on the
+    // roots says so as it does for handles.
+    [Fact]
+    public async Task A_dump_whose_statics_could_not_be_read_says_so_and_what_to_do()
+    {
+        var unread = await OpenAsync("statics.dmp", handlesChecked: true, less: SnapshotFacts.StaticsChecked);
+
+        unread.Notes.ShouldContain(n => n.Contains("could not read the runtime's own static fields in this dump", StringComparison.Ordinal) && n.Contains("dotnet-dump collect --type Full", StringComparison.Ordinal));
+        unread.IsAvailable(SnapshotFeatureIds.UnreachableSet).ShouldBeFalse();
+        var (result, _, _, lease, _) = await _services.GetRequiredService<InspectionRunner>().RunAsync(new InspectionRequest(unread.SnapshotId, "type-growth"), null, Ct);
+        lease.Dispose();
+        result.Note.ShouldNotBeNull().ShouldContain("The static fields of this dump could not be checked (see its notes), so objects held only by a static field may not all be counted.");
+
+        // The detector that finds collections by their static fields is refused there, not answered clean (the review of 4.7, H5).
+        (await Should.ThrowAsync<Exception>(() => _services.GetRequiredService<InspectionRunner>().RunAsync(new InspectionRequest(unread.SnapshotId, "growing-static-collections"), null, Ct)))
+            .Message.ShouldContain("finds collections by the static fields that hold them, and the static fields of this dump could not be checked");
+
+        var earlier = await OpenAsync("statics-before.dmp", handlesChecked: true);
+        (await Should.ThrowAsync<RequestRefusedException>(() => _services.GetRequiredService<InspectionRunner>().RunAsync(new InspectionRequest(unread.SnapshotId, "type-growth", BaselineSnapshotId: earlier.SnapshotId), null, Ct)))
+            .Message.ShouldContain("the static fields of this snapshot could not be checked (see its notes), so objects held only by a static field could be counted on one side only. Choose no baseline.");
+    }
+
     private async Task<string?> GrowthAsync(bool current, bool baseline)
     {
         var earlier = await OpenAsync("before.dmp", baseline);
@@ -105,7 +130,7 @@ public sealed class UncheckedHandlesTests : IDisposable
         return result.Note;
     }
 
-    private async Task<SnapshotDescriptor> OpenAsync(string name, bool handlesChecked)
+    private async Task<SnapshotDescriptor> OpenAsync(string name, bool handlesChecked, SnapshotFacts less = SnapshotFacts.None)
     {
         var dump = Path.Combine(_folder, name);
         File.WriteAllBytes(dump, [.. "MDMP"u8, 0x93, 0xA7, 0, 0, (byte)name.Length]);
@@ -114,7 +139,7 @@ public sealed class UncheckedHandlesTests : IDisposable
         using (var graph = builder.Build())
         {
             var metadata = new IndexCacheMetadata(
-                new SnapshotInfo(SnapshotKind.FullDump, dump, ProcessId: 7, Facts: handlesChecked ? SnapshotFacts.HandlesChecked : SnapshotFacts.None),
+                new SnapshotInfo(SnapshotKind.FullDump, dump, ProcessId: 7, Facts: ((handlesChecked ? SnapshotFacts.HandlesChecked : SnapshotFacts.None) | SnapshotFacts.StaticsChecked) & ~less),
                 SnapshotCapabilities.FullDump,
                 IndexCacheMetadata.CurrentWriterVersion,
                 LoaderVersion: ClrMdDumpLoader.CurrentVersion,

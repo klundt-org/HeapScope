@@ -96,3 +96,6 @@
   - A recording that ends by an error keeps what it has.
   - Choosing an interval is asking again, not a push: the Live page asks twice a second where the trace stands, and for the
     timeline and types at most every two seconds. Call stacks are asked for on demand.
+- Amended in sprint 4.7: `TraceRecorder.RecordAsync` (the Processes page and the command line) writes unbuffered too, as a live
+  recording does. Behind its 64 KB buffer, as in the table above, an idle target's trace stayed 0 bytes on disk for minutes: the
+  "trace start over 60 s" of CI and the 4.6 gate was that buffer, not a slow session.

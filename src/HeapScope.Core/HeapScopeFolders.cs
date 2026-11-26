@@ -85,4 +85,13 @@ public sealed class HeapScopeFolders
     public string Etlx => _isDefault && OperatingSystem.IsWindows()
         ? Path.Combine(Path.GetTempPath(), "HeapScope", "etlx")
         : Path.Combine(Root, "etlx");
+
+    /// <summary>
+    /// The references' temporary files of full dumps' loads: where <see cref="Etlx"/> goes, for the same reasons. One lives as
+    /// long as its graph: until the load switches to the mapped cache, or, for a snapshot kept in memory, until it closes; the
+    /// system deletes it when the worker dies (Windows), and elsewhere it has no name once open. About 4 bytes per reference.
+    /// </summary>
+    public string Edges => _isDefault && OperatingSystem.IsWindows()
+        ? Path.Combine(Path.GetTempPath(), "HeapScope", "edges")
+        : Path.Combine(Root, "edges");
 }

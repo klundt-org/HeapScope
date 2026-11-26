@@ -72,6 +72,14 @@ internal sealed class ChildProcess : IDisposable
     /// <summary>Session library root for every front end a test starts (sprint 1.1).</summary>
     public static string TestSessionsRoot { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "HeapScopeTests", "sessions");
 
+    /// <summary>
+    /// A process that is not .NET and does nothing for <paramref name="seconds"/>: <c>cmd.exe</c> pinging itself on Windows, <c>sleep</c>
+    /// elsewhere (sprint 4.7, the integration tier on Linux).
+    /// </summary>
+    public static ChildProcess StartIdle(int seconds) => OperatingSystem.IsWindows()
+        ? Start("cmd.exe", "/c", string.Create(System.Globalization.CultureInfo.InvariantCulture, $"ping -n {seconds} 127.0.0.1 > nul"))
+        : Start("sleep", seconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
     public static ChildProcess Start(string fileName, params string[] arguments) =>
         Start(fileName, new Dictionary<string, string>(), arguments);
 

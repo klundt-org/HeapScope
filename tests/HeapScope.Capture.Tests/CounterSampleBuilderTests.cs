@@ -78,4 +78,18 @@ public sealed class CounterSampleBuilderTests
 
         (gauge, gaugeValue, rate, rateValue).ShouldBe(("gc-heap-size", 42.0, "alloc-rate", 1024.0));
     }
+
+    // Peer review 4.5 M11 (sprint 4.7): the interval the target reports is read, not trusted to be the one asked.
+    [Theory]
+    [InlineData(1.0, null)]
+    [InlineData(1.2, null)]
+    [InlineData(5.0, 5.0)]
+    [InlineData(0.25, 0.25)]
+    public void A_reported_interval_far_from_the_one_asked_is_said(double reported, double? said) =>
+        CounterMonitor.IntervalDiffers(new Dictionary<string, object> { ["Name"] = "alloc-rate", ["IntervalSec"] = (float)reported }, TimeSpan.FromSeconds(1))
+            .ShouldBe(said is null ? null : (double)(float)said.Value);
+
+    [Fact]
+    public void A_payload_without_an_interval_says_nothing() =>
+        CounterMonitor.IntervalDiffers(new Dictionary<string, object> { ["Name"] = "alloc-rate" }, TimeSpan.FromSeconds(1)).ShouldBeNull();
 }

@@ -5,14 +5,15 @@ brackets.
 
 Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
-- **Core.** `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
+- **Core.** `SystemMemory` and `ProcessMemory` (the machine's memory and this process's, from the system on Windows, Linux and
+  macOS) [4.7]; `FirstLoadEstimate` and `TraceReadCost` (what a first load and a trace's read cost the worker) [4.7]; `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
   `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
   (what the logs may hold, followed within a second by every process) [3.12], with `LogPrivacyChange` (both settings as one
   value) [3.13.2]; `RequestRefusedException` (a request the worker
   refuses for a reason the user can act on; any other exception at its boundary is a bug) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
-  string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
+  string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder` (its `EdgeStore` writes a load's references to a temporary file and maps it [4.7]), `TypeKind.ReferenceArray`
   [1.6] and `TypeNameForms` (a full dump's type name in the form a gcdump records it [1.8], and a runtime event's in the snapshots' spelling [4.4]); types without a method
   table are told apart by name and module [1.8]. `Loading/`: the loader contract both loaders share (`ISnapshotLoader`
   with its `Version`, `LoadResult`, `LoadProgress`, `LoadTimings`, `LoadDiagnostics`) and `SnapshotFileSignature` (a
@@ -79,8 +80,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 - **Capture.** Process discovery and elevation, `DumpSizeEstimator` (the disk preflight's estimate) [1.1]; `DumpCapturer` (full dumps written by the runtime) and `GcDumpCapturer`
   (the vendored heap snapshot over EventPipe, failures classified, its log lines sent to the HeapScope log) [1.8], both
   writing through `PartialSnapshotFile` (reserve, never overwrite, commit by rename, discard with retries) [1.9];
-  `TraceRecorder` (EventPipe sessions to `.nettrace`, profiles cpu and gc) [1.5]; `CounterMonitor` (an EventPipe session
-  on the target's `System.Runtime` EventCounters) and `CounterSampleBuilder` (counter events to one `CounterSample` per
+  `TraceRecorder` (EventPipe sessions to `.nettrace`, profiles cpu and gc, written unbuffered since 4.7) [1.5]; `CounterMonitor` (an EventPipe session
+  on the target's `System.Runtime` EventCounters; since 4.7 it reads the interval the target reports and logs one that differs) and `CounterSampleBuilder` (counter events to one `CounterSample` per
   interval) [1.7]. `IProcessFacts` (a process's image path, command line, runtime, user id, private and readable bytes per system, chosen by
   `CapturePlatform.ProcessFacts`): `WindowsProcessFacts` (the kernel calls `ProcessDiscovery` made before) and
   `LinuxProcessFacts` (reads `/proc/<pid>`), whose text `ProcText` parses on every system: the command line, a deleted
@@ -103,7 +104,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   shared with the loader, runtime creation failures wrapped with a next step) [1.5]; `MinidumpHeader` [1.2, 1.8];
   `CoreFileHeader` (a Linux or macOS core cut short: program headers or load commands, or a segment's file range, past
   the end of the file; such a core loses CompleteGraph and ExactCounts like a truncated minidump), a core's capture time
-  from the file's write time marked `SnapshotFacts.CaptureTimeFromFile` with a note, loader version 3 [2.3.5]; `ClrMdDumpLoader.ProcessNameOf`: the executable's path the dump records, else its modules, and which rule chose it, loader version 4 [3.10]; `HandleTables` and `HeapCountReader`: the GC handles the runtime's walk leaves out, loader version 5 [4.5];
+  from the file's write time marked `SnapshotFacts.CaptureTimeFromFile` with a note, loader version 3 [2.3.5]; `ClrMdDumpLoader.ProcessNameOf`: the executable's path the dump records, else its modules, and which rule chose it, loader version 4 [3.10]; `HandleTables` and `HeapCountReader`: the GC handles the runtime's walk leaves out, loader version 5 [4.5]; .NET 8's static storage named, thread statics named by their field (struct ones at their box) and `SnapshotFacts.StaticsChecked`, loader version 8 [4.7];
   `UnixLocalPath` (the local path rule on Linux and macOS: the mount holding the path, links resolved) [2.3.5];
   `DacLocator` and `LocalOnlyFileLocator` (the matching DAC from local folders only, ADR-017, section 6.3) [0.1, 1.2];
   a DAC next to the dump only once trusted by its SHA-256 and loaded from a private copy (`BesideDumpDirectories`,
@@ -167,7 +168,9 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   DAC, the identity line) [3.12]; `DacRefusals` (the words for a DAC that cannot be used, ADR-041) [3.12];
   `SnapshotKinds` (per kind: the loader and its version, the oldest version that may open in place of a rebuild, the DAC
   check and the process name read again [3.12], the snapshot over a graph, the kind's notes) [1.9], and whether the kind
-  holds garbage, what an unreached object means and why its objects cannot be matched by address [3.8]; `DerivedData`, per-snapshot derived data on the snapshot's
+  holds garbage, what an unreached object means and why its objects cannot be matched by address [3.8]; `UncheckedRoots` (why a snapshot's
+  roots are not all known: GC handles, static fields or both) and `TestedRuntimes` (the note for a dump of a runtime the known answers
+  are not checked on, or one before .NET 5) [4.7]; `DerivedData`, per-snapshot derived data on the snapshot's
   entry, dropped in one step when it closes: each slot is one shared computation with its own lease; a caller that
   cancels only stops waiting, and the computation is canceled when the last waiter leaves before it finishes and nobody
   joins within a 2 s grace period (so a grid's re-query joins it), or when the snapshot closes (`DerivedWaiter`, after
@@ -182,7 +185,8 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   dependent-handle and framework marks on the wire) [2.2]. `SnapshotStore.Dominators.cs` (the dominators slot and the
   group retention per grouping), `DominatorIndexBuilder` (the dominators opened from their sidecar or computed into it,
   with the fallbacks), `MemoryReservations` (the worker-wide memory check of the large derived computations, with
-  `Refusal`'s next steps), and retained sizes in `RetentionHandler` and `DerivedQueries`; `TypeSummarySource` and
+  `Refusal`'s next steps; since 4.7 also around a first load, an inspection's `IInspection.WorkingBytes` and the reverse index built
+  without a cache), and retained sizes in `RetentionHandler` and `DerivedQueries`; `TypeSummarySource` and
   `InstancesSource` add a retained column when asked [2.3]. In `RetentionHandler`: the tree and the icicle with
   `DominatorTreeSource`, and set retention with `RetainedBySetSource` [2.4]. `ObjectSetResolver` (resolving an
   `ObjectSetSpec` into its members, logged with its size; a set's dominators with `SetDominatorsSource`),
@@ -218,7 +222,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `TimelineFile` reads a timeline back; `CaptureService` keeps one capture or forced collection per process at a time
   (`CaptureFailure.Busy`) and forces collections through Capture's `GcTrigger` [3.4]. A run awaits every capture and
   forced collection at its end, refuses new ones once stopping, marks its session in use, logs a rule deferred by a busy
-  process and re-arms one that lost the race, and stops its allocation trace at `MonitorOptions.TraceLimitBytes` (1 GB)
+  process and re-arms one that lost the race, and stops its allocation trace at `MonitorOptions.TraceLimitBytes` (512 MB, fitted to the machine by `TraceReadCost.Fit` since 4.7)
   or under 1 GB of free disk (`TraceStopped`) [3.4 review]. `ICaptureService.StartCapture`
   records a source (`SnapshotSource.Timed` for rules) and takes a `SnapshotKindDto` [1.7, 1.8]. `Exports/CsvExport`:
   a result set or in-memory rows as CSV, page by page, without hidden columns and, unless opted in, without value

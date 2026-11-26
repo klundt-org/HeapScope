@@ -122,7 +122,11 @@ public sealed class DumpAnalysis : IDisposable
             watch.Restart();
             try
             {
-                return new DumpAnalysis(target, clr.CreateRuntime(dac, ignoreMismatch: false), dac, locator, path);
+                // A Linux core dump can lack the runtime's version resource, which ClrMD then reads as 0.0 (as HeapScope's loader knows,
+                // DacLocator.RuntimeVersion): the DAC beside the dumped runtime is its own, so the mismatch is not checked (sprint 4.7,
+                // the integration tier on Linux).
+                var unversioned = clr.Version.Major == 0 && clr.Version.Minor == 0;
+                return new DumpAnalysis(target, clr.CreateRuntime(dac, ignoreMismatch: unversioned), dac, locator, path);
             }
             catch (Exception ex)
             {
@@ -259,8 +263,34 @@ public sealed class DumpAnalysis : IDisposable
         var leftOut = LeftOutHandles
             .Where(static h => h.Object != 0 && (h.Kind is ClrHandleKind.Strong or ClrHandleKind.Pinned or ClrHandleKind.AsyncPinned or ClrHandleKind.SizedRef || (h.Kind == ClrHandleKind.RefCounted && h.IsStrong)))
             .Select(h => Heap.GetObject(h.Object));
-        var starts = Heap.EnumerateRoots().Where(r => finalizerQueue || r.RootKind != ClrRootKind.FinalizerQueue).Select(r => r.Object).Concat(frozen).Concat(leftOut).Where(o => !o.IsNull);
+        var starts = Heap.EnumerateRoots().Where(r => finalizerQueue || r.RootKind != ClrRootKind.FinalizerQueue).Select(r => r.Object).Concat(frozen).Concat(leftOut).Concat(ThreadStaticValues()).Where(o => !o.IsNull);
         return Walk(starts, followDependentHandles: true, skip);
+    }
+
+    /// <summary>
+    /// The value of every thread static field that holds a reference on every live thread: .NET 8, and .NET 10 on Linux, report no
+    /// thread static root, and the loader roots them by their field, so the reference walk must too. Not independent of the loader: it
+    /// reads them through the same ClrMD calls. A struct thread static is checked by its own known answer instead.
+    /// </summary>
+    public IEnumerable<ClrObject> ThreadStaticValues()
+    {
+        foreach (var module in Runtime.AppDomains.SelectMany(static d => d.Modules).DistinctBy(static m => m.Address))
+        {
+            foreach (var type in module.EnumerateTypesWithStaticFields())
+            {
+                foreach (var field in type.ThreadStaticFields.Where(static f => f.IsObjectReference))
+                {
+                    foreach (var thread in Runtime.Threads.Where(static t => t.IsAlive))
+                    {
+                        var value = field.ReadObject(thread);
+                        if (!value.IsNull && value.IsValid)
+                        {
+                            yield return value;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

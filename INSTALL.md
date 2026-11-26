@@ -153,6 +153,11 @@ To update, put the new version's file in that folder and run `dotnet tool update
   with `dotnet-dump collect --process-id <pid> --type Full` (`dotnet tool install --global dotnet-dump` installs it) and open
   the file.
 
+HeapScope analyzes dumps of .NET 5 and later. Its answers are checked on every change against dumps of .NET 8, 9 and 10; a
+full dump of another version opens with a note that its answers are not checked, and one older than .NET 5 with a note that
+HeapScope does not analyze it. A heap dump of .NET 8 taken on Windows (`dotnet-dump collect --type Heap`) leaves out the static
+fields: take a full dump (`--type Full`, or HeapScope's own capture).
+
 To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version
 the dumped process ran on. HeapScope finds it in the .NET runtimes installed on the machine and in its own runtime when
 the versions match, so a dump from a server with another .NET version usually needs that runtime installed, or its DAC

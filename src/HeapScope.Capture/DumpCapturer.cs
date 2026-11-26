@@ -86,7 +86,7 @@ public sealed class InsufficientDiskSpaceException : Exception
     public InsufficientDiskSpaceException(string directory, long neededBytes, long availableBytes, long reserveBytes)
         : base(string.Create(
             CultureInfo.InvariantCulture,
-            $"The dump needs about {Gb(neededBytes)} and HeapScope keeps {Gb(reserveBytes)} free, but only {Gb(availableBytes)} is free on the drive of {directory}. Free some space or choose another folder."))
+            $"The dump needs about {Gb(neededBytes)} and HeapScope keeps {Gb(reserveBytes)} free for its index caches and the system, but only {Gb(availableBytes)} is free on the drive of {directory}. Free some space or choose another folder."))
     {
         NeededBytes = neededBytes;
         AvailableBytes = availableBytes;
@@ -134,8 +134,17 @@ public sealed class DumpCapturer(
     Func<DotNetProcess, long>? estimator = null,
     TimeProvider? timeProvider = null)
 {
-    /// <summary>Free space HeapScope always leaves on the drive (the index cache and the system need room too).</summary>
+    /// <summary>Free space HeapScope always leaves on the drive for the system, besides the dump's index caches.</summary>
     public const long ReserveBytes = 1L * 1024 * 1024 * 1024;
+
+    /// <summary>
+    /// The index caches a dump's analysis writes beside it, per byte of the dump (peer review 4.5 M11, sprint 4.7): the graph, the
+    /// incoming references and the dominators measured 0.75 to 0.85 of the dump (LeakyApi Medium, DenseHeap); this leaves a margin.
+    /// </summary>
+    public const double CacheBytesPerDumpByte = 0.9;
+
+    /// <summary>The free space a dump of <paramref name=dumpBytes/> leaves untouched: the system's and its caches'.</summary>
+    public static long ReserveFor(long dumpBytes) => ReserveBytes + (long)Math.Min(long.MaxValue / 2, Math.Max(0, dumpBytes) * CacheBytesPerDumpByte);
 
     /// <summary>Suffix of the file while the runtime writes it.</summary>
     public const string PartialSuffix = ".partial";
@@ -181,9 +190,10 @@ public sealed class DumpCapturer(
         estimated?.Invoke(estimate, free);
 
         // Not needed + reserve, which a huge estimate would wrap (4.2 review).
-        if (free is { } available && available - ReserveBytes < needed)
+        var reserve = ReserveFor(needed);
+        if (free is { } available && available - reserve < needed)
         {
-            throw new InsufficientDiskSpaceException(directory, needed, available, ReserveBytes);
+            throw new InsufficientDiskSpaceException(directory, needed, available, reserve);
         }
 
         return needed;

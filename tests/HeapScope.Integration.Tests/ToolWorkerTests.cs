@@ -42,7 +42,8 @@ public sealed class ToolWorkerTests
     [Fact]
     public async Task The_worker_assembly_runs_through_the_dotnet_host_with_server_gc_and_stays_out_of_the_process_list()
     {
-        var assembly = Path.ChangeExtension(TestPaths.WorkerExe, ".dll");
+        // Not Path.ChangeExtension: off Windows the executable has no extension, and ".Worker" would be taken for one.
+        var assembly = Path.Combine(Path.GetDirectoryName(TestPaths.WorkerExe)!, "HeapScope.Worker.dll");
         var host = WorkerHostOptions.RunningDotnetHost();
         host.ShouldNotBeNull("the tests run on an installed runtime, as the tool does");
         var logs = new ListLoggerProvider();

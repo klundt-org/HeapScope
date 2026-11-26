@@ -85,7 +85,7 @@ public sealed class CacheRebuildTests : IDisposable
     {
         using var graph = SyntheticGraphs.Chain(10);
         var metadata = new IndexCacheMetadata(
-            new SnapshotInfo(SnapshotKind.FullDump, _dump, ProcessName: "coreclr"),
+            new SnapshotInfo(SnapshotKind.FullDump, _dump, ProcessName: "coreclr", Facts: loaderVersion >= 8 ? SnapshotFacts.StaticsChecked : SnapshotFacts.None),
             SnapshotCapabilities.ObjectGraph | SnapshotCapabilities.CompleteGraph,
             IndexCacheMetadata.CurrentWriterVersion,
             LoaderVersion: loaderVersion);
@@ -148,13 +148,13 @@ public sealed class CacheRebuildTests : IDisposable
         phases.Seen.ShouldContain("Opening the older index cache");
     }
 
-    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader versions 4 to 6 changed.
+    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader versions 4 to 8 changed.
     [Fact]
     public void The_older_cache_note_matches_the_current_loader_version()
     {
         ClrMdDumpLoader.CurrentVersion.ShouldBe(
-            6,
-            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4; version 6 only names struct statics, which an older cache shows as the runtime's storage of static fields, so no answer it gives is wrong), or raise OldestFallbackLoaderVersion (ADR-041)");
+            8,
+            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4; version 6 only names struct statics, which an older cache shows as the runtime's storage of static fields, so no answer it gives is wrong; versions 7 and 8 name the static storage of .NET 8 and thread statics by their field, and check the statics, which an older cache did not: the note says a static field, and the cache is unchecked, StaticsChecked missing), or raise OldestFallbackLoaderVersion (ADR-041)");
     }
 
     [Fact]
@@ -426,7 +426,7 @@ public sealed class CacheRebuildTests : IDisposable
             during?.Invoke();
             return new LoadResult(
                 SyntheticGraphs.Chain(10),
-                new SnapshotInfo(SnapshotKind.FullDump, dump),
+                new SnapshotInfo(SnapshotKind.FullDump, dump, Facts: SnapshotFacts.StaticsChecked),
                 SnapshotCapabilities.ObjectGraph,
                 new LoadDiagnostics([], 0, 0),
                 new LoadTimings(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero));

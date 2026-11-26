@@ -40,7 +40,7 @@ namespace HeapScope.Worker.Snapshots;
 /// index cache or loads the dump and writes the cache, picks the memory mode (ADR-015), and describes and logs the result. It
 /// logs under the store's category. The store serializes opens; nothing here outlives one open but the test hooks.
 /// </summary>
-internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner signer, SnapshotKinds kinds, ILogger logger)
+internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner signer, SnapshotKinds kinds, ILogger logger, MemoryReservations? reservations = null)
 {
     private readonly IndexCacheSigner _signer = signer;
     private readonly SnapshotKinds _kinds = kinds;
@@ -373,44 +373,56 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         Rpc.ThrottledProgress<JobProgress> progress,
         CancellationToken cancellationToken)
     {
-        var loader = LoaderForTests?.Invoke(path) ?? _kinds.ForFile(path).CreateLoader();
-        LoadResult? loaded = loader.Load(path, new LoadProgressAdapter(progress, rebuilding), cancellationToken);
-        HeapGraph? graph = loaded.Graph;
-        var diagnostics = loaded.Diagnostics;
-        var metadata = new IndexCacheMetadata(
-            loaded.Info,
-            loaded.Capabilities,
-            IndexCacheMetadata.CurrentWriterVersion,
-            diagnostics.DebuggableModules,
-            diagnostics.UnreadableObjects,
-            loader.Version,
-            diagnostics.StaticFieldRoots,
-            diagnostics.IncompleteSegments,
-            diagnostics.Dac,
-            diagnostics.ProcessNameSource,
-            diagnostics.Handles);
-        var timings = loaded.Timings;
-        logger.LogInformation(
-            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots}, debuggable modules {Debuggable}; GC handles {Handles}",
-            path,
-            timings.Total.TotalSeconds,
-            timings.Open.TotalSeconds,
-            timings.Objects.TotalSeconds,
-            timings.Freeze.TotalSeconds,
-            timings.References.TotalSeconds,
-            timings.Roots.TotalSeconds,
-            timings.Build.TotalSeconds,
-            timings.PhaseCosts.Count == 0 ? "not measured" : string.Join("; ", timings.PhaseCosts),
-            diagnostics.UnreadableObjects,
-            diagnostics.IncompleteSegments,
-            diagnostics.StaticFieldRoots,
-            diagnostics.DebuggableModules.Count,
-            Describe(diagnostics.Handles, metadata.Info.Kind));
-
-        // Nothing else may reference the built graph, or the mapped transition below cannot free it.
-        loaded = null;
+        var handler = _kinds.ForFile(path);
+        var loader = LoaderForTests?.Invoke(path) ?? handler.CreateLoader();
+        LoadResult? loaded;
+        HeapGraph? graph = null;
         try
         {
+            using (var firstLoad = FirstLoadReservation(path, handler.Kind))
+            {
+                loaded = loader.Load(path, new LoadProgressAdapter(progress, rebuilding), cancellationToken);
+
+                // Owned from here: a failure before the snapshot takes it disposes it, which releases its references' file.
+                graph = loaded.Graph;
+                firstLoad?.Loaded();
+            }
+
+            var diagnostics = loaded.Diagnostics;
+            var metadata = new IndexCacheMetadata(
+                loaded.Info,
+                loaded.Capabilities,
+                IndexCacheMetadata.CurrentWriterVersion,
+                diagnostics.DebuggableModules,
+                diagnostics.UnreadableObjects,
+                loader.Version,
+                diagnostics.StaticFieldRoots,
+                diagnostics.IncompleteSegments,
+                diagnostics.Dac,
+                diagnostics.ProcessNameSource,
+                diagnostics.Handles);
+            var timings = loaded.Timings;
+            logger.LogInformation(
+                "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots} ({Statics}), debuggable modules {Debuggable}; GC handles {Handles}; references {Edges}",
+                path,
+                timings.Total.TotalSeconds,
+                timings.Open.TotalSeconds,
+                timings.Objects.TotalSeconds,
+                timings.Freeze.TotalSeconds,
+                timings.References.TotalSeconds,
+                timings.Roots.TotalSeconds,
+                timings.Build.TotalSeconds,
+                timings.PhaseCosts.Count == 0 ? "not measured" : string.Join("; ", timings.PhaseCosts),
+                diagnostics.UnreadableObjects,
+                diagnostics.IncompleteSegments,
+                diagnostics.StaticFieldRoots,
+                diagnostics.Statics ?? "not checked",
+                diagnostics.DebuggableModules.Count,
+                Describe(diagnostics.Handles, metadata.Info.Kind),
+                diagnostics.Edges ?? "in memory");
+
+            // Nothing else may reference the built graph, or the mapped transition below cannot free it.
+            loaded = null;
             progress.Report(new JobProgress("Writing index cache", 0, null));
             var identity = TryWriteCache(cachePath, graph, metadata, fingerprint, notes, cancellationToken);
             var written = identity != 0;
@@ -461,13 +473,84 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
     }
 
     /// <summary>
+    /// The worker's own check of a first load of a full dump (peer review 4.5 H5): its estimate, less the worker's own idle memory, is
+    /// reserved while it loads, so no other work takes that memory meanwhile, and the log says the estimate against what the load used.
+    /// A load that does not fit is not refused here (the worker is not told whether the user accepted the front end's warning, and
+    /// heapscope-cli open --no-overcommit refuses before asking); it is logged.
+    /// </summary>
+    private FirstLoad? FirstLoadReservation(string path, SnapshotKind kind)
+    {
+        if (reservations is null || kind != SnapshotKind.FullDump)
+        {
+            return null;
+        }
+
+        var dumpBytes = new FileInfo(path).Length;
+        var estimate = FirstLoadEstimate.PeakBytes(dumpBytes);
+        var held = ProcessMemory.PrivateBytes();
+        // The estimate is one load's cost, the worker's own idle memory included; snapshots already open are not part of it (the GC
+        // review of 4.7): only that idle part, at most, is already held.
+        var growth = Math.Max(0, estimate - Math.Min(held, FirstLoadEstimate.WorkerIdleBytes));
+        try
+        {
+            return new FirstLoad(reservations.Reserve(growth, "Loading the dump", "Close other snapshots first."), logger, path, dumpBytes, estimate, held, growth);
+        }
+        catch (InsufficientMemoryException ex)
+        {
+            logger.LogWarning("The first load of {Path} ({DumpBytes:N0} bytes) is estimated at {Estimate:N0} bytes, {Growth:N0} more than the worker holds, which does not fit; loading anyway, as the worker does not refuse a first load: {Refusal}", path, dumpBytes, estimate, growth, ex.Message);
+            return new FirstLoad(null, logger, path, dumpBytes, estimate, held, growth);
+        }
+    }
+
+    // Logs the estimate against what the load used once it ends, and how it ended. On Windows the process's peak commit before and
+    // after (a peak, but over the worker's whole life: it says the load's own only when it rose); elsewhere private bytes after it.
+    private sealed class FirstLoad : IDisposable
+    {
+        private readonly IDisposable? _held;
+        private readonly ILogger _logger;
+        private readonly string _path;
+        private readonly long _dumpBytes;
+        private readonly long _estimate;
+        private readonly long _before;
+        private readonly long _reserved;
+        private readonly long _peakBefore;
+        private bool _loaded;
+
+        public FirstLoad(IDisposable? held, ILogger logger, string path, long dumpBytes, long estimate, long before, long reserved)
+        {
+            (_held, _logger, _path, _dumpBytes, _estimate, _before, _reserved) = (held, logger, path, dumpBytes, estimate, before, held is null ? 0 : reserved);
+            _peakBefore = OperatingSystem.IsWindows() ? Peak() : 0;
+        }
+
+        public void Loaded() => _loaded = true;
+
+        public void Dispose()
+        {
+            _held?.Dispose();
+            var after = ProcessMemory.PrivateBytes();
+            var used = OperatingSystem.IsWindows()
+                ? string.Create(CultureInfo.InvariantCulture, $"peak commit {_peakBefore:N0} before, {Peak():N0} after (the load's own peak only if it rose)")
+                : string.Create(CultureInfo.InvariantCulture, $"private bytes after {after:N0} (not a peak)");
+            _logger.LogInformation(
+                "First load of {Path} {Outcome}: {DumpBytes:N0} bytes of dump, estimated peak {Estimate:N0} bytes; the worker held {Before:N0} before, {Reserved:N0} reserved; {Used}",
+                _path, _loaded ? "done" : "failed or canceled", _dumpBytes, _estimate, _before, _reserved, used);
+        }
+
+        private static long Peak()
+        {
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            return process.PeakPagedMemorySize64;
+        }
+    }
+
+    /// <summary>
     /// The snapshot's note when it opened from an older loader's cache because a rebuild could not reach its DAC (owner's
     /// wording, 2026-11-13; reworded for loader version 5, a draft for the owner). Version 4 changed only the process name, which is read again
-    /// from the dump; version 5 reads GC handles and references that an older cache lacks.
+    /// from the dump; version 5 reads GC handles and references that an older cache lacks; version 7 checks the static fields, which an older cache did not (the review of 4.7).
     /// </summary>
     internal static string OlderCacheNote(string cause) =>
         $"Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: {cause}. "
-        + "It can lack what this version reads: in Server GC processes and collectible assemblies, objects held only by a GC handle or by a type can look unreachable. The process name was read again from the dump. "
+        + "It can lack what this version reads: objects held only by a GC handle (in Server GC processes), a static field (in heap dumps of .NET 8) or a type (in collectible assemblies) can look unreachable. The process name was read again from the dump. "
         + "Once the DAC can be used, close the snapshot and open the dump again to rebuild the cache.";
 
     /// <summary>
@@ -592,6 +675,18 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         }
 
         _kinds.For(metadata.Info.Kind).AddNotes(metadata, notes);
+
+        // A runtime the known answers are not checked on (sprint 4.7, peer review 4.5 H1).
+        if (metadata.Info.Kind == SnapshotKind.FullDump && TestedRuntimes.Major(metadata.Info.RuntimeVersion) is null)
+        {
+            logger.LogInformation("The dump {Path} records no runtime version HeapScope can read, so it is not said whether its answers are checked", metadata.Info.SourcePath);
+        }
+
+        if (TestedRuntimes.Note(metadata.Info.RuntimeVersion) is { } untested)
+        {
+            notes.Add(untested);
+            logger.LogInformation("The dump {Path} is of .NET {Version}, which the known answers are not checked on (tested: {Tested})", metadata.Info.SourcePath, metadata.Info.RuntimeVersion, string.Join(", ", TestedRuntimes.Majors));
+        }
 
         if (metadata.UnreadableObjects > 0)
         {

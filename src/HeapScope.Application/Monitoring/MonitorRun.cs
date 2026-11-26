@@ -232,7 +232,18 @@ public sealed class MonitorRun : IAsyncDisposable
 
         if (Options.RecordAllocations)
         {
-            _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, Options.TraceLimitBytes, _allocations, _time, _logger, PendingCaptures, TraceProblem,
+            // A limit whose read would not fit this machine beside two snapshots is lowered at the start, not found at the read
+            // (peer review 4.5 H8, sprint 4.7).
+            var memory = HeapScope.Application.Snapshots.PhysicalMemory.Current();
+            var limit = HeapScope.Core.TraceReadCost.Fit(Options.TraceLimitBytes, memory.TotalBytes);
+            if (limit < Options.TraceLimitBytes)
+            {
+                _logger.LogInformation(
+                    "Monitoring run {RunId} (pid {Pid}): the allocation trace limit is {Limit:N0} bytes, not {Asked:N0}: a read of the larger trace ({Read:N0} bytes) would not fit a quarter of this machine's {Total:N0} bytes",
+                    Id, ProcessId, limit, Options.TraceLimitBytes, HeapScope.Core.TraceReadCost.Reservation(Options.TraceLimitBytes), memory.TotalBytes);
+            }
+
+            _recording = AllocationRecording.Start(_record.Folder, Id, ProcessId, limit, _allocations, _time, _logger, PendingCaptures, TraceProblem,
                 Options.Interval,
                 () => _capture.IsBusy(ProcessId),
                 start => Raise(TraceStarted, new LiveTraceFile(start.Path, start.NamesPath), nameof(TraceStarted)),

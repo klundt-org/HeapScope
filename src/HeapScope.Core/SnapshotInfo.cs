@@ -79,4 +79,11 @@ public enum SnapshotFacts
     /// only by a handle can look unreachable. A gcdump does not need it.
     /// </summary>
     HandlesChecked = 1 << 5,
+
+    /// <summary>
+    /// A full dump's static fields could be read: the runtime's own (System.Private.CoreLib's) reference statics are there. Without it,
+    /// as in a heap dump of .NET 8 written on Windows, which leaves out the memory statics are kept in, or a cache from before loader
+    /// version 7, an object held only by a static field can look unreachable. A gcdump does not need it.
+    /// </summary>
+    StaticsChecked = 1 << 6,
 }

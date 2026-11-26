@@ -98,7 +98,7 @@ public sealed class DenseHeapTests : IDisposable
         fixture.Dispose();
         await WaitForExitAsync(pid);
 
-        using var parent = ChildProcess.Start("cmd.exe", "/c", "ping -n 120 127.0.0.1 > nul");
+        using var parent = ChildProcess.StartIdle(120);
         using var orphan = ChildProcess.Start(
             TestPaths.DenseHeapExe, "--target-mb", "1", "--parent-pid", parent.Process.Id.ToString(CultureInfo.InvariantCulture));
         (await orphan.WaitForOutputAsync("READY", TimeSpan.FromSeconds(120))).ShouldBeTrue(orphan.Output);

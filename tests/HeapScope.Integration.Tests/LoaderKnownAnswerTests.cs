@@ -26,6 +26,7 @@ using HeapScope.Core.Graph;
 using HeapScope.Core.Loading;
 using HeapScope.Integration.Tests.Infrastructure;
 using HeapScope.Loaders.ClrMd;
+using HeapScope.Tests.Shared;
 
 namespace HeapScope.Integration.Tests;
 
@@ -173,6 +174,32 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         handed.Flags.Span.SequenceEqual(Graph.Flags.Span).ShouldBeTrue();
     }
 
+    // Sprint 4.7 task 10: the references written to a temporary file as they are read, and the file mapped, as the worker loads
+    // a dump, build the graph the loader builds in memory; the load says where they were kept, and the file goes with the graph.
+    [Fact]
+    public void A_load_that_writes_its_references_to_a_file_builds_the_same_graph()
+    {
+        var folder = Directory.CreateTempSubdirectory("heapscope-edges-").FullName;
+        try
+        {
+            var loaded = new ClrMdDumpLoader(new ClrMdLoaderOptions { EdgeFolder = folder }).Load(shared.Source.DumpPath, cancellationToken: TestContext.Current.CancellationToken);
+            using (var graph = loaded.Graph)
+            {
+                loaded.Diagnostics.Edges.ShouldStartWith("written to a temporary file and mapped");
+                (graph.ObjectCount, graph.EdgeCount).ShouldBe((Graph.ObjectCount, Graph.EdgeCount));
+                graph.EdgeStarts.Span.SequenceEqual(Graph.EdgeStarts.Span).ShouldBeTrue();
+                graph.Edges.Span.SequenceEqual(Graph.Edges.Span).ShouldBeTrue();
+                shared.Result.Diagnostics.Edges.ShouldBe("in memory");
+            }
+
+            Directory.GetFiles(folder).ShouldBeEmpty();
+        }
+        finally
+        {
+            TestFolders.Delete(folder);
+        }
+    }
+
     // Sprint 3.12 review M8: a length that runs past its segment is a damaged object, not a big one: counted as unreadable,
     // its segment incomplete, and the snapshot no longer a complete graph.
     [Fact]
@@ -291,6 +318,28 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         var (count, types) = HeapScope.Analysis.Inspections.GrowingStaticCollectionsDetector.Unnamed(Graph, reader, AllLeaksDump.RuntimeItems, TestContext.Current.CancellationToken);
         count.ShouldBeGreaterThanOrEqualTo(1);
         types.ShouldContain("System.Collections.Generic.List<Fixtures.Leaks.GenericStaticEntry>");
+    }
+
+    // Peer review 4.5 M11 (sprint 4.7): a [ThreadStatic] field is named by its field on every runtime (.NET 8 reports no thread static
+    // root, .NET 9 and 10 only the runtime's arrays); a ThreadLocal's values are reached through its own static field.
+    [Fact]
+    public void A_thread_static_is_named_by_its_field_and_a_thread_local_is_reached_through_its_static()
+    {
+        var list = GraphQueries.Instances(Graph, "System.Collections.Generic.List<Fixtures.Leaks.ThreadStaticEntry>").ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(list).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && r.IsRetaining
+            && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_threadItems (thread static)");
+        GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
+        GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadLocalEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
+
+        // A struct with references in a [ThreadStatic] field is boxed per thread: its box is the root (the GC review of 4.7, H4).
+        var box = GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticHolder).FullName!).ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(box).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && r.IsRetaining
+            && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_threadHolder (thread static)");
+        GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticStructEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
+
+
+        var local = GraphQueries.Instances(Graph, "System.Threading.ThreadLocal<System.Collections.Generic.List<Fixtures.Leaks.ThreadLocalEntry>>").ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(local).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_local");
     }
 
     [Theory]
@@ -476,6 +525,7 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
     [Fact]
     public void A_minidump_without_the_heap_is_refused_with_how_to_capture_a_full_dump()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "A mini dump is a Windows dump kind; a Linux core file of that kind is checked by its own header.");
         using var folder = new TempFolder();
         var path = folder.File("mini.dmp");
         var bytes = File.ReadAllBytes(shared.Source.DumpPath).AsSpan(0, 64 * 1024).ToArray();
@@ -491,6 +541,7 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
     [Fact]
     public async Task A_real_mini_dump_is_refused()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "A mini dump is a Windows dump kind; a Linux core file of that kind is checked by its own header.");
         using var folder = new TempFolder();
         var path = folder.File("normal.dmp");
         using (var fixture = await FixtureProcess.StartConsoleAsync("--leak", "StaticCache", "--count", "10"))
@@ -548,7 +599,11 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
     [Fact]
     public void Shared_fixture_dumps_carry_heap_memory_and_load_complete()
     {
-        MinidumpHeader.Read(shared.Source.DumpPath).HasHeapMemory.ShouldBeTrue();
+        if (OperatingSystem.IsWindows())
+        {
+            MinidumpHeader.Read(shared.Source.DumpPath).HasHeapMemory.ShouldBeTrue();
+        }
+
         shared.Result.Capabilities.HasFlag(Core.SnapshotCapabilities.CompleteGraph).ShouldBeTrue();
         shared.Result.Diagnostics.IncompleteSegments.ShouldBe(0);
     }

@@ -37,8 +37,8 @@ public class SkeletonTests
     public void Worker_is_deployed_beside_ui_cli_and_tests()
     {
         File.Exists(TestPaths.WorkerExe).ShouldBeTrue();
-        File.Exists(Path.Combine(TestPaths.CliOutput, "worker", "HeapScope.Worker.exe")).ShouldBeTrue();
-        File.Exists(Path.Combine(TestPaths.UiOutput, "worker", "HeapScope.Worker.exe")).ShouldBeTrue();
+        File.Exists(Path.Combine(TestPaths.CliOutput, "worker", TestPaths.Executable("HeapScope.Worker"))).ShouldBeTrue();
+        File.Exists(Path.Combine(TestPaths.UiOutput, "worker", TestPaths.Executable("HeapScope.Worker"))).ShouldBeTrue();
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class SkeletonTests
     [Fact]
     public async Task Worker_exits_cleanly_when_its_parent_exits()
     {
-        using var parent = ChildProcess.Start("cmd.exe", "/c", "ping -n 120 127.0.0.1 > nul");
+        using var parent = ChildProcess.StartIdle(120);
         using var worker = ChildProcess.Start(
             TestPaths.WorkerExe, "--pipe", "HeapScope.Test." + Guid.NewGuid().ToString("N"), "--parent-pid", parent.Process.Id.ToString(CultureInfo.InvariantCulture));
 
@@ -111,6 +111,7 @@ public class SkeletonTests
     [Trait("Category", "UI")]
     public async Task Ui_shows_a_titled_shell_window_and_exits_cleanly()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "A window handle and its title are Windows only; on Linux CI shows the window under a virtual display (sprint 4.7).");
         using var ui = ChildProcess.Start(TestPaths.UiExe);
 
         var deadline = DateTime.UtcNow + s_timeout;

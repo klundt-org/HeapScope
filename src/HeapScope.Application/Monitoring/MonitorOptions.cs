@@ -43,13 +43,14 @@ namespace HeapScope.Application.Monitoring;
 /// the session library (sprint 3.4 re-review).
 /// </param>
 /// <param name="TraceLimitBytes">
-/// The allocation trace stops at this size (review H7 of 3.4): 1 GB by default, which the Allocations page reads well
-/// inside its memory budget on a 16 GB laptop; the run goes on without it.
+/// The allocation trace stops at this size (review H7 of 3.4): 512 MB by default since sprint 4.7 (peer review 4.5 H8), whose read
+/// (1.6 GB) fits beside two snapshots of the process on a 16 GB laptop, as "allocated between" needs; a recording lowers it on a
+/// machine where even that would not fit (<see cref="HeapScope.Core.TraceReadCost.Fit"/>). The run goes on without it.
 /// </param>
 public sealed record MonitorOptions(TimeSpan Interval, MonitorRules Rules, bool WriteTimeline = true, SnapshotKindDto CaptureKind = SnapshotKindDto.FullDump, bool RecordAllocations = false, string? ProcessName = null, long TraceLimitBytes = MonitorOptions.DefaultTraceLimitBytes, bool RecordRun = true)
 {
-    /// <summary>The default allocation trace limit, 1 GB.</summary>
-    public const long DefaultTraceLimitBytes = 1L << 30;
+    /// <summary>The default allocation trace limit, 512 MB (1 GB before sprint 4.7).</summary>
+    public const long DefaultTraceLimitBytes = 512L << 20;
 
     public static MonitorOptions Default { get; } = new(TimeSpan.FromSeconds(1), MonitorRules.None);
 }

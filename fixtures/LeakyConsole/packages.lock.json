@@ -5,6 +5,16 @@
       "leaks": {
         "type": "Project"
       }
+    },
+    "net8.0": {
+      "leaks": {
+        "type": "Project"
+      }
+    },
+    "net9.0": {
+      "leaks": {
+        "type": "Project"
+      }
     }
   }
 }
