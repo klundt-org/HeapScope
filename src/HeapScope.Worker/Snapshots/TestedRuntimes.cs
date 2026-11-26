@@ -46,7 +46,7 @@ internal static class TestedRuntimes
         if (major < 5)
         {
             return string.Create(CultureInfo.InvariantCulture,
-                $"This dump's runtime reads as version {runtimeVersion}, older than .NET 5: HeapScope analyzes .NET 5 and later, not .NET Framework or .NET Core 3. Results may be wrong.");
+                $"This dump's runtime reads as version {runtimeVersion}, older than .NET 5: HeapScope analyzes .NET 5 and later, not .NET Framework or .NET Core 3, so results may be wrong. For such a process, use a tool made for its runtime, such as PerfView.");
         }
 
         return string.Create(CultureInfo.InvariantCulture,

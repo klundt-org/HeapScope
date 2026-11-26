@@ -137,7 +137,8 @@ build/                         Shared MSBuild targets (worker and sample deploym
 src/
   HeapScope.Core               Domain model: snapshot abstraction, capability model, compact graph,
                                type table, root model, string table; the data folder, private files and the user's
-                               settings every process shares (sprint 3.12). No dependencies at all.
+                               settings every process shares (sprint 3.12); the machine's and the process's memory
+                               (SystemMemory, ProcessMemory, sprint 4.7). No dependencies at all.
   HeapScope.Analysis           Algorithms over the compact graph.
   HeapScope.Storage            On-disk index cache format, versioning, read/write.
   HeapScope.Capture            Process discovery, dump/gcdump capture, live counters, timed snapshots.
@@ -267,7 +268,8 @@ flowchart TD
 
 Rules:
 - Core references nothing, not even Microsoft.Extensions.*. It holds domain types and data structures, plus the data
-  folder, private files and user settings every process shares.
+  folder, private files and user settings every process shares, and (since 4.7) the readings of memory every process needs: it
+  calls the system for those only (GlobalMemoryStatusEx, /proc and cgroup files, sysctl, proc_pid_rusage), nothing else.
   ThirdParty.GcDump references no Microsoft.Extensions.* either.
 - UI and UI.ViewModels never reference Loaders, Analysis, Storage, Capture, Worker or any diagnostics library directly
   (diagnostics libraries do load into the UI process, through Capture via Application). UI.ViewModels references no

@@ -39,3 +39,6 @@
   that may open stays 3. Such a cache lacks
   the fact `HandlesChecked`, so the unreachable set is refused on every full dump opened from one. The process name is still the one answer
   that is read again.
+- Amended in sprint 4.7: a cache from before loader version 8 recorded no check of the static fields (`SnapshotFacts.StaticsChecked`),
+  so one opened in place of a rebuild is treated as unchecked: the unreachable set and the growing static collections detector are
+  refused, the detectors over reachable objects noted, and the older cache note names static fields.

@@ -99,7 +99,7 @@ public sealed class UncheckedHandlesTests : IDisposable
         result.Note.ShouldNotBeNull().Contains("may not all be counted", StringComparison.Ordinal).ShouldBe(noted);
     }
 
-    // Sprint 4.7: a heap dump of .NET 8 leaves out its statics, which the loader says as StaticsUnread; everything that rests on the
+    // Sprint 4.7: a heap dump of .NET 8 leaves out its statics, which the loader says by leaving out StaticsChecked; everything that rests on the
     // roots says so as it does for handles.
     [Fact]
     public async Task A_dump_whose_statics_could_not_be_read_says_so_and_what_to_do()

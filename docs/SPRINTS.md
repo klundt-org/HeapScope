@@ -139,7 +139,7 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
    for .NET 8 and 9 on Windows and Linux (the classes on Linux since the review). Tests: the known answer classes per runtime; a runtime's own answer where it differs.
    Found: .NET 8 reports its static storage only as strong handles, so a static ClrMD cannot name (a generic type's) blamed a
    handle; the loader now names a handle's array that holds a static's slot as the storage (loader version 7). And a heap dump of
-   .NET 8 leaves out the memory its statics are in: the loader says so (`StaticsUnread`, when none of CoreLib's statics read),
+   .NET 8 leaves out the memory its statics are in: the loader says so (`StaticsChecked` missing, when none of CoreLib's statics read; loader version 8),
    with a note, the unreachable set refused and the detectors noted as for unchecked handles. Tests: `HeapDumpStaticsTests`, the
    statics case in `UncheckedHandlesTests`; the tests take full dumps of .NET 8. No answer differs by runtime.
 3. [x] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and

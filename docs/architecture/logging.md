@@ -310,7 +310,10 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   ("First load of {path}: ... estimated peak ... (reserved), worker peak commit ... ({ratio} of the estimate)"), and one that did not
   fit the budget is logged before it loads. A recording whose limit was lowered to fit the machine says the limit, the one asked and
   why; counters whose target reports another interval than the one asked log it once. Duplicate strings' basis counts the values and
-  those listed. Tests that cannot delete their folder say it on the error stream.
+  those listed. Tests that cannot delete their folder say it on the error stream. The load line gives the statics' check ("static field
+  roots N (System.Private.CoreLib's reference statics X of Y initialized, Z slots)"), on which `StaticsChecked` rests; an inspection
+  refused for memory logs its estimate, objects, the machine's available and total memory with their source, and the worker's bytes;
+  a full dump with no runtime version HeapScope can read logs so.
 - Right answers (sprint 4.6): an inspection that could not read some of what it checks logs "could not read N of M {what}" with its rule,
   version and basis (which names what it probed), and says it in the answer's note; one that read none is refused with the same line before
   it. The growing static collections detector's basis names the collections in static storage no field names, by type, and the counts it

@@ -39,16 +39,18 @@ public sealed class TestFoldersTests : IDisposable
         var shared = Folder(Path.Combine("HeapScopeTests", "data"), old);
         var staleTest = Folder("heapscope-rebuild-0ia20aie.xw4", old);
         var staleUnix = Folder("heapscope-rebuild-Xa9Qz2", old);
+        var byHandUnix = Folder("heapscope-perf-traces", old);
         var byHand = Folder("heapscope-nuget", old);
         var appOwn = Folder("HeapScope", old);
         File.WriteAllText(Path.Combine(staleDumps, "app.dmp"), "dump");
         Directory.SetLastWriteTimeUtc(staleDumps, old);
 
-        TestFolders.SweepStale(_temp, DateTime.UtcNow - TestFolders.StaleAfter).ShouldBe(3);
+        TestFolders.SweepStale(_temp, DateTime.UtcNow - TestFolders.StaleAfter).ShouldBe(OperatingSystem.IsWindows() ? 2 : 3);
 
         Directory.Exists(staleDumps).ShouldBeFalse();
         Directory.Exists(staleTest).ShouldBeFalse();
-        Directory.Exists(staleUnix).ShouldBeFalse("a Unix name as Directory.CreateTempSubdirectory makes it there");
+        Directory.Exists(staleUnix).ShouldBe(OperatingSystem.IsWindows(), "a Unix name as Directory.CreateTempSubdirectory makes it there, swept there only");
+        Directory.Exists(byHandUnix).ShouldBeTrue("a name made by hand has no digit or capital in its last part");
         new[] { freshDumps, shared, byHand, appOwn }.ShouldAllBe(f => Directory.Exists(f));
     }
 

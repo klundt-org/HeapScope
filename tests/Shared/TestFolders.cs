@@ -119,13 +119,17 @@ internal static partial class TestFolders
         // in the temp folder, as Directory.CreateTempSubdirectory names it (a random 8.3 name after the prefix). HeapScope's own temp folder
         // (HeapScope, for its trace caches) and anything named by hand (such as heapscope-nuget) do not match.
         return Folders(Path.Combine(temp, "HeapScopeTests"), "*").Where(f => Guid().IsMatch(Path.GetFileName(f)))
-            .Concat(Folders(temp, "heapscope-*").Where(f => Prefixed().IsMatch(Path.GetFileName(f))));
+            .Concat(Folders(temp, "heapscope-*").Where(f => Prefixed().IsMatch(Path.GetFileName(f)) || (!OperatingSystem.IsWindows() && PrefixedUnix().IsMatch(Path.GetFileName(f)))));
     }
 
     [GeneratedRegex("^[0-9a-f]{32}$")]
     private static partial Regex Guid();
 
-    // Windows: a random 8.3 name (abcdefgh.ijk); Unix: mkdtemp's six letters and digits, mixed case.
-    [GeneratedRegex(@"^heapscope-[a-z0-9-]+-([a-z0-9]{8}\.[a-z0-9]{3}|[A-Za-z0-9]{6})$")]
+    // Windows: a random 8.3 name (abcdefgh.ijk).
+    [GeneratedRegex(@"^heapscope-[a-z0-9-]+-[a-z0-9]{8}\.[a-z0-9]{3}$")]
     private static partial Regex Prefixed();
+
+    // Unix: mkdtemp's six letters and digits, mixed case, with a digit or a capital: a name made by hand (heapscope-perf-traces) has neither.
+    [GeneratedRegex(@"^heapscope-[a-z0-9-]+-(?=[A-Za-z0-9]{0,5}[A-Z0-9])[A-Za-z0-9]{6}$")]
+    private static partial Regex PrefixedUnix();
 }

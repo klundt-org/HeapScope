@@ -31,7 +31,7 @@ namespace HeapScope.Integration.Tests;
 
 /// <summary>
 /// A heap dump of .NET 8 leaves out the memory its statics are kept in (sprint 4.7, found running the known answers on .NET 8): the
-/// loader says so, as <see cref="SnapshotFacts.StaticsUnread"/>, instead of showing what statics hold as unreachable without a word.
+/// loader says so, by leaving out <see cref="SnapshotFacts.StaticsChecked"/>, instead of showing what statics hold as unreachable without a word.
 /// From .NET 9 on, a heap dump has them, and on Linux a heap dump of .NET 8 does too.
 /// </summary>
 [Trait("Category", "Integration")]

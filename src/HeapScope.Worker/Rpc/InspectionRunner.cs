@@ -129,8 +129,8 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 {
                     var memory = HeapScope.Core.SystemMemory.Current();
                     logger.LogWarning(
-                        "Inspection {Inspection} v{Version} refused for memory: it may hold {Working:N0} bytes ({Objects:N0} objects); the machine has {Available:N0} of {Total:N0} bytes available ({Source}), the worker holds {Held:N0}",
-                        inspection.Name, inspection.Version, working, snapshot.Graph.ObjectCount, memory.AvailableBytes, memory.TotalBytes, memory.Source, HeapScope.Core.ProcessMemory.PrivateBytes());
+                        "Inspection {Inspection} v{Version} on snapshot {Id} refused for memory: it may hold {Working:N0} bytes ({Objects:N0} objects); the machine has {Available:N0} of {Total:N0} bytes available ({Source}), the worker holds {Held:N0}",
+                        inspection.Name, inspection.Version, request.SnapshotId, working, snapshot.Graph.ObjectCount, memory.AvailableBytes, memory.TotalBytes, memory.Source, HeapScope.Core.ProcessMemory.PrivateBytes());
                     throw;
                 }
 

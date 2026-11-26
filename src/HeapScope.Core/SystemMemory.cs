@@ -89,7 +89,7 @@ public readonly partial record struct SystemMemory(long TotalBytes, long Availab
         // The runtime reads the cgroup limit through the mounts, as this cannot always: its total caps this one.
         var runtimeTotal = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
         return memory is { } m && runtimeTotal > 0 && runtimeTotal < m.TotalBytes
-            ? new SystemMemory(runtimeTotal, Math.Min(m.AvailableBytes, runtimeTotal), m.Source + " and the runtime's limit")
+            ? new SystemMemory(runtimeTotal, Math.Min(m.AvailableBytes, Math.Max(0, runtimeTotal - GC.GetGCMemoryInfo().MemoryLoadBytes)), m.Source + " and the runtime's limit")
             : memory;
 
         static long? ReadValue(string? path) => path is not null && File.Exists(path) ? CgroupValue(File.ReadAllText(path)) : null;
@@ -166,17 +166,23 @@ public readonly partial record struct SystemMemory(long TotalBytes, long Availab
     /// <summary>The inactive file pages of a cgroup's memory.stat (v2 <c>inactive_file</c>, v1 <c>total_inactive_file</c>), 0 when it names none.</summary>
     internal static long InactiveFile(string memoryStat)
     {
+        // v1 lists the cgroup's own inactive_file before total_inactive_file, which counts its children as usage_in_bytes does.
+        long? own = null, total = null;
         foreach (var line in memoryStat.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var parts = line.Split(' ', 2);
-            if (parts.Length == 2 && parts[0] is "inactive_file" or "total_inactive_file"
-                && long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var bytes))
+            if (parts.Length == 2 && long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var bytes))
             {
-                return bytes;
+                (own, total) = parts[0] switch
+                {
+                    "inactive_file" => (bytes, total),
+                    "total_inactive_file" => (own, bytes),
+                    _ => (own, total),
+                };
             }
         }
 
-        return 0;
+        return total ?? own ?? 0;
     }
 
     /// <summary>A cgroup file's bytes; null for "max" (no limit) or text that is not a number.</summary>

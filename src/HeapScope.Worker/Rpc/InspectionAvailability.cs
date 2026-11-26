@@ -58,7 +58,7 @@ internal static class InspectionAvailability
         // A full dump whose statics could not be read is not an older cache: say what it lacks (the review of 4.7, H5).
         if (facts.HasFlag(SnapshotFacts.StaticsChecked) && Snapshots.SnapshotKinds.Describe(info.Kind).Unchecked(info) is { } roots && roots != Snapshots.UncheckedRoots.Handles)
         {
-            return $"{inspection.Title} finds collections by the static fields that hold them, and {Snapshots.UncheckedRoots.Statics.Reason} (see its notes).";
+            return $"{inspection.Title} finds collections by the static fields that hold them, and {Snapshots.UncheckedRoots.Statics.Reason} (see its notes, which say what to capture instead).";
         }
 
         return Explain(inspection.Title, info);

@@ -214,7 +214,7 @@ internal sealed class SnapshotKinds
         public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
 
         /// <summary>The loader version that checks the statics (<see cref="SnapshotFacts.StaticsChecked"/>).</summary>
-        public const int StaticsCheckedSince = 7;
+        public const int StaticsCheckedSince = 8;
 
         public override UncheckedRoots? Unchecked(SnapshotInfo info) =>
             (info.Facts.HasFlag(SnapshotFacts.StaticsChecked), HandlesChecked(info)) switch

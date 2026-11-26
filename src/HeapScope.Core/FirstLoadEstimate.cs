@@ -37,6 +37,9 @@ public static class FirstLoadEstimate
     /// <summary>Fixed part: ClrMD's capped cache, runtime structures and the worker itself.</summary>
     public const long FixedBytes = 768L * 1024 * 1024;
 
+    /// <summary>The part of <see cref="FixedBytes"/> a worker holds before any load (its runtime and code): not reserved again.</summary>
+    public const long WorkerIdleBytes = 256L * 1024 * 1024;
+
     public static long PeakBytes(long dumpBytes) =>
         dumpBytes <= 0 ? FixedBytes : (long)(dumpBytes * BytesPerDumpByte) + FixedBytes;
 }

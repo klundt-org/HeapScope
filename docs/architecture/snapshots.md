@@ -125,7 +125,7 @@ Rules:
   deserializer"); a crafted file naming another type is refused before that type is created (test
   `A_crafted_gcdump_naming_an_unknown_type_is_refused_without_creating_it`, sprint 1.9).
 - Index caches record the version of the loader that built them (`IndexCacheMetadata.LoaderVersion`,
-  `ISnapshotLoader.Version`: full dumps 7 since 4.7, gcdumps 1); the worker rebuilds a cache from an older version with
+  `ISnapshotLoader.Version`: full dumps 8 since 4.7, gcdumps 1); the worker rebuilds a cache from an older version with
   a note, so a fix in what a loader records reaches snapshots cached before it (review M7). The note says "rebuilt" only when
   the load wrote its cache, and "not used" otherwise. If that rebuild fails because the dump's DAC is gone or not trusted,
   the older cache opens instead when its loader version is at least 3 (v3.9.0's; sprint 3.12, ADR-041; a cache before version 5 lacks `HandlesChecked`): its note names the

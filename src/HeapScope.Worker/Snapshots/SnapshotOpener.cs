@@ -469,7 +469,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
     }
 
     /// <summary>
-    /// The worker's own check of a first load of a full dump (peer review 4.5 H5): its estimate, less what the worker holds already, is
+    /// The worker's own check of a first load of a full dump (peer review 4.5 H5): its estimate, less the worker's own idle memory, is
     /// reserved while it loads, so no other work takes that memory meanwhile, and the log says the estimate against what the load used.
     /// A load that does not fit is not refused here (the worker is not told whether the user accepted the front end's warning, and
     /// heapscope-cli open --no-overcommit refuses before asking); it is logged.
@@ -484,7 +484,9 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         var dumpBytes = new FileInfo(path).Length;
         var estimate = FirstLoadEstimate.PeakBytes(dumpBytes);
         var held = ProcessMemory.PrivateBytes();
-        var growth = Math.Max(0, estimate - held);
+        // The estimate is one load's cost, the worker's own idle memory included; snapshots already open are not part of it (the GC
+        // review of 4.7): only that idle part, at most, is already held.
+        var growth = Math.Max(0, estimate - Math.Min(held, FirstLoadEstimate.WorkerIdleBytes));
         try
         {
             return new FirstLoad(reservations.Reserve(growth, "Loading the dump", "Close other snapshots first."), logger, path, dumpBytes, estimate, held, growth);

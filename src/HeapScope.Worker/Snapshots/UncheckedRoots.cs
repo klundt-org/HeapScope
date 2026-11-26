@@ -40,7 +40,7 @@ internal sealed record UncheckedRoots(string Reason, string HeldBy)
     public static readonly UncheckedRoots Statics = new("the static fields of this dump could not be checked", "a static field");
 
     /// <summary>Both: an older cache of a Server GC process, or a heap dump of one (the review of 4.7 said only one reason).</summary>
-    public static readonly UncheckedRoots Both = new("not all GC handles nor the static fields of this dump could be checked", "a handle or a static field");
+    public static readonly UncheckedRoots Both = new("neither all GC handles nor the static fields of this dump could be checked", "a handle or a static field");
 
     /// <summary><see cref="Reason"/> as the start of a sentence.</summary>
     public string Sentence => string.Concat(Reason[..1].ToUpperInvariant(), Reason[1..]);

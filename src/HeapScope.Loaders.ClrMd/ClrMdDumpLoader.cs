@@ -56,12 +56,13 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// LoaderAllocator references of 3.12 for caches written before them. 6 since sprint 4.6: struct statics with references are named by
     /// their field (peer review 4.5 H3), not only as the runtime's static storage.
     /// 7 since sprint 4.7: the static storage of .NET 8, which it reports only as strong handles, is named as such (peer review 4.5 H1),
-    /// and thread statics are named by their field, "(thread static)" (M11).
+    /// and thread statics are named by their field, "(thread static)" (M11). 8 since its review: the statics are checked
+    /// (SnapshotFacts.StaticsChecked), whose bit builds of 7 used with the other meaning.
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     /// <summary>
     /// Checks, without loading it, that the DAC the dump needs may be loaded (sprint 3.6 review H1), for a dump opened from
