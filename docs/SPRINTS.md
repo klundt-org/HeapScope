@@ -171,7 +171,7 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
     not allowed to overcommit, and logs the estimate against what was used. An 8 GB DenseHeap dump is measured (first load, peak, reopen
     in both modes, the indices; and with the working set capped); if the peak is over budget, the edges go into the cache as they are
     read. Tests: a load over budget refused; the measurement in budgets.md.
-11. [ ] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
+11. [x] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
     need (by the graph's bytes per object); counters read the interval the target reports and log one that differs from the one asked.
     Tests: each.
 12. [ ] The trace start that takes over 60 s under load (CI since 2026-11-20, the 4.6 gate): test the theory that the names session's

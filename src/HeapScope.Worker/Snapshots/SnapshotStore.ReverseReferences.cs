@@ -70,12 +70,7 @@ internal sealed partial class SnapshotStore
         var sidecar = entry.Index.CachePath is { } cachePath && entry.Index.Identity != 0
             ? IndexCacheLocator.GetSidecarPath(cachePath, ReverseSidecarKind)
             : null;
-        long committed;
-        using (var process = Process.GetCurrentProcess())
-        {
-            committed = HeapScope.Core.ProcessMemory.PrivateBytes();
-        }
-
+        var committed = HeapScope.Core.ProcessMemory.PrivateBytes();
         var mode = ReverseIndexBuilder.ChooseMode(
             ReverseIndexBuilder.IndexBytes(graph),
             entry.Index.Mode,
@@ -83,6 +78,11 @@ internal sealed partial class SnapshotStore
             sidecar is not null,
             MemoryBudget.Current(),
             committed);
+        // Without a cache it is built in memory: inside a reservation, refused with a next step rather than run out of memory (peer
+        // review 4.5 M11, sprint 4.7).
+        using var reservation = sidecar is null
+            ? _reservations.Reserve(ReverseIndexBuilder.IndexBytes(graph), "Building the incoming references index", entry.Index.Mode, hasCache: false)
+            : null;
         var index = _reverseBuilder.OpenOrBuild(graph, new ReverseIndexTarget(sidecar, entry.Index.Identity, entry.Index.Fingerprint, mode), throttled, cancellationToken);
         if (!graph.Attach(index.References))
         {

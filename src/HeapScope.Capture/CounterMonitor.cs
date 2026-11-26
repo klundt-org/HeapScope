@@ -198,13 +198,26 @@ public static class CounterMonitor
         {
             var builder = new CounterSampleBuilder(logger);
             var stopping = 0;
+            var intervalSaid = 0;
             var reading = Task.Run(
                 () =>
                 {
                     using var source = new EventPipeEventSource(session.EventStream);
                     source.Dynamic.All += data =>
                     {
-                        if (TryRead(data, out var name, out var value) && builder.Add(name, value, DateTimeOffset.UtcNow) is { } sample)
+                        if (!TryRead(data, out var name, out var value))
+                        {
+                            return;
+                        }
+
+                        // The interval the target says it used, not trusted to be the one asked (peer review 4.5 M11, sprint 4.7): a rate
+                        // is per its interval, so one that differs is logged, once.
+                        if (IntervalDiffers(data, interval) is { } reported && Interlocked.Exchange(ref intervalSaid, 1) == 0)
+                        {
+                            logger?.LogWarning("Pid {Pid} reports its counters every {Reported:F2} s, not the {Asked:F2} s asked; rates such as the allocation rate are per its interval", processId, reported, interval.TotalSeconds);
+                        }
+
+                        if (builder.Add(name, value, DateTimeOffset.UtcNow) is { } sample)
                         {
                             onSample(sample);
                         }
@@ -251,6 +264,28 @@ public static class CounterMonitor
         }
 
         return TryRead(fields, out name, out value);
+    }
+
+    /// <summary>The interval an EventCounters event reports (IntervalSec), when it differs from <paramref name="asked"/> by more than half; else null.</summary>
+    public static double? IntervalDiffers(TraceEvent data, TimeSpan asked)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return data.PayloadValue(0) is IDictionary<string, object> outer && outer.TryGetValue("Payload", out var inner) && inner is IDictionary<string, object> fields
+            ? IntervalDiffers(fields, asked)
+            : null;
+    }
+
+    /// <inheritdoc cref="IntervalDiffers(TraceEvent, TimeSpan)"/>
+    public static double? IntervalDiffers(IDictionary<string, object> fields, TimeSpan asked)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
+        if (!fields.TryGetValue("IntervalSec", out var raw) || raw is null)
+        {
+            return null;
+        }
+
+        var reported = Convert.ToDouble(raw, CultureInfo.InvariantCulture);
+        return reported > 0 && Math.Abs(reported - asked.TotalSeconds) > asked.TotalSeconds / 2 ? reported : null;
     }
 
     /// <summary>The counter name and value of an EventCounters payload.</summary>

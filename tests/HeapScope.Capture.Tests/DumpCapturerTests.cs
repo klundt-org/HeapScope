@@ -73,12 +73,13 @@ public sealed class DumpCapturerTests : IDisposable
     {
         CaptureSupported();
         _estimate = 4 * Gb;
-        _disk.Available = 4 * Gb + (DumpCapturer.ReserveBytes / 2);
+        _disk.Available = 4 * Gb + (DumpCapturer.ReserveFor(4 * Gb) / 2);
 
         var ex = await Should.ThrowAsync<InsufficientDiskSpaceException>(() => Capturer.CaptureAsync(Process(), Dump(), null, Ct));
 
         ex.NeededBytes.ShouldBe(4 * Gb);
-        ex.Message.ShouldContain("keeps 1.0 GB free");
+        // The system's 1 GB and the caches the dump will need, 0.9 of it (peer review 4.5 M11, sprint 4.7).
+        ex.Message.ShouldContain("keeps 4.6 GB free for its index caches and the system");
         _writer.Calls.ShouldBe(0);
     }
 
