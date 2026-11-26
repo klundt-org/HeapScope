@@ -91,28 +91,6 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool
     {
         var path = PathIn(folders);
         PrivateFiles.CreateDirectory(folders.Root);
-        var temp = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            using (var stream = PrivateFiles.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                JsonSerializer.Serialize(stream, this, s_json);
-
-                // On the disk before it replaces the file: a power loss must not leave an empty file in its place (review H5).
-                if (stream is FileStream file)
-                {
-                    file.Flush(flushToDisk: true);
-                }
-            }
-
-            File.Move(temp, path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temp))
-            {
-                File.Delete(temp);
-            }
-        }
+        PrivateJsonFile.Write(path, this, s_json);
     }
 }

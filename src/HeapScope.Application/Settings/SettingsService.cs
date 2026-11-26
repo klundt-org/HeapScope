@@ -103,8 +103,12 @@ public sealed class SettingsService
     /// <exception cref="IOException">The settings file could not be written.</exception>
     public void SetIncludeFilterTextInLogs(bool include)
     {
-        var settings = ReadForSave() with { IncludeFilterTextInLogs = include };
-        settings.Save(_folders);
+        // Under the settings file's lock, so two processes that change a setting each keep the other's (peer review 4.5 M6).
+        using (PrivateJsonFile.Lock(SettingsPath))
+        {
+            (ReadForSave() with { IncludeFilterTextInLogs = include }).Save(_folders);
+        }
+
         _logger.LogInformation("Setting saved to {File}: include filter text in logs {State}", SettingsPath, include ? "on" : "off");
     }
 
@@ -118,8 +122,11 @@ public sealed class SettingsService
     /// <exception cref="IOException">The settings file could not be written.</exception>
     public void SetIncludeDumpValuesInLogs(bool include)
     {
-        var settings = ReadForSave() with { IncludeDumpValuesInLogs = include };
-        settings.Save(_folders);
+        using (PrivateJsonFile.Lock(SettingsPath))
+        {
+            (ReadForSave() with { IncludeDumpValuesInLogs = include }).Save(_folders);
+        }
+
         _logger.LogInformation(
             "Setting saved to {File}: include dump values in logs {State}{Note}",
             SettingsPath,

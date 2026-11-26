@@ -220,7 +220,13 @@ public sealed class BookmarkStore
                 return bookmarks;
             }
 
-            var document = JsonSerializer.Deserialize<Document>(File.ReadAllText(Path), s_json);
+            // Shared, so another window's replace is not refused while this reads (peer review 4.5 M6).
+            Document? document;
+            using (var stream = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                document = JsonSerializer.Deserialize<Document>(stream, s_json);
+            }
+
             if (document is { FormatVersion: > FormatVersion })
             {
                 Problem = BookmarkFileProblem.NewerFormat;
@@ -251,31 +257,9 @@ public sealed class BookmarkStore
         return bookmarks;
     }
 
-    private void Save(List<Bookmark> all)
-    {
-        // Owner-only off Windows, like HeapScope's other files (it names dump paths); flushed before the move, so a crash
-        // leaves the old file or the new one, never a short one.
-        var temporary = string.Create(CultureInfo.InvariantCulture, $"{Path}.{Environment.ProcessId}.tmp");
-        using (var stream = HeapScope.Core.PrivateFiles.Open(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, new Document(FormatVersion, all), s_json);
-            stream.Flush(flushToDisk: true);
-        }
-
-        // A reader in another window can hold the file for a moment (Windows refuses the replace then): try again briefly.
-        for (var attempt = 0; ; attempt++)
-        {
-            try
-            {
-                File.Move(temporary, Path, overwrite: true);
-                return;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < 20)
-            {
-                Thread.Sleep(25);
-            }
-        }
-    }
+    // Owner-only off Windows, like HeapScope's other files (it names dump paths); the old file or the new one, never a short one, and no
+    // temporary file left behind (peer review 4.5 M6).
+    private void Save(List<Bookmark> all) => HeapScope.Core.PrivateJsonFile.Write(Path, new Document(FormatVersion, all), s_json);
 
     private sealed record Document(int FormatVersion, List<Bookmark> Bookmarks);
 }
