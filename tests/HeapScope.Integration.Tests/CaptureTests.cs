@@ -79,7 +79,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         var session = result.Session.ShouldNotBeNull();
         Path.GetDirectoryName(result.Path).ShouldBe(session.Folder);
         session.Folder.ShouldStartWith(_root.Path);
-        File.Exists(Path.Combine(session.Folder, "dac", result.Process.RuntimeVersion!, "mscordaccore.dll"))
+        File.Exists(Path.Combine(session.Folder, "dac", result.Process.RuntimeVersion!, OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so"))
             .ShouldBeTrue("the target's DAC is kept next to the dump, per runtime version");
         File.Exists(result.Path).ShouldBeTrue();
         result.SizeBytes.ShouldBeGreaterThan(10L * 1024 * 1024);
@@ -105,7 +105,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         var ex = await Should.ThrowAsync<CaptureFailedException>(() => service.StartCapture(shared.Api.ProcessId).Result);
 
         ex.Reason.ShouldBe(CaptureFailure.NeedsAdministrator);
-        ex.Message.ShouldContain("Run HeapScope as administrator");
+        ex.Message.ShouldContain(OperatingSystem.IsWindows() ? "Run HeapScope as administrator" : "Run HeapScope as that user");
         (await service.ListProcessesAsync(Ct)).Single(p => p.ProcessId == shared.Api.ProcessId).NeedsAdministrator.ShouldBeTrue();
         Directory.EnumerateFiles(_root.Path, "*.dmp", SearchOption.AllDirectories).ShouldBeEmpty();
         Directory.EnumerateDirectories(_root.Path).ShouldBeEmpty("a refused capture leaves no empty session");
@@ -144,7 +144,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         // runtime on this machine changes. The capture trusted the DAC it copied (sprint 3.6), so it loads without asking,
         // unless HeapScope runs elevated (CI's runners do): the target's runtime folder may then belong to a less
         // privileged user, and the open asks instead (review).
-        if (WindowsElevationProbe.Instance.IsCurrentProcessElevated)
+        if (OperatingSystem.IsWindows() && WindowsElevationProbe.Instance.IsCurrentProcessElevated)
         {
             trusted.Kept().ShouldBeEmpty();
             Should.Throw<UntrustedDacException>(() => new ClrMdDumpLoader(new ClrMdLoaderOptions { InstalledRuntimeRoots = [], SearchDumpedRuntimeDirectory = false, IsTrustedDac = trusted.All().Contains })
@@ -213,7 +213,8 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         var ex = await Should.ThrowAsync<CaptureFailedException>(() => Service().StartCapture(notDotNet.Process.Id).Result);
 
         ex.Reason.ShouldBe(CaptureFailure.ProcessNotFound);
-        ex.Message.ShouldContain("No running .NET process");
+        // Linux tells a process that is not .NET from one that is gone (sprint 4.1); Windows lists only .NET processes.
+        ex.Message.ShouldContain(OperatingSystem.IsWindows() ? "No running .NET process" : "is not a .NET process");
     }
 
     [Fact]
@@ -259,7 +260,8 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
 
         (await capture.WaitForExitAsync(TimeSpan.FromSeconds(60))).ShouldBeTrue(capture.Output);
         capture.Process.ExitCode.ShouldBe(1, capture.Output);
-        capture.Output.ShouldContain("No running .NET process");
+        // Process 1 is the system's own off Windows (init), not .NET.
+        capture.Output.ShouldContain(OperatingSystem.IsWindows() ? "No running .NET process" : "is not a .NET process");
     }
 
     [Fact]

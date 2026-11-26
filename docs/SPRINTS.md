@@ -174,9 +174,11 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
 11. [x] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
     need (by the graph's bytes per object); counters read the interval the target reports and log one that differs from the one asked.
     Tests: each.
-12. [ ] The trace start that takes over 60 s under load (CI since 2026-11-20, the 4.6 gate): test the theory that the names session's
-    rundown on stop holds the target's diagnostics server; fix it if so, else record what was measured. Tests: a start after a names
-    session, timed.
+12. [x] The trace start that takes over 60 s under load (CI since 2026-11-20, the 4.6 gate). Found: not a slow start, nor the names
+    session (CI's run of this sprint saw it on a LeakyApi with no session before). `TraceRecorder.RecordAsync` wrote through a 64 KB
+    buffer, so an idle target's trace stayed 0 bytes on disk, and the tests wait for bytes before they start their load. Fixed: written
+    unbuffered, as a live recording is. Test: `An_idle_targets_recording_has_bytes_on_disk_within_seconds` (1.8 s with the fix; none in
+    30 s without). A live recording, already unbuffered, was seen late once (`AllocatedBetweenTests`, 4.6): not explained by this.
 
 **Decisions**
 - Owner, 2026-11-25: .NET 8 and 9 runtimes may be downloaded (this machine has them already; CI gets them with setup-dotnet).

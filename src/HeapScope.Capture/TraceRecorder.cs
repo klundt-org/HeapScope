@@ -105,7 +105,10 @@ public static class TraceRecorder
         // beforehand by someone else is never written into or deleted, and a recording into the same folder never meets it.
         var partial = PartialName(fullPath);
         var stopwatch = Stopwatch.StartNew();
-        var file = PrivateFiles.Open(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.Asynchronous);
+        // Unbuffered, as a live recording's (sprint 4.7): the session's small chunks went into a 64 KB buffer, so an idle target's trace
+        // stayed 0 bytes on disk for minutes. That was the "start that took over 60 s" of CI and the gate since 2026-11-20: the session
+        // had started; its bytes had not been written.
+        var file = PrivateFiles.Open(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
         var stoppedEarly = false;
         try
         {

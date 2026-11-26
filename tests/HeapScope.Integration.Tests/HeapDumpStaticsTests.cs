@@ -32,7 +32,7 @@ namespace HeapScope.Integration.Tests;
 /// <summary>
 /// A heap dump of .NET 8 leaves out the memory its statics are kept in (sprint 4.7, found running the known answers on .NET 8): the
 /// loader says so, as <see cref="SnapshotFacts.StaticsUnread"/>, instead of showing what statics hold as unreachable without a word.
-/// From .NET 9 on, a heap dump has them.
+/// From .NET 9 on, a heap dump has them, and on Linux a heap dump of .NET 8 does too.
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class HeapDumpStaticsTests
@@ -43,6 +43,8 @@ public sealed class HeapDumpStaticsTests
     [InlineData("net10.0", DumpType.WithHeap, false)]
     public async Task A_dump_without_its_statics_says_so(string runtime, DumpType type, bool unread)
     {
+        // Linux's createdump keeps the loader heaps in a heap dump; the runtime's own writer on Windows does not.
+        unread &= OperatingSystem.IsWindows();
         using var folder = new TempFolder();
         using (var fixture = await FixtureProcess.StartConsoleOnAsync(runtime, "--leak", "StaticCache", "--count", "100"))
         {

@@ -190,7 +190,7 @@ public sealed class SampleTests : IDisposable
     [Fact]
     public async Task The_cli_starts_the_sample_captures_it_and_stops_it()
     {
-        if (HeapScope.Capture.WindowsElevationProbe.Instance.IsCurrentProcessElevated)
+        if (OperatingSystem.IsWindows() && HeapScope.Capture.WindowsElevationProbe.Instance.IsCurrentProcessElevated)
         {
             // CI's Windows runner is elevated: the CLI must refuse, since the sample would run elevated too.
             using var refused = ChildProcess.Start(TestPaths.CliExe, "sample", "start", "--scenarios", "StaticCache");

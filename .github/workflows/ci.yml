@@ -253,7 +253,8 @@ jobs:
           # Sprint 4.7 (peer review 4.5 H12): the app's own window on X11, under a virtual display, opens the dump and drills down as the
           # headless run does. A real desktop is a Backlog check (claude-dev-3).
           sudo apt-get install -y --no-install-recommends xvfb > /dev/null
-          xvfb-run -a -s "-screen 0 1600x1000x24" "$app" --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/x11-log" || { cat "$RUNNER_TEMP"/x11-log/*.log; exit 1; }
+          code=0; xvfb-run -a -s "-screen 0 1600x1000x24" "$app" --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/x11-log" || code=$?
+          [ "$code" -eq 0 ] || { tail -40 "$RUNNER_TEMP"/x11-log/*.log; echo "The app under X11 exited with $code"; exit 1; }
           grep -h "Smoke open\|Smoke drill\|First window rendered" "$RUNNER_TEMP"/x11-log/*.log | cut -c1-400
           grep -q "First window rendered" "$RUNNER_TEMP"/x11-log/*.log || { echo "The app's window was not rendered under X11"; exit 1; }
           grep -q "Smoke open types: .*Fixtures.Leaks.StaticCacheEntry 2000" "$RUNNER_TEMP"/x11-log/*.log || { echo "The app's window did not show 2000 StaticCacheEntry objects"; exit 1; }

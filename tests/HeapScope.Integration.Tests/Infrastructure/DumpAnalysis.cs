@@ -122,7 +122,11 @@ public sealed class DumpAnalysis : IDisposable
             watch.Restart();
             try
             {
-                return new DumpAnalysis(target, clr.CreateRuntime(dac, ignoreMismatch: false), dac, locator, path);
+                // A Linux core dump can lack the runtime's version resource, which ClrMD then reads as 0.0 (as HeapScope's loader knows,
+                // DacLocator.RuntimeVersion): the DAC beside the dumped runtime is its own, so the mismatch is not checked (sprint 4.7,
+                // the integration tier on Linux).
+                var unversioned = clr.Version.Major == 0 && clr.Version.Minor == 0;
+                return new DumpAnalysis(target, clr.CreateRuntime(dac, ignoreMismatch: unversioned), dac, locator, path);
             }
             catch (Exception ex)
             {
