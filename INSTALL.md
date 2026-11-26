@@ -210,6 +210,12 @@ release, so copy it across; for the dotnet tool, use environment variables, sinc
 - Linux, the app stops while starting its display (SkiaSharp cannot load `libSkiaSharp`): install fontconfig.
 - The dotnet tool, "You must install or update .NET": install the .NET 10 runtime, or use the archive.
 
+## Getting help
+
+If something here does not work, open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues) with the
+details the About page copies (Copy details) or `heapscope-cli --version`. [SUPPORT.md](SUPPORT.md) says what to include and how to
+check the log before you attach it.
+
 ## Updating and removing
 
 There is no installer and nothing in the registry. To update, extract the new release next to the old one (and point

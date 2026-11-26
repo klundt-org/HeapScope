@@ -1,0 +1,36 @@
+name: A result looks wrong
+description: A count, a size, a retention path or a leak finding that does not match what you know of the process.
+labels: [wrong result]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never attach a memory dump, gcdump, trace or index cache: they hold everything the process had in memory. Describe how to make
+        one instead, or use HeapScope's sample process. A log may be attached after you have read it (SUPPORT.md says what it holds).
+  - type: textarea
+    id: details
+    attributes:
+      label: HeapScope's details
+      description: Paste what About, Copy details puts on the clipboard (or heapscope-cli --version and your system).
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: The result and why it looks wrong
+      description: Which page or command, what it showed, and what you expected and why. The snapshot's notes, if it has any.
+    validations:
+      required: true
+  - type: input
+    id: snapshot
+    attributes:
+      label: The snapshot
+      description: A full dump, a gcdump or a core dump, the .NET version of the process, and how it was captured.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines (optional)
+      description: The log's lines for that result (it records why each result came out as it did), after you have removed what you do not want to share.
+      render: text

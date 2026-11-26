@@ -163,6 +163,11 @@ Or build it from source:
 - [Developer guide](docs/DEVELOPER.md), [architecture](docs/ARCHITECTURE.md) and [how to contribute](CONTRIBUTING.md).
 - [Security policy](SECURITY.md).
 
+## Getting help
+
+Questions, problems and results that look wrong: open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues).
+[SUPPORT.md](SUPPORT.md) says what to include, and how to check HeapScope's log before you attach it. Never attach a memory dump.
+
 ## License
 
 Copyright (C) 2026 Ray Klundt.

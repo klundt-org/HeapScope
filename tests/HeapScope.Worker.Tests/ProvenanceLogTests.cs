@@ -279,7 +279,7 @@ public sealed class ProvenanceLogTests
         var shown = await Should.ThrowAsync<StreamJsonRpc.LocalRpcException>(() => WorkerErrors.GuardAsync<int>(() => throw new ArgumentOutOfRangeException("index", "Index was out of range."), logger, "QueryTypeSummaryAsync"));
 
         shown.ErrorCode.ShouldBe((int)HeapScopeErrorCode.Unknown);
-        shown.Message.ShouldStartWith("The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: ");
+        shown.Message.ShouldStartWith("The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, report it at https://github.com/klundt-org/HeapScope/issues with this id: ");
         shown.Message.ShouldNotContain("Index was out of range");
         var id = shown.Message[(shown.Message.LastIndexOf(' ') + 1)..^1];
         var line = logger.Lines.ShouldHaveSingleItem();

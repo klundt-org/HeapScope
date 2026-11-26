@@ -199,6 +199,35 @@ public class TextRulesTests
         s_extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)
         || s_extensions.Contains(Path.GetFileName(file), StringComparer.OrdinalIgnoreCase);
 
+    // Peer review 4.5 H14: one place to get help, HeapScope's issues (HelpLinks); no text sends the user to a support that does not exist.
+    [Fact]
+    public void No_text_sends_the_user_to_a_support_that_does_not_exist() =>
+        Directory.EnumerateFiles(Path.Combine(RepoPaths.Root, "src"), "*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".axaml", StringComparison.Ordinal))
+            .Where(f => !IsIgnored(Path.GetRelativePath(RepoPaths.Root, f)) && !f.Contains("ThirdParty", StringComparison.Ordinal))
+            .Where(f => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(f), @"""[^""\n]*\b(to|ask for|for a|contact|from) support\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            .Select(f => Path.GetRelativePath(RepoPaths.Root, f))
+            .ShouldBeEmpty();
+
+    // H14: the issue forms ask for the details and keep dumps out; a blank issue is not offered, a security problem goes private.
+    [Fact]
+    public void The_issue_forms_ask_for_the_details_and_keep_dumps_out()
+    {
+        var folder = Path.Combine(RepoPaths.Root, ".github", "ISSUE_TEMPLATE");
+        foreach (var form in new[] { "bug.yml", "wrong-result.yml" })
+        {
+            var text = File.ReadAllText(Path.Combine(folder, form));
+            text.ShouldContain("Never attach a memory dump", customMessage: form);
+            text.ShouldContain("Copy details", customMessage: form);
+        }
+
+        var config = File.ReadAllText(Path.Combine(folder, "config.yml"));
+        config.ShouldContain("blank_issues_enabled: false");
+        config.ShouldContain("security/policy");
+        File.ReadAllText(Path.Combine(RepoPaths.Root, "README.md")).ShouldContain("(SUPPORT.md)");
+        File.ReadAllText(Path.Combine(RepoPaths.Root, "SUPPORT.md")).ShouldContain(HeapScope.Core.HelpLinks.Issues);
+    }
+
     private static bool IsIgnored(string relative)
     {
         var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

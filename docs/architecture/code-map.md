@@ -5,7 +5,7 @@ brackets.
 
 Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
-- **Core.** `SystemMemory` and `ProcessMemory` (the machine's memory and this process's, from the system on Windows, Linux and
+- **Core.** `HelpLinks` (the one place to get help, the issues and SUPPORT.md, which messages name) [4.8]; `SystemMemory` and `ProcessMemory` (the machine's memory and this process's, from the system on Windows, Linux and
   macOS) [4.7]; `FirstLoadEstimate` and `TraceReadCost` (what a first load and a trace's read cost the worker) [4.7]; `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
   `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
   (what the logs may hold, followed within a second by every process) [3.12], with `LogPrivacyChange` (both settings as one

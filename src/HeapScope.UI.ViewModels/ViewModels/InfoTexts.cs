@@ -168,7 +168,7 @@ public static class InfoTexts
 
     /// <summary>About.</summary>
     public const string About =
-        "Shows the version, the system, the log folder and every keyboard shortcut. Use it when you need a shortcut, or want to ask for support. F1 comes here from any page, and Copy details puts the support details on the clipboard.";
+        "Shows the version, the system, the log folder and every keyboard shortcut, and where to get help. Use it when you need a shortcut, or want to report a problem or ask a question. F1 comes here from any page, and Copy details puts the details an issue needs on the clipboard.";
 
     /// <summary>Home: Recent sessions heading.</summary>
     public const string Sessions =

@@ -57,7 +57,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.5 | Peer review | Closed | 2026-11-25 | sprint-4.5 |
 | 4.6 | Right answers | Closed | 2026-11-25 | sprint-4.6 |
 | 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
-| 4.8 | Ready to release | Planned | | |
+| 4.8 | Ready to release | In Progress | | |
 | 4.9 | Workspaces | Planned | | |
 | 4.10 | Analysis tabs | Planned | | |
 | 4.11 | Sunburst | Planned | | |
@@ -119,6 +119,63 @@ Owner decisions, 2026-11-18:
 | 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.8: Ready to release
+
+**Goal:** someone outside can install HeapScope, get help, recover from the common dead ends (a missing DAC, sudo on Linux, a stuck
+worker), trust what a release contains and script its CLI output, so that a trial by people outside can start; the first full release
+follows it when the owner says. Peer review 4.5: H14, H15, H17, M1 to M5, M13, M14; from the Backlog: the memory the drop before the
+mapped switch does not return, a note when a load's references fall back to memory, `ColumnBytes` split.
+
+**Tasks**
+1. [x] H14: one place to get help. GitHub Issues on the repository, with issue templates (a bug, a wrong result, a question) and a
+   `SUPPORT.md`; a "Getting help" section in README and INSTALL; every message that says to contact support names that page and the
+   error's id, and says what the log holds and how to check it before attaching it (CONTRIBUTING and INSTALL agree). Wording drafts for
+   the owner. Tests: an architecture test that no user-facing text says "support" without the page; the templates' fields.
+2. [ ] H15: a missing DAC is not a dead end. The app's Settings page gets the DAC folder (picked or typed) and the opt-in Microsoft
+   symbol server, saved where the worker reads them; the missing-DAC message names that page in the app and the options in the CLI;
+   INSTALL says where the DAC is found and how to copy one. Tests: the settings round trip, the worker reading them, the message per front end.
+3. [ ] H17: sudo on Linux works as written. The advice names the full path (`secure_path` drops the user's `PATH`), and HeapScope run
+   under sudo keeps the invoking user's data folder and gives the files it writes (dumps, sessions) to that user (`SUDO_UID`), so a
+   dump of a service is readable afterwards. Tests: the texts; the owner change on Linux CI (as root in the container).
+4. [ ] M1: a release is built and run before it is public. The workflow creates a draft, builds every package, runs each archive it
+   can run (Windows and Linux: `--version`, open a fixture dump), refuses to replace an existing tag's assets, attests only the
+   assets, then publishes. Tag protection and immutable releases are repository settings (owner, listed). Tests: the workflow's dry run
+   on a test tag in a fork-free way (workflow_dispatch with publish off).
+5. [ ] M2: THIRD-PARTY-NOTICES lists the versions shipped, and a test compares it with the lock files. Test: `Notices_list_the_shipped_versions`.
+6. [ ] M3: opening an untrusted dump runs the dump's runtime's DAC, native code, with the user's rights: security-privacy.md and INSTALL
+   say so (draft), and opening a dump while elevated adds a note. Sandboxing the reader stays in the Backlog (L). Tests: the note.
+7. [ ] M4: CLI output is a versioned contract: every `--json` output carries `"format": 1`, docs/cli-output.md says what may change
+   within a format and what bumps it. Tests: each command's JSON has the field; a contract test per command's top-level shape.
+8. [ ] M5: the worker. A crash banner stays until the worker is back or dismissed; "Restart worker" for a stuck one (also the CLI's
+   timeout message names it). One process for live and snapshots stays (Backlog, with its reason). Tests: the banner's life; restart.
+9. [ ] M13: the support paths, each small: the app's crash path writes a report it offers; Copy details carries version, system, id;
+   a log that cannot be written is said once; every failure shown has its log line; the worker's first start says what it is doing
+   and is measured; Purge does what its text promises; README's path to a first answer; INSTALL's Linux steps checked on a clean
+   container. Tests: per item.
+10. [ ] M14: CI and the project's single points: the required check confirmed, the known flaky tests (CounterMonitor, the gcdump cancel,
+    the load cancellation, the churn recording start) made deterministic or bounded, a .NET servicing policy in DEVELOPER.md, and the
+    token and org's single points written down with what the owner holds. Tests: the flaky tests 20 times in a loop without a failure.
+11. [ ] From the Backlog: the memory the drop before the mapped switch does not return (find what holds it; `load-dump` back near
+    3.12's 34 MB), a snapshot note when a load's references fell back to memory (draft wording), `ColumnBytes` split into private and
+    file-backed for the memory mode's log. Tests: `load-dump`'s private bytes after the drop; the note; the split.
+12. [ ] The trial: docs/trial.md, what to try, how to report, and what is known not to work; the release checklist for the first full
+    release in DEVELOPER.md 7. The trial itself and the release are the owner's.
+
+**Decisions**
+- Decided autonomously (owner to confirm): the help channel is GitHub Issues on klundt-org/HeapScope, with templates, not
+  Discussions or email; a log may be attached after the user checks it (it holds paths and type names, filter text only when the
+  user turned it on).
+- Decided autonomously (owner to confirm): no macOS runners stays (owner's rule) although the reviewer notes they are free for public
+  repositories; the macOS packages stay untested.
+- Decided autonomously: repository settings (tag protection, immutable releases, required checks) are the owner's; the sprint
+  drafts them in DEVELOPER.md 7 and the owner applies them.
+- Decided autonomously: the JSON output's version is a top-level `"format": 1`, additive only within a format.
+- Decided autonomously: under sudo, HeapScope gives what it writes to `SUDO_UID` and keeps that user's data folder.
+- Decided autonomously: one worker process for live and snapshots stays; a second process is Backlog.
+- Decided autonomously: user-facing texts are built as drafts (docs/design/info-text.md "Sprint 4.8 additions") for the owner.
 
 ---
 
