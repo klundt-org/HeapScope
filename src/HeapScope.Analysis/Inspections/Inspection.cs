@@ -75,6 +75,12 @@ public interface IInspection
     /// </summary>
     bool UsesReachable => false;
 
+    /// <summary>
+    /// The bytes this inspection may hold while it runs, reserved before it starts so it cannot push the worker out of memory (peer
+    /// review 4.5 H6, sprint 4.7): by default a byte per object (flags or a visited mark); one that holds more says so.
+    /// </summary>
+    long WorkingBytes(HeapGraph graph) => graph.ObjectCount;
+
     InspectionResult Run(InspectionContext context);
 }
 

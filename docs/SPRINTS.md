@@ -159,9 +159,11 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
    Linux, `sysctl` and the VM statistics on macOS (untested); the worker's own memory on macOS is its physical footprint. One reader for the
    worker and the front ends. Tests: the parsers on sample texts; a cgroup limit below the machine's; on Linux CI, nonzero numbers before
    any collection.
-8. [ ] H6: an inspection runs inside a memory reservation sized by its own estimate (objects scanned), refused with a next step when it
-   cannot fit; Duplicate strings keeps the values that waste the most (a bounded set) and says how many more there were. Tests: a
-   reservation refused; the bound and its note.
+8. [x] H6: an inspection runs inside a memory reservation sized by its own estimate (`IInspection.WorkingBytes`: a byte per object by
+   default, Duplicate strings 49 bytes per string and its rows), refused with the reservations' next step when it cannot fit; Duplicate
+   strings lists the 10,000 values that waste the most, its totals count every duplicate and the note says how many more there were
+   (version 3). Tests: the bound, its note and its estimate (`Duplicate_strings_list_the_values_that_waste_the_most_and_count_the_rest`);
+   a refusal is the reservations' own (their tests).
 9. [ ] H8: a recording's default limit is one whose read fits beside two snapshots on the 16 GB baseline (512 MB), and a recording's
    limit is checked against the budget at its start, not only at its read. The one streaming reader stays in the Backlog. Tests: the
    default; a limit over the budget lowered with a note.

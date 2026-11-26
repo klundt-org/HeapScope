@@ -234,6 +234,36 @@ public sealed class InspectionTests
         result.WastedBytes.ShouldBe(322 + (2 * 32) + 32);
     }
 
+    // Peer review 4.5 H6 (sprint 4.7): the rows are bounded, the most wasteful kept; the totals and the note count every duplicate.
+    [Fact]
+    public void Duplicate_strings_list_the_values_that_waste_the_most_and_count_the_rest()
+    {
+        var builder = new SyntheticGraphBuilder();
+        var texts = new Dictionary<ulong, string>();
+        var values = DuplicateStringsInspection.MostRows + 5;
+        for (var v = 0; v < values; v++)
+        {
+            // Value 0 is the longest, so the five shortest (the last) are the ones not listed.
+            var text = v.ToString("D6", System.Globalization.CultureInfo.InvariantCulture) + new string('x', values - v);
+            for (var copy = 0; copy < 2; copy++)
+            {
+                texts[builder.Object("System.String", 22 + (2 * (ulong)text.Length), module: "System.Private.CoreLib.dll", typeKind: TypeKind.String).Address] = text;
+            }
+        }
+
+        using var graph = builder.Build();
+
+        var result = Run("duplicate-strings", graph, reader: new FakeReader { Texts = texts });
+
+        result.Count.ShouldBe(values);
+        var rows = Rows(result);
+        rows.Count.ShouldBe(DuplicateStringsInspection.MostRows);
+        rows.ShouldNotContain(r => r[0]!.StartsWith((values - 1).ToString("D6", System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal));
+        result.Note.ShouldNotBeNull().ShouldContain("5 more, wasting");
+        DuplicateStringsInspection.MostRows.ShouldBeLessThan(values);
+        new DuplicateStringsInspection().WorkingBytes(graph).ShouldBeGreaterThan(2L * values * 12);
+    }
+
     [Fact]
     public void Cancellation_stops_an_inspection()
     {

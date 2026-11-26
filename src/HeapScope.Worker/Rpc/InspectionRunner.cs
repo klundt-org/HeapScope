@@ -117,6 +117,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             InspectionResult result;
             try
             {
+                // Inside a reservation of what it may hold (peer review 4.5 H6, sprint 4.7): refused with a next step rather than run
+                // into the worker's memory limit.
+                using var reservation = snapshots.Reserve(request.SnapshotId, inspection.WorkingBytes(snapshot.Graph), $"Running {inspection.Title}")
+                    ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
                 result = await Task.Run(() => inspection.Run(context), cancellationToken).ConfigureAwait(false);
             }
             finally
