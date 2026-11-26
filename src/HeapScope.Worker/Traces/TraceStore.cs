@@ -47,10 +47,10 @@ internal sealed class TraceStore
     /// growth with the worker's GC settings (12 heaps): 40 MB for a 5.6 MB trace, 131 MB for 26 MB, 227 MB for 72 MB,
     /// about 76 MB plus 2.1 bytes per file byte; this leaves a margin on each (ARCHITECTURE.md 10).
     /// </summary>
-    public const long ReadFixedBytes = 96L * 1024 * 1024;
+    public const long ReadFixedBytes = HeapScope.Core.TraceReadCost.FixedBytes;
 
     /// <inheritdoc cref="ReadFixedBytes"/>
-    public const int ReadBytesPerFileByte = 3;
+    public const int ReadBytesPerFileByte = HeapScope.Core.TraceReadCost.BytesPerFileByte;
 
     /// <summary>How old a leftover <c>.etlx</c> must be before the start sweep deletes it.</summary>
     private static readonly TimeSpan s_sweepAge = TimeSpan.FromHours(1);
@@ -88,7 +88,7 @@ internal sealed class TraceStore
     public int Count => _traces.Count + _live.Count;
 
     /// <summary>The memory a read of a file of <paramref name="fileBytes"/> reserves.</summary>
-    public static long ReadReservation(long fileBytes) => ReadFixedBytes + (fileBytes * ReadBytesPerFileByte);
+    public static long ReadReservation(long fileBytes) => HeapScope.Core.TraceReadCost.Reservation(fileBytes);
 
     public async Task<TraceDescriptor> OpenAsync(OpenTraceRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
