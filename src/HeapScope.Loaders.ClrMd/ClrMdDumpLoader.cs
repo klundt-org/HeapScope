@@ -55,11 +55,12 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// since peer review 4.5: the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
     /// LoaderAllocator references of 3.12 for caches written before them. 6 since sprint 4.6: struct statics with references are named by
     /// their field (peer review 4.5 H3), not only as the runtime's static storage.
+    /// 7 since sprint 4.7: the static storage of .NET 8, which it reports only as strong handles, is named as such (peer review 4.5 H1).
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
     /// </summary>
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     /// <summary>
     /// Checks, without loading it, that the DAC the dump needs may be loaded (sprint 3.6 review H1), for a dump opened from
@@ -157,7 +158,10 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         var references = handleTime + meter.End("references");
 
         progress?.Report(new LoadProgress("Reading roots", 0, null));
-        AddGcRoots(heap, target.DataReader, builder, [.. handles.LeftOut.Where(static h => h.Kind == ClrHandleKind.Strong && h.Object != 0).Select(static h => h.Object)], cancellationToken);
+        // .NET 8 reports its static storage only as strong handles: a handle's array that holds a static field's slot is that
+        // storage (sprint 4.7), so a static ClrMD cannot name (a generic type's) is "static storage", not a handle's.
+        var staticSlots = StaticSlots(runtime, cancellationToken);
+        AddGcRoots(heap, target.DataReader, builder, staticSlots.Slots, [.. handles.LeftOut.Where(static h => h.Kind == ClrHandleKind.Strong && h.Object != 0).Select(static h => h.Object)], cancellationToken);
         foreach (var address in weakHandles)
         {
             builder.AddRoot(address, RootKind.WeakHandle, RootFlags.None);
@@ -183,7 +187,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             freeBytes,
             SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
                 | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
-                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked));
+                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked)
+                | (staticSlots.Unread ? SnapshotFacts.StaticsUnread : SnapshotFacts.None));
 
         // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
         var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
@@ -672,7 +677,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         }
     }
 
-    private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, IReadOnlyList<ulong> leftOut, CancellationToken cancellationToken)
+    private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, ulong[] staticSlots, IReadOnlyList<ulong> leftOut, CancellationToken cancellationToken)
     {
         // The static storage bucket is reported both as a strong handle and (on .NET 9 and 10) as a StaticVar root;
         // it is kept once (decision 3).
@@ -743,7 +748,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         foreach (var (address, flags) in strongHandles)
         {
-            builder.AddRoot(address, RootKind.StrongHandle, flags, staticStorage.Remove(address) ? StaticStorage : null);
+            var storage = staticStorage.Remove(address) || HoldsStaticSlot(heap, address, staticSlots);
+            builder.AddRoot(address, RootKind.StrongHandle, flags, storage ? StaticStorage : null);
         }
 
         foreach (var address in staticStorage)
@@ -778,6 +784,67 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         var pointed = heap.Runtime.DataTarget.DataReader.ReadPointer(data) is var address and not 0 ? heap.GetObject(address) : default;
         return pointed.IsValid && pointed.Type?.MethodTable == type.MethodTable ? pointed : default;
+    }
+
+    // The addresses of the slots of every initialized static that holds a reference (sorted): where the runtime keeps them; and
+    // whether the statics could not be read at all. Every process has System.Private.CoreLib's statics initialized by the time it can
+    // be dumped, so none of them initialized means their memory is not in the dump: a heap dump of .NET 8 leaves it out (sprint 4.7;
+    // 0 of 191 there, 106 in a full dump of the same process). A small module's few may still read; they do not make it complete.
+    private static (ulong[] Slots, bool Unread) StaticSlots(ClrRuntime runtime, CancellationToken cancellationToken)
+    {
+        var slots = new List<ulong>();
+        var (coreFields, coreInitialized) = (0, 0);
+        var seen = new HashSet<(ulong Module, ulong Domain)>();
+        foreach (var domain in runtime.AppDomains)
+        {
+            foreach (var module in domain.Modules)
+            {
+                if (!seen.Add((module.Address, domain.Address)))
+                {
+                    continue;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var type in module.EnumerateTypesWithStaticFields())
+                {
+                    foreach (var field in type.StaticFields)
+                    {
+                        if (!field.IsObjectReference)
+                        {
+                            continue;
+                        }
+
+                        var core = IsCoreLibrary(module);
+                        coreFields += core ? 1 : 0;
+                        if (field.IsInitialized(domain) && field.GetAddress(domain) is var slot and not 0)
+                        {
+                            slots.Add(slot);
+                            coreInitialized += core ? 1 : 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        slots.Sort();
+        return ([.. slots], coreFields > 0 && coreInitialized == 0);
+    }
+
+    private static bool IsCoreLibrary(ClrModule module) =>
+        module.Name is { } name && Path.GetFileNameWithoutExtension(name).Equals("System.Private.CoreLib", StringComparison.OrdinalIgnoreCase);
+
+    // Whether the array at address (an object[]) holds one of the slots: the runtime's static storage of .NET 8.
+    private static bool HoldsStaticSlot(ClrHeap heap, ulong address, ulong[] slots)
+    {
+        if (slots.Length == 0 || heap.GetObject(address) is not { IsValid: true, IsArray: true } array || array.Type?.ComponentType is not { IsObjectReference: true })
+        {
+            return false;
+        }
+
+        var end = address + array.Size;
+        var index = Array.BinarySearch(slots, address);
+        index = index >= 0 ? index : ~index;
+        return index < slots.Length && slots[index] < end;
     }
 
     private static int AddStaticFieldRoots(ClrRuntime runtime, HeapGraphBuilder builder, CancellationToken cancellationToken)

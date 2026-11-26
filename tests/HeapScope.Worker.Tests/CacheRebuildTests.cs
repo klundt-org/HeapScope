@@ -148,13 +148,13 @@ public sealed class CacheRebuildTests : IDisposable
         phases.Seen.ShouldContain("Opening the older index cache");
     }
 
-    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader versions 4 to 6 changed.
+    // A tripwire (3.12 re-review): the older cache's note and its process name step describe what loader versions 4 to 7 changed.
     [Fact]
     public void The_older_cache_note_matches_the_current_loader_version()
     {
         ClrMdDumpLoader.CurrentVersion.ShouldBe(
-            6,
-            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4; version 6 only names struct statics, which an older cache shows as the runtime's storage of static fields, so no answer it gives is wrong), or raise OldestFallbackLoaderVersion (ADR-041)");
+            7,
+            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4; version 6 only names struct statics, which an older cache shows as the runtime's storage of static fields, so no answer it gives is wrong; version 7 only names the static storage of .NET 8, which an older cache shows as a strong handle, the same objects held), or raise OldestFallbackLoaderVersion (ADR-041)");
     }
 
     [Fact]

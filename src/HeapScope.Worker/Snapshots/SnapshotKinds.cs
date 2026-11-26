@@ -81,6 +81,12 @@ internal abstract class SnapshotKindHandler
     /// </summary>
     public virtual bool HandlesChecked(SnapshotInfo info) => true;
 
+    /// <summary>
+    /// Why the roots of a snapshot of this kind are not all known (its GC handles, its static fields), or null when they are: an
+    /// object held only by one it lacks can look unreachable (sprint 4.7).
+    /// </summary>
+    public virtual UncheckedRoots? Unchecked(SnapshotInfo info) => null;
+
     /// <summary>What "no root reaches it" means for an object of a snapshot of this kind (review M3).</summary>
     public abstract string UnreachableNote(SnapshotInfo info);
 
@@ -188,6 +194,11 @@ internal sealed class SnapshotKinds
                 notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, run heapscope-cli open with --rebuild on this dump.");
             }
 
+            if (metadata.Info.Facts.HasFlag(SnapshotFacts.StaticsUnread))
+            {
+                notes.Add("HeapScope could not read the static fields of this dump: a heap dump of .NET 8 or before leaves out the memory they are kept in. Objects held only by a static field, and what they hold, can look unreachable, and leak detectors can miss them. Capture a full dump instead (heapscope-cli capture, or dotnet-dump collect --type Full).");
+            }
+
             if (metadata.Info.Facts.HasFlag(SnapshotFacts.CaptureTimeFromFile))
             {
                 notes.Add("This core dump does not record when it was taken; its capture time is the file's time, which a copy of the file can change.");
@@ -201,9 +212,12 @@ internal sealed class SnapshotKinds
 
         public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
 
-        public override string UnreachableNote(SnapshotInfo info) => HandlesChecked(info)
-            ? "No root HeapScope found reaches it: it is most likely garbage not yet collected, or held only weakly (weak handles, weak references). A thread that was running when the dump was taken can hold short-lived objects no root shows."
-            : "No root HeapScope could read reaches it. Not all GC handles could be checked for this snapshot (see its notes), so it may still be alive.";
+        public override UncheckedRoots? Unchecked(SnapshotInfo info) =>
+            info.Facts.HasFlag(SnapshotFacts.StaticsUnread) ? UncheckedRoots.Statics : HandlesChecked(info) ? null : UncheckedRoots.Handles;
+
+        public override string UnreachableNote(SnapshotInfo info) => Unchecked(info) is { } roots
+            ? $"No root HeapScope could read reaches it. {roots.Sentence} (see its notes), so it may still be alive."
+            : "No root HeapScope found reaches it: it is most likely garbage not yet collected, or held only weakly (weak handles, weak references). A thread that was running when the dump was taken can hold short-lived objects no root shows.";
 
         public override string? WhyNoObjectIdentity => null;
 

@@ -55,7 +55,7 @@ internal sealed class DerivedQueries(SnapshotStore snapshots)
         var snapshot = snapshots.TryGet(snapshotId) ?? throw SnapshotAccess.NotLoaded(snapshotId);
         var index = await snapshots.GetDominatorsAsync(snapshotId, progress, cancellationToken).ConfigureAwait(false)
             ?? throw SnapshotAccess.NotLoaded(snapshotId);
-        return (index, Info(index, snapshot.Info.Kind, snapshot.Graph.ObjectCount, SnapshotAccess.IsComplete(snapshot), SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info)));
+        return (index, Info(index, snapshot.Info.Kind, snapshot.Graph.ObjectCount, SnapshotAccess.IsComplete(snapshot), SnapshotKinds.Describe(snapshot.Info.Kind).Unchecked(snapshot.Info) is null));
     }
 
     /// <summary>

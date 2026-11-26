@@ -31,6 +31,8 @@ cli="$1"
 dump="$2"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+# Never the user's own HeapScope folder (sessions, logs, trusted DACs): a run by hand without it once wrote there (sprint 4.7).
+export HEAPSCOPE_DATA_FOLDER="${HEAPSCOPE_DATA_FOLDER:-$work/data}"
 
 "$cli" open "$dump" --top 5 | tee "$work/open.txt"
 "$cli" summary "$dump" --filter Fixtures.Leaks --format json > "$work/summary.json"

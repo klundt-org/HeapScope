@@ -79,4 +79,10 @@ public enum SnapshotFacts
     /// only by a handle can look unreachable. A gcdump does not need it.
     /// </summary>
     HandlesChecked = 1 << 5,
+
+    /// <summary>
+    /// No static field of a full dump could be read (sprint 4.7): a heap dump of .NET 8 or before leaves out the memory the runtime
+    /// keeps them in, so an object held only by a static field can look unreachable. A negative fact: older caches and gcdumps lack it.
+    /// </summary>
+    StaticsUnread = 1 << 6,
 }

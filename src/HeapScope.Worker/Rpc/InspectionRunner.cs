@@ -83,10 +83,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 }
 
                 // What a dump lacks depends on its heap count at that moment, so two that lack some differ too (peer review 4.5).
-                if (inspection.UsesReachable && !(HandlesChecked(earlier) && HandlesChecked(snapshot)))
+                if (inspection.UsesReachable && (Unchecked(snapshot) ?? Unchecked(earlier)) is { } roots)
                 {
-                    var (side, step) = HandlesChecked(snapshot) ? ($"the baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)}", "Choose another baseline, or none.") : ("this snapshot", "Choose no baseline.");
-                    throw new RequestRefusedException($"Growth cannot be measured: not all GC handles could be checked for {side} (see its notes), so objects held only by a handle could be counted on one side only. {step}");
+                    var (side, step) = Unchecked(snapshot) is null ? ($"the baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)}", "Choose another baseline, or none.") : ("this snapshot", "Choose no baseline.");
+                    throw new RequestRefusedException($"Growth cannot be measured: {roots.Reason.Replace("this snapshot", side, StringComparison.Ordinal).Replace("this dump", side, StringComparison.Ordinal)} (see its notes), so objects held only by {roots.HeldBy} could be counted on one side only. {step}");
                 }
 
                 earlier.TryGetService<IObjectReader>(out var baselineReader);
@@ -144,10 +144,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 result = Checked(inspection.Title, snapshot.Info.RuntimeVersion, result);
             }
 
-            if (inspection.UsesReachable && !HandlesChecked(snapshot))
+            if (inspection.UsesReachable && Unchecked(snapshot) is { } missing)
             {
-                const string Unchecked = "Not all GC handles could be checked for this snapshot (see its notes), so objects held only by a handle may not all be counted.";
-                result = result with { Note = result.Note is null ? Unchecked : result.Note + " " + Unchecked };
+                var note = $"{missing.Sentence} (see its notes), so objects held only by {missing.HeldBy} may not all be counted.";
+                result = result with { Note = result.Note is null ? note : result.Note + " " + note };
             }
 
             // The rule and what the answer rests on (sprint 2.3.7 review H3, M5); the guard logs the totals too.
@@ -199,5 +199,5 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
         return result with { Note = result.Note is null ? notChecked : result.Note + " " + notChecked };
     }
 
-    private static bool HandlesChecked(ISnapshot snapshot) => Snapshots.SnapshotKinds.Describe(snapshot.Info.Kind).HandlesChecked(snapshot.Info);
+    private static Snapshots.UncheckedRoots? Unchecked(ISnapshot snapshot) => Snapshots.SnapshotKinds.Describe(snapshot.Info.Kind).Unchecked(snapshot.Info);
 }

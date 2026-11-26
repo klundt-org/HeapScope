@@ -53,9 +53,12 @@ public sealed partial class FixtureProcess : IDisposable
 
     public string Output => _process.Output;
 
-    public static async Task<FixtureProcess> StartConsoleAsync(params string[] arguments)
+    public static Task<FixtureProcess> StartConsoleAsync(params string[] arguments) => StartConsoleOnAsync(TestPaths.FixtureRuntime, arguments);
+
+    /// <summary>Starts LeakyConsole on <paramref name="runtime"/> (net8.0, net9.0 or net10.0) with <paramref name="arguments"/>.</summary>
+    public static async Task<FixtureProcess> StartConsoleOnAsync(string runtime, params string[] arguments)
     {
-        var child = ChildProcess.Start(TestPaths.LeakyConsoleExe, [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
+        var child = ChildProcess.Start(TestPaths.LeakyConsoleExeOn(runtime), [.. arguments, "--parent-pid", Environment.ProcessId.ToString(CultureInfo.InvariantCulture)]);
         await WaitReadyAsync(child).ConfigureAwait(false);
         return new FixtureProcess(child, null);
     }
@@ -98,12 +101,18 @@ public sealed partial class FixtureProcess : IDisposable
         return new FixtureProcess(child, new Uri(match.Groups["url"].Value));
     }
 
-    /// <summary>Writes a dump of the fixture (heap only by default, enough for ClrMD analysis).</summary>
-    public void CaptureDump(string path, DumpType type = DumpType.WithHeap)
+    /// <summary>The dump a test takes unless it asks for another: see <see cref="CaptureDump"/>.</summary>
+    public static DumpType DefaultDumpType => TestPaths.FixtureRuntimeMajor < 9 ? DumpType.Full : DumpType.WithHeap;
+
+    /// <summary>
+    /// Writes a dump of the fixture: heap only by default, enough for ClrMD analysis from .NET 9 on. A heap dump of .NET 8 leaves out
+    /// the loader heap that holds its statics, so its default is a full dump (sprint 4.7).
+    /// </summary>
+    public void CaptureDump(string path, DumpType? type = null)
     {
         try
         {
-            new DiagnosticsClient(ProcessId).WriteDump(type, path, logDumpGeneration: false);
+            new DiagnosticsClient(ProcessId).WriteDump(type ?? DefaultDumpType, path, logDumpGeneration: false);
         }
         catch (Exception ex) when (ex is ServerNotAvailableException or UnauthorizedAccessException)
         {
