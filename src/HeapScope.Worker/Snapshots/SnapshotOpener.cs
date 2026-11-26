@@ -593,6 +593,13 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
         _kinds.For(metadata.Info.Kind).AddNotes(metadata, notes);
 
+        // A runtime the known answers are not checked on (sprint 4.7, peer review 4.5 H1).
+        if (TestedRuntimes.Note(metadata.Info.RuntimeVersion) is { } untested)
+        {
+            notes.Add(untested);
+            logger.LogInformation("The dump {Path} is of .NET {Version}, which the known answers are not checked on (tested: {Tested})", metadata.Info.SourcePath, metadata.Info.RuntimeVersion, string.Join(", ", TestedRuntimes.Majors));
+        }
+
         if (metadata.UnreadableObjects > 0)
         {
             notes.Add(string.Create(CultureInfo.InvariantCulture, $"{metadata.UnreadableObjects:N0} heap entries could not be read and were left out."));

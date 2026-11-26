@@ -133,11 +133,16 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
    said on the error stream, never swallowed), used by the integration tier's dump folders; every test assembly's start sweeps the dump
    folders and the tests' `heapscope-*` folders a run left more than a day ago (the small shared data and sessions folders stay).
    Tests: `TestFoldersTests` (a held file said, a stale folder swept, a fresh one or one named by hand kept).
-2. [ ] H1: the fixtures (Leaks, LeakyConsole, LeakyApi) build for net8.0, net9.0 and net10.0; the tests pick a fixture's runtime by
+2. [x] H1: the fixtures (Leaks, LeakyConsole, LeakyApi) build for net8.0, net9.0 and net10.0; the tests pick a fixture's runtime by
    `HEAPSCOPE_FIXTURE_RUNTIME` (net10.0 when unset); the known answers (`KnownAnswerTests`, `LoaderKnownAnswerTests`,
    `DetectorTests`, `check-known-answers.sh`) pass on each, with any answer that differs by runtime stated in its file. CI runs them
    for .NET 8 and 9 on Windows and Linux. Tests: the known answer classes per runtime; a runtime's own answer where it differs.
-3. [ ] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and
+   Found: .NET 8 reports its static storage only as strong handles, so a static ClrMD cannot name (a generic type's) blamed a
+   handle; the loader now names a handle's array that holds a static's slot as the storage (loader version 7). And a heap dump of
+   .NET 8 leaves out the memory its statics are in: the loader says so (`StaticsUnread`, when none of CoreLib's statics read),
+   with a note, the unreachable set refused and the detectors noted as for unchecked handles. Tests: `HeapDumpStaticsTests`, the
+   statics case in `UncheckedHandlesTests`; the tests take full dumps of .NET 8. No answer differs by runtime.
+3. [x] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and
    the log names it; README, ADR-002 and INSTALL say which runtimes are tested (8, 9 and 10) and which open untested (5 to 7). Tests: the
    note for a .NET 6 version and none for 8 to 10; the CLI's line.
 4. [ ] M11: thread statics have a fixture (`[ThreadStatic]` and `ThreadLocal<T>` holding leak objects) and a known answer; the loader

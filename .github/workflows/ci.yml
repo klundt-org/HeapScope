@@ -91,8 +91,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        # .NET 8 and 9 too: the fixtures run on each, and their known answers are checked (sprint 4.7, peer review 4.5 H1).
         with:
           global-json-file: global.json
+          dotnet-version: |
+            8.0.x
+            9.0.x
       - name: Build
         id: build
         run: dotnet build HeapScope.sln -c Release
@@ -118,6 +122,21 @@ jobs:
           bash build/check-known-answers.sh "$cli" "$RUNNER_TEMP/leaky.dmp"
           # A missing DAC and the symbol server's download rule on a real dump (sprint 3.12, the review of task 9).
           HEAPSCOPE_FIXTURE_DUMP="$RUNNER_TEMP/leaky.dmp" HEAPSCOPE_REQUIRE_FIXTURE=1 dotnet test --project tests/HeapScope.Loaders.ClrMd.Tests -c Release --no-build --filter-class "*MissingDacTests" --filter-class "*WalkComparisonTests"
+      - name: The known answers on .NET 8 and 9
+        # Sprint 4.7 (peer review 4.5 H1): the fixtures on each older runtime HeapScope says it was tested on, through the CLI and
+        # through the known answer classes (HeapScope itself runs on .NET 10).
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli.exe
+          for runtime in net8.0 net9.0; do
+            echo "::group::$runtime"
+            HEAPSCOPE_FIXTURE_RUNTIME=$runtime bash build/fixture-dump.sh "$RUNNER_TEMP/$runtime/leaky.dmp" "cli=$cli"
+            bash build/check-known-answers.sh "$cli" "$RUNNER_TEMP/$runtime/leaky.dmp"
+            HEAPSCOPE_FIXTURE_RUNTIME=$runtime dotnet test --project tests/HeapScope.Integration.Tests -c Release --no-build --results-directory "$RUNNER_TEMP/test-results/$runtime" --filter-class "*.KnownAnswerTests" --filter-class "*.LoaderKnownAnswerTests" --filter-class "*.DetectorTests"
+            echo "::endgroup::"
+          done
       - name: Keep the test results and HeapScope's logs
         # Always, so a step that timed out still leaves its results (review).
         if: ${{ always() }}
@@ -143,8 +162,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        # .NET 8 and 9 too: the fixtures run on each, and their known answers are checked (sprint 4.7, peer review 4.5 H1).
         with:
           global-json-file: global.json
+          dotnet-version: |
+            8.0.x
+            9.0.x
       - name: Build
         run: dotnet build HeapScope.sln -c Release
       - name: Heavy integration tests
@@ -180,8 +203,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        # .NET 8 and 9 too: the fixtures run on each, and their known answers are checked (sprint 4.7, peer review 4.5 H1).
         with:
           global-json-file: global.json
+          dotnet-version: |
+            8.0.x
+            9.0.x
       - name: Build the CLI and the app (with the worker) and the fixture
         id: build
         run: |
@@ -201,6 +228,11 @@ jobs:
           dump="$RUNNER_TEMP/leaky.dmp"
           bash build/fixture-dump.sh "$dump" cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli
           bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$dump"
+          # The same on .NET 8 and 9 (sprint 4.7, peer review 4.5 H1).
+          for runtime in net8.0 net9.0; do
+            HEAPSCOPE_FIXTURE_RUNTIME=$runtime bash build/fixture-dump.sh "$RUNNER_TEMP/$runtime/leaky.dmp" cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli
+            bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$RUNNER_TEMP/$runtime/leaky.dmp"
+          done
           # GC handles of a Server GC process with fewer heaps than processors (peer review 4.5).
           bash build/check-handles.sh "$PWD/src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli" "$RUNNER_TEMP/handles"
           # The trust of a DAC next to a dump, where no signature check backs it (sprint 3.7, 3.6 review M19), and a missing
