@@ -44,14 +44,14 @@ public readonly record struct PhysicalMemory(long TotalBytes, long AvailableByte
 /// </summary>
 public static class SnapshotMemoryEstimate
 {
-    /// <summary>Peak private bytes per byte of dump, with headroom for denser heaps than the fixtures.</summary>
-    public const double BytesPerDumpByte = 0.55;
+    /// <inheritdoc cref="HeapScope.Core.FirstLoadEstimate.BytesPerDumpByte"/>
+    public const double BytesPerDumpByte = HeapScope.Core.FirstLoadEstimate.BytesPerDumpByte;
 
-    /// <summary>Fixed part: ClrMD's capped cache, runtime structures and the worker itself.</summary>
-    public const long FixedBytes = 768L * 1024 * 1024;
+    /// <inheritdoc cref="HeapScope.Core.FirstLoadEstimate.FixedBytes"/>
+    public const long FixedBytes = HeapScope.Core.FirstLoadEstimate.FixedBytes;
 
-    public static long FirstLoadPeakBytes(long dumpBytes) =>
-        dumpBytes <= 0 ? FixedBytes : (long)(dumpBytes * BytesPerDumpByte) + FixedBytes;
+    /// <summary>The worker's peak for a first load (<see cref="HeapScope.Core.FirstLoadEstimate"/>, which the worker reserves too).</summary>
+    public static long FirstLoadPeakBytes(long dumpBytes) => HeapScope.Core.FirstLoadEstimate.PeakBytes(dumpBytes);
 
     /// <summary>
     /// A warning for the user when the estimated first-load peak exceeds the memory available now; null when it fits.

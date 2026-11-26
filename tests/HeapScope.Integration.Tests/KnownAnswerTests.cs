@@ -417,7 +417,7 @@ public sealed class KnownAnswerTests(AllLeaksDump shared) : IClassFixture<AllLea
         _ = Dump.Heap.EnumerateRoots().Count();
         var recorded = Dump.Runtime.ClrInfo.ModuleInfo.FileName;
 
-        Dump.DacPath.ShouldBe(Path.Combine(Path.GetDirectoryName(recorded)!, "mscordaccore.dll"), StringCompareShould.IgnoreCase);
+        Dump.DacPath.ShouldBe(Path.Combine(Path.GetDirectoryName(recorded)!, OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so"), StringCompareShould.IgnoreCase);
         Dump.Locator.Unanswered.ShouldBeEmpty(string.Join(Environment.NewLine, Dump.Locator.Requests));
     }
 
@@ -429,7 +429,7 @@ public sealed class KnownAnswerTests(AllLeaksDump shared) : IClassFixture<AllLea
         var error = Should.Throw<InvalidOperationException>(() => DumpAnalysis.Open(shared.DumpPath, empty.Path));
 
         error.Message.ShouldContain("No DAC beside the dumped runtime");
-        error.Message.ShouldContain(Path.Combine(empty.Path, "mscordaccore.dll"));
+        error.Message.ShouldContain(Path.Combine(empty.Path, OperatingSystem.IsWindows() ? "mscordaccore.dll" : OperatingSystem.IsMacOS() ? "libmscordaccore.dylib" : "libmscordaccore.so"));
         error.Message.ShouldContain("Runtime: ");
         error.Message.ShouldContain("Debugging library: ");
         error.Message.ShouldContain("Times: LoadDump ");

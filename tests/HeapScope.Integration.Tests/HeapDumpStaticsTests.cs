@@ -60,4 +60,24 @@ public sealed class HeapDumpStaticsTests
             .Any(r => r.Kind == RootKind.StaticField && result.Graph.Strings[r.DetailId] == "Fixtures.Leaks.StaticCacheLeak.s_cache");
         named.ShouldBe(!unread);
     }
+
+    // Peer review 4.5 H5 (sprint 4.7): the worker reserves a first load's estimate and logs it against what the load used.
+    [Fact]
+    public async Task A_first_load_is_reserved_and_logged_against_its_estimate()
+    {
+        using var folder = new TempFolder();
+        using (var fixture = await FixtureProcess.StartConsoleAsync("--leak", "StaticCache", "--count", "100"))
+        {
+            fixture.CaptureDump(folder.File("app.dmp"));
+        }
+
+        var logs = folder.File("logs");
+        using var open = ChildProcess.Start(TestPaths.CliExe, new Dictionary<string, string> { ["Logging__File__Directory"] = logs }, "open", folder.File("app.dmp"));
+        (await open.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(open.Output);
+        open.Process.ExitCode.ShouldBe(0, open.Output);
+
+        var log = string.Join(Environment.NewLine, Directory.GetFiles(logs, "*.log").Select(File.ReadAllText));
+        log.ShouldContain("First load of " + folder.File("app.dmp"));
+        log.ShouldContain("(reserved)");
+    }
 }

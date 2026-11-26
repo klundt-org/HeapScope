@@ -40,7 +40,7 @@ namespace HeapScope.Worker.Snapshots;
 /// index cache or loads the dump and writes the cache, picks the memory mode (ADR-015), and describes and logs the result. It
 /// logs under the store's category. The store serializes opens; nothing here outlives one open but the test hooks.
 /// </summary>
-internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner signer, SnapshotKinds kinds, ILogger logger)
+internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner signer, SnapshotKinds kinds, ILogger logger, MemoryReservations? reservations = null)
 {
     private readonly IndexCacheSigner _signer = signer;
     private readonly SnapshotKinds _kinds = kinds;
@@ -373,8 +373,14 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         Rpc.ThrottledProgress<JobProgress> progress,
         CancellationToken cancellationToken)
     {
-        var loader = LoaderForTests?.Invoke(path) ?? _kinds.ForFile(path).CreateLoader();
-        LoadResult? loaded = loader.Load(path, new LoadProgressAdapter(progress, rebuilding), cancellationToken);
+        var handler = _kinds.ForFile(path);
+        var loader = LoaderForTests?.Invoke(path) ?? handler.CreateLoader();
+        LoadResult? loaded;
+        using (FirstLoadReservation(path, handler.Kind))
+        {
+            loaded = loader.Load(path, new LoadProgressAdapter(progress, rebuilding), cancellationToken);
+        }
+
         HeapGraph? graph = loaded.Graph;
         var diagnostics = loaded.Diagnostics;
         var metadata = new IndexCacheMetadata(
@@ -457,6 +463,47 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         {
             graph?.Dispose();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// The worker's own check of a first load of a full dump (peer review 4.5 H5, sprint 4.7): its estimate is reserved while it
+    /// loads, so no other work takes that memory meanwhile, and the log says the estimate against what the load used. A load that
+    /// does not fit is not refused here: the front ends warned before they asked (and the CLI's --no-overcommit refused), so the
+    /// user chose to go on; it is logged.
+    /// </summary>
+    private IDisposable? FirstLoadReservation(string path, SnapshotKind kind)
+    {
+        if (reservations is null || kind != SnapshotKind.FullDump)
+        {
+            return null;
+        }
+
+        var dumpBytes = new FileInfo(path).Length;
+        var estimate = FirstLoadEstimate.PeakBytes(dumpBytes);
+        try
+        {
+            var held = reservations.Reserve(estimate, "Loading the dump", "Close other snapshots first.");
+            return new LoggedLoad(held, logger, path, dumpBytes, estimate, reserved: true);
+        }
+        catch (InsufficientMemoryException ex)
+        {
+            logger.LogWarning("The first load of {Path} ({DumpBytes:N0} bytes) is estimated at {Estimate:N0} bytes, more than the worker has room for; loading anyway, as asked: {Refusal}", path, dumpBytes, estimate, ex.Message);
+            return new LoggedLoad(null, logger, path, dumpBytes, estimate, reserved: false);
+        }
+    }
+
+    // Logs the estimate against the worker's peak once the load ends (the 8 GB measurement of sprint 4.7 calibrates it).
+    private sealed class LoggedLoad(IDisposable? held, ILogger logger, string path, long dumpBytes, long estimate, bool reserved) : IDisposable
+    {
+        public void Dispose()
+        {
+            held?.Dispose();
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            var peak = OperatingSystem.IsWindows() ? process.PeakPagedMemorySize64 : ProcessMemory.PrivateBytes();
+            logger.LogInformation(
+                "First load of {Path}: {DumpBytes:N0} bytes of dump, estimated peak {Estimate:N0} bytes ({Reserved}), worker {What} {Peak:N0} bytes ({Ratio:P0} of the estimate)",
+                path, dumpBytes, estimate, reserved ? "reserved" : "not reserved, no room", OperatingSystem.IsWindows() ? "peak commit" : "private bytes after", peak, estimate > 0 ? (double)peak / estimate : 0);
         }
     }
 

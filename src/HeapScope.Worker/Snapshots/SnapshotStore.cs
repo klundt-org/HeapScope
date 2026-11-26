@@ -262,5 +262,5 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
         init => Opener.ProcessNameForTests = value;
     }
 
-    private SnapshotOpener Opener => LazyInitializer.EnsureInitialized(ref _opener, () => new SnapshotOpener(locator, _signer, _kinds, logger));
+    private SnapshotOpener Opener => LazyInitializer.EnsureInitialized(ref _opener, () => new SnapshotOpener(locator, _signer, _kinds, logger, _reservations));
 }

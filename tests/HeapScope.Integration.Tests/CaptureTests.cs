@@ -256,12 +256,20 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     [Fact]
     public async Task Cli_capture_of_a_missing_process_fails()
     {
-        using var capture = ChildProcess.Start(TestPaths.CliExe, "capture", "--pid", "1", "--out", _root.File("none.dmp"));
+        // A process that has just exited: pid 1 is the system's own off Windows (init).
+        int gone;
+        using (var idle = ChildProcess.StartIdle(30))
+        {
+            gone = idle.Process.Id;
+            idle.Process.Kill();
+            await idle.WaitForExitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        using var capture = ChildProcess.Start(TestPaths.CliExe, "capture", "--pid", gone.ToString(System.Globalization.CultureInfo.InvariantCulture), "--out", _root.File("none.dmp"));
 
         (await capture.WaitForExitAsync(TimeSpan.FromSeconds(60))).ShouldBeTrue(capture.Output);
         capture.Process.ExitCode.ShouldBe(1, capture.Output);
-        // Process 1 is the system's own off Windows (init), not .NET.
-        capture.Output.ShouldContain(OperatingSystem.IsWindows() ? "No running .NET process" : "is not a .NET process");
+        capture.Output.ShouldContain("No running .NET process");
     }
 
     [Fact]

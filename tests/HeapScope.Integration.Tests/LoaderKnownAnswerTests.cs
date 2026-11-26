@@ -492,6 +492,7 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
     [Fact]
     public void A_minidump_without_the_heap_is_refused_with_how_to_capture_a_full_dump()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "A mini dump is a Windows dump kind; a Linux core file of that kind is checked by its own header.");
         using var folder = new TempFolder();
         var path = folder.File("mini.dmp");
         var bytes = File.ReadAllBytes(shared.Source.DumpPath).AsSpan(0, 64 * 1024).ToArray();

@@ -167,7 +167,7 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
 9. [x] H8: a recording's default limit is one whose read fits beside two snapshots on the 16 GB baseline (512 MB), and a recording's
    limit is checked against the budget at its start, not only at its read. The one streaming reader stays in the Backlog. Tests: the
    default; a limit over the budget lowered with a note.
-10. [ ] H5: the worker checks a first load: it reserves the load's estimate while it loads, refuses with a next step when the open was
+10. [ ] H5 (code done; the 8 GB measurement waits for free memory): the worker checks a first load: it reserves the load's estimate while it loads, refuses with a next step when the open was
     not allowed to overcommit, and logs the estimate against what was used. An 8 GB DenseHeap dump is measured (first load, peak, reopen
     in both modes, the indices; and with the working set capped); if the peak is over budget, the edges go into the cache as they are
     read. Tests: a load over budget refused; the measurement in budgets.md.
