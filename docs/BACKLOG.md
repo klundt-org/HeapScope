@@ -160,6 +160,13 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   (gc-specialist Low); monitoring cards showing a capture's warning (support Low).
 
 **Medium**
+- From sprint 4.7 (decided autonomously; [reviews/sprint-4.7.md](reviews/sprint-4.7.md) M10 to M13): a reverse index whose sidecar could
+  not be written is built in memory without a reservation; the inspections that list rows other than Duplicate strings (sparse arrays,
+  large arrays) estimate a byte per object; a virtual display mode of the smoke run that exempts its timing gates as the headless run
+  does, so the X11 run in CI can require exit 0; a lowered trace limit said in the stop's text; a parent cgroup's lower memory limit;
+  the worker refusing a first load that does not fit when the open says it may not overcommit (a protocol field); the 1 GB trace
+  reader replaced by one streaming reader (H8, L); a real Linux desktop run of the app (claude-dev-3); the cause of a live recording's
+  late start once in the 4.6 gate (`AllocatedBetweenTests`), which the file buffer of 4.7 does not explain.
 - From sprint 4.6 (decided autonomously; [reviews/sprint-4.6.md](reviews/sprint-4.6.md) M15 to M19 and H5): the settings and lesson progress
   saves off the UI thread; the unread counts as data in the inspection DTO; the event handler detector, the disposed objects detector with no
   flag readable, and the collection inspections with an items field unread saying what they could not read, with a test per detector with

@@ -136,7 +136,7 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
 2. [x] H1: the fixtures (Leaks, LeakyConsole, LeakyApi) build for net8.0, net9.0 and net10.0; the tests pick a fixture's runtime by
    `HEAPSCOPE_FIXTURE_RUNTIME` (net10.0 when unset); the known answers (`KnownAnswerTests`, `LoaderKnownAnswerTests`,
    `DetectorTests`, `check-known-answers.sh`) pass on each, with any answer that differs by runtime stated in its file. CI runs them
-   for .NET 8 and 9 on Windows and Linux. Tests: the known answer classes per runtime; a runtime's own answer where it differs.
+   for .NET 8 and 9 on Windows and Linux (the classes on Linux since the review). Tests: the known answer classes per runtime; a runtime's own answer where it differs.
    Found: .NET 8 reports its static storage only as strong handles, so a static ClrMD cannot name (a generic type's) blamed a
    handle; the loader now names a handle's array that holds a static's slot as the storage (loader version 7). And a heap dump of
    .NET 8 leaves out the memory its statics are in: the loader says so (`StaticsUnread`, when none of CoreLib's statics read),
@@ -144,7 +144,7 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
    statics case in `UncheckedHandlesTests`; the tests take full dumps of .NET 8. No answer differs by runtime.
 3. [x] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and
    the log names it; README, ADR-002 and INSTALL say which runtimes are tested (8, 9 and 10) and which open untested (5 to 7). Tests: the
-   note for a .NET 6 version and none for 8 to 10; the CLI's line.
+   note for a .NET 6 version, one before .NET 5, none for 8 to 10 (`TestedRuntimesTests`); the CLI prints it as every note.
 4. [x] M11: thread statics have a fixture (`[ThreadStatic]` and `ThreadLocal<T>` holding leak objects, on a parked thread) and a known
    answer; the loader names a thread static by its field, "(thread static)", once per thread that set it (loader version 7): .NET 8
    reports no thread static root (its arrays were blamed on a strong handle), .NET 9 and 10 only the runtime's arrays. A ThreadLocal's
@@ -165,12 +165,15 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
    (version 3). Tests: the bound, its note and its estimate (`Duplicate_strings_list_the_values_that_waste_the_most_and_count_the_rest`);
    a refusal is the reservations' own (their tests).
 9. [x] H8: a recording's default limit is one whose read fits beside two snapshots on the 16 GB baseline (512 MB), and a recording's
-   limit is checked against the budget at its start, not only at its read. The one streaming reader stays in the Backlog. Tests: the
-   default; a limit over the budget lowered with a note.
-10. [ ] H5 (code done; the 8 GB measurement waits for free memory): the worker checks a first load: it reserves the load's estimate while it loads, refuses with a next step when the open was
-    not allowed to overcommit, and logs the estimate against what was used. An 8 GB DenseHeap dump is measured (first load, peak, reopen
-    in both modes, the indices; and with the working set capped); if the peak is over budget, the edges go into the cache as they are
-    read. Tests: a load over budget refused; the measurement in budgets.md.
+   limit is checked against the machine at its start, not only at its read: lowered and logged (said in the stop's text: Backlog). The
+   one streaming reader stays in the Backlog. Tests: the default; a limit over the machine lowered (`TraceReadCostTests`).
+10. [ ] H5: the worker checks a first load of a full dump: it reserves the load's estimate, less what it holds already, while it loads,
+    and logs the estimate against what was used and how the load ended. One that does not fit is logged, not refused: the worker is not
+    told whether the user accepted the front ends' warning (heapscope-cli open --no-overcommit refuses before asking); a refusal in the
+    worker needs a protocol change (Backlog). An 8 GB DenseHeap dump is measured (first load, peak, reopen in both modes, the indices;
+    and with the working set capped); if the peak is over budget, the edges go into the cache as they are read. Tests:
+    `A_first_load_is_reserved_and_logged_against_its_estimate`; the measurement in budgets.md. Code done; the measurement waits for
+    free memory.
 11. [x] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
     need (by the graph's bytes per object); counters read the interval the target reports and log one that differs from the one asked.
     Tests: each.

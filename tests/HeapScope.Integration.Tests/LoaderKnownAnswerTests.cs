@@ -304,6 +304,12 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
         GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadLocalEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
 
+        // A struct with references in a [ThreadStatic] field is boxed per thread: its box is the root (the GC review of 4.7, H4).
+        var box = GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticHolder).FullName!).ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(box).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && r.IsRetaining
+            && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_threadHolder (thread static)");
+        GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticStructEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
+
 
         var local = GraphQueries.Instances(Graph, "System.Threading.ThreadLocal<System.Collections.Generic.List<Fixtures.Leaks.ThreadLocalEntry>>").ShouldHaveSingleItem();
         Graph.Roots.GetRoots(local).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_local");

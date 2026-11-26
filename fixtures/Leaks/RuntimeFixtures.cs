@@ -227,14 +227,20 @@ public static class ThreadStatics
     [ThreadStatic]
     private static List<ThreadStaticEntry>? s_threadItems;
 
+    // A struct with a reference, boxed per thread (the GC review of 4.7): rooted at its box.
+    [ThreadStatic]
+    private static ThreadStaticHolder s_threadHolder;
+
     private static readonly ThreadLocal<List<ThreadLocalEntry>> s_local = new(() => []);
 
     public static void Fill(int count)
     {
         s_threadItems = [];
+        s_threadHolder = new ThreadStaticHolder([]);
         for (var i = 0; i < count; i++)
         {
             s_threadItems.Add(new ThreadStaticEntry(i));
+            s_threadHolder.Items.Add(new ThreadStaticStructEntry(i));
             s_local.Value!.Add(new ThreadLocalEntry(i));
         }
     }
@@ -248,6 +254,15 @@ public sealed class ThreadStaticEntry(int id)
 
 /// <summary>Held by <see cref="ThreadStatics"/>' ThreadLocal value on one thread.</summary>
 public sealed class ThreadLocalEntry(int id)
+{
+    public int Id { get; } = id;
+}
+
+/// <summary>A struct with a reference, held in a [ThreadStatic] field: boxed per thread.</summary>
+public readonly record struct ThreadStaticHolder(List<ThreadStaticStructEntry> Items);
+
+/// <summary>Held by the list inside the [ThreadStatic] struct of <see cref="ThreadStatics"/>.</summary>
+public sealed class ThreadStaticStructEntry(int id)
 {
     public int Id { get; } = id;
 }

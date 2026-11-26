@@ -34,7 +34,9 @@ dotnet test --solution HeapScope.sln
   The builds always run; `bash build/gate.sh --force` runs everything. CI runs everything on every PR.
 - One tier (sprint 3.6): `bash build/test.sh fast|integration [Release|Debug] [results folder]`. `fast` runs every test
   project that runs on this system but the Integration project, found rather than listed, without the Integration and
-  Slow traits; a project left with no tests fails. `integration` runs the Integration project (Windows). Integration and
+  Slow traits; a project left with no tests fails. `integration` runs the Integration project (Windows and, since 4.7, Linux, where the tests of what only Windows has skip and say
+  why). `HEAPSCOPE_FIXTURE_RUNTIME` (net8.0, net9.0, net10.0 by default) picks the runtime the fixtures run on; the known answer classes run
+  on each in CI (`bash build/fixture-dump.sh` takes it too). Integration and
   Slow tests belong in that project only; the script fails when one is elsewhere. Results are TRX files. Off CI it runs
   tests on half the CPU threads at once (xunit's default, one per thread, pinned a 24-thread machine and made timed tests
   fail); `HEAPSCOPE_TEST_THREADS` sets it (a number, `0.5x`, `default`), and CI keeps xunit's default.
@@ -356,8 +358,8 @@ dotnet test --solution HeapScope.sln
   time, where dragging chooses an interval, the interval's types, and call stacks on demand.
   Since 3.4: Get snapshot captures the process now as one of the run's snapshots; Force GC asks first (the target
   pauses, finalizers do not run), then runs a full blocking collection in it (a dotted line on the chart, only when its
-  end was seen; .NET 5 or later); "Record allocations" records an allocation trace for the whole run, up to 1 GB or
-  until the disk has 1 GB free (Open allocations shows it on the Allocations page); "Past runs of this session" reopens
+  end was seen; .NET 5 or later); "Record allocations" records an allocation trace for the whole run, up to 512 MB (less where its read
+  would not fit a quarter of the machine's memory, `TraceReadCost`) or until the disk has 1 GB free (Open allocations shows it on the Allocations page); "Past runs of this session" reopens
   a run's timeline, markers and snapshot cards read only. A capture or Force GC of a process already being captured is
   refused with the reason, from any page; a rule due meanwhile fires at the next free sample. The Snapshots page's
   "Close and delete..." deletes a session snapshot with its index caches; the Home page deletes a session ("Delete...")
@@ -647,7 +649,9 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     runs the heavy collection (classes with the `Run=Heavy` trait: gigabyte heaps and dumps, the Ctrl+C capture, what counts the process's memory, run one
     at a time) beside it (`test.sh integration-heavy`; the first job runs `integration-light`), which halves the wait
     for a PR. The local gate still runs the whole `integration` tier.
-  - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests (the view model and headless UI
+  - Both run the known answers on .NET 8 and 9 as well (since 4.7): the CLI's check and the known answer classes.
+  - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests and (since 4.7) the light integration tier, shows
+    the app's window under a virtual display (`xvfb-run`; exit 3, the dispatcher over its budget there, is a warning), (the view model and headless UI
     tests included, and since sprint 4.1 the capture tests), captures the fixture with the CLI (`dotnet-dump` before
     capture ran on Linux), checks the CLI's JSON against the known answers with `jq` (counts, sizes, retained sizes, the
     path root, a complete graph, a named runtime version) and opens the dump in the app without a display

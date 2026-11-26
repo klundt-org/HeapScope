@@ -33,8 +33,14 @@ internal sealed record UncheckedRoots(string Reason, string HeldBy)
     /// <summary>The GC handles of a Server GC process could not all be checked (<c>SnapshotFacts.HandlesChecked</c> missing).</summary>
     public static readonly UncheckedRoots Handles = new("not all GC handles could be checked for this snapshot", "a handle");
 
-    /// <summary>No static field could be read (<c>SnapshotFacts.StaticsUnread</c>): a heap dump of .NET 8 or before leaves them out.</summary>
-    public static readonly UncheckedRoots Statics = new("the static fields of this dump could not be read", "a static field");
+    /// <summary>
+    /// The static fields were not checked (<c>SnapshotFacts.StaticsChecked</c> missing): none could be read, as in a heap dump of .NET 8
+    /// taken on Windows, or the cache is from before the check.
+    /// </summary>
+    public static readonly UncheckedRoots Statics = new("the static fields of this dump could not be checked", "a static field");
+
+    /// <summary>Both: an older cache of a Server GC process, or a heap dump of one (the review of 4.7 said only one reason).</summary>
+    public static readonly UncheckedRoots Both = new("not all GC handles nor the static fields of this dump could be checked", "a handle or a static field");
 
     /// <summary><see cref="Reason"/> as the start of a sentence.</summary>
     public string Sentence => string.Concat(Reason[..1].ToUpperInvariant(), Reason[1..]);

@@ -81,8 +81,9 @@ public enum SnapshotFacts
     HandlesChecked = 1 << 5,
 
     /// <summary>
-    /// No static field of a full dump could be read (sprint 4.7): a heap dump of .NET 8 or before leaves out the memory the runtime
-    /// keeps them in, so an object held only by a static field can look unreachable. A negative fact: older caches and gcdumps lack it.
+    /// A full dump's static fields could be read: the runtime's own (System.Private.CoreLib's) reference statics are there. Without it,
+    /// as in a heap dump of .NET 8 written on Windows, which leaves out the memory statics are kept in, or a cache from before loader
+    /// version 7, an object held only by a static field can look unreachable. A gcdump does not need it.
     /// </summary>
-    StaticsUnread = 1 << 6,
+    StaticsChecked = 1 << 6,
 }

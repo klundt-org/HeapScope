@@ -218,7 +218,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `TimelineFile` reads a timeline back; `CaptureService` keeps one capture or forced collection per process at a time
   (`CaptureFailure.Busy`) and forces collections through Capture's `GcTrigger` [3.4]. A run awaits every capture and
   forced collection at its end, refuses new ones once stopping, marks its session in use, logs a rule deferred by a busy
-  process and re-arms one that lost the race, and stops its allocation trace at `MonitorOptions.TraceLimitBytes` (1 GB)
+  process and re-arms one that lost the race, and stops its allocation trace at `MonitorOptions.TraceLimitBytes` (512 MB, fitted to the machine by `TraceReadCost.Fit` since 4.7)
   or under 1 GB of free disk (`TraceStopped`) [3.4 review]. `ICaptureService.StartCapture`
   records a source (`SnapshotSource.Timed` for rules) and takes a `SnapshotKindDto` [1.7, 1.8]. `Exports/CsvExport`:
   a result set or in-memory rows as CSV, page by page, without hidden columns and, unless opted in, without value

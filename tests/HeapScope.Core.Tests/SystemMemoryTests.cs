@@ -64,6 +64,14 @@ public sealed class SystemMemoryTests
         SystemMemory.CgroupFiles(selfCgroup).ShouldBe((limit, usage));
 
     [Fact]
+    public void Inactive_file_pages_are_read_from_v2_and_v1_memory_stat()
+    {
+        SystemMemory.InactiveFile("anon 100\nfile 900\ninactive_file 700\nactive_file 200\n").ShouldBe(700);
+        SystemMemory.InactiveFile("cache 900\ntotal_inactive_file 600\n").ShouldBe(600);
+        SystemMemory.InactiveFile("anon 1\n").ShouldBe(0);
+    }
+
+    [Fact]
     public void No_cgroup_and_no_limit_are_none()
     {
         SystemMemory.CgroupFiles(string.Empty).ShouldBe((null, null));

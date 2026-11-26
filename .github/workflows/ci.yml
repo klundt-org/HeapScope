@@ -238,6 +238,7 @@ jobs:
           for runtime in net8.0 net9.0; do
             HEAPSCOPE_FIXTURE_RUNTIME=$runtime bash build/fixture-dump.sh "$RUNNER_TEMP/$runtime/leaky.dmp" cli=src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli
             bash build/check-known-answers.sh src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli "$RUNNER_TEMP/$runtime/leaky.dmp"
+            HEAPSCOPE_FIXTURE_RUNTIME=$runtime dotnet test --project tests/HeapScope.Integration.Tests -c Release --no-build --results-directory "$RUNNER_TEMP/test-results/$runtime" --filter-class "*.KnownAnswerTests" --filter-class "*.LoaderKnownAnswerTests" --filter-class "*.DetectorTests"
           done
           # GC handles of a Server GC process with fewer heaps than processors (peer review 4.5).
           bash build/check-handles.sh "$PWD/src/HeapScope.Cli/bin/Release/net10.0/heapscope-cli" "$RUNNER_TEMP/handles"

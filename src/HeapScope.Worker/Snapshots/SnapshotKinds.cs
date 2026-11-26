@@ -194,9 +194,10 @@ internal sealed class SnapshotKinds
                 notes.Add("HeapScope could not check all GC handles of this Server GC process. Objects held only by a handle, and what they hold, can look unreachable, and leak detectors can miss them. To see what is alive, capture a gcdump while the process runs. To check again, run heapscope-cli open with --rebuild on this dump.");
             }
 
-            if (metadata.Info.Facts.HasFlag(SnapshotFacts.StaticsUnread))
+            // A cache from before loader version 7 recorded no check: its older cache note says it (SnapshotOpener.OlderCacheNote).
+            if (metadata.LoaderVersion >= StaticsCheckedSince && !metadata.Info.Facts.HasFlag(SnapshotFacts.StaticsChecked))
             {
-                notes.Add("HeapScope could not read the static fields of this dump: a heap dump of .NET 8 or before leaves out the memory they are kept in. Objects held only by a static field, and what they hold, can look unreachable, and leak detectors can miss them. Capture a full dump instead (heapscope-cli capture, or dotnet-dump collect --type Full).");
+                notes.Add("HeapScope could not read the runtime's own static fields in this dump, so it could not read the others either. A heap dump of .NET 8 taken on Windows (dotnet-dump collect --type Heap) leaves them out. Objects held only by a static field, and what they hold, can look unreachable, and leak detectors can miss them. If this is such a dump, capture a full dump instead (heapscope-cli capture, or dotnet-dump collect --type Full); HeapScope's log says what it found.");
             }
 
             if (metadata.Info.Facts.HasFlag(SnapshotFacts.CaptureTimeFromFile))
@@ -212,8 +213,17 @@ internal sealed class SnapshotKinds
 
         public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
 
+        /// <summary>The loader version that checks the statics (<see cref="SnapshotFacts.StaticsChecked"/>).</summary>
+        public const int StaticsCheckedSince = 7;
+
         public override UncheckedRoots? Unchecked(SnapshotInfo info) =>
-            info.Facts.HasFlag(SnapshotFacts.StaticsUnread) ? UncheckedRoots.Statics : HandlesChecked(info) ? null : UncheckedRoots.Handles;
+            (info.Facts.HasFlag(SnapshotFacts.StaticsChecked), HandlesChecked(info)) switch
+            {
+                (true, true) => null,
+                (true, false) => UncheckedRoots.Handles,
+                (false, true) => UncheckedRoots.Statics,
+                (false, false) => UncheckedRoots.Both,
+            };
 
         public override string UnreachableNote(SnapshotInfo info) => Unchecked(info) is { } roots
             ? $"No root HeapScope could read reaches it. {roots.Sentence} (see its notes), so it may still be alive."

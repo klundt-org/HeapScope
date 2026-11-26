@@ -79,7 +79,7 @@ Capture and sessions (sprint 1.1):
   mappings in `/proc/<pid>/maps`; on macOS, since 4.2 and untested, libproc's regions or, when larger, the physical footprint's
   fallback, plus the shared cache) plus 16 MB of streams; when the walk is denied, private bytes x 1.1 + 384 MB for images
   and mapped files + 16 MB. Free space comes from `GetDiskFreeSpaceEx` on the folder itself (UNC paths and mount points;
-  elsewhere `DriveInfo` on the folder, which asks its file system), and 1 GB is always left free. The capture's log line
+  elsewhere `DriveInfo` on the folder, which asks its file system), and 1 GB is always left free, plus room for the dump's index caches (0.9 of the dump, `DumpCapturer.ReserveFor`, since 4.7). The capture's log line
   names the estimate beside the size written, so each system's margin shows in the logs. The dump is
   written to `<name>.dmp.partial` and renamed only on success; an existing file is never overwritten. The runtime's
   createdump runs inside the target under the target's account and cannot be stopped safely, so a cancel waits until

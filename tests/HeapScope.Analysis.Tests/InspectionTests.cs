@@ -241,10 +241,14 @@ public sealed class InspectionTests
         var builder = new SyntheticGraphBuilder();
         var texts = new Dictionary<ulong, string>();
         var values = DuplicateStringsInspection.MostRows + 5;
+        long wasted = 0, dropped = 0;
         for (var v = 0; v < values; v++)
         {
             // Value 0 is the longest, so the five shortest (the last) are the ones not listed.
             var text = v.ToString("D6", System.Globalization.CultureInfo.InvariantCulture) + new string('x', values - v);
+            var size = 22 + (2L * text.Length);
+            wasted += size;
+            dropped += v >= DuplicateStringsInspection.MostRows ? size : 0;
             for (var copy = 0; copy < 2; copy++)
             {
                 texts[builder.Object("System.String", 22 + (2 * (ulong)text.Length), module: "System.Private.CoreLib.dll", typeKind: TypeKind.String).Address] = text;
@@ -259,7 +263,10 @@ public sealed class InspectionTests
         var rows = Rows(result);
         rows.Count.ShouldBe(DuplicateStringsInspection.MostRows);
         rows.ShouldNotContain(r => r[0]!.StartsWith((values - 1).ToString("D6", System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal));
-        result.Note.ShouldNotBeNull().ShouldContain("5 more, wasting");
+        result.Note.ShouldNotBeNull().ShouldContain($"5 more, wasting {dropped:N0} bytes");
+        result.WastedBytes.ShouldBe(wasted, "the totals count every duplicate, listed or not");
+        result.Bytes.ShouldBe(2 * wasted);
+        Enumerable.Range(values - 5, 5).ShouldAllBe(v => !rows.Any(r => r[0]!.StartsWith(v.ToString("D6", System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)));
         DuplicateStringsInspection.MostRows.ShouldBeLessThan(values);
         new DuplicateStringsInspection().WorkingBytes(graph).ShouldBeGreaterThan(2L * values * 12);
     }

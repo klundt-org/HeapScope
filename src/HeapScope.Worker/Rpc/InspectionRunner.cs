@@ -119,8 +119,22 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             {
                 // Inside a reservation of what it may hold (peer review 4.5 H6, sprint 4.7): refused with a next step rather than run
                 // into the worker's memory limit.
-                using var reservation = snapshots.Reserve(request.SnapshotId, inspection.WorkingBytes(snapshot.Graph), $"Running {inspection.Title}")
-                    ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
+                var working = inspection.WorkingBytes(snapshot.Graph);
+                IDisposable? reservation;
+                try
+                {
+                    reservation = snapshots.Reserve(request.SnapshotId, working, $"Running {inspection.Title}") ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
+                }
+                catch (InsufficientMemoryException)
+                {
+                    var memory = HeapScope.Core.SystemMemory.Current();
+                    logger.LogWarning(
+                        "Inspection {Inspection} v{Version} refused for memory: it may hold {Working:N0} bytes ({Objects:N0} objects); the machine has {Available:N0} of {Total:N0} bytes available ({Source}), the worker holds {Held:N0}",
+                        inspection.Name, inspection.Version, working, snapshot.Graph.ObjectCount, memory.AvailableBytes, memory.TotalBytes, memory.Source, HeapScope.Core.ProcessMemory.PrivateBytes());
+                    throw;
+                }
+
+                using var held = reservation;
                 result = await Task.Run(() => inspection.Run(context), cancellationToken).ConfigureAwait(false);
             }
             finally

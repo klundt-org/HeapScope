@@ -93,7 +93,8 @@ internal static partial class TestFolders
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // Held by a process still running, or another run's sweep took it first: the next run tries again.
+                // Held by a process still running, or another run's sweep took it first: said, and the next run tries again.
+                Console.Error.WriteLine($"A stale test folder could not be swept; the next run tries again: {folder} ({ex.GetType().Name}: {ex.Message})");
             }
         }
 
@@ -124,6 +125,7 @@ internal static partial class TestFolders
     [GeneratedRegex("^[0-9a-f]{32}$")]
     private static partial Regex Guid();
 
-    [GeneratedRegex(@"^heapscope-[a-z0-9-]+-[a-z0-9]{8}\.[a-z0-9]{3}$")]
+    // Windows: a random 8.3 name (abcdefgh.ijk); Unix: mkdtemp's six letters and digits, mixed case.
+    [GeneratedRegex(@"^heapscope-[a-z0-9-]+-([a-z0-9]{8}\.[a-z0-9]{3}|[A-Za-z0-9]{6})$")]
     private static partial Regex Prefixed();
 }

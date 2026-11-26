@@ -42,6 +42,13 @@ internal static class TestedRuntimes
             return null;
         }
 
+        // .NET Framework's runtime is 4.x, and .NET Core 3.x's file version 4.700.x: neither is what HeapScope analyzes (ADR-002).
+        if (major < 5)
+        {
+            return string.Create(CultureInfo.InvariantCulture,
+                $"This dump's runtime reads as version {runtimeVersion}, older than .NET 5: HeapScope analyzes .NET 5 and later, not .NET Framework or .NET Core 3. Results may be wrong.");
+        }
+
         return string.Create(CultureInfo.InvariantCulture,
             $"This dump is of .NET {runtimeVersion}. HeapScope checks its answers on dumps of .NET {Majors[0]} to {Majors[^1]}; it reads other versions too, but has not checked them, so a result that looks wrong may be HeapScope's. Its log names what it read, for an issue on HeapScope's site.");
     }

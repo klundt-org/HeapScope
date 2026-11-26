@@ -34,7 +34,7 @@ namespace HeapScope.Worker.Tests;
 /// </summary>
 public sealed class FeatureRulesTests : IDisposable
 {
-    private const SnapshotFacts AllFacts = SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations | SnapshotFacts.HandlesChecked;
+    private const SnapshotFacts AllFacts = SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations | SnapshotFacts.HandlesChecked | SnapshotFacts.StaticsChecked;
 
     private readonly SnapshotKinds _kinds = new(new WorkerOptions("pipe", null));
     private readonly List<ISnapshot> _opened = [];

@@ -60,6 +60,10 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
 
     public SnapshotCapabilities Requires => SnapshotCapabilities.FieldValues | SnapshotCapabilities.RootDetails;
 
+    // It finds collections by the static fields that hold them: on a dump whose statics could not be read it would find none and
+    // say nothing (the review of 4.7, H5), so it is refused there.
+    public SnapshotFacts RequiresFacts => SnapshotFacts.StaticsChecked;
+
     public InspectionKind Kind => InspectionKind.Leak;
 
     public bool UsesBaseline => true;

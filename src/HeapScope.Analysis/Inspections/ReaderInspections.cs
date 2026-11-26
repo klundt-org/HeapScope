@@ -456,15 +456,16 @@ internal sealed class DuplicateStringsInspection : IInspection
             Count++;
             Bytes += row.Copies * row.Size;
             Wasted += row.Wasted;
-            var dropped = _kept.Count < most ? null : _kept.EnqueueDequeue(row, (row.Wasted, row.Representative));
-            if (_kept.Count < most && dropped is null)
+            if (_kept.Count < most)
             {
                 _kept.Enqueue(row, (row.Wasted, row.Representative));
                 return;
             }
 
+            // Full: the least wasteful of the kept rows and this one goes.
+            var dropped = _kept.EnqueueDequeue(row, (row.Wasted, row.Representative));
             Dropped++;
-            DroppedWasted += dropped!.Wasted;
+            DroppedWasted += dropped.Wasted;
         }
 
         public DuplicateRow[] Rows() => [.. _kept.UnorderedItems.Select(static e => e.Element)];

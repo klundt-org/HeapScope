@@ -33,7 +33,7 @@ namespace HeapScope.Worker.Tests;
 /// <summary>Which inspections run on which snapshots, and the reasons given otherwise (sprint 1.6, ADR-020).</summary>
 public sealed class InspectionAvailabilityTests
 {
-    private static readonly SnapshotInfo s_fullDump = new(SnapshotKind.FullDump, "app.dmp", Facts: SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations);
+    private static readonly SnapshotInfo s_fullDump = new(SnapshotKind.FullDump, "app.dmp", Facts: SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations | SnapshotFacts.StaticsChecked);
 
     [Fact]
     public void Every_inspection_runs_on_a_full_dump_loaded_by_this_version()

@@ -275,7 +275,7 @@ public static class InfoTexts
         "then says what the two size rules do after firing: below fires again once the heap falls under 90 percent of the threshold, once never fires again, and step raises the threshold by its own amount.\n" +
         "at most is the most snapshots the rules may take in a run; empty means no limit. Get snapshot and failed captures do not count.\n" +
         "as gcdumps makes this run's snapshots gcdumps, with only objects and references, instead of full dumps. Each one runs a full garbage collection in the process.\n" +
-        "Record allocations records sampled allocations with call stacks for the whole run, up to 1 GB, and shows them below the chart while it runs. After the run, press Open allocations under Past runs.";
+        "Record allocations records sampled allocations with call stacks for the whole run, up to 512 MB (less on a machine with little memory), and shows them below the chart while it runs. After the run, press Open allocations under Past runs.";
 
     /// <summary>Live: Past runs heading.</summary>
     public const string LivePastRuns =

@@ -54,7 +54,8 @@ public sealed class HeapDumpStaticsTests
         var result = new ClrMdDumpLoader().Load(folder.File("app.dmp"), cancellationToken: TestContext.Current.CancellationToken);
 
         using var graph = result.Graph;
-        result.Info.Facts.HasFlag(SnapshotFacts.StaticsUnread).ShouldBe(unread);
+        result.Info.Facts.HasFlag(SnapshotFacts.StaticsChecked).ShouldBe(!unread);
+        result.Diagnostics.Statics.ShouldNotBeNull().ShouldContain("System.Private.CoreLib's reference statics");
         var named = Enumerable.Range(0, result.Graph.ObjectCount)
             .SelectMany(i => result.Graph.Roots.GetRoots(i).ToArray())
             .Any(r => r.Kind == RootKind.StaticField && result.Graph.Strings[r.DetailId] == "Fixtures.Leaks.StaticCacheLeak.s_cache");
@@ -78,6 +79,7 @@ public sealed class HeapDumpStaticsTests
 
         var log = string.Join(Environment.NewLine, Directory.GetFiles(logs, "*.log").Select(File.ReadAllText));
         log.ShouldContain("First load of " + folder.File("app.dmp"));
-        log.ShouldContain("(reserved)");
+        log.ShouldContain(" done: ");
+        log.ShouldContain(" reserved; ");
     }
 }

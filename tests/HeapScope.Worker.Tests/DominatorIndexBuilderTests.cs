@@ -194,7 +194,9 @@ public sealed class DominatorIndexBuilderTests : IDisposable
 
         full.Note.ShouldBeNull("garbage in a full dump retains nothing by definition");
         gcdump.Note.ShouldNotBeNull().ShouldContain("10 objects (3.0 MB) of this gcdump");
-        Rpc.DerivedQueries.Info(index, Core.SnapshotKind.FullDump, 100, completeGraph: true, handlesChecked: false).Note.ShouldNotBeNull().ShouldStartWith("Not all GC handles could be checked");
+        Rpc.DerivedQueries.Info(index, Core.SnapshotKind.FullDump, 100, completeGraph: true, roots: Snapshots.UncheckedRoots.Handles).Note.ShouldNotBeNull().ShouldStartWith("Not all GC handles could be checked");
+        // The review of 4.7 (H2): a dump whose statics could not be read says so, not handles.
+        Rpc.DerivedQueries.Info(index, Core.SnapshotKind.FullDump, 100, completeGraph: true, roots: Snapshots.UncheckedRoots.Statics).Note.ShouldBe("The static fields of this dump could not be checked (see its notes), so what only a static field holds retains nothing here.");
         (truncated.CompleteGraph, truncated.Note).ShouldBe((false, "This snapshot is incomplete, so some references are missing and retained sizes may be overstated."));
     }
 

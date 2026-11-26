@@ -268,8 +268,9 @@ public sealed class DumpAnalysis : IDisposable
     }
 
     /// <summary>
-    /// The value of every thread static field on every thread (sprint 4.7): .NET 8, and .NET 10 on Linux, report no thread static
-    /// root, and the loader roots them by their field, so the reference walk must too.
+    /// The value of every thread static field that holds a reference on every live thread: .NET 8, and .NET 10 on Linux, report no
+    /// thread static root, and the loader roots them by their field, so the reference walk must too. Not independent of the loader: it
+    /// reads them through the same ClrMD calls. A struct thread static is checked by its own known answer instead.
     /// </summary>
     public IEnumerable<ClrObject> ThreadStaticValues()
     {
@@ -279,7 +280,7 @@ public sealed class DumpAnalysis : IDisposable
             {
                 foreach (var field in type.ThreadStaticFields.Where(static f => f.IsObjectReference))
                 {
-                    foreach (var thread in Runtime.Threads)
+                    foreach (var thread in Runtime.Threads.Where(static t => t.IsAlive))
                     {
                         var value = field.ReadObject(thread);
                         if (!value.IsNull && value.IsValid)

@@ -189,7 +189,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
                 | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
                 | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked)
-                | (staticSlots.Unread ? SnapshotFacts.StaticsUnread : SnapshotFacts.None));
+                | (staticSlots.CoreInitialized > 0 ? SnapshotFacts.StaticsChecked : SnapshotFacts.None));
 
         // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
         var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
@@ -199,7 +199,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             graph,
             info,
             capabilities,
-            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk),
+            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk, staticSlots.Describe()),
             new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
     }
 
@@ -787,14 +787,17 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return pointed.IsValid && pointed.Type?.MethodTable == type.MethodTable ? pointed : default;
     }
 
-    // The addresses of the slots of every initialized static that holds a reference (sorted): where the runtime keeps them; and
-    // whether the statics could not be read at all. Every process has System.Private.CoreLib's statics initialized by the time it can
-    // be dumped, so none of them initialized means their memory is not in the dump: a heap dump of .NET 8 leaves it out (sprint 4.7;
-    // 0 of 191 there, 106 in a full dump of the same process). A small module's few may still read; they do not make it complete.
-    private static (ulong[] Slots, bool Unread) StaticSlots(ClrRuntime runtime, CancellationToken cancellationToken)
+    // The addresses of the slots of every static that holds a reference (sorted), a thread static's on each live thread: where the
+    // runtime keeps them. And whether the statics could be read at all: every process has System.Private.CoreLib's reference statics
+    // initialized by the time it can be dumped, so none of them means their memory is not in the dump (a heap dump of .NET 8 written
+    // on Windows leaves it out: 0 of 191 there, 106 in a full dump of the same process). CoreLib is the runtime's own module, not a file
+    // name, which a single-file app may not give.
+    private static StaticSlotsFound StaticSlots(ClrRuntime runtime, CancellationToken cancellationToken)
     {
         var slots = new List<ulong>();
         var (coreFields, coreInitialized) = (0, 0);
+        var coreLibrary = runtime.BaseClassLibrary?.Address ?? 0;
+        var threads = runtime.Threads.Where(static t => t.IsAlive).ToArray();
         var seen = new HashSet<(ulong Module, ulong Domain)>();
         foreach (var domain in runtime.AppDomains)
         {
@@ -805,13 +808,18 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     continue;
                 }
 
-                cancellationToken.ThrowIfCancellationRequested();
+                var core = coreLibrary != 0 && module.Address == coreLibrary;
                 foreach (var type in module.EnumerateTypesWithStaticFields())
                 {
-                    // A thread static's slot of each thread: .NET 8 keeps them in arrays strong handles hold too (sprint 4.7).
+                    cancellationToken.ThrowIfCancellationRequested();
                     foreach (var field in type.ThreadStaticFields)
                     {
-                        foreach (var thread in field.IsObjectReference ? runtime.Threads : [])
+                        if (!field.IsObjectReference && field.Type is not { ContainsPointers: true })
+                        {
+                            continue;
+                        }
+
+                        foreach (var thread in threads)
                         {
                             if (field.GetAddress(thread) is var threadSlot and not 0)
                             {
@@ -827,12 +835,14 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                             continue;
                         }
 
-                        var core = IsCoreLibrary(module);
                         coreFields += core ? 1 : 0;
-                        if (field.IsInitialized(domain) && field.GetAddress(domain) is var slot and not 0)
+                        var initialized = field.IsInitialized(domain);
+                        coreInitialized += core && initialized ? 1 : 0;
+
+                        // Every slot, initialized or not: an array that holds only a generic type's or a not yet set static's is storage too.
+                        if (field.GetAddress(domain) is var slot and not 0)
                         {
                             slots.Add(slot);
-                            coreInitialized += core ? 1 : 0;
                         }
                     }
                 }
@@ -840,11 +850,16 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         }
 
         slots.Sort();
-        return ([.. slots], coreFields > 0 && coreInitialized == 0);
+        return new StaticSlotsFound([.. slots], coreFields, coreInitialized, coreLibrary != 0);
     }
 
-    private static bool IsCoreLibrary(ClrModule module) =>
-        module.Name is { } name && Path.GetFileNameWithoutExtension(name).Equals("System.Private.CoreLib", StringComparison.OrdinalIgnoreCase);
+    // What the statics' check found, for the load's log line (the support review of 4.7): the verdict rests on these counts.
+    private sealed record StaticSlotsFound(ulong[] Slots, int CoreFields, int CoreInitialized, bool CoreFound)
+    {
+        public string Describe() => CoreFound
+            ? string.Create(CultureInfo.InvariantCulture, $"System.Private.CoreLib's reference statics {CoreInitialized} of {CoreFields} initialized, {Slots.Length} slots")
+            : string.Create(CultureInfo.InvariantCulture, $"System.Private.CoreLib not found, {Slots.Length} slots");
+    }
 
     // Whether the array at address (an object[]) holds one of the slots: the runtime's static storage of .NET 8.
     private static bool HoldsStaticSlot(ClrHeap heap, ulong address, ulong[] slots)
@@ -863,6 +878,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     private static int AddStaticFieldRoots(ClrRuntime runtime, HeapGraphBuilder builder, CancellationToken cancellationToken)
     {
         var added = 0;
+        var threads = runtime.Threads.Where(static t => t.IsAlive).ToArray();
         var checks = 0;
         var seen = new HashSet<(ulong Module, ulong Domain)>();
         foreach (var domain in runtime.AppDomains)
@@ -909,18 +925,19 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                         }
                     }
 
-                    // A thread static is named by its field too, once per thread that set it (peer review 4.5 M11, sprint 4.7): .NET 8
-                    // reports no thread static root at all, and .NET 9 and 10 only the runtime's arrays that hold them.
+                    // A thread static is named by its field too, once per live thread that set it (peer review 4.5 M11): .NET 8, and
+                    // .NET 10 on Linux, report no thread static root, and .NET 9 and 10 on Windows only the runtime's arrays. A struct
+                    // with references is boxed per thread, as a struct static is; a dead thread's statics are freed, never read.
                     foreach (var field in type.ThreadStaticFields)
                     {
-                        if (!field.IsObjectReference)
+                        if (!field.IsObjectReference && !(field.IsValueType && field.Type is { ContainsPointers: true }))
                         {
                             continue;
                         }
 
-                        foreach (var thread in runtime.Threads)
+                        foreach (var thread in threads)
                         {
-                            var value = field.ReadObject(thread);
+                            var value = field.IsObjectReference ? field.ReadObject(thread) : BoxOf(runtime.Heap, field.GetAddress(thread), field.Type!);
                             if (value.IsNull || !value.IsValid)
                             {
                                 continue;

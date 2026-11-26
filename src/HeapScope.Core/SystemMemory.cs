@@ -70,9 +70,33 @@ public readonly partial record struct SystemMemory(long TotalBytes, long Availab
         }
 
         var (limitFile, usageFile) = CgroupFiles(File.Exists("/proc/self/cgroup") ? File.ReadAllText("/proc/self/cgroup") : string.Empty);
-        return FromLinux(File.ReadAllText("/proc/meminfo"), ReadValue(limitFile), ReadValue(usageFile));
+
+        // In a container without a cgroup namespace of its own the path names the host's: its files are then at the mount's root.
+        if (limitFile is not null && !File.Exists(limitFile))
+        {
+            (limitFile, usageFile) = (Root(limitFile), Root(usageFile!));
+        }
+
+        var usage = ReadValue(usageFile);
+        if (usage is { } used && usageFile is not null && Path.Combine(Path.GetDirectoryName(usageFile)!, "memory.stat") is var stat && File.Exists(stat))
+        {
+            // Page cache the kernel gives back counts as use: the mapped dump being read would shrink what is left (the review of 4.7).
+            usage = Math.Max(0, used - InactiveFile(File.ReadAllText(stat)));
+        }
+
+        var memory = FromLinux(File.ReadAllText("/proc/meminfo"), ReadValue(limitFile), usage);
+
+        // The runtime reads the cgroup limit through the mounts, as this cannot always: its total caps this one.
+        var runtimeTotal = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        return memory is { } m && runtimeTotal > 0 && runtimeTotal < m.TotalBytes
+            ? new SystemMemory(runtimeTotal, Math.Min(m.AvailableBytes, runtimeTotal), m.Source + " and the runtime's limit")
+            : memory;
 
         static long? ReadValue(string? path) => path is not null && File.Exists(path) ? CgroupValue(File.ReadAllText(path)) : null;
+
+        static string Root(string file) => file.StartsWith("/sys/fs/cgroup/memory/", StringComparison.Ordinal)
+            ? "/sys/fs/cgroup/memory/" + Path.GetFileName(file)
+            : "/sys/fs/cgroup/" + Path.GetFileName(file);
     }
 
     /// <summary>
@@ -137,6 +161,22 @@ public readonly partial record struct SystemMemory(long TotalBytes, long Availab
         }
 
         return (null, null);
+    }
+
+    /// <summary>The inactive file pages of a cgroup's memory.stat (v2 <c>inactive_file</c>, v1 <c>total_inactive_file</c>), 0 when it names none.</summary>
+    internal static long InactiveFile(string memoryStat)
+    {
+        foreach (var line in memoryStat.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = line.Split(' ', 2);
+            if (parts.Length == 2 && parts[0] is "inactive_file" or "total_inactive_file"
+                && long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var bytes))
+            {
+                return bytes;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>A cgroup file's bytes; null for "max" (no limit) or text that is not a number.</summary>

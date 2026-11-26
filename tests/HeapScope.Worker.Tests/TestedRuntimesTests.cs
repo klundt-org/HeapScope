@@ -48,6 +48,12 @@ public sealed class TestedRuntimesTests
         note.ShouldContain(".NET 8 to 10");
     }
 
+    [Theory]
+    [InlineData("4.8.4645.0")]
+    [InlineData("4.700.22.55902")]
+    public void A_runtime_before_dotnet_5_is_said_not_supported(string version) =>
+        TestedRuntimes.Note(version).ShouldNotBeNull().ShouldContain("older than .NET 5");
+
     // The fixtures are built for each tested runtime: the list and their TargetFrameworks stay in step.
     [Fact]
     public void The_tested_runtimes_are_the_fixtures_runtimes()
