@@ -62,8 +62,9 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
         process.Name.ShouldBe("LeakyApi");
         process.RuntimeVersion.ShouldNotBeNull().ShouldStartWith("10.");
         process.CommandLine.ShouldNotBeNull().ShouldContain("LeakyApi");
-        // A child of the test run shares its elevation (CI's runners run elevated, sprint 3.6).
-        process.Elevation.ShouldBe(WindowsElevationProbe.Instance.IsCurrentProcessElevated ? ElevationState.Elevated : ElevationState.NotElevated);
+        // A child of the test run shares its elevation (CI's runners run elevated, sprint 3.6); off Windows, its user.
+        process.Elevation.ShouldBe(!OperatingSystem.IsWindows() ? ElevationState.NotElevated
+            : WindowsElevationProbe.Instance.IsCurrentProcessElevated ? ElevationState.Elevated : ElevationState.NotElevated);
         process.WorkingSetBytes.ShouldNotBeNull().ShouldBeGreaterThan(0);
         new ProcessDiscovery().List(Ct).ShouldNotContain(p => p.ProcessId == Environment.ProcessId, "HeapScope's own processes are not listed");
     }
@@ -82,7 +83,10 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
             .ShouldBeTrue("the target's DAC is kept next to the dump, per runtime version");
         File.Exists(result.Path).ShouldBeTrue();
         result.SizeBytes.ShouldBeGreaterThan(10L * 1024 * 1024);
-        MinidumpHeader.Read(result.Path).HasHeapMemory.ShouldBeTrue("a full dump");
+        if (OperatingSystem.IsWindows())
+        {
+            MinidumpHeader.Read(result.Path).HasHeapMemory.ShouldBeTrue("a full dump");
+        }
         var recorded = SessionLibrary.TryRead(session.Folder)!.Document.Snapshots.ShouldHaveSingleItem();
         recorded.ProcessId.ShouldBe(shared.Api.ProcessId);
         recorded.ProcessName.ShouldBe("LeakyApi");
@@ -190,6 +194,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     [Fact]
     public async Task A_real_elevated_process_gives_the_administrator_message()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Administrator is a Windows rule; off Windows another user is, which the capture checks cover.");
         Assert.SkipWhen(WindowsElevationProbe.Instance.IsCurrentProcessElevated, "The test run is elevated, so every process can be dumped.");
         var elevated = new ProcessDiscovery().List(Ct).FirstOrDefault(p => p.Elevation == ElevationState.Elevated);
         Assert.SkipWhen(elevated is null, "No elevated .NET process is running on this machine.");
@@ -203,7 +208,7 @@ public sealed class CaptureTests(RunningApi shared) : IClassFixture<RunningApi>,
     [Fact]
     public async Task A_process_that_is_not_dotnet_is_a_plain_error()
     {
-        using var notDotNet = ChildProcess.Start("cmd.exe", "/c", "ping -n 30 127.0.0.1 > nul");
+        using var notDotNet = ChildProcess.StartIdle(30);
 
         var ex = await Should.ThrowAsync<CaptureFailedException>(() => Service().StartCapture(notDotNet.Process.Id).Result);
 

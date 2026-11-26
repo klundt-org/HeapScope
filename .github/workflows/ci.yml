@@ -219,6 +219,12 @@ jobs:
         # Every test project that runs here, found by build/test.sh rather than listed (peer review S1).
         timeout-minutes: 15
         run: bash build/test.sh fast Release "$RUNNER_TEMP/test-results"
+      - name: Integration tests
+        # Sprint 4.7 (peer review 4.5 H12): real captures, dumps, workers and the CLI on Linux too; the tests of what only Windows has
+        # (mini dumps, elevation, window handles) skip here and say why. The heavy collection stays on Windows.
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.changes.outputs.code == 'true' }}
+        timeout-minutes: 25
+        run: bash build/test.sh integration-light Release "$RUNNER_TEMP/test-results"
       - name: Capture the fixture with the CLI, check the known answers, open it in the app without a display
         # Runs when a test failed but the build did not: the dump, the CLI and the app are what this job is for. Since sprint
         # 4.1 HeapScope's own CLI captures it, as on Windows (it took dotnet-dump before capture ran on Linux).
@@ -244,6 +250,13 @@ jobs:
           "$app" --headless --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/ui-log" || { cat "$RUNNER_TEMP"/ui-log/*.log; exit 1; }
           grep -h "Smoke open\|Smoke drill" "$RUNNER_TEMP"/ui-log/*.log | cut -c1-400
           grep -q "Smoke open types: .*Fixtures.Leaks.StaticCacheEntry 2000" "$RUNNER_TEMP"/ui-log/*.log || { echo "The app did not show 2000 StaticCacheEntry objects"; exit 1; }
+          # Sprint 4.7 (peer review 4.5 H12): the app's own window on X11, under a virtual display, opens the dump and drills down as the
+          # headless run does. A real desktop is a Backlog check (claude-dev-3).
+          sudo apt-get install -y --no-install-recommends xvfb > /dev/null
+          xvfb-run -a -s "-screen 0 1600x1000x24" "$app" --smoke-open "$dump" --Logging:File:Directory "$RUNNER_TEMP/x11-log" || { cat "$RUNNER_TEMP"/x11-log/*.log; exit 1; }
+          grep -h "Smoke open\|Smoke drill\|First window rendered" "$RUNNER_TEMP"/x11-log/*.log | cut -c1-400
+          grep -q "First window rendered" "$RUNNER_TEMP"/x11-log/*.log || { echo "The app's window was not rendered under X11"; exit 1; }
+          grep -q "Smoke open types: .*Fixtures.Leaks.StaticCacheEntry 2000" "$RUNNER_TEMP"/x11-log/*.log || { echo "The app's window did not show 2000 StaticCacheEntry objects"; exit 1; }
       - name: Capture the tutorial's sample on Linux, and run the app's live smoke run
         # Sprint 4.1 task 7: list, a full dump and a gcdump through the CLI, both opened; then the Live page charts made-up
         # samples headless. HeapScope's logs go where the next step keeps them (Logging__File__Directory, set for the workflow).

@@ -6,7 +6,7 @@ Status: living document, updated by every sprint.
 - Windows 11 x64 (Windows 10 x64 also supported) for everything. Since sprint 2.3.6 the engine, the worker, the CLI and
   the Avalonia app also build and run on Linux (x64) and macOS (Apple silicon or Intel). Capture runs on Linux too since
   sprint 4.1, proven in CI's Linux job (no local Linux run here), and is built for macOS since 4.2, where nobody has run it:
-  its parsers and rules are tested on every system (`MacFactsTests`), its calls to the system are not. The integration tests stay Windows only. The build scripts are bash (Git Bash on Windows); the sample dump scripts in `fixtures/scripts` are
+  its parsers and rules are tested on every system (`MacFactsTests`), its calls to the system are not. The integration tests run on Windows and, since sprint 4.7, Linux (light tier; the tests of what only Windows has skip there and say why; the heavy collection stays on Windows). The build scripts are bash (Git Bash on Windows); the sample dump scripts in `fixtures/scripts` are
   PowerShell.
 - .NET 10 SDK (10.0.100 or later). `global.json` sets the minimum SDK (10.0.100) and rolls forward to the latest
   installed feature band.

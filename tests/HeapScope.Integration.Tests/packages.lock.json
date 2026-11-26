@@ -1,7 +1,7 @@
 {
   "version": 2,
   "dependencies": {
-    "net10.0-windows7.0": {
+    "net10.0": {
       "Microsoft.Diagnostics.NETCore.Client": {
         "type": "Direct",
         "requested": "[0.2.750501, )",
@@ -569,8 +569,8 @@
       "heapscope-cli": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Application": "[4.2.1, )",
-          "HeapScope.Contracts": "[4.2.1, )",
+          "HeapScope.Application": "[4.6.0, )",
+          "HeapScope.Contracts": "[4.6.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.15, )",
           "System.CommandLine": "[2.0.15, )"
         }
@@ -578,16 +578,16 @@
       "heapscope.analysis": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[4.2.1, )",
+          "HeapScope.Core": "[4.6.0, )",
           "System.IO.Hashing": "[10.0.15, )"
         }
       },
       "heapscope.application": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Capture": "[4.2.1, )",
-          "HeapScope.Contracts": "[4.2.1, )",
-          "HeapScope.Core": "[4.2.1, )",
+          "HeapScope.Capture": "[4.6.0, )",
+          "HeapScope.Contracts": "[4.6.0, )",
+          "HeapScope.Core": "[4.6.0, )",
           "Microsoft.Extensions.Hosting.Abstractions": "[10.0.15, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.15, )",
           "Microsoft.Extensions.Options": "[10.0.15, )",
@@ -597,8 +597,8 @@
       "heapscope.capture": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[4.2.1, )",
-          "HeapScope.ThirdParty.GcDump": "[4.2.1, )",
+          "HeapScope.Core": "[4.6.0, )",
+          "HeapScope.ThirdParty.GcDump": "[4.6.0, )",
           "Microsoft.Diagnostics.NETCore.Client": "[0.2.750501, )",
           "Microsoft.Diagnostics.Tracing.TraceEvent": "[4.0.2, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.15, )"
@@ -613,29 +613,29 @@
       "heapscope.loaders.clrmd": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[4.2.1, )",
+          "HeapScope.Core": "[4.6.0, )",
           "Microsoft.Diagnostics.Runtime": "[4.2.751201, )"
         }
       },
       "heapscope.loaders.gcdump": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[4.2.1, )",
-          "HeapScope.ThirdParty.GcDump": "[4.2.1, )",
+          "HeapScope.Core": "[4.6.0, )",
+          "HeapScope.ThirdParty.GcDump": "[4.6.0, )",
           "Microsoft.Diagnostics.Tracing.TraceEvent": "[4.0.2, )"
         }
       },
       "heapscope.loaders.trace": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[4.2.1, )",
+          "HeapScope.Core": "[4.6.0, )",
           "Microsoft.Diagnostics.Tracing.TraceEvent": "[4.0.2, )"
         }
       },
       "heapscope.storage": {
         "type": "Project",
         "dependencies": {
-          "HeapScope.Core": "[4.2.1, )",
+          "HeapScope.Core": "[4.6.0, )",
           "System.IO.Hashing": "[10.0.15, )"
         }
       },

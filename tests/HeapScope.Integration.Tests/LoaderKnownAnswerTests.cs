@@ -507,6 +507,7 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
     [Fact]
     public async Task A_real_mini_dump_is_refused()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "A mini dump is a Windows dump kind; a Linux core file of that kind is checked by its own header.");
         using var folder = new TempFolder();
         var path = folder.File("normal.dmp");
         using (var fixture = await FixtureProcess.StartConsoleAsync("--leak", "StaticCache", "--count", "10"))
@@ -564,7 +565,11 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
     [Fact]
     public void Shared_fixture_dumps_carry_heap_memory_and_load_complete()
     {
-        MinidumpHeader.Read(shared.Source.DumpPath).HasHeapMemory.ShouldBeTrue();
+        if (OperatingSystem.IsWindows())
+        {
+            MinidumpHeader.Read(shared.Source.DumpPath).HasHeapMemory.ShouldBeTrue();
+        }
+
         shared.Result.Capabilities.HasFlag(Core.SnapshotCapabilities.CompleteGraph).ShouldBeTrue();
         shared.Result.Diagnostics.IncompleteSegments.ShouldBe(0);
     }

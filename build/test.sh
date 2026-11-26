@@ -25,7 +25,7 @@
 # Runs one tier of HeapScope's tests (sprint 3.6, peer review P4 and S1), the same way in CI and in build/gate.sh.
 #   fast         every test project that runs on this system but the Integration project, without the Integration and
 #                Slow traits; a project left with no tests fails (peer review S1: nothing may stop running silently)
-#   integration  the Integration project (Windows: it targets net10.0-windows; it captures and loads real dumps)
+#   integration  the Integration project (it captures and loads real dumps; on Linux too since sprint 4.7, where its Windows-only tests skip)
 #   integration-light, integration-heavy
 #                the Integration project split in two for CI's parallel Windows jobs (2026-10-31): the heavy
 #                collection (classes with the Run=Heavy trait, run one at a time) and everything else
@@ -91,12 +91,10 @@ case "$tier" in
     done
     ;;
   integration)
-    [ "$windows" = true ] || { echo "The integration tier runs on Windows (its project targets net10.0-windows)."; exit 0; }
     dotnet test --project "$integration" -c "$configuration" "${report[@]}" \
       || failed="$failed HeapScope.Integration.Tests"
     ;;
   integration-light|integration-heavy)
-    [ "$windows" = true ] || { echo "The integration tier runs on Windows (its project targets net10.0-windows)."; exit 0; }
     filter=--filter-not-trait; [ "$tier" = integration-heavy ] && filter=--filter-trait
     dotnet test --project "$integration" -c "$configuration" "${report[@]}" "$filter" "Run=Heavy" \
       || failed="$failed HeapScope.Integration.Tests"
