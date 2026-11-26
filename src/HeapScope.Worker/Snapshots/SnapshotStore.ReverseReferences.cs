@@ -73,7 +73,7 @@ internal sealed partial class SnapshotStore
         long committed;
         using (var process = Process.GetCurrentProcess())
         {
-            committed = process.PrivateMemorySize64;
+            committed = HeapScope.Core.ProcessMemory.PrivateBytes();
         }
 
         var mode = ReverseIndexBuilder.ChooseMode(

@@ -21,7 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-using System.Runtime.InteropServices;
+using HeapScope.Core;
 
 namespace HeapScope.Storage;
 
@@ -34,24 +34,15 @@ public sealed partial record MemoryBudget(long TotalPhysicalBytes, long Availabl
     public long BudgetBytes => Math.Max(0, Math.Min((long)(TotalPhysicalBytes * Fraction), AvailableBytes));
 
     /// <summary>
-    /// The budget from live operating system figures (Windows: GlobalMemoryStatusEx), read now rather than at the
-    /// last garbage collection. A GC heap hard limit, when set, caps both values; it is never used as the total by
+    /// The budget from live operating system figures (<see cref="SystemMemory"/>: on Windows, Linux and macOS since sprint 4.7,
+    /// peer review 4.5 H7), read now rather than at the last garbage collection. A GC heap hard limit, when set, caps both values; it is never used as the total by
     /// itself (gc-specialist review of 0.5).
     /// </summary>
     public static MemoryBudget Current(double fraction = 0.5, MemoryMode? forced = null)
     {
         var info = GC.GetGCMemoryInfo();
-        long total, available;
-        if (OperatingSystem.IsWindows() && NativeMethods.TryGetMemoryStatus(out var totalPhys, out var availPhys))
-        {
-            total = (long)totalPhys;
-            available = (long)availPhys;
-        }
-        else
-        {
-            total = info.TotalAvailableMemoryBytes;
-            available = info.TotalAvailableMemoryBytes - info.MemoryLoadBytes;
-        }
+        var system = SystemMemory.Current();
+        var (total, available) = (system.TotalBytes, system.AvailableBytes);
 
         // TotalAvailableMemoryBytes is the hard limit when one is configured, otherwise physical memory.
         var gcLimit = info.TotalAvailableMemoryBytes;
@@ -64,40 +55,6 @@ public sealed partial record MemoryBudget(long TotalPhysicalBytes, long Availabl
         return new MemoryBudget(total, Math.Max(0, available), fraction, forced);
     }
 
-    private static partial class NativeMethods
-    {
-        public static bool TryGetMemoryStatus(out ulong totalPhysical, out ulong availablePhysical)
-        {
-            var status = new MemoryStatusEx { Length = (uint)Marshal.SizeOf<MemoryStatusEx>() };
-            if (GlobalMemoryStatusEx(ref status))
-            {
-                totalPhysical = status.TotalPhys;
-                availablePhysical = status.AvailPhys;
-                return true;
-            }
-
-            totalPhysical = availablePhysical = 0;
-            return false;
-        }
-
-        [LibraryImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static partial bool GlobalMemoryStatusEx(ref MemoryStatusEx buffer);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct MemoryStatusEx
-        {
-            public uint Length;
-            public uint MemoryLoad;
-            public ulong TotalPhys;
-            public ulong AvailPhys;
-            public ulong TotalPageFile;
-            public ulong AvailPageFile;
-            public ulong TotalVirtual;
-            public ulong AvailVirtual;
-            public ulong AvailExtendedVirtual;
-        }
-    }
 }
 
 /// <summary>Chooses in-memory or mapped mode for a graph of a given size (ADR-015).</summary>

@@ -139,8 +139,8 @@ internal sealed class MemoryReservations(Func<MemoryBudget>? budget = null, Func
 
     private static long CommittedBytes()
     {
-        using var process = Process.GetCurrentProcess();
-        return process.PrivateMemorySize64;
+        // Its physical footprint on macOS, where private bytes read 0 (peer review 4.5 H7).
+        return HeapScope.Core.ProcessMemory.PrivateBytes();
     }
 
     private void Release(long bytes)
