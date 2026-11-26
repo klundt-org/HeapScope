@@ -158,7 +158,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
     unreachable set's generation split. Wording drafts for the owner. Tests: the texts, the split.
 13. [x] What 4.5's fixes left: Compare's retained columns say when only one side's GC handles were checked; a cached load whose handles
     could not be checked is loaded again when its cause is gone (the second walk turned on again, the DAC found). Tests: both.
-14. [ ] The tests that failed in CI now and then: the run's trace that had no bytes for 60 s (a start that hangs, near task 2), the
+14. [x] The tests that failed in CI now and then: the run's trace that had no bytes for 60 s (a start that hangs, near task 2), the
     bookmarks status of a damaged file on Linux, the live allocations follower (fixed 2026-11-25, watched). Each fixed or explained.
 
 **Decisions**

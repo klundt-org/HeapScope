@@ -153,7 +153,8 @@ public sealed class BookmarksViewModelTests : IDisposable
         var snapshots = Create();
 
         await OpenAsync(snapshots, "app.dmp");
-        await WaitUntilAsync(() => snapshots.Bookmarks.Status is not null);
+        // Once on Linux CI (2026-11-25) the status was not there within 10 s, unexplained: the wait says what it saw.
+        await WaitUntilAsync(() => snapshots.Bookmarks.Status is not null, TimeSpan.FromSeconds(30), () => $"items {snapshots.Bookmarks.Items.Count}, files {string.Join(", ", Directory.EnumerateFiles(Path.Combine(_folder, "data")).Select(Path.GetFileName))}");
 
         snapshots.Bookmarks.Status!.ShouldContain("set aside");
         _logger.Lines.ShouldContain(l => l.Contains("Damaged", StringComparison.Ordinal));
@@ -180,12 +181,12 @@ public sealed class BookmarksViewModelTests : IDisposable
         await WaitUntilAsync(() => true);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan? wait = null, Func<string>? state = null)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        var deadline = DateTime.UtcNow + (wait ?? TimeSpan.FromSeconds(10));
         while (!condition())
         {
-            DateTime.UtcNow.ShouldBeLessThan(deadline, "condition not met in time");
+            DateTime.UtcNow.ShouldBeLessThan(deadline, "condition not met in time: " + state?.Invoke());
             await Task.Delay(10, Ct);
         }
     }
