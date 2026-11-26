@@ -164,6 +164,9 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
             // The current session takes the library's lock, which an open or a deletion can hold for seconds: not on the UI thread (peer
             // review 4.5 H10, as LiveViewModel does since 3.4).
             var folder = await Task.Run(() => library.Current.Folder, ct).ConfigureAwait(false);
+
+            // Marked in use while it records, as captures and runs are, so the session is not deleted under it (peer review 4.5 M8).
+            using var inUse = library.MarkInUse(folder, "a recording of allocations");
             var path = UniquePath(folder, processName, processId);
             progress.Report(new JobProgress("Recording allocations", 0, null, string.Create(CultureInfo.InvariantCulture, $"Up to {duration.TotalSeconds:N0} s; Stop keeps what was recorded")));
             _logger.LogInformation("Recording allocations of {Name} (pid {Pid}) for up to {Seconds} s to {Path}", processName, processId, duration.TotalSeconds, path);

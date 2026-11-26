@@ -24,6 +24,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
+using HeapScope.Application.Events;
 using HeapScope.Application.Workers;
 using HeapScope.Core;
 using Microsoft.Extensions.Logging;
@@ -290,7 +291,7 @@ public sealed class SampleService : IDisposable
         }
 
         _logger.LogInformation("Sample {Pid} stopped ({Reason}): {Scenarios}, after {Seconds:N0} s", processId, reason, string.Join(", ", entry.Sample.Scenarios), (DateTimeOffset.UtcNow - entry.Sample.StartedUtc).TotalSeconds);
-        Changed?.Invoke(this, EventArgs.Empty);
+        SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         return true;
     }
 
@@ -449,7 +450,7 @@ public sealed class SampleService : IDisposable
             toReady.TotalSeconds,
             launch.FileName,
             string.Join(' ', arguments));
-        Changed?.Invoke(this, EventArgs.Empty);
+        SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         return sample;
     }
 
@@ -473,7 +474,7 @@ public sealed class SampleService : IDisposable
         DeleteRecord(entry.Sample.ProcessId);
         if (wasRunning)
         {
-            Changed?.Invoke(this, EventArgs.Empty);
+            SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         }
 
         _ = ReportExitAsync(entry, reason);

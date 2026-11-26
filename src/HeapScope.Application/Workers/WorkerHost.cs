@@ -560,6 +560,10 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             {
                 // Still running although the pipe broke: report without an exit code.
             }
+            catch (InvalidOperationException)
+            {
+                // Another caller's restart disposed the process meanwhile (peer review 4.5 M8): it is still a crash, without an exit code.
+            }
         }
 
         OnSessionLost(session, cause.GetType().Name);

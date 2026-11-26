@@ -151,7 +151,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
    empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
 10. [x] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
     note); Compare and Trend query only while shown and catch up when shown. Tests per view.
-11. [ ] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and its
+11. [x] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and its
     process kill tolerates an exited process; a recording from the Processes page marks its session in use, and an open trace keeps its
     session. Tests: two callers of a crash; a throwing listener; deleting a session that records.
 12. [ ] M9: "no root found" in place of "unreachable" stated as fact where stack roots of a running process can be incomplete, and the
