@@ -39,6 +39,9 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   stops a process only when its record's start time matches the running process, so a reused pid is never stopped. The lesson
   progress (`learn-progress.json`) holds lesson ids only. Process discovery lists the sample, the one exception to hiding
   HeapScope's own executables.
+- HeapScope's own small JSON files (lesson progress, bookmarks, settings; sprint 4.6, peer review 4.5 M6) go through one helper
+  (`PrivateJsonFile`): a lock file around a read and its write, reads that share the file and try again while it is held, writes to a new
+  owner-only file flushed to the disk that then replaces the old one, and a file that cannot be read now is never written over.
 - Index caches are signed with a per-user key (sprint 3.7, ADR-036): a cache shipped next to a dump, written by another
   user or machine, or forged with recomputed checksums is never used.
 - Private files (sprint 3.7, peer review P15): on Windows a file HeapScope creates is created with an owner-only access

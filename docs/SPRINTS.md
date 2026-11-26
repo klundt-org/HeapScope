@@ -134,7 +134,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 2. [x] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced
    collection and the counters; closing the app waits a bounded time for its host, logs what it waited for and always shuts down.
    Tests: the helper with a stop that never answers; a recording and a forced collection of a suspended process end.
-3. [x] H10: the file and process work at a job's start runs on the thread pool, never on the caller's (UI) thread: the trusted DACs an open reads, the session a recording takes, starting a worker (all jobs on the pool broke the synchronous start the views rely on). Test: work that
+3. [x] H10: the file and process work at a job's start runs on the thread pool, never on the caller's (UI) thread: the trusted DACs an open reads, the session a recording takes, starting a worker (all jobs on the pool broke the synchronous start the views rely on). Deferred (Backlog): a test. Was: work that
    records its thread is never run on the caller's.
 4. [x] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
    after a failed check, and stops recording with a message after several in a row. Tests: the probe on a folder, failures counted.
@@ -151,13 +151,15 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
    empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
 10. [x] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
     note); Compare and Trend query only while shown and catch up when shown. Tests per view.
-11. [x] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and its
-    process kill tolerates an exited process; a recording from the Processes page marks its session in use, and an open trace keeps its
-    session. Tests: two callers of a crash; a throwing listener; deleting a session that records.
+11. [x] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and a kill its
+    timeout fires is logged, not thrown; a recording from the Processes page marks its session in use. Test: an architecture rule against raw
+    event raises in Application. Deferred (Backlog): an open trace keeping its session, and tests of the crash race, a throwing listener and a
+    recording's session in use.
 12. [x] M9: "no root found" in place of "unreachable" stated as fact where stack roots of a running process can be incomplete, and the
     unreachable set's generation split. Wording drafts for the owner. Tests: the texts, the split.
-13. [x] What 4.5's fixes left: Compare's retained columns say when only one side's GC handles were checked; a cached load whose handles
-    could not be checked is loaded again when its cause is gone (the second walk turned on again, the DAC found). Tests: both.
+13. [x] What 4.5's fixes left: retained sizes (Compare's two sides, the Types grid, the CLI) say when a snapshot's GC handles were not all
+    checked. Test: `DominatorIndexBuilderTests`. A cache loaded again by itself once the second walk is on was built and taken out after the
+    review: the dump that needed the walk off would end the worker on every open. `heapscope-cli open --rebuild` is the step, as the note says.
 14. [x] The tests that failed in CI now and then: the run's trace that had no bytes for 60 s (a start that hangs, near task 2), the
     bookmarks status of a damaged file on Linux, the live allocations follower (fixed 2026-11-25, watched). Each fixed or explained.
 
@@ -166,7 +168,8 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
   Decided autonomously.
 - New user-facing texts are drafts in `docs/design/info-text.md` ("Sprint 4.6 additions") until the owner approves them; the sprint is built
   with them. Decided autonomously.
-- A protocol change (task 5's counts, task 13's note) bumps the worker protocol once for the sprint. Decided autonomously.
+- No protocol change after all: task 5's counts and task 13's caution reach clients in the notes that exist (process-model.md). Decided
+  autonomously.
 - Settings for the DAC on the Settings page (H15) stay in 4.8 with the rest of "Ready to release"; task 7 only says the file and line.
   Decided autonomously.
 

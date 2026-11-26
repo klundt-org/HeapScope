@@ -23,7 +23,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   [1.6]. `Graph/ReverseReferences` (the incoming references CSR, built by counting and filling, or from an index file's
   columns) and `HeapGraph.Attach` (an optional index is disposed with the graph, after the snapshot's last lease) [2.1];
   `DependentHandle` and `HeapGraph.DependentHandles` / `IsDependentHandleEdge` [2.2]. `LeaseTracker` (the leases of
-  section 6.5) [0.5]; `PrivateFiles` (owner-only folders and files: 0700 and 0600 off Windows, an owner-only access list
+  section 6.5) [0.5]; `PrivateJsonFile` and `JsonFileRead` (HeapScope's small JSON files: a lock, shared reads, a whole replace; 4.6) [4.6]; `PrivateFiles` (owner-only folders and files: 0700 and 0600 off Windows, an owner-only access list
   on Windows) [2.3.6, 3.7]; `Loading/DacChoice` (the DAC a dump was read with and why) [2.3.7]; `IndexCachePaths` (a
   snapshot's index cache, its sidecar kinds and the writer's temporary files, for Storage and for deletion) [3.4].
   `ValueReadsRefused` (why a snapshot's field values and strings are refused) and `Loading/LoadPhaseCost` (a load phase's

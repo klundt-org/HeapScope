@@ -86,6 +86,11 @@ references such as "ARCHITECTURE.md 8" still name the right section.
   mapped snapshots hold a lease for their whole duration (section 6.5). The per-snapshot type aggregation
   (sprint 1.3) is computed once, behind its own per-snapshot `SemaphoreSlim`, with `Parallel.For` over 1M-object
   partitions and thread-local arrays merged at the end; it is dropped when the snapshot closes.
+- **Work at a job's start** (sprint 4.6, peer review 4.5 H10): a job's work runs on the caller's thread up to its first await, so what a
+  job reads from disk or starts first runs on the pool (the trusted DACs an open sends, the session a recording writes into, starting the
+  worker). Every job on the pool was tried and broke the views, which rely on a job starting at once.
+- **Sessions with a target** (sprint 4.6, H9): a stop waits 5 s at most for the target (`SessionStop`), 30 s for a recording's stop with its
+  rundown, then lets the session go; a recording's start waits 30 s; closing the app waits 15 s for its host's dispose, then ends.
 - **Host lifecycle**: UI and CLI start their generic host with `StartAsync` and stop it with a bounded
   `StopAsync` (UI 5 s, CLI 10 s) before exit, so hosted services such as the worker client shut down in order; the
   worker host honors that bound and kills the worker when it is reached. In the desktop app,
