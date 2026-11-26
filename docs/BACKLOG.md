@@ -70,7 +70,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   release PR #66, the push run only: its wait ended 64 ms past its deadline; the rerun passed),
   `UiResponsivenessTests.Ui_stays_responsive_during_a_5M_synthetic_job` and `PageCostTests` (2026-11-14, the wrap's full run
   beside four reviewers and a build; both passed alone), `AllocationTraceTests` (2026-11-15, the 3.13 wrap's full Debug run:
-  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `AllocationTraceTests` in CI (2026-11-21, PR #78: its recording's session did not start within 60 s; the rerun passed. Explained in sprint 4.7, task 12: the recording was written through a 64 KB buffer, so an idle target's file stayed empty and the test's wait for bytes ran out; written unbuffered since), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait). Three gate runs on sprint
+  its shared recording failed, so its 12 tests failed at once; all passed alone), `CounterMonitorTests` (again 2026-11-15), `AllocationTraceTests` in CI (2026-11-21, PR #78: its recording's session did not start within 60 s; the rerun passed. Explained in sprint 4.7, task 12: the recording was written through a 64 KB buffer, so an idle target's file stayed empty and the test's wait for bytes ran out; written unbuffered since), `DiffTests` (leak deltas short of the known answers), `CliCancelTests` (2026-11-13: its fixture took 90 s to grow its heap and missed its ready wait), `SampleTests` churn scenario (2026-11-26, the 4.7 gate: its recording did not start within 60 s; passed alone). Three gate runs on sprint
   3.10 (2026-11-04), each failing differently, each test passing alone: `DiffTests` again and `LeakyApiGrowthTests` (growth a
   little short of the known answers, for example `System.Byte[]` 4,973 of 5,000), `UiResponsivenessTests` (one operation of at
   most 159 ms as a job ended, 17 ms alone), and all 12 `AllocationTraceTests` (their fixture's setup canceled). `DiffTests` has
@@ -167,6 +167,9 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   the worker refusing a first load that does not fit when the open says it may not overcommit (a protocol field); the 1 GB trace
   reader replaced by one streaming reader (H8, L); a real Linux desktop run of the app (claude-dev-3); the cause of a live recording's
   late start once in the 4.6 gate (`AllocatedBetweenTests`), which the file buffer of 4.7 does not explain.
+  From the task 10 follow-up (F12, F13): a snapshot note when a load kept its references in memory for lack of space or a
+  failed file (user-facing wording; the log says it); `ColumnBytes` split into private and file-backed bytes, for the memory mode
+  log and choice.
 - From sprint 4.6 (decided autonomously; [reviews/sprint-4.6.md](reviews/sprint-4.6.md) M15 to M19 and H5): the settings and lesson progress
   saves off the UI thread; the unread counts as data in the inspection DTO; the event handler detector, the disposed objects detector with no
   flag readable, and the collection inspections with an items field unread saying what they could not read, with a test per detector with

@@ -11,8 +11,8 @@ The object graph is a struct-of-arrays, CSR-style structure indexed by `ObjectIn
 ### 6.1 Data structures
 
 Every array below is a `Column<T>` (a read-only, span-producing column of unmanaged values), not a raw
-`T[]`. A column is backed either by a managed array or by a read-only memory-mapped view of an index cache
-section (ADR-015). Algorithms only ever see `ReadOnlySpan<T>`, so they do not care which backing is used.
+`T[]`. A column is backed by a managed array, by a read-only memory-mapped view of an index cache section, or (the
+references of a full dump's first load, since 4.7) by a read-only view of their own temporary file (ADR-015, 6.3). Algorithms only ever see `ReadOnlySpan<T>`, so they do not care which backing is used.
 
 | Array | Element | Bytes per object | Notes |
 |---|---|---|---|
@@ -109,7 +109,25 @@ Supporting tables:
    `AddReferences`. Any exception thrown while state changes faults the builder, and a builder that never
    reaches `Build` is disposed to release allocator memory. The builder throws if a source index is not greater than the previous
    one, because an out-of-order row would silently corrupt `EdgeStarts`. Chunked edge buffers are copied once
-   into the final `Edges` array.
+   into the final `Edges` array, unless the builder is given a folder (sprint 4.7, task 10): then the references are written to
+   a private temporary file there (`edges-<pid>-<guid>.tmp`) as they are added (`EdgeStore`, 4 MB at a time) and the file is
+   mapped read-only as the `Edges` column, so the references are never held twice. That copy was the first load's peak: 1.3 GB
+   more on an 8 GB DenseHeap dump (106M objects, 320M references). The worker passes `HeapScopeFolders.Edges` (the user's
+   temporary folder on Windows, `<data folder>/edges` elsewhere, as for `.etlx` files, 0700); the graph is the same either way.
+   - The file needs about 4 bytes per reference on the folder's drive. Before creating it the store checks the free space
+     there against 16 bytes per object (4 references each) plus 1 GB kept free.
+   - It belongs to the graph and is deleted with it: when the load switches to the mapped cache, or, for a snapshot kept in
+     memory, when it closes, so beside the index cache the references are on disk twice while such a snapshot is open. On
+     Windows it is opened delete on close, so the system deletes it if the worker dies (a power loss can leave one, which may
+     be deleted); elsewhere it has no name once open. A tmpfs folder (a data folder under some systems' `/tmp`) keeps it in
+     memory or swap, which saves nothing there. On Windows it is written to disk during the load (not marked temporary), so
+     its pages become standby memory, which the budget counts as available.
+   - When the space is short, or the file cannot be created, written or mapped, the references are kept in memory: what the
+     file holds by then is read straight into the final column, so they are held once plus the chunks added after. The worker
+     logs it when it happens (a warning with the reason and the next step), and the load's line says where they were kept.
+   Freezing a graph of a million objects or more runs one blocking collection after copying the addresses and one after the
+   other columns, so the copied chunks (18 bytes per object) are not live beside the columns: without them freezing set the
+   peak, by when the GC happened to run.
 Full dump loaders enumerate the heap twice (objects, then references) for exactly this reason. Because heap
 enumeration order is not address order with regions (.NET 7+), the reference pass walks the sorted `Addresses`
 column and reads each object by address (`heap.GetObject(address)`), not `EnumerateObjects`.
@@ -117,7 +135,8 @@ column and reads each object by address (`heap.GetObject(address)`), not `Enumer
 Final columns are obtained from an `IColumnAllocator` given to the builder. Sprint 0.2 provides the managed
 array allocator; a file-backed allocator that writes columns straight into index cache sections can be added
 later (first load on memory constrained machines, Large tier) without changing the builder. Sprint 2.3 built that kind of
-writer for the optional indices (`MappedIndexFileWriter`, section 7); the base graph still builds in managed arrays.
+writer for the optional indices (`MappedIndexFileWriter`, section 7); the base graph still builds in managed arrays, except
+its references, which a full dump's load writes to their own temporary file since sprint 4.7 (above).
 
 Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `DacLocator`, `LocalOnlyFileLocator`):
 - ClrMD reads the dump through its lock-free memory-mapped reader (`DataTargetOptions.UseLockFreeMemoryMapReader`):
@@ -372,7 +391,7 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
     case) are slow everywhere (257 s) and not representative of heaps.
 
 ### 6.5 Memory modes (ADR-015)
-- **In-memory**: columns are managed arrays. Fastest. Used while the projected worker footprint fits in the
+- **In-memory**: columns are managed arrays, except a first load's references, a mapped temporary file (6.3). Fastest. Used while the projected worker footprint fits in the
   memory budget.
 - **Mapped**: columns are read-only memory-mapped views of the index cache. The OS pages data in on demand and
   can drop it under pressure, so the worker's committed memory stays small. Used when the projected footprint
@@ -382,7 +401,7 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
   time. A request can force a mode; a configurable fraction is a backlog item. The synthetic job checks against the
   same budget. On a 16 GB laptop running the target API and an IDE, a Medium snapshot will usually open mapped; on
   32 GB it opens in memory.
-- First load builds in memory, then writes the cache. If the projected build footprint exceeds the budget,
+- First load builds in memory (its references in a mapped temporary file, 6.3), then writes the cache. If the projected build footprint exceeds the budget,
   the Application layer warns before starting (ADR-004). The projection counts the graph columns, the builder's
   transient buffers and ClrMD's own caches; the ClrMD loader caps ClrMD's data cache explicitly.
 - When a snapshot switches to mapped mode after its first load, the worker drops the built arrays and runs one
@@ -401,7 +420,9 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
 
 #### Lifetime of mapped data
 A span over an unmapped view is an access violation that kills the worker, so mapped data has an explicit
-lifetime rule (implemented in sprint 0.5: `LeaseTracker`, `ISnapshot.AcquireLease`). A mapped snapshot owns its views through the graph's owner. Every query takes a lease
+lifetime rule (implemented in sprint 0.5: `LeaseTracker`, `ISnapshot.AcquireLease`). A mapped snapshot owns its views through the graph's owner, and since 4.7 so does a snapshot kept in memory after a first load
+(the view of its references' file, 6.3): the rule protects real mappings in both modes. `ColumnBytes` counts that view as the
+graph's memory, so the mode choice treats it as memory the switch to mapped would free (conservative: its pages are the file's). Every query takes a lease
 (`using var lease = snapshot.AcquireLease()`), works on spans only inside that scope and never stores a span or a
 pointer beyond it. Disposing a snapshot (explicitly or by LRU) returns at once; the mapping is released when the last
 lease is returned. `Column<T>` wraps `ReadOnlyMemory<T>`; a native backing is a `MemoryManager<T>` over the mapped

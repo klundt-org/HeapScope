@@ -313,7 +313,10 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   those listed. Tests that cannot delete their folder say it on the error stream. The load line gives the statics' check ("static field
   roots N (System.Private.CoreLib's reference statics X of Y initialized, Z slots)"), on which `StaticsChecked` rests; an inspection
   refused for memory logs its estimate, objects, the machine's available and total memory with their source, and the worker's bytes;
-  a full dump with no runtime version HeapScope can read logs so.
+  a full dump with no runtime version HeapScope can read logs so. The load line ends with where the references were kept
+  ("references written to a temporary file and mapped (N MB, count, its path or folder)", or "in memory: ..." with why: the
+  free space short, or the file not created, written or mapped). A load that falls back says so when it happens, as a warning
+  ("References of {dump} kept in memory ...", with the next step), so a load that fails afterwards still has its cause.
 - Right answers (sprint 4.6): an inspection that could not read some of what it checks logs "could not read N of M {what}" with its rule,
   version and basis (which names what it probed), and says it in the answer's note; one that read none is refused with the same line before
   it. The growing static collections detector's basis names the collections in static storage no field names, by type, and the counts it

@@ -51,7 +51,8 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   HeapScope's own data folders (the cache key, trusted DACs and their copies, trace conversion) are made owner-only
   (0700) when they exist with a wider mode, and refused when they belong to another user
   (`CreatePrivateDirectory`); trace conversion (`.etlx`) uses HeapScope's data folder instead of the shared `/tmp` off
-  Windows; partial traces and CSV exports are created new and private, never written into a file someone made first.
+  Windows, and so does a full dump's load for its references' temporary file (`edges`, since 4.7: object indices only, no
+  values; owner-only, deleted on close on Windows and unnamed once open elsewhere, graph-format.md 6.3); partial traces and CSV exports are created new and private, never written into a file someone made first.
   The partial-file sweep skips links and never sweeps a folder the user picked.
 - Paths a received `session.json` names (sprint 3.7, peer review S3): a run's timeline is opened only when it is a
   regular `.csv` file inside the session folder, reached through no folder link (the rule deleting a session uses); its

@@ -171,9 +171,12 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
     and logs the estimate against what was used and how the load ended. One that does not fit is logged, not refused: the worker is not
     told whether the user accepted the front ends' warning (heapscope-cli open --no-overcommit refuses before asking); a refusal in the
     worker needs a protocol change (Backlog). An 8 GB DenseHeap dump is measured (first load, peak, reopen in both modes, the indices;
-    and with the working set capped); if the peak is over budget, the edges go into the cache as they are read. Tests:
-    `A_first_load_is_reserved_and_logged_against_its_estimate`; the measurement in budgets.md. Code done; the measurement waits for
-    free memory.
+    and with the working set capped): 5,279 MB against 4 GB, so the references go to a mapped temporary file as they are read
+    (not into the cache: their count is not known until the pass ends; ADR-015 amended), falling back to memory, logged, when
+    space is short or the file fails, and freezing collects its chunks. Tests: `A_first_load_is_reserved_and_logged_against_its_estimate`,
+    `EdgeStoreTests` (the same graph; the file released on every path; each fallback),
+    `A_load_that_writes_its_references_to_a_file_builds_the_same_graph`; the measurements in budgets.md (2 GB: 1,920 to 1,161 MB).
+    The 8 GB dump after the fix is still to be measured.
 11. [x] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
     need (by the graph's bytes per object); counters read the interval the target reports and log one that differs from the one asked.
     Tests: each.
@@ -194,6 +197,8 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
 - Decided autonomously: the 1 GB trace limit becomes 512 MB; the streaming reader for a finished trace is Backlog (L).
 - Decided autonomously: the test temp cleanup (task 1) joins the sprint: a killed run left 17 GB in the temp folder (owner, 2026-11-25).
 - Decided autonomously: the edges written straight into the cache only if the 8 GB measurement misses the 4 GB first load budget.
+  It missed (5,279 MB); owner, 2026-11-26: fix it in 4.7. Built as their own mapped temporary file instead of the cache
+  (ADR-015 amended); the first load estimate is refitted once the 8 GB dump is measured again.
 
 ---
 

@@ -119,6 +119,7 @@ internal abstract class SnapshotKindHandler
 
 /// <summary>The handlers of every kind, chosen by kind or by a file's first bytes.</summary>
 /// <param name="dacChosen">Told which DAC each full dump's runtime was created with (sprint 2.3.7).</param>
+/// <param name="edgesKeptInMemory">Told a dump's path and why when its load keeps the references in memory (sprint 4.7).</param>
 internal sealed class SnapshotKinds
 {
     // For what does not depend on the worker's options (texts, name forms, versions): explanations and diffs.
@@ -130,9 +131,9 @@ internal sealed class SnapshotKinds
 
     private readonly SnapshotKindHandler[] _handlers;
 
-    public SnapshotKinds(WorkerOptions options, Action<DacChoice>? dacChosen = null)
+    public SnapshotKinds(WorkerOptions options, Action<DacChoice>? dacChosen = null, Action<string, string>? edgesKeptInMemory = null)
     {
-        _handlers = [new FullDumpKind(options, dacChosen, _trustedDacs), new GcDumpKind()];
+        _handlers = [new FullDumpKind(options, dacChosen, edgesKeptInMemory, _trustedDacs), new GcDumpKind()];
     }
 
     /// <summary>Adds the DACs an open request trusts.</summary>
@@ -158,7 +159,7 @@ internal sealed class SnapshotKinds
     public SnapshotKindHandler ForFile(string path) =>
         SnapshotFileSignature.Detect(path) is { } kind ? For(kind) : throw new SnapshotFormatException(SnapshotFileSignature.DescribeUnknown(path));
 
-    private sealed class FullDumpKind(WorkerOptions options, Action<DacChoice>? dacChosen, ConcurrentDictionary<string, byte> trustedDacs) : SnapshotKindHandler
+    private sealed class FullDumpKind(WorkerOptions options, Action<DacChoice>? dacChosen, Action<string, string>? edgesKeptInMemory, ConcurrentDictionary<string, byte> trustedDacs) : SnapshotKindHandler
     {
         public override SnapshotKind Kind => SnapshotKind.FullDump;
 
@@ -244,6 +245,7 @@ internal sealed class SnapshotKinds
             IsTrustedDac = trustedDacs.ContainsKey,
             TrustedDacCopyFolder = options.Folders.DacCopies,
             EdgeFolder = options.Folders.Edges,
+            EdgesKeptInMemory = edgesKeptInMemory,
 
             // A machine without the dump's runtime, for tests (WorkerOptions.HideInstalledDacsSwitch).
             InstalledRuntimeRoots = options.HideInstalledDacs ? [] : null,

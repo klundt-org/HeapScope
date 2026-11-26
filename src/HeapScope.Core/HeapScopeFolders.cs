@@ -87,8 +87,9 @@ public sealed class HeapScopeFolders
         : Path.Combine(Root, "etlx");
 
     /// <summary>
-    /// The references' temporary files while a dump loads (sprint 4.7): where <see cref="Etlx"/> goes, for the same reasons.
-    /// Each is deleted when its snapshot closes, or by the system when the worker dies (Windows) or as it is opened (elsewhere).
+    /// The references' temporary files of full dumps' loads: where <see cref="Etlx"/> goes, for the same reasons. One lives as
+    /// long as its graph: until the load switches to the mapped cache, or, for a snapshot kept in memory, until it closes; the
+    /// system deletes it when the worker dies (Windows), and elsewhere it has no name once open. About 4 bytes per reference.
     /// </summary>
     public string Edges => _isDefault && OperatingSystem.IsWindows()
         ? Path.Combine(Path.GetTempPath(), "HeapScope", "edges")

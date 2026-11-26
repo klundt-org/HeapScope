@@ -105,10 +105,17 @@ public sealed record ClrMdLoaderOptions
     public bool SecondHandleWalk { get; init; } = true;
 
     /// <summary>
-    /// A folder for the references' temporary file while a dump loads (sprint 4.7, task 10): they are written there as they
-    /// are read and the file is mapped, so the load never holds them twice. Null keeps them in memory.
+    /// A folder for the references' temporary file: they are written there as they are read and the file is mapped, so the
+    /// load never holds them twice. The file lives as long as the graph: until the load switches to the mapped cache, or,
+    /// for a snapshot kept in memory, until it closes. Null keeps them in memory.
     /// </summary>
     public string? EdgeFolder { get; init; }
+
+    /// <summary>
+    /// Told the dump's path and why when a load keeps its references in memory instead of <see cref="EdgeFolder"/> (no
+    /// space, the file failed): when it happens, so a load that fails afterwards still says so. The worker logs it.
+    /// </summary>
+    public Action<string, string>? EdgesKeptInMemory { get; init; }
 
     /// <summary>Reads GC handles as from a dump that does not record its processors (a core file), for tests.</summary>
     internal bool IgnoreProcessorsForTests { get; init; }

@@ -13,7 +13,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   refuses for a reason the user can act on; any other exception at its boundary is a bug) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
   `SnapshotInfo` with `FreeBytes` and `SnapshotFacts` [1.6]; the capability model; `IObjectReader` (fields as a tree of
   `ObjectField`, typed `ObjectValue`s with `ObjectValueKind` and `EnumMember`, `ReadField` by path, `ReadStrings` in bulk,
-  string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder`, `TypeKind.ReferenceArray`
+  string text, reference paths) [1.5, 1.6]. `Graph/`: the compact graph, `HeapGraphBuilder` (its `EdgeStore` writes a load's references to a temporary file and maps it [4.7]), `TypeKind.ReferenceArray`
   [1.6] and `TypeNameForms` (a full dump's type name in the form a gcdump records it [1.8], and a runtime event's in the snapshots' spelling [4.4]); types without a method
   table are told apart by name and module [1.8]. `Loading/`: the loader contract both loaders share (`ISnapshotLoader`
   with its `Version`, `LoadResult`, `LoadProgress`, `LoadTimings`, `LoadDiagnostics`) and `SnapshotFileSignature` (a

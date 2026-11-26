@@ -85,4 +85,36 @@ public sealed class HeapDumpStaticsTests
         // Task 10: the worker writes the references to a temporary file as it reads them, and says so.
         log.ShouldContain("; references written to a temporary file and mapped (");
     }
+
+    // Task 10 follow-up (F1): a load whose references cannot go to their file warns when it happens, before the load's line, so a
+    // load that fails afterwards still has its cause; the load goes on in memory.
+    [Fact]
+    public async Task A_load_that_cannot_make_its_references_file_warns_before_it_ends_and_loads_in_memory()
+    {
+        using var folder = new TempFolder();
+        using (var fixture = await FixtureProcess.StartConsoleAsync("--leak", "StaticCache", "--count", "100"))
+        {
+            fixture.CaptureDump(folder.File("app.dmp"));
+        }
+
+        var data = folder.File("data");
+        Directory.CreateDirectory(data);
+        await File.WriteAllTextAsync(Path.Combine(data, "edges"), "a file where the folder would go", TestContext.Current.CancellationToken);
+        var logs = folder.File("logs");
+        using var open = ChildProcess.Start(
+            TestPaths.CliExe,
+            new Dictionary<string, string> { ["Logging__File__Directory"] = logs, ["HEAPSCOPE_DATA_FOLDER"] = data },
+            "open",
+            folder.File("app.dmp"));
+        (await open.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(open.Output);
+        open.Process.ExitCode.ShouldBe(0, open.Output);
+
+        var log = string.Join(Environment.NewLine, Directory.GetFiles(logs, "*.log").Select(File.ReadAllText));
+        var warned = log.IndexOf("References of " + folder.File("app.dmp") + " kept in memory: the temporary file in " + Path.Combine(data, "edges") + " could not be created (", StringComparison.Ordinal);
+        var loaded = log.IndexOf("Loaded " + folder.File("app.dmp") + " from the dump in ", StringComparison.Ordinal);
+        warned.ShouldBeGreaterThanOrEqualTo(0, log);
+        loaded.ShouldBeGreaterThan(warned, "the warning comes when it happens, before the load's line");
+        log.ShouldContain("Check that the folder is the user's own and can be written");
+        log.ShouldContain("; references in memory: the temporary file in ");
+    }
 }

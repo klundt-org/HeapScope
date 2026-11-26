@@ -376,50 +376,53 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         var handler = _kinds.ForFile(path);
         var loader = LoaderForTests?.Invoke(path) ?? handler.CreateLoader();
         LoadResult? loaded;
-        using (var firstLoad = FirstLoadReservation(path, handler.Kind))
-        {
-            loaded = loader.Load(path, new LoadProgressAdapter(progress, rebuilding), cancellationToken);
-            firstLoad?.Loaded();
-        }
-
-        HeapGraph? graph = loaded.Graph;
-        var diagnostics = loaded.Diagnostics;
-        var metadata = new IndexCacheMetadata(
-            loaded.Info,
-            loaded.Capabilities,
-            IndexCacheMetadata.CurrentWriterVersion,
-            diagnostics.DebuggableModules,
-            diagnostics.UnreadableObjects,
-            loader.Version,
-            diagnostics.StaticFieldRoots,
-            diagnostics.IncompleteSegments,
-            diagnostics.Dac,
-            diagnostics.ProcessNameSource,
-            diagnostics.Handles);
-        var timings = loaded.Timings;
-        logger.LogInformation(
-            "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots} ({Statics}), debuggable modules {Debuggable}; GC handles {Handles}; references {Edges}",
-            path,
-            timings.Total.TotalSeconds,
-            timings.Open.TotalSeconds,
-            timings.Objects.TotalSeconds,
-            timings.Freeze.TotalSeconds,
-            timings.References.TotalSeconds,
-            timings.Roots.TotalSeconds,
-            timings.Build.TotalSeconds,
-            timings.PhaseCosts.Count == 0 ? "not measured" : string.Join("; ", timings.PhaseCosts),
-            diagnostics.UnreadableObjects,
-            diagnostics.IncompleteSegments,
-            diagnostics.StaticFieldRoots,
-            diagnostics.Statics ?? "not checked",
-            diagnostics.DebuggableModules.Count,
-            Describe(diagnostics.Handles, metadata.Info.Kind),
-            diagnostics.Edges ?? "in memory");
-
-        // Nothing else may reference the built graph, or the mapped transition below cannot free it.
-        loaded = null;
+        HeapGraph? graph = null;
         try
         {
+            using (var firstLoad = FirstLoadReservation(path, handler.Kind))
+            {
+                loaded = loader.Load(path, new LoadProgressAdapter(progress, rebuilding), cancellationToken);
+
+                // Owned from here: a failure before the snapshot takes it disposes it, which releases its references' file.
+                graph = loaded.Graph;
+                firstLoad?.Loaded();
+            }
+
+            var diagnostics = loaded.Diagnostics;
+            var metadata = new IndexCacheMetadata(
+                loaded.Info,
+                loaded.Capabilities,
+                IndexCacheMetadata.CurrentWriterVersion,
+                diagnostics.DebuggableModules,
+                diagnostics.UnreadableObjects,
+                loader.Version,
+                diagnostics.StaticFieldRoots,
+                diagnostics.IncompleteSegments,
+                diagnostics.Dac,
+                diagnostics.ProcessNameSource,
+                diagnostics.Handles);
+            var timings = loaded.Timings;
+            logger.LogInformation(
+                "Loaded {Path} from the dump in {Seconds:N1} s: open {OpenSeconds:N1} s, objects {ObjectsSeconds:N1} s, freeze and collect {FreezeSeconds:N1} s, references {ReferencesSeconds:N1} s, roots {RootsSeconds:N1} s, build {BuildSeconds:N1} s; per phase {Costs}; unreadable objects {Unreadable}, incomplete segments {IncompleteSegments}, static field roots {StaticRoots} ({Statics}), debuggable modules {Debuggable}; GC handles {Handles}; references {Edges}",
+                path,
+                timings.Total.TotalSeconds,
+                timings.Open.TotalSeconds,
+                timings.Objects.TotalSeconds,
+                timings.Freeze.TotalSeconds,
+                timings.References.TotalSeconds,
+                timings.Roots.TotalSeconds,
+                timings.Build.TotalSeconds,
+                timings.PhaseCosts.Count == 0 ? "not measured" : string.Join("; ", timings.PhaseCosts),
+                diagnostics.UnreadableObjects,
+                diagnostics.IncompleteSegments,
+                diagnostics.StaticFieldRoots,
+                diagnostics.Statics ?? "not checked",
+                diagnostics.DebuggableModules.Count,
+                Describe(diagnostics.Handles, metadata.Info.Kind),
+                diagnostics.Edges ?? "in memory");
+
+            // Nothing else may reference the built graph, or the mapped transition below cannot free it.
+            loaded = null;
             progress.Report(new JobProgress("Writing index cache", 0, null));
             var identity = TryWriteCache(cachePath, graph, metadata, fingerprint, notes, cancellationToken);
             var written = identity != 0;

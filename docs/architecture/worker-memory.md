@@ -27,7 +27,9 @@ and `build/check-tool.sh`) and `ToolWorkerTests` on the dotnet host start.
 - Work whose size the client chooses is checked against the memory budget before it starts (the synthetic job
   projects its peak and fails with `InsufficientMemory`), and large jobs of the same kind are serialized.
 - Large arrays are allocated once at their final size. No `List<T>` doubling for per-object data; chunked
-  buffers during building, exact arrays after.
+  buffers during building, exact arrays after. A full dump's references are the exception (sprint 4.7): written to a temporary
+  file as they are read and mapped, so the load never holds them twice and their pages are the file's, not the worker's
+  (graph-format.md 6.3).
 - Hot loops avoid LINQ, closures, boxing and per-item allocations. `ArrayPool<T>` for temporary buffers.
 - Sprint 4.7 (peer review 4.5 H5 to H8, M11): a first load of a full dump reserves `FirstLoadEstimate.PeakBytes` (0.55 bytes per dump
   byte and 768 MB) less the worker's idle 256 MB while it loads, and logs it against the peak; one that does not fit is logged, not

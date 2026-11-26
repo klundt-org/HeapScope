@@ -29,30 +29,48 @@ using System.Runtime.InteropServices;
 namespace HeapScope.Core.Graph;
 
 /// <summary>
-/// The references of a graph being built, in row order (sprint 4.7, task 10). Kept in chunks in memory, they were copied into
-/// one array at the end while the chunks were still held, so the load peaked at twice their size (1.3 GB more on a 106M object
-/// dump). Given a folder, they are written to a temporary file as they are read instead, and the file is mapped as the edges
-/// column: its pages belong to the file, not to the process, and nothing is copied. The file is deleted when the graph is
-/// disposed, or by the system if the process dies (Windows), or is never named at all once open (elsewhere). When the file
-/// cannot be created or written (a full disk), what was written is read back and the rest is kept in memory, as before.
+/// The references of a graph being built, in row order. Given a folder, they are written to a private temporary file there
+/// as they are added and the file is mapped read-only as the edges column, so they are never held twice in memory and their
+/// pages are the file's, not the process's (graph-format.md 6.3). The mapping belongs to the graph and the file goes with it:
+/// opened delete on close on Windows, so the system deletes it if the process dies; elsewhere unnamed as soon as it is open.
+/// Without a folder, or when the folder lacks the space, the file cannot be created, written or mapped, the references are
+/// kept in memory; what the file held by then is read straight into the final column, so a fallback holds them once, plus
+/// the chunks added after it. Each fallback is reported through the callback when it happens and kept in <see cref="Where"/>.
 /// </summary>
 internal sealed class EdgeStore : IDisposable
 {
     /// <summary>References written to the file at a time (4 MB).</summary>
     internal const int WriteChunk = 1 << 20;
 
+    /// <summary>References per object the free space check counts on (DenseHeap has 3.0, the fixture heaps 1.1 to 1.2).</summary>
+    internal const int ReferencesPerObjectForSpace = 4;
+
+    /// <summary>Free space left over beyond the file's estimate, for the index cache and the system.</summary>
+    internal const long SpareBytes = 1L << 30;
+
+    /// <summary>References read back from the file at a time (64 MB): a span of more than 2 GiB cannot be read as bytes at once.</summary>
+    internal const int ReadSlice = 1 << 24;
+
     private readonly int[] _pending;
+    private readonly Action<string>? _fellBack;
+    private readonly EdgeStoreHooks? _hooks;
     private int _pendingCount;
+
+    // In memory: every reference (no file), or those added after the file failed (the file holds the first _fileBytes).
     private ChunkedBuffer<int>? _memory;
     private FileStream? _file;
+    private bool _writing;
     private long _fileBytes;
-    private readonly long? _failWritesAfterBytes;
+    private readonly string _path = string.Empty;
 
     /// <param name="folder">Where the temporary file goes; null keeps the references in memory.</param>
-    /// <param name="failWritesAfterBytes">Tests: a write past this many bytes fails as on a full disk.</param>
-    public EdgeStore(string? folder, long? failWritesAfterBytes = null)
+    /// <param name="objectCount">The graph's objects, for the free space check.</param>
+    /// <param name="fellBack">Told why, when the references go to memory instead of the folder asked.</param>
+    /// <param name="hooks">Tests: failures as on a full disk or a refused mapping.</param>
+    public EdgeStore(string? folder, int objectCount, Action<string>? fellBack = null, EdgeStoreHooks? hooks = null)
     {
-        _failWritesAfterBytes = failWritesAfterBytes;
+        _fellBack = fellBack;
+        _hooks = hooks;
         if (folder is null)
         {
             _memory = new ChunkedBuffer<int>();
@@ -64,30 +82,43 @@ internal sealed class EdgeStore : IDisposable
         _pending = GC.AllocateUninitializedArray<int>(WriteChunk);
         try
         {
-            _file = Open(folder);
+            // The folder first: off Windows the free space is read from the folder itself, which must exist.
+            PrivateFiles.CreatePrivateDirectory(folder);
+            var needed = ((long)objectCount * ReferencesPerObjectForSpace * sizeof(int)) + SpareBytes;
+            if ((hooks?.FreeBytes ?? FreeBytes(folder)) is { } free && free < needed)
+            {
+                KeepInMemory(
+                    string.Create(CultureInfo.InvariantCulture, $"in memory: {Mb(free)} free in {folder}, and the temporary file needs up to {Mb(needed - SpareBytes)} beside {Mb(SpareBytes)} kept free"),
+                    FreeSpace);
+                return;
+            }
+
+            _file = Open(folder, out _path);
+            _writing = true;
             Where = "written to a temporary file";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _memory = new ChunkedBuffer<int>();
-            Where = $"in memory: the temporary file in {folder} could not be created ({ex.GetType().Name}: {ex.Message})";
+            KeepInMemory(
+                $"in memory: the temporary file in {folder} could not be created ({ex.GetType().Name}: {ex.Message})",
+                "Check that the folder is the user's own and can be written; the next load tries it again");
         }
     }
 
     /// <summary>References added so far.</summary>
     public long Count { get; private set; }
 
-    /// <summary>Where the references are kept and, if the file failed, why not there (for the load's log).</summary>
-    public string Where { get; private set; }
+    /// <summary>Where the references are kept and, when not in the folder asked, why (for the load's log).</summary>
+    public string Where { get; private set; } = string.Empty;
 
-    /// <summary>Whether the references are in a temporary file.</summary>
-    public bool OnDisk => _file is not null;
+    /// <summary>Whether the references still go to the temporary file.</summary>
+    public bool Writing => _writing;
 
     public void Add(int value)
     {
-        if (_memory is not null)
+        if (!_writing)
         {
-            _memory.Add(value);
+            _memory!.Add(value);
         }
         else
         {
@@ -102,36 +133,69 @@ internal sealed class EdgeStore : IDisposable
     }
 
     /// <summary>
-    /// Ends the store: the references as one column, and what owns its memory (the mapping) or null. The store holds
-    /// nothing afterwards; the owner deletes the file when disposed.
+    /// Ends the store: the references as one column, and what owns its memory (the mapping, which deletes the file when
+    /// disposed) or null. The store holds nothing afterwards.
     /// </summary>
     public Memory<int> Finish(IColumnAllocator allocator, out IDisposable? owner)
     {
         owner = null;
         var count = checked((int)Count);
-        if (_file is not null)
-        {
-            WritePending();
-        }
 
-        if (_file is not null)
+        // The last write can fail too, which moves the rest to memory.
+        WritePending();
+        if (_writing)
         {
-            var file = _file;
-            _file = null;
             if (count == 0)
             {
-                file.Dispose();
+                CloseFile();
+                Where = "none (no references)";
                 return Memory<int>.Empty;
             }
 
-            var mapping = new EdgeMapping(file, count);
-            owner = mapping;
-            Where = string.Create(CultureInfo.InvariantCulture, $"written to a temporary file and mapped ({_fileBytes / (1024.0 * 1024.0):N0} MB)");
-            return mapping.Memory;
+            try
+            {
+                if (_hooks?.FailMapping == true)
+                {
+                    throw new IOException("Not enough memory resources are available to process this command (simulated).");
+                }
+
+                var mapping = new EdgeMapping(_file!, count);
+                _file = null;
+                _writing = false;
+                owner = mapping;
+                Where = string.Create(CultureInfo.InvariantCulture, $"written to a temporary file and mapped ({Mb(_fileBytes)}, {count:N0} references, {Named()})");
+                return mapping.Memory;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _writing = false;
+                _memory = new ChunkedBuffer<int>();
+                Report(
+                    string.Create(CultureInfo.InvariantCulture, $"in memory: the temporary file of {Mb(_fileBytes)} in {Folder()} could not be mapped ({ex.GetType().Name}: {ex.Message})"),
+                    "Nothing to do unless it happens again; then report it with this log");
+            }
         }
 
+        // In memory: what the file holds (after a fallback) first, read straight into the column, then the chunks.
         var column = allocator.Allocate<int>("Edges", count);
-        _memory!.CopyTo(column.Span);
+        var prefix = (int)(_fileBytes / sizeof(int));
+        if (_file is not null)
+        {
+            try
+            {
+                ReadBack(_file, column.Span[..prefix], _hooks?.ReadSlice ?? ReadSlice);
+            }
+            catch (IOException ex)
+            {
+                throw new IOException(string.Create(CultureInfo.InvariantCulture, $"The references written to the temporary file in {Folder()} could not be read back ({ex.Message}). They were being read back because the references were kept {Where}. Free space on that drive and open the dump again."), ex);
+            }
+            finally
+            {
+                CloseFile();
+            }
+        }
+
+        _memory!.CopyTo(column.Span[prefix..]);
         _memory.Clear();
         _memory = null;
         return column;
@@ -139,50 +203,85 @@ internal sealed class EdgeStore : IDisposable
 
     public void Dispose()
     {
-        _file?.Dispose();
-        _file = null;
+        CloseFile();
         _memory?.Clear();
         _memory = null;
     }
 
-    private static FileStream Open(string folder)
+    /// <summary>Reads <paramref name="destination"/> from the file's start, <paramref name="slice"/> references at a time.</summary>
+    internal static void ReadBack(FileStream file, Span<int> destination, int slice)
     {
-        Directory.CreateDirectory(folder);
-        var path = Path.Combine(folder, string.Create(CultureInfo.InvariantCulture, $"edges-{Environment.ProcessId}-{Guid.NewGuid():N}.tmp"));
-        var options = new FileStreamOptions
+        file.Position = 0;
+        for (var offset = 0; offset < destination.Length; offset += slice)
         {
-            Mode = FileMode.CreateNew,
-            Access = FileAccess.ReadWrite,
-            Share = FileShare.None,
-            BufferSize = 0,
-            Options = OperatingSystem.IsWindows() ? FileOptions.DeleteOnClose : FileOptions.None,
-        };
-        if (!OperatingSystem.IsWindows())
-        {
-            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            file.ReadExactly(MemoryMarshal.AsBytes(destination.Slice(offset, Math.Min(slice, destination.Length - offset))));
         }
+    }
 
-        var stream = new FileStream(path, options);
+    private static long? FreeBytes(string folder)
+    {
+        try
+        {
+            // DriveInfo takes the drive of a path on Windows and the file system of any path elsewhere (statfs).
+            return new DriveInfo(Path.GetFullPath(folder)).AvailableFreeSpace;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static string Mb(long bytes) => string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0):N1} MB");
+
+    private static FileStream Open(string folder, out string path)
+    {
+        path = Path.Combine(folder, string.Create(CultureInfo.InvariantCulture, $"edges-{Environment.ProcessId}-{Guid.NewGuid():N}.tmp"));
+        var stream = PrivateFiles.Open(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, bufferSize: 0, OperatingSystem.IsWindows() ? FileOptions.DeleteOnClose : FileOptions.None);
         if (!OperatingSystem.IsWindows())
         {
-            // Open files outlive their name here: unnamed now, the file goes when the process does, however it ends.
+            // An open file outlives its name here: unnamed now, the file goes when the process does, however it ends.
             try
             {
                 File.Delete(path);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 stream.Dispose();
-                throw;
+                throw new IOException($"The temporary file {path} was created but could not be unnamed, so it is left there ({ex.Message}).", ex);
             }
         }
 
         return stream;
     }
 
+    private string Folder() => Path.GetDirectoryName(_path) ?? _path;
+
+    private string Named() => OperatingSystem.IsWindows() ? _path : "unnamed in " + Folder();
+
+    private const string FreeSpace = "Free space on that drive for the next load";
+
+    private void KeepInMemory(string reason, string nextStep)
+    {
+        _memory = new ChunkedBuffer<int>();
+        Report(reason, nextStep);
+    }
+
+    /// <summary>Keeps the reason for the load's line and tells the callback at once, with what to do next (by its cause).</summary>
+    private void Report(string reason, string nextStep)
+    {
+        Where = reason;
+        _fellBack?.Invoke(reason + ". " + nextStep);
+    }
+
+    private void CloseFile()
+    {
+        _file?.Dispose();
+        _file = null;
+    }
+
     private void WritePending()
     {
-        if (_pendingCount == 0)
+        if (!_writing || _pendingCount == 0)
         {
             return;
         }
@@ -190,61 +289,34 @@ internal sealed class EdgeStore : IDisposable
         var bytes = MemoryMarshal.AsBytes(_pending.AsSpan(0, _pendingCount));
         try
         {
-            if (_fileBytes + bytes.Length > _failWritesAfterBytes)
+            if (_hooks?.FailWritesAfterBytes is { } limit && _fileBytes + bytes.Length > limit)
             {
                 throw new IOException("There is not enough space on the disk (simulated).");
             }
 
             _file!.Write(bytes);
             _fileBytes += bytes.Length;
-            _pendingCount = 0;
         }
         catch (IOException ex)
         {
-            FallBackToMemory(ex);
-        }
-    }
-
-    /// <summary>Reads back what the file holds, then keeps it and the pending references in memory.</summary>
-    private void FallBackToMemory(IOException cause)
-    {
-        var file = _file!;
-        _file = null;
-        var memory = new ChunkedBuffer<int>();
-        try
-        {
-            file.Position = 0;
-            var buffer = GC.AllocateUninitializedArray<int>(WriteChunk);
-            var remaining = _fileBytes;
-            while (remaining > 0)
+            // The file keeps what it holds (read back into the column at the end); this chunk and the rest go to memory.
+            _writing = false;
+            _memory = new ChunkedBuffer<int>();
+            foreach (var value in _pending.AsSpan(0, _pendingCount))
             {
-                var want = (int)Math.Min(remaining, (long)buffer.Length * sizeof(int));
-                var span = MemoryMarshal.AsBytes(buffer.AsSpan()).Slice(0, want);
-                file.ReadExactly(span);
-                foreach (var value in buffer.AsSpan(0, want / sizeof(int)))
-                {
-                    memory.Add(value);
-                }
-
-                remaining -= want;
+                _memory.Add(value);
             }
-        }
-        finally
-        {
-            file.Dispose();
-        }
 
-        foreach (var value in _pending.AsSpan(0, _pendingCount))
-        {
-            memory.Add(value);
+            Report(string.Create(CultureInfo.InvariantCulture, $"in memory from reference {_fileBytes / sizeof(int):N0}: writing the temporary file in {Folder()} failed after {Mb(_fileBytes)} ({ex.GetType().Name}: {ex.Message})"), FreeSpace);
         }
 
         _pendingCount = 0;
-        _memory = memory;
-        Where = string.Create(CultureInfo.InvariantCulture, $"in memory: writing the temporary file failed after {_fileBytes / (1024.0 * 1024.0):N0} MB ({cause.GetType().Name}: {cause.Message})");
     }
 
-    /// <summary>A read-only mapping of the temporary file, which owns the file: disposing it deletes the file (Windows).</summary>
+    /// <summary>
+    /// A read-only mapping of the temporary file, which then owns the file: disposing it unmaps the view and closes the file,
+    /// which deletes it (Windows). Spans taken from it must not outlive the graph's last lease, as for a mapped cache.
+    /// </summary>
     private sealed unsafe class EdgeMapping : MemoryManager<int>
     {
         private readonly FileStream _stream;
@@ -254,30 +326,38 @@ internal sealed class EdgeStore : IDisposable
         private readonly int _length;
         private int _disposed;
 
+        /// <summary>Maps <paramref name="stream"/>; on failure the stream is left to the caller, open.</summary>
         public EdgeMapping(FileStream stream, int length)
         {
-            _stream = stream;
+            _mapped = MemoryMappedFile.CreateFromFile(stream, mapName: null, capacity: 0, MemoryMappedFileAccess.Read, HandleInheritability.None, leaveOpen: true);
             try
             {
-                _mapped = MemoryMappedFile.CreateFromFile(stream, mapName: null, capacity: 0, MemoryMappedFileAccess.Read, HandleInheritability.None, leaveOpen: true);
                 _view = _mapped.CreateViewAccessor(0, (long)length * sizeof(int), MemoryMappedFileAccess.Read);
                 byte* pointer = null;
                 _view.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
                 _pointer = (int*)(pointer + _view.PointerOffset);
                 _length = length;
+                _stream = stream;
             }
             catch
             {
                 _view?.Dispose();
-                _mapped?.Dispose();
-                stream.Dispose();
+                _mapped.Dispose();
                 throw;
             }
         }
 
-        public override Span<int> GetSpan() => new(_pointer, _length);
+        public override Span<int> GetSpan()
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            return new(_pointer, _length);
+        }
 
-        public override MemoryHandle Pin(int elementIndex = 0) => new(_pointer + elementIndex);
+        public override MemoryHandle Pin(int elementIndex = 0)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            return new(_pointer + elementIndex);
+        }
 
         public override void Unpin()
         {
@@ -297,3 +377,6 @@ internal sealed class EdgeStore : IDisposable
         }
     }
 }
+
+/// <summary>Tests: an edge store's file failing as on a full disk (writes past a size), a refused mapping, the free space seen, the read back's slice.</summary>
+internal sealed record EdgeStoreHooks(long? FailWritesAfterBytes = null, bool FailMapping = false, long? FreeBytes = null, int? ReadSlice = null);

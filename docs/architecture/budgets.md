@@ -86,6 +86,33 @@ continue, the CLI prints the warning (or fails with `--no-overcommit`). `Snapsho
 rule for both front ends; it asks the worker (`ProbeSnapshotAsync`) whether a valid index cache exists where the
 locator puts it, so a reopen from cache never warns.
 
+Large heaps (sprint 4.7, task 10): an 8 GB DenseHeap dump (9,054 MB file, 6.6 GB managed heap, 106.2M objects, 320.4M
+references, 3.02 per object) on claude-dev-2 (12 logical cores, 32 GB, Windows 11, runtime 10.0.15, the worker's GC settings),
+before the references went to a file:
+
+| Measure | Result | Budget |
+|---|---|---|
+| First load (with the cache write) | 37.3 s (objects 8.4 s, references 21.9 s, cache write 4.1 s) | < 180 s, met |
+| Peak private bytes, first load | 5,279 MB (0.80x the managed heap); `FirstLoadEstimate` 5,748 MB | < 4 GB, missed; < 1.5x the heap, met |
+| Graph columns | 3,451 MB (34.1 bytes per object) | |
+| Mapped transition, reopen in memory | 1.1 s (3,092 MB private after the drop), 1.5 s | < 2 s, < 20 s, met |
+| Indices in memory (reverse references, dominators) | 12.6 s, peak 7,594 MB | < 60 s met; 4 GB missed (the mode chooses mapped where it would not fit) |
+| Indices mapped | 17.8 s, peak 1,287 MB, peak working set 7,060 MB | met |
+| Indices mapped, working set capped at 4 GB | 18.9 s, peak 1,287 MB, 4.1M page faults | met |
+
+The peak was the build's copy of the chunked references into one array while the chunks were held (1.3 GB), and below it
+freezing, which held the object chunks and columns together until the GC ran (3,850 MB). Both fixed: the references go to a
+mapped temporary file as they are read, and freezing collects its chunks (graph-format.md 6.3). On a 2 GB DenseHeap dump (3,145
+MB file, 33.1M objects, 100.7M references; the primary machine, 24 logical cores), `load-dump --edges memory` against the default:
+
+| Load | Peak private bytes | First load | Graph hash |
+|---|---|---|---|
+| References in memory, before the fix | 1,920 MB | 14.3 s | e8a102e4d933d936 |
+| References in a file | 1,411 MB | 13.5 s | e8a102e4d933d936 |
+| References in a file, chunks collected at freeze | 1,161 MB (0.56x the heap) | 14.5 s | e8a102e4d933d936 |
+
+The 8 GB dump after the fix: to be measured (claude-dev-2's application control blocked the rebuilt benchmark).
+
 Comparing (sprint 1.4): `diff` of Medium against DenseHeap from their index caches takes 2.8 to 2.9 s end to end.
 Inspecting (sprint 1.5): the UI smoke drill on Medium opens the instances of `System.Byte[]` (16M objects), the largest
 object and its references; after the responsiveness changes of section 8 the longest checked dispatcher operation is

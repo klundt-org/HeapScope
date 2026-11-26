@@ -601,7 +601,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - `dump-stats --dump <path> [--by-address 1] [--cache-mb N]`: a raw ClrMD walk (the 0.4 baseline): objects, heap,
   references, timings, peak private bytes and working set; no budget check.
 - `stack-roots --dump <path>`: stack roots per thread and frame (diagnostic; no budget check).
-- `load-dump --dump <path> [--cache-mb 512] [--keep-cache 1] [--any-gc 1]` (run with `DOTNET_GCHeapCount` set to half the
+- `load-dump --dump <path> [--cache-mb 512] [--keep-cache 1] [--any-gc 1] [--edges memory]` (`--edges memory` keeps the
+  references in memory, as loads did before sprint 4.7, to compare; by default they go to a temporary file (the benchmark's own, under the temporary folder) as the worker's do; run with `DOTNET_GCHeapCount` set to half the
   processors in hex, as the worker runs; since 3.12 it refuses another GC setup without `--any-gc`, and prints each phase's
   process CPU, GC pause and pages read from disk (hard faults) and a hash of the graph built, whole and per column, so a loader change can be shown to build the
   same graph): HeapScope's loader on a real dump: counts, density,

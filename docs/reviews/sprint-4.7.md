@@ -82,6 +82,64 @@ confirmations, and fixed:
 - Low, listed: the dead thread filter has no fixture; a tie in Duplicate strings' bound is not tested; the refusal test catches any
   exception; a thread static's detail names no thread; no test that the opener adds the runtime note.
 
+## Task 10 follow-up: the references' temporary file
+
+The 8 GB measurement missed the 4 GB first load budget (5,279 MB), so the planned fix was built (owner, 2026-11-26) and reviewed by
+all four reviewers on 2026-11-26 (commit 263ce87). Moderates decided autonomously.
+
+High:
+- F1 (support-engineer) A fallback to memory was said only in a successful load's line, so a load that failed afterwards (the
+  fallback brings the doubled peak back) lost its cause. Fixed: the store reports each fallback when it happens; the worker
+  logs it as a warning with the dump, the reason and the next step (`ClrMdLoaderOptions.EdgesKeptInMemory`). Status: Fixed.
+- F2 (gc-specialist) The 8 GB dump was not measured after the fix. Status: open; the 2 GB dump is measured (budgets.md), and the
+  8 GB rerun waits for the owner (claude-dev-2's application control blocked the rebuilt benchmark).
+
+Moderate, fixed:
+- F3 (senior-dev, gc-specialist) A failure between the build and the load's result (a cancel in the truncation check) leaked the
+  graph with its mapping and file until the worker exited. Fixed: the loader and the opener dispose it on any failure.
+- F4 (senior-dev, gc-specialist, support-engineer) A mapping that failed failed the load, and a write that failed read the file
+  back into chunks, holding the references twice. Fixed: both read what the file holds straight into the final column, so the
+  references are held once plus the chunks after; a failed read back names both causes and the next step.
+- F5 (solution-architect, support-engineer) The folder and file did not go through `PrivateFiles`. Fixed: owner-only, a
+  folder of another user refused (into the fallback); security-privacy.md lists it.
+- F6 (solution-architect, support-engineer) No free space check; the file lives as long as a snapshot kept in memory, beside
+  its cache on the same drive. Fixed: checked before the file is made (16 bytes per object plus 1 GB kept free); the lifetime
+  and disk cost documented (graph-format.md 6.3, ADR-015, HeapScopeFolders, the loader option).
+- F7 (gc-specialist) Freezing became the peak, by when the GC ran. Fixed: a graph of a million objects or more collects its
+  copied chunks after the addresses and after the other columns (2 GB dump: 1,411 to 1,161 MB).
+- F8 (senior-dev) The cleanup tests proved nothing off Windows, and the fault paths were not tested. Fixed: Linux counts the
+  process's open files and mappings; tests for a faulted pass, a build canceled after the mapping, the last write failing,
+  a mapping failing, the space check and the private folder.
+- F9 (solution-architect) ADR-015, graph-format.md 6.1 and 6.5, ARCHITECTURE.md's Core rule and SPRINTS.md said otherwise.
+  Fixed: ADR-015 amended (why not the cache: the count is not known until the pass ends), the rest brought in line.
+- F10 (support-engineer) The success line named no file. Fixed: its path (Windows) or folder, and the count.
+- Deferred until the 8 GB rerun, as part of closing task 10: F11 (gc-specialist) `FirstLoadEstimate` is now about 2.15 times the
+  2 GB dump's peak (2,498 MB against 1,161 MB); refitted once the 8 GB dump is measured. Deferred (Backlog): F12 (support-engineer) a snapshot note for a load that fell back (user-facing
+  wording; the log has it); F13 (solution-architect) `ColumnBytes` split into private and file-backed for the mode log.
+
+Confirmations (all four reviewers, 2026-11-26): F1 and F3 to F10 confirmed; F2 open until the 8 GB rerun; the deferrals accepted.
+Found in the confirmations, and fixed:
+- (solution-architect, senior-dev, gc-specialist, Moderate) The read back of the file into the column was one span, which as bytes
+  overflows past 2 GiB (537M references): the fallback would fail a load past the Medium tier. Fixed: read in 64 MB slices,
+  tested across slices with a small one.
+- (solution-architect, support-engineer, Moderate) The warning's next step said to move HeapScope's data folder, which also moves
+  the cache key, the library, trusted DACs and settings. Fixed: a next step by cause (free space; a folder that is not the user's
+  or cannot be written; a mapping refused, report if it repeats), no data folder advice.
+- (support-engineer, Moderate) No test of the warning's wiring from the loader to the worker's log. Fixed:
+  `A_load_that_cannot_make_its_references_file_warns_before_it_ends_and_loads_in_memory` (the CLI with an `edges` that is a file).
+- (senior-dev, gc-specialist, Low) The free space check ran before the folder existed, so it was skipped off Windows on a first
+  load. Fixed: the folder is made first. (senior-dev, Low) Two cleanup tests could not pass on macOS, one test's name claimed a
+  fault it did not make, the read back's message read badly: fixed.
+- Low, listed: no loader-level test of a cancel after the build; a refusal for space keeps every reference in chunks, then
+  copies them (the old peak, logged); three full collections at a large freeze (the two new ones measured: 1,411 to 1,161 MB on
+  2 GB, 7% more time); the free space at a write failure is not logged; the cache write's warning does not name the references'
+  file.
+
+Low, listed: no sweep of files a power loss leaves (Windows); EdgeMapping repeats Storage's mapping code; the extension point is
+a folder, not a sink interface; the owner pair is taken before the graph's shape check; tmpfs data folders save nothing; the
+benchmark accepts any `--edges` value; `ColumnBytes` counts the file-backed edges on Linux twice near the threshold; comments
+cite the sprint.
+
 ## Markdown sweep
 
 Every tracked Markdown file read against the code as it stands (2026-11-26). Changed:

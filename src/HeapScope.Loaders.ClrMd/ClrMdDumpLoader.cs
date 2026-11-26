@@ -137,7 +137,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         var open = meter.End("open");
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var builder = new HeapGraphBuilder(edgeFolder: _options.EdgeFolder);
+        var keptInMemory = _options.EdgesKeptInMemory;
+        using var builder = new HeapGraphBuilder(edgeFolder: _options.EdgeFolder, edgesKeptInMemory: keptInMemory is null ? null : reason => keptInMemory(fullPath, reason));
         var (unreadable, incompleteSegments, freeBytes, clrTypes) = AddObjects(heap, builder, (_options.FallBackAtObjectForTests, _options.OverrunAtObjectForTests), progress, cancellationToken);
         var objects = meter.End("objects");
 
@@ -175,33 +176,43 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         progress?.Report(new LoadProgress("Building graph", 0, null));
         var graph = builder.Build(cancellationToken);
-        var build = meter.End("build");
+        try
+        {
+            var build = meter.End("build");
 
-        var processName = ProcessName(target);
-        var info = new SnapshotInfo(
-            SnapshotKind.FullDump,
-            fullPath,
-            processName.Name,
-            ProcessId(target),
-            DacLocator.RuntimeVersion(clr.Version, Path.GetDirectoryName(clr.ModuleInfo.FileName)),
-            target.DataReader.PointerSize,
-            header is { } h ? h.CapturedAtUtc : new DateTimeOffset(File.GetLastWriteTimeUtc(fullPath), TimeSpan.Zero),
-            freeBytes,
-            SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
-                | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
-                | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked)
-                | (staticSlots.CoreInitialized > 0 ? SnapshotFacts.StaticsChecked : SnapshotFacts.None));
+            var processName = ProcessName(target);
+            var info = new SnapshotInfo(
+                SnapshotKind.FullDump,
+                fullPath,
+                processName.Name,
+                ProcessId(target),
+                DacLocator.RuntimeVersion(clr.Version, Path.GetDirectoryName(clr.ModuleInfo.FileName)),
+                target.DataReader.PointerSize,
+                header is { } h ? h.CapturedAtUtc : new DateTimeOffset(File.GetLastWriteTimeUtc(fullPath), TimeSpan.Zero),
+                freeBytes,
+                SnapshotFacts.FreeSpace | SnapshotFacts.ReferenceArrayMarks | SnapshotFacts.FinalizerRegistrations
+                    | (header is null ? SnapshotFacts.CaptureTimeFromFile : SnapshotFacts.None)
+                    | (handles.Walk.Outcome == HandleWalkOutcome.Unknown ? SnapshotFacts.None : SnapshotFacts.HandlesChecked)
+                    | (staticSlots.CoreInitialized > 0 ? SnapshotFacts.StaticsChecked : SnapshotFacts.None));
 
-        // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
-        var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
-            ? SnapshotCapabilities.FullDump & ~(SnapshotCapabilities.CompleteGraph | SnapshotCapabilities.ExactCounts)
-            : SnapshotCapabilities.FullDump;
-        return new LoadResult(
-            graph,
-            info,
-            capabilities,
-            new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk, staticSlots.Describe(), builder.EdgesKept),
-            new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
+            // A heap that could not be read completely must not claim complete, exact answers (ARCHITECTURE.md 5.2).
+            var capabilities = unreadable > 0 || incompleteSegments > 0 || (minidump ? MinidumpHeader.IsTruncated(fullPath, cancellationToken) : CoreFileHeader.IsTruncated(fullPath))
+                ? SnapshotCapabilities.FullDump & ~(SnapshotCapabilities.CompleteGraph | SnapshotCapabilities.ExactCounts)
+                : SnapshotCapabilities.FullDump;
+            return new LoadResult(
+                graph,
+                info,
+                capabilities,
+                new LoadDiagnostics(debuggable, unreadable, staticRoots, incompleteSegments, dac, processName.Source, handles.Walk, staticSlots.Describe(), builder.EdgesKept),
+                new LoadTimings(open, objects, references, roots, build, freeze, meter.Costs));
+        }
+        catch
+        {
+            // The builder no longer owns a built graph: a failure here (a cancel while the truncation check reads the
+            // dump) would leak it, with its references' mapped file, until the worker exits.
+            graph.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
