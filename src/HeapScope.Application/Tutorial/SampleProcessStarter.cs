@@ -141,9 +141,9 @@ internal sealed class SampleProcessStarter : ISampleProcessStarter
             {
                 _process.Kill();
             }
-            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            catch (InvalidOperationException)
             {
-                // Exited already, or exiting (peer review 4.5 M8): a kill a timer fires must not end HeapScope.
+                // Exited already.
             }
         }
 

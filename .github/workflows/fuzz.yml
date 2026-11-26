@@ -81,7 +81,7 @@ jobs:
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="Nightly fuzz failed"
-          body="The nightly fuzz failed with seed $SEED: $RUN. Its results (the seed, the iteration and any failing input) are kept 14 days. Replay it with HEAPSCOPE_FUZZ_SEED=$SEED (DEVELOPER.md)."
+          body="The nightly fuzz failed with seed $SEED: $RUN (its log names the step that failed). Its results, kept 14 days, hold the iteration and any failing input, and the gcdump and trace it mutated (base.gcdump, base.nettrace). Replay with HEAPSCOPE_FUZZ_SEED=$SEED HEAPSCOPE_FUZZ_ITERATIONS=2000, and HEAPSCOPE_FUZZ_BASE or HEAPSCOPE_FUZZ_TRACE for those parts (DEVELOPER.md, Fuzzing)."
           open=$(gh issue list --repo "$REPO" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$open" ]; then
             gh issue comment "$open" --repo "$REPO" --body "$body"

@@ -145,7 +145,7 @@ public sealed class SampleService : IDisposable
             using var process = StartProcess(launch, [.. launch.Prefix, "--list"]);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(_readyTimeout);
-            await using var killOnTimeout = timeout.Token.Register(process.Kill).ConfigureAwait(false);
+            await using var killOnTimeout = timeout.Token.Register(() => KillQuietly(process)).ConfigureAwait(false);
             string? json = null;
             try
             {
@@ -382,7 +382,7 @@ public sealed class SampleService : IDisposable
             timeout.CancelAfter(_readyTimeout);
 
             // Review M11: the timeout kills the sample, which ends the read whether or not the pipe honors cancellation.
-            await using var killOnTimeout = timeout.Token.Register(process.Kill).ConfigureAwait(false);
+            await using var killOnTimeout = timeout.Token.Register(() => KillQuietly(process)).ConfigureAwait(false);
             while (await process.ReadLineAsync(timeout.Token).ConfigureAwait(false) is { } line)
             {
                 if (line.StartsWith("READY pid=", StringComparison.Ordinal))
@@ -452,6 +452,19 @@ public sealed class SampleService : IDisposable
             string.Join(' ', arguments));
         SafeEvents.Raise(Changed, this, _logger, nameof(Changed));
         return sample;
+    }
+
+    // A kill a timer fires (peer review 4.5 M8): a process exiting meanwhile must not end HeapScope, so its failure is logged, not thrown.
+    private void KillQuietly(ISampleProcess process)
+    {
+        try
+        {
+            process.Kill();
+        }
+        catch (Win32Exception ex)
+        {
+            _logger.LogWarning("The sample could not be stopped at its timeout: {Error}", ex.Message);
+        }
     }
 
     // Review H3 and L17: an exit is reported when it happens, the process released, and the reason told apart.

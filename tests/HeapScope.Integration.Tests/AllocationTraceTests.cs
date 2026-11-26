@@ -279,6 +279,7 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
     [Fact]
     public async Task A_recording_of_a_process_that_stops_answering_ends_anyway()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Suspends the process with ntdll (Windows).");
         using var api = await FixtureProcess.StartApiAsync();
         var path = _scratch.File("frozen.nettrace");
         var recording = TraceRecorder.RecordAsync(api.ProcessId, path, TraceProfile.Allocations, TimeSpan.FromSeconds(3), Ct);

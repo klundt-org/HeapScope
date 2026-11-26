@@ -232,12 +232,19 @@ public sealed partial class App : Avalonia.Application
             window.Title += " (finishing running jobs, a canceled capture removes its dump first)";
         }
 
+        var logger = services.GetService<ILogger<App>>();
+        logger?.LogInformation("Closing: canceling {Count} running jobs: {Jobs}", running.Count, string.Join(", ", running.Select(static j => $"{j.Id} {j.Title}")));
         foreach (var job in running)
         {
             job.Cancel();
         }
 
         await Task.WhenAny(Task.WhenAll(running.Select(j => j.Completion)), Task.Delay(TimeSpan.FromMinutes(5)));
+        if (running.Where(static j => !j.Completion.IsCompleted).ToList() is { Count: > 0 } left)
+        {
+            // A canceled capture still running may leave its dump behind: said (review of 4.6).
+            logger?.LogWarning("Closing: {Count} jobs still running after 5 minutes: {Jobs}", left.Count, string.Join(", ", left.Select(static j => $"{j.Id} {j.Title}")));
+        }
     }
 
     private async void OnMainWindowClosing(object? sender, WindowClosingEventArgs e)
@@ -280,7 +287,7 @@ public sealed partial class App : Avalonia.Application
                 var disposing = host is IAsyncDisposable asyncDisposable ? asyncDisposable.DisposeAsync().AsTask() : Task.Run(host.Dispose);
                 if (await Task.WhenAny(disposing, Task.Delay(s_disposeTimeout)) != disposing)
                 {
-                    logger?.LogWarning("Host dispose did not end in {Seconds} s; HeapScope ends without waiting for it", s_disposeTimeout.TotalSeconds);
+                    logger?.LogWarning("Host dispose did not end in {Seconds} s (a monitoring run or a worker that does not answer); HeapScope ends without waiting for it", s_disposeTimeout.TotalSeconds);
                 }
                 else
                 {

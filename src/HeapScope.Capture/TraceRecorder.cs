@@ -216,7 +216,7 @@ public static class TraceRecorder
 
                 // One that is not waited for (the limit passed) ends with the session: its error is nobody's.
                 _ = copy.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
-                await session.StopAsync(limit.Token).ConfigureAwait(false);
+                await SessionStop.StopAsync(session, s_namesTimeout).ConfigureAwait(false);
                 await copy.WaitAsync(limit.Token).ConfigureAwait(false);
             }
 
@@ -235,11 +235,18 @@ public static class TraceRecorder
 
     private static async Task<EventPipeSession> StartAsync(int processId, IReadOnlyList<EventPipeProvider> providers, CancellationToken cancellationToken)
     {
+        // Bounded (review of 4.6): a process that does not answer the start (frozen) ends the recording with a reason, not a wait.
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(s_startWait);
         try
         {
             return await new DiagnosticsClient(processId)
-                .StartEventPipeSessionAsync(providers, requestRundown: true, circularBufferMB: 256, cancellationToken)
+                .StartEventPipeSessionAsync(providers, requestRundown: true, circularBufferMB: 256, limit.Token)
                 .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TargetUnavailableException(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Process {processId} did not answer the start of a recording within {s_startWait.TotalSeconds:N0} s. If it is stopped in a debugger, let it run, then record again."));
         }
         catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException)
         {
@@ -302,6 +309,9 @@ public static class TraceRecorder
 
     /// <summary>How long a stopped session may take to end its stream (the rundown) before the recording stops waiting.</summary>
     private static readonly TimeSpan s_streamEndTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>How long a recording's start waits for the target.</summary>
+    private static readonly TimeSpan s_startWait = TimeSpan.FromSeconds(30);
 
     /// <summary>How long a recording's stop waits for the target, its rundown included (peer review 4.5 H9).</summary>
     private static readonly TimeSpan s_stopWait = TimeSpan.FromSeconds(30);
