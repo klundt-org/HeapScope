@@ -77,7 +77,7 @@ Rules:
   availability list, not from the kind or the capability flags: one rule per feature in the worker (`FeatureRules`,
   from the capabilities, the loader facts and the kind handler) fills the list at open and refuses the feature's
   requests with the listed reason. The unreachable set needs a full dump with a complete object graph (a truncated
-  dump's lost references would show live objects as garbage) and the `HandlesChecked` fact (4.5; what "unreachable" means is worded from it too); interface grouping and field values need a dump reader
+  dump's lost references would show live objects as garbage) and the `HandlesChecked` fact (4.5; what "unreachable" means is worded from it too) and, since 4.7, the `StaticsChecked` fact; interface grouping and field values need a dump reader
   with `FieldValues`; string values a reader with `StringContents`; generations `Generations`; the finalizable scope
   the `FinalizerRegistrations` fact. The UI shows the listed reason; the CLI shows it for generations and otherwise relays
   the worker's refusal, which carries the same text. An id the worker did not list counts as unavailable. What differs by kind (whether a snapshot holds garbage, what an unreached object means, whether objects
@@ -128,7 +128,7 @@ Rules:
   `ISnapshotLoader.Version`: full dumps 8 since 4.7, gcdumps 1); the worker rebuilds a cache from an older version with
   a note, so a fix in what a loader records reaches snapshots cached before it (review M7). The note says "rebuilt" only when
   the load wrote its cache, and "not used" otherwise. If that rebuild fails because the dump's DAC is gone or not trusted,
-  the older cache opens instead when its loader version is at least 3 (v3.9.0's; sprint 3.12, ADR-041; a cache before version 5 lacks `HandlesChecked`): its note names the
+  the older cache opens instead when its loader version is at least 3 (v3.9.0's; sprint 3.12, ADR-041; a cache before version 5 lacks `HandlesChecked`, and one before version 8 `StaticsChecked`): its note names the
   cause, its process name is read again from the dump, and value reads are refused with the reason. A damaged dump, a
   cancel, Rebuild and a cache older than version 3 never fall back. A reopen after a worker restart is refused and asks
   the user to open the dump again (with its own message when the snapshot came from the older cache).

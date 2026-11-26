@@ -91,3 +91,7 @@
 - Amended by ADR-039 (sprint 3.9): releases ship win-x64 and linux-x64 (since 3.10 also the macOS builds, marked untested),
   and the CLI's dotnet tool carries a framework-dependent worker started through the dotnet host, beside the
   self-contained worker per runtime identifier.
+- Amended in sprint 4.7 (peer review 4.5 H7, H12): the memory status calls read the system's own numbers off Windows too
+  (`SystemMemory` in Core: `/proc/meminfo` and the process's cgroup on Linux, `sysctl` and the VM statistics on macOS, untested;
+  the worker's own memory on macOS is its physical footprint), not the GC's view. The integration tests run on Linux in CI (light
+  tier; those that need Windows skip and say why), and the app's window is shown there under a virtual display (`xvfb-run`).

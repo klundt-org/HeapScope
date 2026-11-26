@@ -182,6 +182,8 @@ tests/
   HeapScope.Architecture.Tests Enforces the dependency rules below.
   HeapScope.Integration.Tests  Real worker processes, fixtures, real dumps, known answers. References Storage,
                                Analysis and the three loaders to test them in process, and runs the built CLI and app.
+                               Targets net10.0 and runs on Windows and, since sprint 4.7, Linux (light tier; the tests
+                               of what only Windows has skip there and say why).
   HeapScope.Benchmarks.Tests   The benchmarks' rules on recorded numbers (`UiStallAttribution`, sprint 3.12).
   HeapScope.Sample.Tests       The sample's scenarios and command line, and the Learn page's lessons against them and the
                                wording table (sprint 3.13).
@@ -196,6 +198,8 @@ perf/
 .github/workflows/skia-native.yml SkiaSharp's native library built without the DNG SDK and piex (ADR-038).
 fixtures/
   Leaks                        Shared leak implementations and semantic fixtures (namespace Fixtures.Leaks).
+                               Leaks, LeakyApi and LeakyConsole build for net8.0, net9.0 and net10.0 (sprint 4.7;
+                               HEAPSCOPE_FIXTURE_RUNTIME picks the one the tests run).
   LeakyApi                     ASP.NET Core API with switchable, scalable leaks.
   LeakyConsole                 Minimal console leaker for fast tests.
   LoadGen                      Load generator for LeakyApi; also captures dumps for the scripts.

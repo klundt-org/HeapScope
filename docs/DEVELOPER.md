@@ -35,7 +35,7 @@ dotnet test --solution HeapScope.sln
 - One tier (sprint 3.6): `bash build/test.sh fast|integration [Release|Debug] [results folder]`. `fast` runs every test
   project that runs on this system but the Integration project, found rather than listed, without the Integration and
   Slow traits; a project left with no tests fails. `integration` runs the Integration project (Windows and, since 4.7, Linux, where the tests of what only Windows has skip and say
-  why). `HEAPSCOPE_FIXTURE_RUNTIME` (net8.0, net9.0, net10.0 by default) picks the runtime the fixtures run on; the known answer classes run
+  why). `HEAPSCOPE_FIXTURE_RUNTIME` (net8.0, net9.0, or net10.0, the default) picks the runtime the fixtures run on; the known answer classes run
   on each in CI (`bash build/fixture-dump.sh` takes it too). Integration and
   Slow tests belong in that project only; the script fails when one is elsewhere. Results are TRX files. Off CI it runs
   tests on half the CPU threads at once (xunit's default, one per thread, pinned a 24-thread machine and made timed tests
@@ -50,8 +50,13 @@ dotnet test --solution HeapScope.sln
   folder (`tests/Shared/TestDataFolder.cs`) before anything reads `HeapScopeFolders`, and the workers and front ends it
   starts inherit it, so no test writes into the user's sessions, logs, index cache key, trusted DACs or bookmarks. Set it
   by hand to run the app or the CLI against a scratch profile; the build scripts that drive the CLI set it to a scratch
-  folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `capture-check.sh`). The worker also takes `--data-folder` (from
+  folder too (`check-install.sh`, `check-tool.sh`, since the 4.1 review `capture-check.sh`; since 4.7 `check-known-answers.sh`,
+  `check-handles.sh` and `fixture-dump.sh` when it is not set). The worker also takes `--data-folder` (from
   `Worker:DataFolder` on the client), which wins over the variable.
+- Temp folders (sprint 4.7, `tests/Shared/TestFolders.cs`): a test's folder is deleted with retries, and one that stays is said
+  on the error stream, never swallowed. Every test assembly's start sweeps what a killed or failed run left more than a day ago:
+  the dump folders in `HeapScopeTests` (named by a GUID) and the tests' `heapscope-<name>-<random>` folders in the temp folder (the
+  shared data and sessions folders, and names made by hand, stay). `TestFoldersTests` covers it.
 - Fuzzing (sprint 3.7): the mutation tests (`SignedCacheTests`, `CraftedGcDumpTests`, and `CraftedTraceTests` since 4.2.1, which also bounds memory) run a short pass in every run;
   `HEAPSCOPE_FUZZ_ITERATIONS` and `HEAPSCOPE_FUZZ_SEED` raise and vary it. The nightly `fuzz.yml` runs 2,000 iterations on
   the run number as the seed, on `develop`; a failure names its seed, iteration and exception type. The cache half replays
@@ -426,7 +431,8 @@ of debuggable code) and exit when the process given as parent exits.
   [--parent-pid P]`;
   prints `READY pid=<pid>` and waits to be dumped and killed. `--semantics` adds the conditional weak table and
   embedded struct fixtures, `--runtime-semantics` the finalizable, POH, LOH, pinned handle, frozen literal and
-  parked thread fixtures and objects of a pointer-free type from a collectible assembly (3.12, review H3), `--late-garbage` dead table entries and weak-only objects created after the last full GC,
+  parked thread fixtures and objects of a pointer-free type from a collectible assembly (3.12, review H3), and since 4.7 thread statics
+  (`[ThreadStatic]`, a struct thread static and `ThreadLocal<T>`) on a parked thread, `--late-garbage` dead table entries and weak-only objects created after the last full GC,
   `--inspection` one object with fields of every kind (1.5), `--waste` duplicated strings, empty and oversized
   collections, large and sparse arrays, finalizable objects and pinned buffers with known amounts (1.6, `Waste.json`),
   `--retention-patterns` objects held by known distinct retention patterns and a type with inherited and generic
@@ -445,7 +451,10 @@ of debuggable code) and exit when the process given as parent exits.
 - `fixtures/KnownAnswers/*.json`: what the analysis must find for each leak and semantic fixture (format version 1
   and path shape grammar in its README). Integration tests verify every field with ClrMD (`KnownAnswerTests`,
   `DisabledLeakTests`, `LeakyApiGrowthTests`). Test harness: `FixtureProcess` (start LeakyConsole or LeakyApi,
-  drive, capture any number of dumps, always killed), `DumpAnalysis` (ClrMD checks), `TempFolder`.
+  drive, capture any number of dumps, always killed), `DumpAnalysis` (ClrMD checks), `TempFolder` (deleted through
+  `TestFolders` since 4.7). The fixtures (Leaks, LeakyConsole, LeakyApi) build for net8.0, net9.0 and net10.0 since 4.7, and
+  `HEAPSCOPE_FIXTURE_RUNTIME` picks the one the tests run (net10.0 when unset); the tests take full dumps of .NET 8, whose heap
+  dumps on Windows leave out the statics.
 
 ### 3.1 The tutorial's sample (sprint 3.13, ADR-042)
 
@@ -650,9 +659,9 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     at a time) beside it (`test.sh integration-heavy`; the first job runs `integration-light`), which halves the wait
     for a PR. The local gate still runs the whole `integration` tier.
   - Both run the known answers on .NET 8 and 9 as well (since 4.7): the CLI's check and the known answer classes.
-  - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests and (since 4.7) the light integration tier, shows
-    the app's window under a virtual display (`xvfb-run`; exit 3, the dispatcher over its budget there, is a warning), (the view model and headless UI
-    tests included, and since sprint 4.1 the capture tests), captures the fixture with the CLI (`dotnet-dump` before
+  - Linux builds the engine, the worker, the CLI and the Avalonia app, runs their tests (the view model and headless UI
+    tests included, and since sprint 4.1 the capture tests) and (since 4.7) the light integration tier, shows the app's window
+    under a virtual display (`xvfb-run`; exit 3, the dispatcher over its budget there, is a warning), captures the fixture with the CLI (`dotnet-dump` before
     capture ran on Linux), checks the CLI's JSON against the known answers with `jq` (counts, sizes, retained sizes, the
     path root, a complete graph, a named runtime version) and opens the dump in the app without a display
     (`--headless --smoke-open`). Then `build/capture-check.sh` starts the tutorial's sample with `sample start`,

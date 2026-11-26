@@ -84,4 +84,17 @@ confirmations, and fixed:
 
 ## Markdown sweep
 
-Pending.
+Every tracked Markdown file read against the code as it stands (2026-11-26). Changed:
+- README.md and INSTALL.md: a heap dump of .NET 8 leaves out the statics when taken on Windows (Linux's createdump keeps them);
+  INSTALL now says which runtimes are tested and what a dump of another one shows, as task 3 said (README's line a draft for the owner).
+- docs/design/info-text.md: the drafts of README's line, the note before .NET 5 and the growing static collections refusal match the code.
+- docs/DEVELOPER.md: `TestFolders` and its sweep, the scripts that default `HEAPSCOPE_DATA_FOLDER`, the fixtures' runtimes and thread
+  statics, and the Linux CI job's sentence put back in order.
+- docs/ARCHITECTURE.md, docs/architecture/code-map.md, snapshots.md and budgets.md: the integration project's Linux tier, the fixtures'
+  runtimes, loader 8's statics, `TestedRuntimes`, `UncheckedRoots`, the reservations, the unbuffered trace, `StaticsChecked` in the
+  unreachable rule and the older cache, and `FirstLoadEstimate`.
+- ADRs: ADR-002 (before .NET 5; heap dumps on Windows), ADR-020, ADR-025, ADR-034 and ADR-037 amended for 4.7; the ADR index lists
+  4.7's amendments (the review's Low).
+- docs/BACKLOG.md: the 60 s trace start explained; the integration tier on Linux. fixtures/KnownAnswers/README.md: the runtimes.
+
+No package changed (THIRD-PARTY-NOTICES.md as is); the reviewer briefs and skills hold no stale fact. No em or en dash in a changed file.

@@ -25,3 +25,6 @@
 - Amended in 4.5: the unreachable set is also refused for a full dump without the fact `HandlesChecked` (GC handles that could not all be
   checked, or a cache from before loader version 5), every detector that counts reachable objects says it in its note, and `type-growth`
   refuses a baseline unless both snapshots have it (what a dump lacks depends on its heap count when it was taken).
+- Amended in 4.7: the same for a full dump without the fact `StaticsChecked` (none of CoreLib's reference statics read, as in a heap
+  dump of .NET 8 taken on Windows, or a cache from before loader version 8); the growing static collections detector, which finds
+  collections by the static fields that hold them, is refused there.

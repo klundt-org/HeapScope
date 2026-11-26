@@ -80,7 +80,8 @@ peak 2.6 GB, mapped transition 1.0 s down to 33 MB private).
 
 Before opening a dump without an index cache, the Application layer estimates the first-load peak
 (`SnapshotMemoryEstimate`: 0.55 bytes per dump byte plus 768 MB, calibrated on the samples above; for the dense dump it
-gives 3.2 GB against the measured 2.6 GB) and warns when it exceeds available physical memory: the UI asks to
+gives 3.2 GB against the measured 2.6 GB; since 4.7 it is Core's `FirstLoadEstimate`, which the worker also reserves while it
+loads, less its idle 256 MB, and logs against the load's peak) and warns when it exceeds available physical memory: the UI asks to
 continue, the CLI prints the warning (or fails with `--no-overcommit`). `SnapshotSession.GetOpenWarningAsync` holds the
 rule for both front ends; it asks the worker (`ProbeSnapshotAsync`) whether a valid index cache exists where the
 locator puts it, so a reopen from cache never warns.
