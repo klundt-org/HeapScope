@@ -69,8 +69,8 @@ index does not list 4.7's amendments.
 All four reviewers checked the fixes on 2026-11-26. Confirmed: H1 to H7, M1 to M3 and M5 to M9; the deferrals accepted. Found in the
 confirmations, and fixed:
 - (all four, Moderate) The first load's reservation subtracted everything the worker held, so a load beside open snapshots reserved
-  nothing. Fixed: only the worker's idle memory (, 256 MB) is subtracted.
-- (all four, Moderate and Low)  reused the bit  had, with the other meaning, at the same loader version.
+  nothing. Fixed: only the worker's idle memory (`FirstLoadEstimate.WorkerIdleBytes`, 256 MB) is subtracted.
+- (all four, Moderate and Low) `StaticsChecked` reused the bit `StaticsUnread` had, with the other meaning, at the same loader version.
   Fixed: loader version 8, so caches of earlier builds of this sprint are rebuilt.
 - (senior-dev, solution-architect) The sweep's Unix form matched names made by hand (heapscope-perf-traces). Fixed: off Windows only,
   and only a name with a digit or a capital, as mkdtemp makes; tested with a name made by hand.
@@ -78,7 +78,7 @@ confirmations, and fixed:
   readers, and the old fact's name was left in three docs. Fixed; ADR-041 amended for the older cache's statics.
 - (support-engineer) The memory refusal's line lacked its snapshot; the note before .NET 5 had no next step; README did not say full
   dumps; logging.md lacked the new lines. Fixed. Deferred (Low): the statics' counts kept in the cache for a reopen's log.
-- (gc-specialist, Low) v1's memory.stat:  preferred; the runtime's limit also caps what is available by its load.
+- (gc-specialist, Low) v1's memory.stat: `total_inactive_file` preferred; the runtime's limit also caps what is available by its load.
 - Low, listed: the dead thread filter has no fixture; a tie in Duplicate strings' bound is not tested; the refusal test catches any
   exception; a thread static's detail names no thread; no test that the opener adds the runtime note.
 
