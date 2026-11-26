@@ -205,8 +205,18 @@ public sealed partial class InspectionsViewModel : ObservableObject
     [RelayCommand]
     private void TryAgain()
     {
-        _logger.LogInformation("Inspections: tried again for {Snapshot}", Snapshot?.Path);
+        _logger.LogInformation("Inspections: tried again for {Snapshot}, baseline {Baseline}", Snapshot?.Path, Baseline?.Snapshot?.Path ?? "none");
+
+        // The baseline chosen stays chosen (review of 4.6).
+        var (chosen, wasChosen) = (Baseline, _baselineChosen);
         Show(Snapshot);
+        if (wasChosen && chosen is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == chosen.Snapshot) is { } same)
+        {
+            _choosingBaseline = true;
+            Baseline = same;
+            _choosingBaseline = false;
+            _baselineChosen = true;
+        }
     }
 
     partial void OnIsActiveChanged(bool value)
@@ -485,7 +495,9 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
-            CanTryAgain = true;
+
+            // A refusal is the same answer again (review of 4.6): only a failure is offered another try.
+            CanTryAgain |= ex is WorkerCrashedException || (ex is WorkerOperationException { ErrorCode: var code } && code is not (HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.CapabilityNotSupported));
         }
         catch (InvalidOperationException ex)
         {
@@ -639,12 +651,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogInformation("{Section} shown as: {Message}", "Inspections against a baseline", ex.Message);
             Status = ex.Message;
+            CanTryAgain = true;
         }
         catch (Exception ex)
         {
             // Not awaited by anyone (review M5): logged and shown, never lost.
             _logger.LogError(ex, "Running the growth detectors again failed");
-            Status = "The growth detectors could not be run again. Details are in the log.";
+            Status = "The growth detectors could not be run again. Details are in the log; press Try again.";
+            CanTryAgain = true;
         }
     }
 

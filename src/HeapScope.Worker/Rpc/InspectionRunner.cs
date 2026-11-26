@@ -130,8 +130,17 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             // What could not be read was not checked (peer review 4.5 H2): a clean answer means checked.
             if (result.Unread is { Count: > 0 } unread)
             {
-                logger.LogInformation("Inspection {Inspection} on snapshot {Id} could not read {Count} of {Of} {What}", inspection.Name, request.SnapshotId, unread.Count, unread.Of, unread.What);
-                result = Checked(inspection.Title, result);
+                // With the rule and its basis, which names what was probed: a refusal below is backed up by this line (review of 4.6).
+                logger.LogInformation(
+                    "Inspection {Inspection} v{Version} on snapshot {Id} could not read {Count} of {Of} {What}; basis: {Basis}",
+                    inspection.Name,
+                    inspection.Version,
+                    request.SnapshotId,
+                    unread.Count,
+                    unread.Of,
+                    unread.What,
+                    (result.Counts is { } counted ? counted + "; " : string.Empty) + (result.Basis ?? "not recorded"));
+                result = Checked(inspection.Title, snapshot.Info.RuntimeVersion, result);
             }
 
             if (inspection.UsesReachable && !HandlesChecked(snapshot))
@@ -173,7 +182,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
 
     /// <summary>The answer with what it could not read in its note; refused when it could read none of it.</summary>
     /// <exception cref="RequestRefusedException">Nothing of what the inspection needs could be read.</exception>
-    internal static InspectionResult Checked(string title, InspectionResult result)
+    internal static InspectionResult Checked(string title, string? runtimeVersion, InspectionResult result)
     {
         if (result.Unread is not { Count: > 0 } unread)
         {
@@ -182,10 +191,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
 
         if (unread.Count >= unread.Of)
         {
-            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"{title} checked nothing: none of the {unread.Of:N0} {unread.What} in this snapshot could be read. Their runtime may lay them out differently from the .NET versions HeapScope knows."));
+            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"{title} checked nothing: none of the {unread.Of:N0} reachable {unread.What} in this snapshot could be read. The .NET {runtimeVersion ?? "version"} of this dump may lay them out differently from the versions HeapScope knows; HeapScope's log names the fields it read, for an issue on HeapScope's site."));
         }
 
-        var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unread.Count:N0} of {unread.Of:N0} {unread.What} could not be read, so they were not checked.");
+        var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unread.Count:N0} of {unread.Of:N0} reachable {unread.What} could not be read, so they were not checked.");
         return result with { Note = result.Note is null ? notChecked : result.Note + " " + notChecked };
     }
 
