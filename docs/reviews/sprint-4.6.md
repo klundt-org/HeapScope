@@ -98,4 +98,7 @@ the confirmations, and fixed:
 
 ## Markdown sweep
 
-Pending.
+Every changed page was checked against the code; the docs were searched for what the sprint changed (the loader version, test totals,
+the reload taken out, the file helper, the bounded stops and starts). Changed: logging.md, threading.md, security-privacy.md,
+process-model.md, code-map.md, graph-format.md, snapshots.md, ADR-020 and the ADR index, DEVELOPER.md, INSTALL.md (a Windows example),
+info-text.md (the drafts), SPRINTS.md, BACKLOG.md, RELEASE-NOTES.md. No em or en dashes in changed files.
