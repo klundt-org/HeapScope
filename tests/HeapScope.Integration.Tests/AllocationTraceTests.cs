@@ -288,8 +288,8 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         try
         {
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            (await recording.WaitAsync(TimeSpan.FromSeconds(45), Ct)).StoppedEarly.ShouldBeTrue();
-            clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20), "the stop waits 5 s for the target, then lets the session go");
+            (await recording.WaitAsync(TimeSpan.FromSeconds(90), Ct)).StoppedEarly.ShouldBeTrue();
+            clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(45), "the stop waits 30 s for the target and its rundown, then lets the session go");
         }
         finally
         {

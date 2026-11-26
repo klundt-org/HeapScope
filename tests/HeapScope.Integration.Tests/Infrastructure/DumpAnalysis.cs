@@ -42,13 +42,36 @@ public sealed class DumpAnalysis : IDisposable
 
     private readonly DataTarget _target;
 
-    private DumpAnalysis(DataTarget target, ClrRuntime runtime, string dacPath, LocalImageLocator locator)
+    private readonly string _path;
+    private IReadOnlyList<HeapScope.Loaders.ClrMd.LeftOutHandle>? _leftOut;
+
+    private DumpAnalysis(DataTarget target, ClrRuntime runtime, string dacPath, LocalImageLocator locator, string path)
     {
         _target = target;
         Runtime = runtime;
         DacPath = dacPath;
         Locator = locator;
+        _path = path;
     }
+
+    private static bool IsMinidump(string path)
+    {
+        Span<byte> start = stackalloc byte[4];
+        using var stream = File.OpenRead(path);
+        return stream.ReadAtLeast(start, 4, throwOnEndOfStream: false) == 4 && start.SequenceEqual("MDMP"u8);
+    }
+
+    /// <summary>
+    /// The GC handles ClrMD's own walk leaves out in a Server GC process with fewer heaps than processors (peer review 4.5), read as
+    /// HeapScope's loader reads them: without them, the walk from the roots here would call live objects garbage.
+    /// </summary>
+    internal IReadOnlyList<HeapScope.Loaders.ClrMd.LeftOutHandle> LeftOutHandles => _leftOut ??= HeapScope.Loaders.ClrMd.HandleTables.Read(
+        Runtime,
+        DacPath,
+        IsMinidump(_path) ? HeapScope.Loaders.ClrMd.MinidumpHeader.Processors(_path) : null,
+        off: false,
+        progress: null,
+        CancellationToken.None).LeftOut;
 
     public ClrRuntime Runtime { get; }
 
@@ -99,7 +122,7 @@ public sealed class DumpAnalysis : IDisposable
             watch.Restart();
             try
             {
-                return new DumpAnalysis(target, clr.CreateRuntime(dac, ignoreMismatch: false), dac, locator);
+                return new DumpAnalysis(target, clr.CreateRuntime(dac, ignoreMismatch: false), dac, locator, path);
             }
             catch (Exception ex)
             {
@@ -233,7 +256,10 @@ public sealed class DumpAnalysis : IDisposable
     public HashSet<ulong> ReachableFromRoots(ISet<ulong>? skip = null, bool finalizerQueue = true)
     {
         var frozen = Heap.Segments.Where(s => s.Kind == GCSegmentKind.Frozen).SelectMany(s => s.EnumerateObjects());
-        var starts = Heap.EnumerateRoots().Where(r => finalizerQueue || r.RootKind != ClrRootKind.FinalizerQueue).Select(r => r.Object).Concat(frozen).Where(o => !o.IsNull);
+        var leftOut = LeftOutHandles
+            .Where(static h => h.Object != 0 && (h.Kind is ClrHandleKind.Strong or ClrHandleKind.Pinned or ClrHandleKind.AsyncPinned or ClrHandleKind.SizedRef || (h.Kind == ClrHandleKind.RefCounted && h.IsStrong)))
+            .Select(h => Heap.GetObject(h.Object));
+        var starts = Heap.EnumerateRoots().Where(r => finalizerQueue || r.RootKind != ClrRootKind.FinalizerQueue).Select(r => r.Object).Concat(frozen).Concat(leftOut).Where(o => !o.IsNull);
         return Walk(starts, followDependentHandles: true, skip);
     }
 
@@ -394,10 +420,15 @@ public sealed class DumpAnalysis : IDisposable
             }
         }
 
+        // The dependent handles ClrMD's walk left out hold their values too.
+        var dependents = followDependentHandles
+            ? LeftOutHandles.Where(static h => h.Kind == ClrHandleKind.Dependent && h.Object != 0 && h.Dependent != 0).ToLookup(static h => h.Object, static h => h.Dependent)
+            : null;
         while (queue.Count > 0)
         {
             var current = queue.Dequeue();
-            foreach (var reference in current.EnumerateReferences(carefully: false, considerDependantHandles: followDependentHandles))
+            var extra = dependents is null ? [] : dependents[current.Address].Select(a => Heap.GetObject(a));
+            foreach (var reference in current.EnumerateReferences(carefully: false, considerDependantHandles: followDependentHandles).Concat(extra))
             {
                 if ((skip is null || !skip.Contains(reference.Address)) && visited.Add(reference.Address))
                 {

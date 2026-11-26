@@ -39,6 +39,10 @@ internal static class SessionStop
     public static Task<bool> StopAsync(EventPipeSession session) =>
         StopAsync(session.StopAsync, session.Dispose, Wait);
 
+    /// <summary>As <see cref="StopAsync(EventPipeSession)"/>, waiting <paramref name="wait"/>: a stop that writes a rundown takes longer.</summary>
+    public static Task<bool> StopAsync(EventPipeSession session, TimeSpan wait) =>
+        StopAsync(session.StopAsync, session.Dispose, wait);
+
     /// <summary>The rule, apart from a real session (tests).</summary>
     internal static async Task<bool> StopAsync(Func<CancellationToken, Task> stop, Action dispose, TimeSpan wait)
     {

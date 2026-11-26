@@ -256,16 +256,22 @@ public static class TraceRecorder
         var first = await Task.WhenAny(copy, elapsed).ConfigureAwait(false);
         var stoppedEarly = first == copy || cancellationToken.IsCancellationRequested;
         // A target that does not answer the stop (frozen in a debugger) has its session let go, which ends the copy (peer review 4.5 H9).
-        if (first != copy && !await SessionStop.StopAsync(session).ConfigureAwait(false))
-        {
-            stoppedEarly = true;
-        }
+        // The stop writes the rundown that names methods, which takes seconds in a large process: the trace waits longer than a counter.
+        var letGo = first != copy && !await SessionStop.StopAsync(session, s_stopWait).ConfigureAwait(false);
+        stoppedEarly |= letGo;
 
         // A stopped session ends its stream after the rundown; one that never ends (the target hung) must not
         // hang the caller: give up after a while and keep what arrived (sprint 1.5 review).
         if (await Task.WhenAny(copy, Task.Delay(s_streamEndTimeout, CancellationToken.None)).ConfigureAwait(false) == copy)
         {
-            await copy.ConfigureAwait(false);
+            try
+            {
+                await copy.ConfigureAwait(false);
+            }
+            catch (Exception ex) when (letGo && ex is ObjectDisposedException or IOException)
+            {
+                // The session let go ended the copy; the trace so far is in the file.
+            }
         }
         else
         {
@@ -296,6 +302,9 @@ public static class TraceRecorder
 
     /// <summary>How long a stopped session may take to end its stream (the rundown) before the recording stops waiting.</summary>
     private static readonly TimeSpan s_streamEndTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>How long a recording's stop waits for the target, its rundown included (peer review 4.5 H9).</summary>
+    private static readonly TimeSpan s_stopWait = TimeSpan.FromSeconds(30);
 
     private static void TryDelete(string path)
     {
