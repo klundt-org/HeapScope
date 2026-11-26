@@ -23,6 +23,7 @@
 
 using System.Globalization;
 using System.Text.RegularExpressions;
+using HeapScope.Tests.Shared;
 using Microsoft.Diagnostics.NETCore.Client;
 
 namespace HeapScope.Integration.Tests.Infrastructure;
@@ -152,27 +153,17 @@ public sealed partial class FixtureProcess : IDisposable
     private static partial Regex ReadyUrl();
 }
 
-/// <summary>A temporary folder for dumps, deleted on dispose (best effort).</summary>
+/// <summary>
+/// A temporary folder for dumps, deleted on dispose with retries (a scanner or a worker may hold a dump for a moment); one that
+/// stays is said on the error stream and swept by a later run (sprint 4.7: silent failures here once left 17 GB behind).
+/// </summary>
 public sealed class TempFolder : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "HeapScopeTests", Guid.NewGuid().ToString("N"));
+    public string Path { get; } = System.IO.Path.Combine(TestFolders.Root, Guid.NewGuid().ToString("N"));
 
     public TempFolder() => Directory.CreateDirectory(Path);
 
     public string File(string name) => System.IO.Path.Combine(Path, name);
 
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(Path, recursive: true);
-        }
-        catch (IOException)
-        {
-            // A scanner may still hold a dump briefly; the folder is under %TEMP%.
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
+    public void Dispose() => TestFolders.Delete(Path);
 }

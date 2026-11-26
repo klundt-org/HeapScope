@@ -56,7 +56,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.4 | Allocated between two snapshots | Closed | 2026-11-25 | sprint-4.4 |
 | 4.5 | Peer review | Closed | 2026-11-25 | sprint-4.5 |
 | 4.6 | Right answers | Closed | 2026-11-25 | sprint-4.6 |
-| 4.7 | Runtimes, Linux and large heaps | Planned | | |
+| 4.7 | Runtimes, Linux and large heaps | In Progress | | |
 | 4.8 | Ready to release | Planned | | |
 | 4.9 | Workspaces | Planned | | |
 | 4.10 | Analysis tabs | Planned | | |
@@ -119,6 +119,67 @@ Owner decisions, 2026-11-18:
 | 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.7: Runtimes, Linux and large heaps
+
+**Goal:** what README promises is what was tested: dumps of .NET 8, 9 and 10 give the known answers, the integration tier runs on
+Linux and the app's window is shown there, and a large heap opens within the memory HeapScope says it has, on every system: the
+findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.md), with what 4.6 left for them.
+
+**Tasks**
+1. [x] Tests leave nothing in the temp folder: one helper for a test's folder (`TestFolders`: deleted with retries, one that stays is
+   said on the error stream, never swallowed), used by the integration tier's dump folders; every test assembly's start sweeps the dump
+   folders and the tests' `heapscope-*` folders a run left more than a day ago (the small shared data and sessions folders stay).
+   Tests: `TestFoldersTests` (a held file said, a stale folder swept, a fresh one or one named by hand kept).
+2. [ ] H1: the fixtures (Leaks, LeakyConsole, LeakyApi) build for net8.0, net9.0 and net10.0; the tests pick a fixture's runtime by
+   `HEAPSCOPE_FIXTURE_RUNTIME` (net10.0 when unset); the known answers (`KnownAnswerTests`, `LoaderKnownAnswerTests`,
+   `DetectorTests`, `check-known-answers.sh`) pass on each, with any answer that differs by runtime stated in its file. CI runs them
+   for .NET 8 and 9 on Windows and Linux. Tests: the known answer classes per runtime; a runtime's own answer where it differs.
+3. [ ] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and
+   the log names it; README, ADR-002 and INSTALL say which runtimes are tested (8, 9 and 10) and which open untested (5 to 7). Tests: the
+   note for a .NET 6 version and none for 8 to 10; the CLI's line.
+4. [ ] M11: thread statics have a fixture (`[ThreadStatic]` and `ThreadLocal<T>` holding leak objects) and a known answer; the loader
+   names a thread static by its field where ClrMD lists it (loader version 7), else keeps "thread static". Tests: the known answer on
+   each runtime.
+5. [ ] H12: the integration tier runs on Linux: the project builds for net10.0, the paths of the fixtures, the CLI and the worker are
+   the system's own, and the Windows-only tests (minidumps, elevation, `cmd.exe`) skip elsewhere and say why; CI runs the light
+   integration tier on Linux. Tests: the tier itself, green in CI on Linux.
+6. [ ] H12: the app's window is shown on Linux in CI under a virtual display (`xvfb-run`): it opens the fixture dump and drills down as the
+   headless smoke run does. A real desktop (claude-dev-3) stays in the Backlog. Tests: the CI step.
+7. [ ] H7: the memory budget reads the system's own numbers off Windows: `/proc/meminfo` (MemAvailable) and a cgroup's limit and use on
+   Linux, `sysctl` and the VM statistics on macOS (untested); the worker's own memory on macOS is its physical footprint. One reader for the
+   worker and the front ends. Tests: the parsers on sample texts; a cgroup limit below the machine's; on Linux CI, nonzero numbers before
+   any collection.
+8. [ ] H6: an inspection runs inside a memory reservation sized by its own estimate (objects scanned), refused with a next step when it
+   cannot fit; Duplicate strings keeps the values that waste the most (a bounded set) and says how many more there were. Tests: a
+   reservation refused; the bound and its note.
+9. [ ] H8: a recording's default limit is one whose read fits beside two snapshots on the 16 GB baseline (512 MB), and a recording's
+   limit is checked against the budget at its start, not only at its read. The one streaming reader stays in the Backlog. Tests: the
+   default; a limit over the budget lowered with a note.
+10. [ ] H5: the worker checks a first load: it reserves the load's estimate while it loads, refuses with a next step when the open was
+    not allowed to overcommit, and logs the estimate against what was used. An 8 GB DenseHeap dump is measured (first load, peak, reopen
+    in both modes, the indices; and with the working set capped); if the peak is over budget, the edges go into the cache as they are
+    read. Tests: a load over budget refused; the measurement in budgets.md.
+11. [ ] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
+    need (by the graph's bytes per object); counters read the interval the target reports and log one that differs from the one asked.
+    Tests: each.
+12. [ ] The trace start that takes over 60 s under load (CI since 2026-11-20, the 4.6 gate): test the theory that the names session's
+    rundown on stop holds the target's diagnostics server; fix it if so, else record what was measured. Tests: a start after a names
+    session, timed.
+
+**Decisions**
+- Owner, 2026-11-25: .NET 8 and 9 runtimes may be downloaded (this machine has them already; CI gets them with setup-dotnet).
+- Owner, 2026-11-25: about 20 GB in `artifacts/` for the 8 GB dump is fine, and the old fixture dumps there may be deleted (D: has
+  1 TB free, so they are kept unless the space is needed).
+- Owner, 2026-11-25: Linux runs the integration tier headless in CI now, and the app's window under a virtual display; a real desktop
+  later (claude-dev-3).
+- Decided autonomously: .NET 5 to 7 are opened, marked untested, not refused; ADR-002's decision stands, amended with what is tested.
+- Decided autonomously: the worker protocol and the loader version are bumped only if a task needs it (task 4 does: loader 7).
+- Decided autonomously: the 1 GB trace limit becomes 512 MB; the streaming reader for a finished trace is Backlog (L).
+- Decided autonomously: the test temp cleanup (task 1) joins the sprint: a killed run left 17 GB in the temp folder (owner, 2026-11-25).
+- Decided autonomously: the edges written straight into the cache only if the 8 GB measurement misses the 4 GB first load budget.
 
 ---
 
