@@ -305,6 +305,12 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   count), ending at 25 tables; added ... by kind; ... not used; 9 walks, 0.1 s)`), `Complete`, or `Unknown` with the reason: the first doubt with
   the count tried and what it gave, or an exception with the method it came from. Caches from before say "not recorded". A detector over
   reachable objects logs its note, and a refused baseline is logged as every refusal is. The walk is a phase of its own, "handles".
+- Runtimes, Linux and large heaps (sprint 4.7): a dump of a runtime the known answers are not checked on logs "The dump {path} is of
+  .NET {version}, which the known answers are not checked on"; a first load of a full dump logs its estimate against the worker's peak
+  ("First load of {path}: ... estimated peak ... (reserved), worker peak commit ... ({ratio} of the estimate)"), and one that did not
+  fit the budget is logged before it loads. A recording whose limit was lowered to fit the machine says the limit, the one asked and
+  why; counters whose target reports another interval than the one asked log it once. Duplicate strings' basis counts the values and
+  those listed. Tests that cannot delete their folder say it on the error stream.
 - Right answers (sprint 4.6): an inspection that could not read some of what it checks logs "could not read N of M {what}" with its rule,
   version and basis (which names what it probed), and says it in the answer's note; one that read none is refused with the same line before
   it. The growing static collections detector's basis names the collections in static storage no field names, by type, and the counts it

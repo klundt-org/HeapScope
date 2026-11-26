@@ -427,6 +427,20 @@ Drafts for the owner (sprint 4.6, right answers; peer review 4.5).
 | Inspections, CLI | A detector that could not read some of what it checks (H2), in its note | {N} of {M} {reachable timers, reachable service scopes, reachable HttpClients, reachable async state machines, reachable objects with a disposed flag, collections, static collections} could not be read, so they were not checked. | draft |
 | Inspections, CLI | A detector that could read none of it (H2), a refusal | {Title} checked nothing: none of the {M} {reachable timers, and the others as above} in this snapshot could be read. The .NET {version} of this dump may lay them out differently from the versions HeapScope knows; HeapScope's log has what was probed, for an issue on HeapScope's site. | draft |
 
+## Sprint 4.7 additions
+
+Drafts for the owner (sprint 4.7, runtimes, Linux and large heaps; peer review 4.5).
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Snapshot notes, CLI | A dump of a runtime the known answers are not checked on (H1) | This dump is of .NET {version}. HeapScope checks its answers on dumps of .NET 8 to 10; it reads other versions too, but has not checked them, so a result that looks wrong may be HeapScope's. Its log names what it read, for an issue on HeapScope's site. | draft |
+| Snapshot notes, CLI | A dump whose static fields could not be read (found running .NET 8) | HeapScope could not read the static fields of this dump: a heap dump of .NET 8 or before leaves out the memory they are kept in. Objects held only by a static field, and what they hold, can look unreachable, and leak detectors can miss them. Capture a full dump instead (heapscope-cli capture, or dotnet-dump collect --type Full). | draft |
+| Why alive, unreachable set, Inspections | The same dump: what rests on its roots (as for GC handles not checked) | No root HeapScope could read reaches it. The static fields of this dump could not be read (see its notes), so it may still be alive. / The static fields of this dump could not be read, so live objects could look unreachable. The snapshot's notes say what to do. / The static fields of this dump could not be read (see its notes), so objects held only by a static field may not all be counted. / Growth cannot be measured: the static fields of {this snapshot, the baseline X} could not be read (see its notes), so objects held only by a static field could be counted on one side only. {Choose no baseline. / Choose another baseline, or none.} | draft |
+| Retention paths, roots | A thread static, by its field (M11) | Static field {Namespace.Type.field} (thread static) | draft |
+| Inspections, CLI | Duplicate strings with more values than it lists (H6), in its note | The 10,000 values that waste the most are listed; {N} more, wasting {B} bytes, are counted in the totals but not listed. | draft |
+| Processes, CLI | Too little disk for a dump and its index caches (M11; was "HeapScope keeps {reserve} free") | The dump needs about {size} and HeapScope keeps {reserve} free for its index caches and the system, but only {free} is free on the drive of {folder}. Free some space or choose another folder. | draft |
+| README | Modern .NET only (H1) | It analyzes .NET 5 and later, not .NET Framework. Its answers are checked on every change against dumps of .NET 8, 9 and 10; a dump of another version opens with a note that its answers are not checked. A heap dump of .NET 8 (`dotnet-dump collect --type Heap`) leaves out the static fields: take a full dump. | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

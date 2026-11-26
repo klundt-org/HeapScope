@@ -148,11 +148,18 @@ Full dump loader (sprint 1.2, `HeapScope.Loaders.ClrMd`: `ClrMdDumpLoader`, `Dac
 - Roots: `ClrHeap.EnumerateRoots` (strong, pinned, async pinned and live ref-counted handles, stacks with the thread
   as detail, the f-reachable queue). On .NET 9 and 10 it also reports the static storage bucket as `StaticVar` and
   thread statics as `ThreadStaticVar`: the bucket maps to `StrongHandle` with the detail "static storage" and is kept
-  once (the detail on its own strong handle since 4.5); thread statics map to `Other`. `StaticField` roots come from `ClrModule.EnumerateTypesWithStaticFields` per
+  once (the detail on its own strong handle since 4.5); thread statics map to `Other`. .NET 8 reports neither: since 4.7 (loader
+  version 7) a strong handle's `Object[]` that holds a static's slot (`ClrStaticField.GetAddress`, a thread static's per thread) is
+  named "static storage" too. `StaticField` roots come from `ClrModule.EnumerateTypesWithStaticFields` per
   module and app domain (initialized reference statics, detail `Namespace.Type.field`; since 4.6, loader version 6, a struct static
-  with references too, rooted at its box). Statics of generic instantiations missing from a module's type map are not reported;
+  with references too, rooted at its box; since 4.7 a thread static, once per thread that set it, detail `Namespace.Type.field (thread
+  static)`, from `ClrType.ThreadStaticFields`). Statics of generic instantiations missing from a module's type map are not reported;
   their values stay reachable through the storage handle, and the growing static collections detector's note counts the collections
   it holds that no field names (peer review 4.5 H3).
+- Statics a dump does not hold (sprint 4.7): a heap dump of .NET 8 written on Windows leaves out the loader heap the statics are kept
+  in, so none reads as initialized. The loader says so as `SnapshotFacts.StaticsUnread` when none of System.Private.CoreLib's
+  reference statics is initialized (every running process has some): a note on open, the unreachable set refused, and the detectors
+  over reachable objects noted, as for GC handles not checked (`SnapshotKindHandler.Unchecked`). Linux's createdump keeps them.
 - GC handles of Server GC processes (peer review 4.5, loader version 5): the runtime keeps a handle table per processor and its debugging
   library walks one per GC heap, so with fewer heaps than processors (DATAS, `GCHeapCount`) handles were left out (measured on 24
   processors: 785 of 2,400 at 8 heaps, 200 at 2, 103 at 1). `HandleTables` walks again through a second target whose reader

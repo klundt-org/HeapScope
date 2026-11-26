@@ -14,7 +14,8 @@
   caches, sidecars, entry), a session, or the sessions not opened for N days, each confirmed with its files and logged
   with them; never a file outside the session folder, never a session something writes into (in this HeapScope; another
   HeapScope's capture is held off only by `session.lock` and its open files), never automatically. A run's allocation
-  trace stops at 1 GB or when the disk runs low. A run started with `RecordRun` off (smoke runs) uses no session at all.
+  trace stops at 512 MB (1 GB before sprint 4.7; lower on a machine where its read would not fit beside two snapshots) or when
+  the disk runs low. A run started with `RecordRun` off (smoke runs) uses no session at all.
 - Consequences: different processes still capture together. A forced collection may move objects (ADR-032's comparisons
   across it see moved ones as dead and new) and leaves finalizable objects for a later collection; the timeline and the
   run record mark it. A run that ends with the app recorded no
