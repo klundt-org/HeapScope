@@ -22,6 +22,22 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.7.0: Runtimes, Linux and large heaps (sprint 4.7)
+
+- **Dumps of .NET 8 and 9** are tested as .NET 10's are, on Windows and Linux. A dump of another version opens with a note that
+  its answers are not tested; one from before .NET 5 says it is not supported and what to use instead.
+- **A heap dump of .NET 8 taken on Windows** leaves out the memory that holds static fields. HeapScope now says so, and does not call
+  what only statics hold unreachable or report a clean growing static collections check; a full dump has them.
+- **Thread statics** root what they hold, struct ones included, on every runtime.
+- **Large dumps use less memory**: opening an 8 GB dump for the first time peaked at 3.6 GB, down from 5.3 GB; its references go to
+  a private temporary file while it loads (about 4 bytes each), deleted when the snapshot closes. Opening one checks the memory it
+  needs against what the machine has, read the same way on Windows, Linux (cgroups included) and macOS.
+- **Recordings start at once** on an idle process (one could wait a minute before its first bytes), and a recording's limit is
+  512 MB by default, lowered to fit the machine.
+- **Linux**: the app's tests run there in CI, its window under a virtual display.
+- **Limits**: a snapshot kept in memory keeps the references' file until it closes; after a large dump switches to mapped mode the
+  worker keeps about 1 to 2 GB it no longer needs (Backlog, 4.8). Older index caches are rebuilt when opened again.
+
 ## 4.6.0: Right answers (sprint 4.6)
 
 - **A clean answer means checked**: a leak detector that could not read some of what it checks says how many, and one that could read

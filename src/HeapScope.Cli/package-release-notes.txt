@@ -1,3 +1,10 @@
+4.7.0: Runtimes, Linux and large heaps.
+
+- Dumps of .NET 8 and 9 are tested; another version opens with a note, one from before .NET 5 says it is not supported (4.7.0).
+- A Windows heap dump of .NET 8, which lacks the statics' memory, says so instead of calling what statics hold unreachable (4.7.0).
+- open of a large dump uses about a third less memory; its references go to a private temporary file while it loads (4.7.0).
+- record starts writing at once, and its default limit is 512 MB, lowered to fit the machine (4.7.0).
+
 4.6.0: Right answers.
 
 - inspect says how many objects a detector could not read, and refuses an answer that read none of them, instead of "0 found" (4.6.0).

@@ -522,3 +522,89 @@ way there: the High and Moderate findings of [peer review 4.5](../reviews/peer-r
 ([docs/reviews/sprint-4.6.md](../reviews/sprint-4.6.md)); every High fixed and confirmed, 14 Moderate fixed and 5 deferred (Backlog), the
 confirmations' fixed. Gate: pass, 0 warnings, 2,207 tests.
 
+---
+
+## Sprint 4.7: Runtimes, Linux and large heaps
+
+**Goal:** what README promises is what was tested: dumps of .NET 8, 9 and 10 give the known answers, the integration tier runs on
+Linux and the app's window is shown there, and a large heap opens within the memory HeapScope says it has, on every system: the
+findings H1, H5 to H8, H12 and M11 of [peer review 4.5](../reviews/peer-review-4.5.md), with what 4.6 left for them.
+
+**Tasks**
+1. [x] Tests leave nothing in the temp folder: one helper for a test's folder (`TestFolders`: deleted with retries, one that stays is
+   said on the error stream, never swallowed), used by the integration tier's dump folders; every test assembly's start sweeps the dump
+   folders and the tests' `heapscope-*` folders a run left more than a day ago (the small shared data and sessions folders stay).
+   Tests: `TestFoldersTests` (a held file said, a stale folder swept, a fresh one or one named by hand kept).
+2. [x] H1: the fixtures (Leaks, LeakyConsole, LeakyApi) build for net8.0, net9.0 and net10.0; the tests pick a fixture's runtime by
+   `HEAPSCOPE_FIXTURE_RUNTIME` (net10.0 when unset); the known answers (`KnownAnswerTests`, `LoaderKnownAnswerTests`,
+   `DetectorTests`, `check-known-answers.sh`) pass on each, with any answer that differs by runtime stated in its file. CI runs them
+   for .NET 8 and 9 on Windows and Linux (the classes on Linux since the review). Tests: the known answer classes per runtime; a runtime's own answer where it differs.
+   Found: .NET 8 reports its static storage only as strong handles, so a static ClrMD cannot name (a generic type's) blamed a
+   handle; the loader now names a handle's array that holds a static's slot as the storage (loader version 7). And a heap dump of
+   .NET 8 leaves out the memory its statics are in: the loader says so (`StaticsChecked` missing, when none of CoreLib's statics read; loader version 8),
+   with a note, the unreachable set refused and the detectors noted as for unchecked handles. Tests: `HeapDumpStaticsTests`, the
+   statics case in `UncheckedHandlesTests`; the tests take full dumps of .NET 8. No answer differs by runtime.
+3. [x] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and
+   the log names it; README, ADR-002 and INSTALL say which runtimes are tested (8, 9 and 10) and which open untested (5 to 7). Tests: the
+   note for a .NET 6 version, one before .NET 5, none for 8 to 10 (`TestedRuntimesTests`); the CLI prints it as every note.
+4. [x] M11: thread statics have a fixture (`[ThreadStatic]` and `ThreadLocal<T>` holding leak objects, on a parked thread) and a known
+   answer; the loader names a thread static by its field, "(thread static)", once per thread that set it (loader version 7): .NET 8
+   reports no thread static root (its arrays were blamed on a strong handle), .NET 9 and 10 only the runtime's arrays. A ThreadLocal's
+   values are reached through its own static field. Tests: `A_thread_static_is_named_by_its_field_and_a_thread_local_is_reached_through_its_static`
+   on each runtime.
+5. [x] H12: the integration tier runs on Linux: the project builds for net10.0, the paths of the fixtures, the CLI and the worker are
+   the system's own, and the Windows-only tests (minidumps, elevation, `cmd.exe`) skip elsewhere and say why; CI runs the light
+   integration tier on Linux. Tests: the tier itself, green in CI on Linux.
+6. [x] H12: the app's window is shown on Linux in CI under a virtual display (`xvfb-run`): it opens the fixture dump and drills down as the
+   headless smoke run does. A real desktop (claude-dev-3) stays in the Backlog. Tests: the CI step.
+7. [x] H7: the memory budget reads the system's own numbers off Windows: `/proc/meminfo` (MemAvailable) and a cgroup's limit and use on
+   Linux, `sysctl` and the VM statistics on macOS (untested); the worker's own memory on macOS is its physical footprint. One reader for the
+   worker and the front ends. Tests: the parsers on sample texts; a cgroup limit below the machine's; on Linux CI, nonzero numbers before
+   any collection.
+8. [x] H6: an inspection runs inside a memory reservation sized by its own estimate (`IInspection.WorkingBytes`: a byte per object by
+   default, Duplicate strings 49 bytes per string and its rows), refused with the reservations' next step when it cannot fit; Duplicate
+   strings lists the 10,000 values that waste the most, its totals count every duplicate and the note says how many more there were
+   (version 3). Tests: the bound, its note and its estimate (`Duplicate_strings_list_the_values_that_waste_the_most_and_count_the_rest`);
+   a refusal is the reservations' own (their tests).
+9. [x] H8: a recording's default limit is one whose read fits beside two snapshots on the 16 GB baseline (512 MB), and a recording's
+   limit is checked against the machine at its start, not only at its read: lowered and logged (said in the stop's text: Backlog). The
+   one streaming reader stays in the Backlog. Tests: the default; a limit over the machine lowered (`TraceReadCostTests`).
+10. [x] H5: the worker checks a first load of a full dump: it reserves the load's estimate, less what it holds already, while it loads,
+    and logs the estimate against what was used and how the load ended. One that does not fit is logged, not refused: the worker is not
+    told whether the user accepted the front ends' warning (heapscope-cli open --no-overcommit refuses before asking); a refusal in the
+    worker needs a protocol change (Backlog). An 8 GB DenseHeap dump is measured (first load, peak, reopen in both modes, the indices;
+    and with the working set capped): 5,279 MB against 4 GB, so the references go to a mapped temporary file as they are read
+    (not into the cache: their count is not known until the pass ends; ADR-015 amended), falling back to memory, logged, when
+    space is short or the file fails, and freezing collects its chunks. Tests: `A_first_load_is_reserved_and_logged_against_its_estimate`,
+    `EdgeStoreTests` (the same graph; the file released on every path; each fallback),
+    `A_load_that_writes_its_references_to_a_file_builds_the_same_graph`; the measurements in budgets.md (2 GB: 1,920 to 1,161 MB;
+    8 GB: 5,279 to 3,569 MB, under 4 GB, the same graph). `FirstLoadEstimate` refitted to 0.45 bytes per dump byte plus 704 MB
+    (`Estimate_covers_the_measured_first_load_peaks`).
+11. [x] M11: the reverse index built without a cache takes a reservation; a capture's disk check counts the index caches the dump will
+    need (by the graph's bytes per object); counters read the interval the target reports and log one that differs from the one asked.
+    Tests: each.
+12. [x] The trace start that takes over 60 s under load (CI since 2026-11-20, the 4.6 gate). Found: not a slow start, nor the names
+    session (CI's run of this sprint saw it on a LeakyApi with no session before). `TraceRecorder.RecordAsync` wrote through a 64 KB
+    buffer, so an idle target's trace stayed 0 bytes on disk, and the tests wait for bytes before they start their load. Fixed: written
+    unbuffered, as a live recording is. Test: `An_idle_targets_recording_has_bytes_on_disk_within_seconds` (1.8 s with the fix; none in
+    30 s without). A live recording, already unbuffered, was seen late once (`AllocatedBetweenTests`, 4.6): not explained by this.
+
+**Decisions**
+- Owner, 2026-11-25: .NET 8 and 9 runtimes may be downloaded (this machine has them already; CI gets them with setup-dotnet).
+- Owner, 2026-11-25: about 20 GB in `artifacts/` for the 8 GB dump is fine, and the old fixture dumps there may be deleted (D: has
+  1 TB free, so they are kept unless the space is needed).
+- Owner, 2026-11-25: Linux runs the integration tier headless in CI now, and the app's window under a virtual display; a real desktop
+  later (claude-dev-3).
+- Decided autonomously: .NET 5 to 7 are opened, marked untested, not refused; ADR-002's decision stands, amended with what is tested.
+- Decided autonomously: the worker protocol and the loader version are bumped only if a task needs it (task 4 does: loader 7).
+- Decided autonomously: the 1 GB trace limit becomes 512 MB; the streaming reader for a finished trace is Backlog (L).
+- Decided autonomously: the test temp cleanup (task 1) joins the sprint: a killed run left 17 GB in the temp folder (owner, 2026-11-25).
+- Decided autonomously: the edges written straight into the cache only if the 8 GB measurement misses the 4 GB first load budget.
+  It missed (5,279 MB); owner, 2026-11-26: fix it in 4.7. Built as their own mapped temporary file instead of the cache
+  (ADR-015 amended); the 8 GB dump then peaked at 3,569 MB, and the first load estimate was refitted to it.
+
+**Review summary:** 7 High and about 14 Moderate, and in the confirmations 4 Moderate; then the task 10 follow-up (the references'
+temporary file), 2 High and 9 Moderate, and in its confirmations 3 Moderate ([docs/reviews/sprint-4.7.md](../reviews/sprint-4.7.md)).
+Every High fixed and confirmed; the Moderates fixed, or deferred to the Backlog where said. Measured: an 8 GB DenseHeap dump's first
+load peak 5,279 MB down to 3,569 MB (under the 4 GB budget, the same graph), a 2 GB one's 1,920 MB down to 1,161 MB;
+`FirstLoadEstimate` refitted to 0.45 bytes per dump byte plus 704 MB. Gate: pass, 0 warnings, 2,267 tests.
