@@ -293,6 +293,22 @@ public sealed class LoaderKnownAnswerTests(LoadedAllLeaksDump shared) : IClassFi
         types.ShouldContain("System.Collections.Generic.List<Fixtures.Leaks.GenericStaticEntry>");
     }
 
+    // Peer review 4.5 M11 (sprint 4.7): a [ThreadStatic] field is named by its field on every runtime (.NET 8 reports no thread static
+    // root, .NET 9 and 10 only the runtime's arrays); a ThreadLocal's values are reached through its own static field.
+    [Fact]
+    public void A_thread_static_is_named_by_its_field_and_a_thread_local_is_reached_through_its_static()
+    {
+        var list = GraphQueries.Instances(Graph, "System.Collections.Generic.List<Fixtures.Leaks.ThreadStaticEntry>").ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(list).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && r.IsRetaining
+            && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_threadItems (thread static)");
+        GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadStaticEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
+        GraphQueries.Instances(Graph, typeof(Fixtures.Leaks.ThreadLocalEntry).FullName!).Count().ShouldBe(AllLeaksDump.RuntimeItems);
+
+
+        var local = GraphQueries.Instances(Graph, "System.Threading.ThreadLocal<System.Collections.Generic.List<Fixtures.Leaks.ThreadLocalEntry>>").ShouldHaveSingleItem();
+        Graph.Roots.GetRoots(local).ToArray().ShouldContain(r => r.Kind == RootKind.StaticField && Graph.Strings[r.DetailId] == "Fixtures.Leaks.ThreadStatics.s_local");
+    }
+
     [Theory]
     [MemberData(nameof(LeakNames))]
     public void Static_storage_is_rooted_as_recorded(string leak)

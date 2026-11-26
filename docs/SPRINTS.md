@@ -145,9 +145,11 @@ findings H1, H5 to H8, H12 and M11 of [peer review 4.5](reviews/peer-review-4.5.
 3. [x] H1: opening a dump of a runtime HeapScope was not tested on (before .NET 8) says so beside the result, in the app and the CLI, and
    the log names it; README, ADR-002 and INSTALL say which runtimes are tested (8, 9 and 10) and which open untested (5 to 7). Tests: the
    note for a .NET 6 version and none for 8 to 10; the CLI's line.
-4. [ ] M11: thread statics have a fixture (`[ThreadStatic]` and `ThreadLocal<T>` holding leak objects) and a known answer; the loader
-   names a thread static by its field where ClrMD lists it (loader version 7), else keeps "thread static". Tests: the known answer on
-   each runtime.
+4. [x] M11: thread statics have a fixture (`[ThreadStatic]` and `ThreadLocal<T>` holding leak objects, on a parked thread) and a known
+   answer; the loader names a thread static by its field, "(thread static)", once per thread that set it (loader version 7): .NET 8
+   reports no thread static root (its arrays were blamed on a strong handle), .NET 9 and 10 only the runtime's arrays. A ThreadLocal's
+   values are reached through its own static field. Tests: `A_thread_static_is_named_by_its_field_and_a_thread_local_is_reached_through_its_static`
+   on each runtime.
 5. [ ] H12: the integration tier runs on Linux: the project builds for net10.0, the paths of the fixtures, the CLI and the worker are
    the system's own, and the Windows-only tests (minidumps, elevation, `cmd.exe`) skip elsewhere and say why; CI runs the light
    integration tier on Linux. Tests: the tier itself, green in CI on Linux.

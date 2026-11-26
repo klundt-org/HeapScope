@@ -55,7 +55,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// since peer review 4.5: the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
     /// LoaderAllocator references of 3.12 for caches written before them. 6 since sprint 4.6: struct statics with references are named by
     /// their field (peer review 4.5 H3), not only as the runtime's static storage.
-    /// 7 since sprint 4.7: the static storage of .NET 8, which it reports only as strong handles, is named as such (peer review 4.5 H1).
+    /// 7 since sprint 4.7: the static storage of .NET 8, which it reports only as strong handles, is named as such (peer review 4.5 H1),
+    /// and thread statics are named by their field, "(thread static)" (M11).
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
@@ -807,6 +808,18 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                 cancellationToken.ThrowIfCancellationRequested();
                 foreach (var type in module.EnumerateTypesWithStaticFields())
                 {
+                    // A thread static's slot of each thread: .NET 8 keeps them in arrays strong handles hold too (sprint 4.7).
+                    foreach (var field in type.ThreadStaticFields)
+                    {
+                        foreach (var thread in field.IsObjectReference ? runtime.Threads : [])
+                        {
+                            if (field.GetAddress(thread) is var threadSlot and not 0)
+                            {
+                                slots.Add(threadSlot);
+                            }
+                        }
+                    }
+
                     foreach (var field in type.StaticFields)
                     {
                         if (!field.IsObjectReference)
@@ -893,6 +906,32 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                         if (builder.DroppedRootCount == before)
                         {
                             added++;
+                        }
+                    }
+
+                    // A thread static is named by its field too, once per thread that set it (peer review 4.5 M11, sprint 4.7): .NET 8
+                    // reports no thread static root at all, and .NET 9 and 10 only the runtime's arrays that hold them.
+                    foreach (var field in type.ThreadStaticFields)
+                    {
+                        if (!field.IsObjectReference)
+                        {
+                            continue;
+                        }
+
+                        foreach (var thread in runtime.Threads)
+                        {
+                            var value = field.ReadObject(thread);
+                            if (value.IsNull || !value.IsValid)
+                            {
+                                continue;
+                            }
+
+                            var before = builder.DroppedRootCount;
+                            builder.AddRoot(value.Address, RootKind.StaticField, flags, $"{type.Name}.{field.Name} (thread static)");
+                            if (builder.DroppedRootCount == before)
+                            {
+                                added++;
+                            }
                         }
                     }
                 }

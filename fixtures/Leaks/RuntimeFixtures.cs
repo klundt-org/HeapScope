@@ -50,6 +50,7 @@ public static class RuntimeFixtures
     private static string s_literal = string.Empty;
     private static Thread? s_localThread;
     private static Thread? s_interiorThread;
+    private static Thread? s_threadStaticThread;
 
     public static void Create(int count)
     {
@@ -79,6 +80,7 @@ public static class RuntimeFixtures
         s_literal = FrozenLiteral;
         s_localThread = StartParked(ParkWithLocal, "HeapScope fixture local root");
         s_interiorThread = StartParked(ParkWithInteriorPointer, "HeapScope fixture interior root");
+        s_threadStaticThread = StartParked(ready => ParkWithThreadStatics(ready, count), "HeapScope fixture thread static root");
     }
 
     public static string Literal => s_literal;
@@ -114,6 +116,19 @@ public static class RuntimeFixtures
         thread.Start();
         ready.Wait();
         return thread;
+    }
+
+    /// <summary>
+    /// Holds <paramref name="count"/> <see cref="ThreadStaticEntry"/> objects in a <c>[ThreadStatic]</c> field and as many
+    /// <see cref="ThreadLocalEntry"/> objects in a <see cref="ThreadLocal{T}"/> value of this thread only, then blocks forever
+    /// (peer review 4.5 M11: thread statics had no fixture).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ParkWithThreadStatics(ManualResetEventSlim ready, int count)
+    {
+        ThreadStatics.Fill(count);
+        ready.Set();
+        s_parked.Wait();
     }
 
     /// <summary>Holds a <see cref="StackRootedObject"/> only in a local, then blocks forever.</summary>
@@ -202,6 +217,37 @@ public readonly record struct StructStaticHolder(List<StructStaticEntry> Items);
 
 /// <summary>Held by the list inside <see cref="StructStatics"/>.</summary>
 public sealed class StructStaticEntry(int id)
+{
+    public int Id { get; } = id;
+}
+
+/// <summary>Statics of one thread (peer review 4.5 M11): a [ThreadStatic] field and a ThreadLocal value, set on the parked thread only.</summary>
+public static class ThreadStatics
+{
+    [ThreadStatic]
+    private static List<ThreadStaticEntry>? s_threadItems;
+
+    private static readonly ThreadLocal<List<ThreadLocalEntry>> s_local = new(() => []);
+
+    public static void Fill(int count)
+    {
+        s_threadItems = [];
+        for (var i = 0; i < count; i++)
+        {
+            s_threadItems.Add(new ThreadStaticEntry(i));
+            s_local.Value!.Add(new ThreadLocalEntry(i));
+        }
+    }
+}
+
+/// <summary>Held by <see cref="ThreadStatics"/>' [ThreadStatic] field on one thread.</summary>
+public sealed class ThreadStaticEntry(int id)
+{
+    public int Id { get; } = id;
+}
+
+/// <summary>Held by <see cref="ThreadStatics"/>' ThreadLocal value on one thread.</summary>
+public sealed class ThreadLocalEntry(int id)
 {
     public int Id { get; } = id;
 }

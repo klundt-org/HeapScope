@@ -154,7 +154,7 @@ public sealed class CacheRebuildTests : IDisposable
     {
         ClrMdDumpLoader.CurrentVersion.ShouldBe(
             7,
-            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4; version 6 only names struct statics, which an older cache shows as the runtime's storage of static fields, so no answer it gives is wrong; version 7 only names the static storage of .NET 8, which an older cache shows as a strong handle, the same objects held), or raise OldestFallbackLoaderVersion (ADR-041)");
+            "a new loader version changes more than the note says: reword SnapshotOpener.OlderCacheNote (its handles and references since version 5, its process name since 4; version 6 only names struct statics, which an older cache shows as the runtime's storage of static fields, so no answer it gives is wrong; version 7 only names the static storage of .NET 8, which an older cache shows as a strong handle, and thread statics by their field, which it shows as the runtime's storage; the same objects held), or raise OldestFallbackLoaderVersion (ADR-041)");
     }
 
     [Fact]
