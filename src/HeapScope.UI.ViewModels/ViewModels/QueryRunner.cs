@@ -37,7 +37,8 @@ namespace HeapScope.UI.ViewModels;
 /// </summary>
 internal static class QueryRunner
 {
-    public static async Task RunAsync<T>(
+    /// <returns>Whether an answer was shown: false after a failure, which a view may let the user try again (peer review 4.5 M7).</returns>
+    public static async Task<bool> RunAsync<T>(
         string section,
         Func<IProgress<JobProgress>, CancellationToken, Task<T>> query,
         Action<T> show,
@@ -67,26 +68,30 @@ internal static class QueryRunner
                     await discard(result);
                 }
 
-                return;
+                return true;
             }
 
             show(result);
+            return true;
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
             // Left the history while loading.
+            return true;
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
             finished = true;
             LogShown(logger, section, ex);
             setStatus(ex.Message);
+            return false;
         }
         catch (Exception ex)
         {
             finished = true;
             logger.LogError(ex, "{Section} failed", section);
             setStatus(failure);
+            return false;
         }
     }
 

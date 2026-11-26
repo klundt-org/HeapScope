@@ -366,6 +366,22 @@ public sealed class CompareViewModelTests : IDisposable
         (trend.Rows.Count, trend.Totals, trend.Status).ShouldBe((0, (string?)null, "Not enough memory."));
     }
 
+    // Peer review 4.5 M7: hidden, Compare computes nothing; shown, it compares the pair it has then.
+    [Fact]
+    public async Task Compare_waits_while_its_tab_is_hidden_and_compares_when_shown()
+    {
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        await _snapshots.OpenPathAsync(Dump("earlier-name.dmp"));
+        await _snapshots.OpenPathAsync(Dump("later-name.dmp"));
+        _worker.Service.DiffQueries.ShouldBeEmpty();
+
+        _snapshots.Tab = SnapshotTabs.Compare;
+        await Compare.QueryTask;
+
+        _worker.Service.DiffQueries.ShouldHaveSingleItem();
+        Compare.Rows.Count.ShouldBeGreaterThan(0);
+    }
+
     [Fact]
     public async Task Snapshots_from_different_session_folders_compare_like_any_two()
     {

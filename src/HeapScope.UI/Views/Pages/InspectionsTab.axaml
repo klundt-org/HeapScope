@@ -66,6 +66,8 @@
       <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Inspections}" />
     </StackPanel>
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,6" />
+    <Button DockPanel.Dock="Top" Content="Try again" Command="{Binding TryAgainCommand}" IsVisible="{Binding CanTryAgain}" HorizontalAlignment="Left" Margin="0,0,0,6"
+            ToolTip.Tip="Runs every inspection of this snapshot again." />
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6" IsVisible="{Binding UsesBaseline}">
       <TextBlock Text="Baseline for growth" VerticalAlignment="Center" Margin="0,0,8,0" />
       <ComboBox x:Name="BaselinePicker" MinWidth="320" ItemsSource="{Binding BaselineChoices}" SelectedItem="{Binding Baseline, Mode=TwoWay}"

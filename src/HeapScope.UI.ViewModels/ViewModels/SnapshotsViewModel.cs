@@ -568,6 +568,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         OnPropertyChanged(nameof(Tab));
         Inspections.IsActive = value == (int)SnapshotTabs.Inspections;
         Retainers.IsActive = value == (int)SnapshotTabs.Retainers;
+        Compare.IsActive = value == (int)SnapshotTabs.Compare;
     }
 
     private void OnSnapshotsChanged(object? sender, EventArgs e) => _dispatcher.Post(Refresh);

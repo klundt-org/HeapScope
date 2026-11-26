@@ -149,7 +149,7 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 8. [x] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
 9. [x] M6: one private JSON file helper (a lock, shared reads with retries, a flushed temp file, a replace with retries, unreadable is not
    empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
-10. [ ] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
+10. [x] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
     note); Compare and Trend query only while shown and catch up when shown. Tests per view.
 11. [ ] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and its
     process kill tolerates an exited process; a recording from the Processes page marks its session in use, and an open trace keeps its

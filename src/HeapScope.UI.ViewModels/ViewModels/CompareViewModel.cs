@@ -407,6 +407,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     partial void OnIsTrendShownChanged(bool value)
     {
+        Trend.IsActive = value && IsActive;
         if (value)
         {
             Trend.Start();
@@ -415,9 +416,13 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     private void RequeryIfPair()
     {
-        if (CanQuery)
+        if (CanQuery && IsActive)
         {
             Requery();
+        }
+        else
+        {
+            _pending = CanQuery;
         }
     }
 
@@ -718,15 +723,42 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
                 current.Handle.Descriptor.CaptureTimeFromFile ? ", the file's time" : string.Empty);
         }
 
-        if (CanQuery)
+        if (CanQuery && IsActive)
         {
             Requery(subjectChanged: true);
         }
         else
         {
+            // Hidden, nothing is computed (peer review 4.5 M7): the comparison runs when the tab is shown.
             ClearResults();
+            _pending = CanQuery;
         }
     }
+
+    /// <summary>Whether the Compare tab is shown: hidden, a new pair waits (peer review 4.5 M7). True until a tab is chosen.</summary>
+    public bool IsActive
+    {
+        get => _isActive;
+        set
+        {
+            if (_isActive == value)
+            {
+                return;
+            }
+
+            _isActive = value;
+            Trend.IsActive = value && IsTrendShown;
+            if (value && _pending)
+            {
+                _pending = false;
+                OnPairChanged("run when the tab was shown");
+            }
+        }
+    }
+
+    private bool _isActive = true;
+
+    private bool _pending;
 
     private void OnSnapshotsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {

@@ -150,9 +150,34 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         Changed();
     }
 
+    /// <summary>Whether the trend is shown: hidden, a change waits until it is (peer review 4.5 M7). True until Compare says otherwise.</summary>
+    public bool IsActive
+    {
+        get => _isActive;
+        set
+        {
+            _isActive = value;
+            if (value && _pending)
+            {
+                _pending = false;
+                Changed();
+            }
+        }
+    }
+
+    private bool _isActive = true;
+
+    private bool _pending;
+
     private void Changed()
     {
         OnPropertyChanged(nameof(Hint));
+        if (CanQuery && !IsActive)
+        {
+            _pending = true;
+            return;
+        }
+
         if (CanQuery)
         {
             Requery(subjectChanged: true);

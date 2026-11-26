@@ -114,6 +114,10 @@ public sealed partial class InspectionsViewModel : ObservableObject
     private Task _runAll = Task.CompletedTask;
     private bool _started;
 
+    /// <summary>Whether the run or one of its inspections failed, so Try again is offered (peer review 4.5 M7).</summary>
+    [ObservableProperty]
+    private bool _canTryAgain;
+
     [ObservableProperty]
     private InspectionTileViewModel? _selected;
 
@@ -186,6 +190,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         OnPropertyChanged(nameof(UsesBaseline));
         Selected = null;
         Status = null;
+        CanTryAgain = false;
         Snapshot = snapshot;
         _started = false;
         _baselineChosen = false;
@@ -194,6 +199,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             Start();
         }
+    }
+
+    /// <summary>Runs every inspection of the snapshot again, after a failure.</summary>
+    [RelayCommand]
+    private void TryAgain()
+    {
+        _logger.LogInformation("Inspections: tried again for {Snapshot}", Snapshot?.Path);
+        Show(Snapshot);
     }
 
     partial void OnIsActiveChanged(bool value)
@@ -398,12 +411,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
             // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
             _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
+            CanTryAgain = true;
         }
         catch (Exception ex)
         {
             // The run is not awaited by anyone: its failure must be logged and shown, never lost (review of 1.6).
             _logger.LogError(ex, "Running the inspections failed");
-            Status = "The inspections could not be run. Details are in the log; select the snapshot again to retry.";
+            Status = "The inspections could not be run. Details are in the log; press Try again.";
+            CanTryAgain = true;
         }
     }
 
@@ -470,6 +485,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
+            CanTryAgain = true;
         }
         catch (InvalidOperationException ex)
         {
@@ -477,6 +493,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
             // the whole run, and every inspection after it reported as failed.
             _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
             tile.Status = "This result could not be shown: " + ex.Message;
+            CanTryAgain = true;
         }
     }
 

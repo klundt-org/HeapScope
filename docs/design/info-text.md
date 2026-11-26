@@ -416,6 +416,8 @@ Drafts for the owner (sprint 4.6, right answers; peer review 4.5).
 | CLI | A start that fails on appsettings.json that is not JSON (H16) | HeapScope's settings could not be read: {file}, line {N} is not valid JSON ({the parser's reason}). In JSON, write each \ in a path twice, as in "C:\\dumps". Fix the file, then run the command again. | draft |
 | CLI | A start that fails on a value of the wrong kind (H16) | A setting has a value HeapScope cannot use: {the binder's message} Fix it in appsettings.json or the environment, then run the command again. | draft |
 | CLI | Any other start failure (H16) | HeapScope could not start: {type}: {message} Details are in HeapScope's log. | draft |
+| Inspections | Try again, its button and tooltip (M7) | Try again; tooltip: Runs every inspection of this snapshot again. | draft |
+| Inspections | The run failed (M7; was "select the snapshot again to retry") | The inspections could not be run. Details are in the log; press Try again. | draft |
 | Inspections, CLI | Growing static collections, collections no field names (H3), in its note | {N} collections in the runtime's storage of static fields have no field HeapScope can name (statics of generic types), so they were not checked. | draft |
 | Inspections, CLI | A detector that could not read some of what it checks (H2), in its note | {N} of {M} {timers, service scopes, HttpClients, async state machines, objects with a disposed flag, collections} could not be read, so they were not checked. | draft |
 | Inspections, CLI | A detector that could read none of it (H2), a refusal | {Title} checked nothing: none of the {M} {what} in this snapshot could be read. Their runtime may lay them out differently from the .NET versions HeapScope knows. | draft |

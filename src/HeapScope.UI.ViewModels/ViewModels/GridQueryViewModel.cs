@@ -109,6 +109,9 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     /// <summary>Text when a query returns no rows.</summary>
     protected virtual string EmptyText => string.IsNullOrWhiteSpace(Filter) ? "Nothing to show." : "Nothing matches the filter.";
 
+    /// <summary>Whether the last query failed (shown in the status), so a view may run it again when shown (peer review 4.5 M7).</summary>
+    protected bool LastQueryFailed { get; private set; }
+
     /// <summary>Releases the grid's current set (the grid left the navigation history).</summary>
     public void Close() => ClearResults();
 
@@ -222,6 +225,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     private async Task QueryAsync(CancellationToken cancellationToken)
     {
         using var activity = QueryRunner.StartActivity("grid", GetType().Name);
+        LastQueryFailed = false;
         Status = BusyText;
         IsQuerying = true;
         try
@@ -270,10 +274,12 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
         {
             QueryRunner.LogShown(Logger, GetType().Name, ex);
             Status = ex.Message;
+            LastQueryFailed = true;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "A {Grid} query failed", GetType().Name);
+            LastQueryFailed = true;
             Status = "The query failed. Details are in the log; try again, or reopen the snapshot.";
         }
         finally
