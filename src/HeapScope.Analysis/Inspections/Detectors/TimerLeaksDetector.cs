@@ -178,7 +178,7 @@ internal sealed class TimerLeaksDetector : IInspection
                 cells[6] = InspectionScopes.Reachable;
             },
             row => row.Members),
-            basis, Unread: new(unreadable, active + canceled + paused + oneShot + unreadable, "timers"), Counts: new(active + canceled + paused + oneShot + unreadable, unreadable + targets.Where(t => t.Value.Timers < MinTimers).Sum(t => (long)t.Value.Timers), ListsRows: true));
+            basis, Unread: new(unreadable, active + canceled + paused + oneShot + unreadable, "reachable timers"), Counts: new(active + canceled + paused + oneShot + unreadable, unreadable + targets.Where(t => t.Value.Timers < MinTimers).Sum(t => (long)t.Value.Timers), ListsRows: true));
     }
 
     private static string ModuleOf(HeapGraph graph, (ulong Address, string Type) owner) =>

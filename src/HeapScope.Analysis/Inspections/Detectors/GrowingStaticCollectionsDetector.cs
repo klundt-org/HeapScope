@@ -74,10 +74,11 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         var ct = context.CancellationToken;
         var skipped = new Exclusions();
         var current = Collections(context.Graph, Readers.Of(context), ct, skipped, out var unread, out var countable);
+        var baselineSkipped = new Exclusions();
 
         // The worker refuses a baseline it cannot read (review H8): one without a reader here is a caller's mistake.
         var baseline = context.Baseline is { } b
-            ? Collections(b.Graph, b.Reader ?? throw new InvalidOperationException("The baseline snapshot has no field values; choose a full dump."), ct, new Exclusions(), out _, out _)
+            ? Collections(b.Graph, b.Reader ?? throw new InvalidOperationException("The baseline snapshot has no field values; choose a full dump."), ct, baselineSkipped, out _, out _)
             : null;
         var rows = new List<Row>();
         var nearMisses = new List<Row>();
@@ -95,6 +96,14 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
                     rows.Add(new Row(field, found, null, null));
                 }
 
+                continue;
+            }
+
+            // A count the baseline could not read is no growth from 0 (review of 4.6): not checked, and said so.
+            if (baselineSkipped.Has("count unreadable", field))
+            {
+                unread++;
+                skipped.Add("count unreadable in the baseline", field);
                 continue;
             }
 

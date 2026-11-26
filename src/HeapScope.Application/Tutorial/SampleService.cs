@@ -406,20 +406,20 @@ public sealed class SampleService : IDisposable
         }
         catch (IOException ex)
         {
-            process.Kill();
+            KillQuietly(process);
             process.Dispose();
             throw Refused($"The sample's output could not be read ({ex.Message}). Try again; if it fails again, HeapScope's log has the details.", LogLevel.Warning);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            process.Kill();
+            KillQuietly(process);
             process.Dispose();
             _logger.LogWarning("Sample for {Scenarios} was not ready within {Seconds:N0} s and was stopped", string.Join(", ", names), _readyTimeout.TotalSeconds);
             throw new SampleRefusedException($"The sample did not get ready within {_readyTimeout.TotalSeconds:N0} seconds and was stopped. The computer may be busy; try again.");
         }
         catch
         {
-            process.Kill();
+            KillQuietly(process);
             process.Dispose();
             throw;
         }
@@ -538,7 +538,7 @@ public sealed class SampleService : IDisposable
     }
 
     // Review M11: its standard error is read to the end before it is reported.
-    private static async Task<(int? Code, string Error)> ExitOfAsync(ISampleProcess process)
+    private async Task<(int? Code, string Error)> ExitOfAsync(ISampleProcess process)
     {
         try
         {
@@ -546,7 +546,7 @@ public sealed class SampleService : IDisposable
         }
         catch (TimeoutException)
         {
-            process.Kill();
+            KillQuietly(process);
         }
 
         return (process.ExitCode, process.Error);

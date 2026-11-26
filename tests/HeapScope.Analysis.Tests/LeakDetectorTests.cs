@@ -89,6 +89,20 @@ public sealed class LeakDetectorTests
         result.Basis.ShouldNotContain("collection type not counted");
     }
 
+    // The second review of 4.6: a count the baseline could not read is no growth from 0.
+    [Fact]
+    public void A_count_the_baseline_could_not_read_is_not_growth()
+    {
+        var (current, reader) = Statics(cache: 12_000, bounded: 1_000);
+        var (baseline, baselineReader) = Statics(cache: 10, bounded: 1_000);
+        baselineReader.Fields.Remove((baseline.Addresses[0], "_size"));
+
+        var result = Run("growing-static-collections", current, reader, new InspectionBaseline(baseline, s_info, baselineReader));
+
+        (result.Count, result.Unread!.Count).ShouldBe((0, 1));
+        result.Basis.ShouldNotBeNull().ShouldContain("count unreadable in the baseline");
+    }
+
     [Fact]
     public void An_event_holding_many_subscribers_is_named_by_publisher_and_field_and_delegates_in_a_list_are_not_events()
     {

@@ -132,9 +132,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             {
                 // With the rule and its basis, which names what was probed: a refusal below is backed up by this line (review of 4.6).
                 logger.LogInformation(
-                    "Inspection {Inspection} v{Version} on snapshot {Id} could not read {Count} of {Of} {What}; basis: {Basis}",
+                    "Inspection {Inspection} v{Version} ({Parameters}) on snapshot {Id} could not read {Count} of {Of} {What}; basis: {Basis}",
                     inspection.Name,
                     inspection.Version,
+                    inspection.Parameters.Length == 0 ? "no thresholds" : inspection.Parameters,
                     request.SnapshotId,
                     unread.Count,
                     unread.Of,
@@ -191,10 +192,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
 
         if (unread.Count >= unread.Of)
         {
-            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"{title} checked nothing: none of the {unread.Of:N0} reachable {unread.What} in this snapshot could be read. The .NET {runtimeVersion ?? "version"} of this dump may lay them out differently from the versions HeapScope knows; HeapScope's log names the fields it read, for an issue on HeapScope's site."));
+            throw new RequestRefusedException(string.Create(CultureInfo.InvariantCulture, $"{title} checked nothing: none of the {unread.Of:N0} {unread.What} in this snapshot could be read. The .NET {runtimeVersion ?? "version"} of this dump may lay them out differently from the versions HeapScope knows; HeapScope's log has what was probed, for an issue on HeapScope's site."));
         }
 
-        var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unread.Count:N0} of {unread.Of:N0} reachable {unread.What} could not be read, so they were not checked.");
+        var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unread.Count:N0} of {unread.Of:N0} {unread.What} could not be read, so they were not checked.");
         return result with { Note = result.Note is null ? notChecked : result.Note + " " + notChecked };
     }
 

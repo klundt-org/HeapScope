@@ -62,10 +62,11 @@ public static class PrivateJsonFile
     }
 
     /// <summary>Reads <paramref name="path"/>, trying again while another process holds it.</summary>
-    public static (T? Value, JsonFileRead Outcome, Exception? Error) Read<T>(string path, JsonSerializerOptions? options = null)
+    /// <param name="wait">Whether to wait while the file is held; without, a held file is <see cref="JsonFileRead.Unreadable"/> at once.</param>
+    public static (T? Value, JsonFileRead Outcome, Exception? Error) Read<T>(string path, JsonSerializerOptions? options = null, bool wait = true)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        var deadline = DateTime.UtcNow + Wait;
+        var deadline = DateTime.UtcNow + (wait ? Wait : TimeSpan.Zero);
         while (true)
         {
             try

@@ -91,6 +91,7 @@ internal static class CliApp
             }
 
             await host.StartAsync().ConfigureAwait(false);
+            s_hostLogger = host.Services.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?.CreateLogger("HeapScope.Cli");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -157,16 +158,25 @@ internal static class CliApp
     // The command line of this run, for the log lines written when there is no host (a failed start, a crash).
     private static System.CommandLine.ParseResult? s_parsed;
 
-    /// <summary>
-    /// A failure in the file log when the host's own logging cannot be used (a failed start, a crash or an unobserved task in a run):
-    /// the folder of <c>Logging__File__Directory</c>, else the default, which it returns. The arguments are described as every
-    /// command's are, a filter's text only when the setting allows it (peer review of 4.6: never the raw command line).
-    /// </summary>
+    // The host's logger once it started: a later failure goes through its own writer, which a second writer would overwrite.
+    private static Microsoft.Extensions.Logging.ILogger? s_hostLogger;
+
     /// <summary>This run's command line as a log line describes it: a filter's text only with <paramref name="includeFilterText"/>.</summary>
     internal static string Arguments(bool includeFilterText, System.CommandLine.ParseResult? parsed = null) => (parsed ?? s_parsed) is { } line ? CliCommands.DescribeTokens(line, includeFilterText) : "not parsed";
 
-    internal static string? LogFatal(string what, Exception exception)
+    /// <summary>
+    /// A failure in the file log: through the host's logger once it started, else (a failed start) a writer of its own in the folder of
+    /// <c>Logging__File__Directory</c>, else the default, which it returns. The arguments are described as every command's are, a filter's
+    /// text only when the setting allows it (review of 4.6: never the raw command line).
+    /// </summary>
+    internal static string? LogFatal(string what, Exception exception, bool critical = true)
     {
+        if (s_hostLogger is { } host)
+        {
+            Microsoft.Extensions.Logging.LoggerExtensions.Log(host, critical ? Microsoft.Extensions.Logging.LogLevel.Critical : Microsoft.Extensions.Logging.LogLevel.Error, exception, "{What}", what);
+            return null;
+        }
+
         try
         {
             using var provider = new HeapScope.Application.Logging.FileLoggerProvider(Environment.GetEnvironmentVariable("Logging__File__Directory"), app: "cli");

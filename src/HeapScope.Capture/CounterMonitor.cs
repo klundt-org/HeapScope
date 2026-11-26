@@ -148,6 +148,9 @@ public static class CounterMonitor
     /// Reads samples every <paramref name="interval"/> until canceled or the process exits, handing each to
     /// <paramref name="onSample"/> (on a background thread).
     /// </summary>
+    /// <summary>How long the counters' start waits for the target.</summary>
+    internal static readonly TimeSpan StartWait = TimeSpan.FromSeconds(30);
+
     /// <exception cref="TargetUnavailableException">The process is gone or does not answer on its diagnostics port.</exception>
     /// <exception cref="ElevationRequiredException">The process belongs to another user or is elevated.</exception>
     public static async Task RunAsync(int processId, TimeSpan interval, Action<CounterSample> onSample, CancellationToken cancellationToken, ILogger? logger = null)
@@ -164,9 +167,16 @@ public static class CounterMonitor
         };
 
         EventPipeSession session;
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(StartWait);
         try
         {
-            session = await new DiagnosticsClient(processId).StartEventPipeSessionAsync(providers, requestRundown: false, circularBufferMB: 16, cancellationToken).ConfigureAwait(false);
+            // Bounded (review of 4.6): a process that does not answer (frozen) ends the run with a reason, not a wait.
+            session = await new DiagnosticsClient(processId).StartEventPipeSessionAsync(providers, requestRundown: false, circularBufferMB: 16, limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TargetUnavailableException(string.Create(CultureInfo.InvariantCulture, $"Process {processId} did not answer the start of its counters within {StartWait.TotalSeconds:N0} s. If it is stopped in a debugger, let it run, then start again."));
         }
         catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException)
         {

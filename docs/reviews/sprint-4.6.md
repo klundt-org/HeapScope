@@ -76,7 +76,25 @@ unobserved stop task; review ids in new comments.
 
 ## Confirmations
 
-Pending.
+All four reviewers checked the fixes on 2026-11-25. Confirmed: H1 to H4, H6, M1, M3, M5, M6, M8 to M14; the deferrals accepted. Found in
+the confirmations, and fixed:
+- (support-engineer, gc-specialist) "reachable" was said of the collection inspections, which count every object, and the refusal said the
+  log names the fields it read. Fixed: each detector says "reachable" in its own words; the refusal says the log has what was probed, and
+  its line holds the rule's thresholds.
+- (gc-specialist, Moderate, there before 4.6) A count the baseline could not read was growth from 0. Fixed: not checked, and said so. Test:
+  `A_count_the_baseline_could_not_read_is_not_growth`.
+- (solution-architect, Moderate) The counters' start had no bound. Fixed: 30 s and a message, and both starts wait on their own token.
+- (solution-architect, senior-dev) The log's privacy check now waited up to 5 s on a held settings file. Fixed: it reads without waiting,
+  closed at once as before.
+- (senior-dev) Clearing Compare's generations made a sort by a generation column come back sorted by bytes. Fixed: kept; its answer sets it.
+- (senior-dev) SPRINTS.md still claimed three things not built. Fixed (tasks 1, 2 and 10).
+- (senior-dev) Try again chose the baseline after the run started. Fixed: before it.
+- (senior-dev) Four kills of the sample stayed raw. Fixed: quiet and logged.
+- (senior-dev) A crash line written beside the host's could be overwritten by it. Fixed: once the host started, through its logger; an
+  unobserved task at Error.
+- (senior-dev, Low) A let-go names session faulted its copy unseen. Fixed.
+- The gate before these: `AllocatedBetweenTests`' recorded run did not start its trace within 60 s once, under the gate's load (it passes
+  alone, 9 of 9): the CI symptom, seen locally. Its fixture waits 120 s and says what the run saw; the cause stays in the Backlog.
 
 ## Markdown sweep
 

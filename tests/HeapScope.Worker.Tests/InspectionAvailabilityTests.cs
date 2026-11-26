@@ -129,8 +129,8 @@ public sealed class InspectionAvailabilityTests
         var clean = new HeapScope.Analysis.Inspections.InspectionResult(0, 0, null, "Watch out.", new HeapScope.Analysis.Inspections.RowTable<int>([], [], 0, static (_, _) => { }));
 
         Rpc.InspectionRunner.Checked("Timer leaks", "10.0.0", clean).ShouldBeSameAs(clean);
-        Rpc.InspectionRunner.Checked("Timer leaks", "10.0.0", clean with { Unread = new(3, 50_000, "timers") }).Note.ShouldBe("Watch out. 3 of 50,000 reachable timers could not be read, so they were not checked.");
-        Should.Throw<RequestRefusedException>(() => Rpc.InspectionRunner.Checked("Timer leaks", "10.0.0", clean with { Unread = new(50_000, 50_000, "timers") }))
+        Rpc.InspectionRunner.Checked("Timer leaks", "10.0.0", clean with { Unread = new(3, 50_000, "reachable timers") }).Note.ShouldBe("Watch out. 3 of 50,000 reachable timers could not be read, so they were not checked.");
+        Should.Throw<RequestRefusedException>(() => Rpc.InspectionRunner.Checked("Timer leaks", "10.0.0", clean with { Unread = new(50_000, 50_000, "reachable timers") }))
             .Message.ShouldStartWith("Timer leaks checked nothing: none of the 50,000 reachable timers");
     }
 }

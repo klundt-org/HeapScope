@@ -130,10 +130,12 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 **Tasks**
 1. [x] H4: a grid whose subject changes (another snapshot, another pair, a snapshot closed) shows nothing of the old one: rows, totals,
    heap bar and notes cleared first, also when the new query fails; Trend falls back to its default sort for a column gone; Compare and
-   Trend show the busy bar. Tests: a query of B that fails shows nothing of A, in Types, Compare and Trend; Trend after a close.
-2. [x] H9: stopping an EventPipe session waits 5 s at most, then lets it go, in one helper for the trace recorder, the forced
-   collection and the counters; closing the app waits a bounded time for its host, logs what it waited for and always shuts down.
-   Tests: the helper with a stop that never answers; a recording and a forced collection of a suspended process end.
+   Trend show the busy bar. Tests: a query of B that fails shows nothing of A, in Types, Compare and Trend (notes included); Trend
+   unticked to fewer snapshots sorts by the change.
+2. [x] H9: stopping an EventPipe session waits a bounded time, then lets it go, in one helper (`SessionStop`): 5 s for the forced
+   collection and the counters, 30 s for a recording, whose stop writes its rundown; a recording's and the counters' start wait 30 s;
+   closing the app waits 15 s for its host, logs what it waited for and always shuts down. Tests: the helper with a stop that never
+   answers; a recording of a suspended process ends. Deferred (Backlog): a forced collection of a suspended process.
 3. [x] H10: the file and process work at a job's start runs on the thread pool, never on the caller's (UI) thread: the trusted DACs an open reads, the session a recording takes, starting a worker (all jobs on the pool broke the synchronous start the views rely on). Deferred (Backlog): a test. Was: work that
    records its thread is never run on the caller's.
 4. [x] H11: a run's allocation trace checks the free space of its own folder's disk (DumpCapturer's probe) on every system, goes on
@@ -149,8 +151,9 @@ way there: the High and Moderate findings of [peer review 4.5](reviews/peer-revi
 8. [x] H19: a failed nightly fuzz run opens an issue, or comments on the open one, naming its seed. Test: the workflow step, by a dry run.
 9. [x] M6: one private JSON file helper (a lock, shared reads with retries, a flushed temp file, a replace with retries, unreadable is not
    empty) used by lesson progress, bookmarks and settings. Tests: a held file loses no progress; two writers lose no update.
-10. [x] M7: Inspections, Retainers and an object's steps that failed can be tried again (the latch is cleared, a Try again in the status
-    note); Compare and Trend query only while shown and catch up when shown. Tests per view.
+10. [x] M7: Inspections has Try again (for a failure, not a refusal; the chosen baseline kept); the Retainers tree and an object's tabs
+    that failed run again when shown again; Compare and Trend query only while shown and catch up when shown. Tests: Inspections, hidden
+    Compare. Deferred (Backlog): Retainers and Object retry tests, a hidden Trend test, a Try again in their status.
 11. [x] M8: a worker crash racing a restart is still a crash (WorkerCrashedException); SampleService raises its events safely and a kill its
     timeout fires is logged, not thrown; a recording from the Processes page marks its session in use. Test: an architecture rule against raw
     event raises in Application. Deferred (Backlog): an open trace keeping its session, and tests of the crash race, a throwing listener and a

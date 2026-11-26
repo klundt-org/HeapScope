@@ -226,9 +226,9 @@ public static class TraceRecorder
         {
             return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"not done in {s_namesTimeout.TotalSeconds:N0} s");
         }
-        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or UnauthorizedAccessException or IOException or ObjectDisposedException)
         {
-            // The recording itself says what is wrong, if it fails too.
+            // The recording itself says what is wrong, if it fails too; a names session let go ends its copy this way.
             return $"{ex.GetType().Name}: {ex.Message}";
         }
     }
@@ -242,6 +242,7 @@ public static class TraceRecorder
         {
             return await new DiagnosticsClient(processId)
                 .StartEventPipeSessionAsync(providers, requestRundown: true, circularBufferMB: 256, limit.Token)
+                .WaitAsync(limit.Token)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -275,7 +276,7 @@ public static class TraceRecorder
             {
                 await copy.ConfigureAwait(false);
             }
-            catch (Exception ex) when (letGo && ex is ObjectDisposedException or IOException)
+            catch (Exception ex) when (letGo && ex is ObjectDisposedException or IOException or OperationCanceledException)
             {
                 // The session let go ended the copy; the trace so far is in the file.
             }

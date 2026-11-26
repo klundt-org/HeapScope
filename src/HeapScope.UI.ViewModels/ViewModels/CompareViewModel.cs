@@ -318,7 +318,8 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         (_allocated, AllocatedShown, AllocatedNote, _untickedNote) = (null, false, null, null);
 
         // Everything the last answer set, so nothing of an old pair is shown (review of 4.6).
-        (IdentityNote, IdentityShown, RetainedNote, RetainedShown, HasGenerations) = (null, false, null, false, false);
+        // Not HasGenerations: the next query's sort depends on it (the second review), and its answer sets it again.
+        (IdentityNote, IdentityShown, RetainedNote, RetainedShown) = (null, false, null, false);
         base.OnCleared();
     }
 

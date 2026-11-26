@@ -145,6 +145,6 @@ internal sealed class DisposedButReferencedDetector : IInspection
         var basis = string.Create(
             CultureInfo.InvariantCulture,
             $"{reachable.Count} reachable objects; {probed} types with {MinObjects}+ probed, {candidates.Count} with a disposed flag (most objects without one: {DetectorGraph.Top(noFlag, 5)}); flag unreadable on {unreadableFlags}; disposed in types under {MinObjects}: {underMinimum}; disposed: {DetectorGraph.Listed(disposed.Types.OrderByDescending(d => d.Objects).Select(d => $"{graph.Types.GetName(d.Type)} {d.Objects} by {candidates[d.Type]}"))}");
-        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Flag"), basis, Counts: new(reachable.Count, unreadableFlags + underMinimum, ListsRows: true), Unread: new(unreadableFlags, flagged, "objects with a disposed flag"));
+        return new InspectionResult(rows.Length, rows.Sum(r => r.Bytes), null, null, DetectorTables.Types(rows, "Flag"), basis, Counts: new(reachable.Count, unreadableFlags + underMinimum, ListsRows: true), Unread: new(unreadableFlags, flagged, "reachable objects with a disposed flag"));
     }
 }

@@ -338,7 +338,7 @@ public sealed class CompareViewModelTests : IDisposable
         await Compare.QueryTask;
 
         (Compare.Rows.Count, Compare.Totals, Compare.Status).ShouldBe((0, (string?)null, "Not enough memory."));
-        (Compare.IdentityNote, Compare.RetainedNote, Compare.HasGenerations).ShouldBe(((string?)null, (string?)null, false));
+        (Compare.IdentityNote, Compare.RetainedNote).ShouldBe(((string?)null, (string?)null));
     }
 
     [Fact]

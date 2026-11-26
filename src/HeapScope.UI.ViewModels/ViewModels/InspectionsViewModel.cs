@@ -172,8 +172,12 @@ public sealed partial class InspectionsViewModel : ObservableObject
     private readonly INavigator? _navigator;
 
     /// <summary>Shows <paramref name="snapshot"/>'s inspections (null clears); they run when the tab is active.</summary>
-    public void Show(SnapshotHandle? snapshot)
+    public void Show(SnapshotHandle? snapshot) => Show(snapshot, keepBaseline: false);
+
+    /// <param name="keepBaseline">Whether a chosen baseline that is still open stays chosen (Try again).</param>
+    private void Show(SnapshotHandle? snapshot, bool keepBaseline)
     {
+        var (kept, wasChosen) = (Baseline?.Snapshot, _baselineChosen);
         _running?.Cancel();
         _running?.Dispose();
         _running = null;
@@ -195,6 +199,15 @@ public sealed partial class InspectionsViewModel : ObservableObject
         _started = false;
         _baselineChosen = false;
         ChooseBaselines(snapshot);
+        if (keepBaseline && wasChosen && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
+        {
+            // Before the run starts, so its growth tiles run with it (the second review).
+            _choosingBaseline = true;
+            Baseline = same;
+            _choosingBaseline = false;
+            _baselineChosen = true;
+        }
+
         if (IsActive)
         {
             Start();
@@ -208,15 +221,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         _logger.LogInformation("Inspections: tried again for {Snapshot}, baseline {Baseline}", Snapshot?.Path, Baseline?.Snapshot?.Path ?? "none");
 
         // The baseline chosen stays chosen (review of 4.6).
-        var (chosen, wasChosen) = (Baseline, _baselineChosen);
-        Show(Snapshot);
-        if (wasChosen && chosen is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == chosen.Snapshot) is { } same)
-        {
-            _choosingBaseline = true;
-            Baseline = same;
-            _choosingBaseline = false;
-            _baselineChosen = true;
-        }
+        Show(Snapshot, keepBaseline: true);
     }
 
     partial void OnIsActiveChanged(bool value)

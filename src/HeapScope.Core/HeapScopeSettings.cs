@@ -58,11 +58,12 @@ public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool
     /// a file is there and cannot be read now (in use, damaged, not this user's), with the defaults in <paramref name="settings"/>.
     /// A caller that must not fail open on a setting (the logs' privacy, sprint 3.12 review H5) tells the two apart.
     /// </summary>
-    public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings)
+    /// <param name="wait">Whether to wait while another process holds the file (a save does; the log's privacy check does not, review of 4.6).</param>
+    public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings, bool wait = true)
     {
         ArgumentNullException.ThrowIfNull(folders);
         // Through the one helper (review of 4.6): a file held for a moment is read again.
-        var (read, outcome, _) = PrivateJsonFile.Read<HeapScopeSettings>(PathIn(folders), s_json);
+        var (read, outcome, _) = PrivateJsonFile.Read<HeapScopeSettings>(PathIn(folders), s_json, wait);
         settings = read ?? new HeapScopeSettings();
         return outcome is JsonFileRead.Read or JsonFileRead.Missing;
     }
