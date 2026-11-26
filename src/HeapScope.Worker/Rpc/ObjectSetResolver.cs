@@ -262,6 +262,9 @@ internal sealed class ObjectSetResolver(
     private static string UnreachableDetail(HeapGraph graph, Reachability alive, Reachability rooted, bool complete, CancellationToken cancellationToken)
     {
         long aliveBytes = 0, queuedObjects = 0, queuedBytes = 0, deadBytes = 0;
+
+        // By heap kind (peer review 4.5 M9): much unreachable gen2 just after a full collection is a warning sign, not garbage.
+        var deadByKind = new Dictionary<HeapKind, (long Objects, long Bytes)>();
         for (var i = 0; i < graph.ObjectCount; i++)
         {
             if ((i & 0xFFFF) == 0)
@@ -273,6 +276,9 @@ internal sealed class ObjectSetResolver(
             if (!alive.IsReachable(i))
             {
                 deadBytes += size;
+                var kind = graph.HeapKinds[i];
+                var (objects, bytes) = deadByKind.GetValueOrDefault(kind);
+                deadByKind[kind] = (objects + 1, bytes + size);
                 continue;
             }
 
@@ -286,7 +292,7 @@ internal sealed class ObjectSetResolver(
 
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"{alive.Count} objects of {aliveBytes} bytes reachable from the path roots, of {graph.ObjectCount}; {queuedObjects} of them ({queuedBytes} bytes) held only through the finalizer queue (waiting for finalization, not in the set); {deadBytes} bytes unreachable; graph complete {complete}");
+            $"{alive.Count} objects of {aliveBytes} bytes reachable from the path roots, of {graph.ObjectCount}; {queuedObjects} of them ({queuedBytes} bytes) held only through the finalizer queue (waiting for finalization, not in the set); {deadBytes} bytes unreachable ({string.Join(", ", deadByKind.OrderBy(static k => k.Key).Select(static k => $"{k.Key} {k.Value.Objects} objects, {k.Value.Bytes} bytes"))}); graph complete {complete}");
     }
 
     /// <summary>Builds a set inside a reservation of what one set can take (a bit and an index per object; the 3.1 review).</summary>

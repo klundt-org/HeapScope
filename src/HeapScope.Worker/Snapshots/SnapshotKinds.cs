@@ -202,7 +202,7 @@ internal sealed class SnapshotKinds
         public override bool HandlesChecked(SnapshotInfo info) => info.Facts.HasFlag(SnapshotFacts.HandlesChecked);
 
         public override string UnreachableNote(SnapshotInfo info) => HandlesChecked(info)
-            ? "No root reaches it: it is garbage not yet collected, or held only weakly (weak handles, weak references)."
+            ? "No root HeapScope found reaches it: it is most likely garbage not yet collected, or held only weakly (weak handles, weak references). A thread that was running when the dump was taken can hold short-lived objects no root shows."
             : "No root HeapScope could read reaches it. Not all GC handles could be checked for this snapshot (see its notes), so it may still be alive.";
 
         public override string? WhyNoObjectIdentity => null;
