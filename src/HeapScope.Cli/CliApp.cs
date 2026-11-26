@@ -170,7 +170,7 @@ internal static class CliApp
         try
         {
             using var provider = new HeapScope.Application.Logging.FileLoggerProvider(Environment.GetEnvironmentVariable("Logging__File__Directory"), app: "cli");
-            var includeFilterText = HeapScope.Core.HeapScopeSettings.TryRead(HeapScope.Core.HeapScopeFolders.Default, out var settings) && settings.IncludeFilterTextInLogs;
+            var includeFilterText = HeapScope.Application.Settings.SettingsService.FilterTextInLogsSaved;
             var arguments = Arguments(includeFilterText);
             Microsoft.Extensions.Logging.LoggerExtensions.LogCritical(provider.CreateLogger("HeapScope.Cli"), exception, "{What}; arguments {Arguments}", what, arguments);
             return provider.Directory;

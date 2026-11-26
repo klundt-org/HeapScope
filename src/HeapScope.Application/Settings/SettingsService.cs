@@ -84,6 +84,12 @@ public sealed class SettingsService
     /// </summary>
     public static bool FilterTextInLogs => LogPrivacy.Current.IncludeFilterText;
 
+    /// <summary>
+    /// Whether the saved settings allow filter text in the log, read from the file now: for a line written without a host (a failed start, a
+    /// crash), and off when the file cannot be read (review of 4.6).
+    /// </summary>
+    public static bool FilterTextInLogsSaved => HeapScopeSettings.TryRead(HeapScopeFolders.Default, out var settings) && settings.IncludeFilterTextInLogs;
+
     /// <summary>What this process may write into its log now, for its start line: "filter text on, dump values off" (sprint 3.13.2).</summary>
     public static string LogPrivacyFollowed => LogPrivacy.Current.Describe();
 
