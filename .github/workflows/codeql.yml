@@ -1,0 +1,49 @@
+# HeapScope code scanning (2026-11-25, owner): CodeQL's default queries on the C# code and the workflows, as GitHub's default
+# setup ran them, with the rules .github/codeql/codeql-config.yml turns off (each with its reason there). The C# code is read
+# without a build (build mode none), on Linux. Not a required check: its alerts go to the Security tab and to the PR, and a
+# rule that only gives false positives is turned off in the config file with its reason, not dismissed alert by alert.
+# On PRs into develop and main, on pushes to them (so each branch has the results a PR is compared with), and weekly.
+# Actions are pinned to the commit of a release, as in ci.yml.
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, csharp]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          category: /language:${{ matrix.language }}
