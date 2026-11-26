@@ -215,6 +215,8 @@ jobs:
           dotnet build src/HeapScope.Cli -c Release
           dotnet build src/HeapScope.UI -c Release
           dotnet build fixtures/LeakyConsole -c Release
+          # Every runtime the known answers run on (sprint 4.7): the integration project builds only LeakyApi's net10.0.
+          dotnet build fixtures/LeakyApi -c Release
       - name: Tests
         # Every test project that runs here, found by build/test.sh rather than listed (peer review S1).
         timeout-minutes: 15
