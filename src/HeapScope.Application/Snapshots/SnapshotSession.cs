@@ -221,10 +221,13 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         await TellShownAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary><see cref="ShowAsync"/> without waiting, for the UI: a failure only costs eviction order, so it is logged at Debug.</summary>
+    /// <summary>
+    /// <see cref="ShowAsync"/> without waiting, for the UI. A failure costs only eviction order, but the worker then keeps
+    /// plain least recently used order, so it is logged where support reads.
+    /// </summary>
     public void ShowInBackground(SnapshotHandle? handle) =>
         _ = ShowAsync(handle, CancellationToken.None).ContinueWith(
-            static (t, state) => ((ILogger)state!).LogDebug(t.Exception, "Telling the worker which snapshot is shown failed"),
+            static (t, state) => ((ILogger)state!).LogInformation(t.Exception, "Telling the worker which snapshot is shown failed; it evicts in least recently used order until told"),
             _logger,
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
@@ -239,8 +242,15 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         }
 
         // A snapshot not open in this worker (it restarted) is told once its reopen gives it an id there.
-        if (worker.State != WorkerState.Running || shown is { IsClosed: false } && shown.Generation != worker.Generation)
+        if (worker.State != WorkerState.Running)
         {
+            _logger.LogInformation("The worker was not told the window shows {Path}: no worker runs; a reopen tells the next one", shown?.Path ?? "no snapshot");
+            return;
+        }
+
+        if (shown is { IsClosed: false } && shown.Generation != worker.Generation)
+        {
+            _logger.LogInformation("The worker was not told the window shows {Path}: not open in worker generation {Generation} yet; its reopen tells it", shown.Path, worker.Generation);
             return;
         }
 

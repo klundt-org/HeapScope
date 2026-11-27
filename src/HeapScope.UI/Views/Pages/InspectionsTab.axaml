@@ -22,8 +22,8 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- Inspections of the selected snapshot (sprint 1.6, ADR-020): tiles with finding, cause and fix, fragmentation bars, and
-     the selected inspection's rows; double-click opens a row's objects on the Snapshot tab. Since sprint 2.6 the leak
+<!-- Inspections of the selected snapshot (ADR-020): tiles with finding, cause and fix, fragmentation bars, and
+     the selected inspection's rows; double-click opens a row's objects on the Snapshot tab. The leak
      detectors come first, under their own heading, with a baseline snapshot for the ones that measure growth. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -75,7 +75,7 @@
     </StackPanel>
     <ScrollViewer DockPanel.Dock="Left" Width="320" VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
       <StackPanel>
-        <!-- Continue: Tab goes into the items, so it reaches a group heading's info icon (3.11 review). -->
+        <!-- Continue: Tab goes into the items, so it reaches a group heading's info icon. -->
         <ListBox x:Name="TileList" ItemsSource="{Binding Tiles}" SelectedItem="{Binding Selected, Mode=TwoWay}" Background="Transparent"
                  KeyboardNavigation.TabNavigation="Continue"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -150,7 +150,7 @@
               ctl:GridBehaviors.OpenCommand="{Binding OpenRowCommand}"
               ToolTip.Tip="Double-click or Enter opens the row's objects on the Snapshot tab; a leak detector's row opens them as a set.">
       <DataGrid.ContextMenu>
-        <!-- A menu's own tooltip never shows: each item carries the text (3.11 review M9). -->
+        <!-- A menu's own tooltip never shows: each item carries the text. -->
         <ContextMenu>
           <MenuItem Header="Open as a set" InputGesture="Ctrl+Shift+O" Command="{Binding OpenAsSetCommand}" CommandParameter="{Binding #InspectionGrid.SelectedItem}"
                     ToolTip.Tip="Open as a set, Show in dominator tree and Objects retained by this set follow the row's objects. The last needs a row with objects behind it." />

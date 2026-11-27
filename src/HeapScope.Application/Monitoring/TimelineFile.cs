@@ -31,7 +31,7 @@ public sealed record TimelineEvent(DateTimeOffset At, string Text);
 /// <summary>A recorded monitoring timeline read back (a past run reopened): its samples and events.</summary>
 public sealed record Timeline(IReadOnlyList<HeapSample> Samples, IReadOnlyList<TimelineEvent> Events, int SkippedLines);
 
-/// <summary>Reads the counters CSV a monitoring run writes (its header is fixed since 1.7).</summary>
+/// <summary>Reads the counters CSV a monitoring run writes (its header is fixed).</summary>
 public static class TimelineFile
 {
     public static async Task<Timeline> ReadAsync(string path, CancellationToken cancellationToken)

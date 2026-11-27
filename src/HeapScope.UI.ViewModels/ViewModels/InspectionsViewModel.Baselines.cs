@@ -134,6 +134,14 @@ public sealed partial class InspectionsViewModel
             return;
         }
 
+        // Not shown (another tab, or a hidden workspace): the stale tiles run when the tab is shown again (ADR-044).
+        if (!IsActive)
+        {
+            _rerun?.Cancel();
+            _logger.LogInformation("Inspections: the growth tiles of {Snapshot} run when shown ({Stale} stale)", snapshot.Path, StaleTiles().Count);
+            return;
+        }
+
         // A rerun has its own token, linked to the snapshot's: another baseline cancels only the rerun.
         _rerun?.Cancel();
         _rerun?.Dispose();

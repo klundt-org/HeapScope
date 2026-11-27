@@ -164,7 +164,7 @@ public sealed partial class RetentionNodeItem : ObservableObject, IObjectLink
 
 /// <summary>
 /// Why the objects of a type are alive (dotMemory's Key Retention Paths): one row per path from a root, the
-/// largest first; opening a row shows its example object. Opened from a type's instances. Since 3.2 also a set's Paths
+/// largest first; opening a row shows its example object. Opened from a type's instances. Also a set's Paths
 /// view, and the paths can be shown merged into a diagram.
 /// </summary>
 public sealed partial class TypePathsViewModel : ObservableObject, INavigationSubject

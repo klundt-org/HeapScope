@@ -276,7 +276,8 @@ public sealed class SnapshotsViewModelTests : IDisposable
     {
         // Sprint 3.6, peer review P2: the app asks, naming the file and its hash, and remembers a yes by the hash.
         var trusted = new TrustedDacs(_folder);
-        var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('a', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         var dump = Dump("received.dmp", 10);
@@ -308,7 +309,8 @@ public sealed class SnapshotsViewModelTests : IDisposable
     public Task A_declined_DAC_can_be_trusted_later_from_the_snapshot_and_the_dump_opens_again() => _ui.RunCheckedAsync(async () =>
     {
         var trusted = new TrustedDacs(_folder);
-        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('b', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         _worker.Service.CachedWithoutDac = true;
@@ -353,7 +355,8 @@ public sealed class SnapshotsViewModelTests : IDisposable
     public Task Trust_this_DAC_and_reopen_asks_about_memory_before_it_closes_anything() => _ui.RunCheckedAsync(async () =>
     {
         var trusted = new TrustedDacs(_folder);
-        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         _worker.Service.RequiredDac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('c', 64), "10.0.13");
         _worker.Service.CachedWithoutDac = true;
         var dump = Dump("big.dmp", 1024);
@@ -381,7 +384,8 @@ public sealed class SnapshotsViewModelTests : IDisposable
     {
         var trusted = new TrustedDacs(_folder);
         var session = TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted);
-        using var snapshots = new SnapshotsViewModel(session, _operations, new ImmediateUiDispatcher(), _interaction);
+        using var snapshots = new SnapshotsViewModel(session, _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('d', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         _worker.Service.CachedWithoutDac = true;
@@ -416,7 +420,7 @@ public sealed class SnapshotsViewModelTests : IDisposable
     public Task Shell_shows_the_snapshots_page_when_a_snapshot_opens() => _ui.RunCheckedAsync(async () =>
     {
         var processes = new ProcessesViewModel(new FakeCaptureService(Path.Combine(_folder, "sessions"), _operations.Jobs), _snapshots, _interaction);
-        using var shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, _snapshots), _snapshots, processes, new AboutViewModel(_operations));
+        using var shell = new ShellViewModel(_operations, _ui, new HomeViewModel(_operations, _snapshots), _snapshots, processes, new AboutViewModel(_operations));
 
         await _snapshots.OpenPathAsync(Dump("b.dmp", 10));
 
@@ -438,12 +442,20 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
     public void Dispose()
     {
-        _ui.Invoke(() =>
+        try
         {
-            _snapshots.Dispose();
-            return true;
-        });
-        _ui.Dispose();
+            // Work that ended after the test body is checked too.
+            _ui.Check();
+        }
+        finally
+        {
+            _ui.Invoke(() =>
+            {
+                _snapshots.Dispose();
+                return true;
+            });
+            _ui.Dispose();
+        }
         try
         {
             Directory.Delete(_folder, recursive: true);

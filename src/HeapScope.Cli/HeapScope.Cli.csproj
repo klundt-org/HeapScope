@@ -19,7 +19,7 @@
   <Import Project="$(HeapScopeRoot)build\Sample.Deploy.targets" />
 
   <!--
-    The CLI as a dotnet tool (sprint 3.9, ADR-039): one framework-dependent package for every system, built by
+    The CLI as a dotnet tool (ADR-039): one framework-dependent package for every system, built by
     build/pack-tool.sh, which collects the license files into HeapScopeToolLicenses first, and the package's own license
     file (the AGPL with its additional terms and the commercial terms) into HeapScopePackageFiles. The worker ships as its
     assembly without an executable (a tool's files must run anywhere), and the front end starts it through the dotnet host.

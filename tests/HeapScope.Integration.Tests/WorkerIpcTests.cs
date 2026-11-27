@@ -324,7 +324,8 @@ public sealed class WorkerIpcTests : IAsyncDisposable
     public async Task Least_recently_used_result_sets_are_evicted()
     {
         var first = (await _operations.StartSyntheticJob(new SyntheticJobRequest(100, TypeCount: 5)).Result).TypeSummary.Id;
-        for (var i = 0; i < 32; i++)
+        // The store keeps 128 sets (ResultSetStore.DefaultCapacity, ADR-044); one more evicts the first.
+        for (var i = 0; i < 128; i++)
         {
             await _operations.StartSyntheticJob(new SyntheticJobRequest(100, TypeCount: 5)).Result;
         }

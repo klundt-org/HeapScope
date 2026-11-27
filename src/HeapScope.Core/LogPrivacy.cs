@@ -153,7 +153,7 @@ public sealed class LogPrivacy
         Set(settings.IncludeFilterTextInLogs, settings.IncludeDumpValuesInLogs);
     }
 
-    // A file that cannot be read now: filter text keeps what was read last, or is off until the file was read once; dump values are off whatever was read before, since they are on only by the user's confirmed choice
+    // A file that cannot be read now: filter text keeps what was read last, or is off until the file was read once; dump values are off whatever was read before, since they are on only by the user's confirmed choice.
     // The write time is forgotten, so the next check that can read the file reads it again, even unchanged.
     private void SetUnreadable()
     {

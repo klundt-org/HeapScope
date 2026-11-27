@@ -215,6 +215,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
             _workspaces[snapshot] = workspace = new SnapshotWorkspaceViewModel(snapshot, _session, _dispatcher, this, _loggers);
         }
 
+        var kept = workspace.IsShown;
+
         if (workspace == _current && workspace.IsShown)
         {
             return;
@@ -227,7 +229,13 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         _current.Show();
         _current.SetActiveTab(Tab);
         _session.ShowInBackground(snapshot);
-        _logger?.LogInformation("Workspace shown: snapshot {Snapshot} ({Open} workspaces open)", snapshot?.Descriptor.SnapshotId.ToString() ?? "none", _workspaces.Count);
+        _logger?.LogInformation(
+            "Workspace shown: {Path} (snapshot {Snapshot}), {How}, tab {Tab}, {Open} workspaces open",
+            snapshot?.Path ?? "none",
+            snapshot?.Descriptor.SnapshotId.ToString() ?? "none",
+            kept ? "kept as it was, nothing queried" : "new, its views query the snapshot",
+            Tab,
+            _workspaces.Count);
         OnPropertyChanged(nameof(Current));
         OnPropertyChanged(nameof(Types));
         OnPropertyChanged(nameof(Navigator));
@@ -246,6 +254,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
             }
 
             workspace.Dispose();
+            _logger?.LogInformation("Workspace of {Path} closed: its types grid, path, inspections and retainers, and their result sets, released", snapshot.Path);
         }
     }
 
@@ -286,7 +295,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
                 _logger?.LogInformation("Asked to trust the DAC {Sha256} at {DacPath} for {Path}; the user answered {Answer}", dac.Sha256, dac.Path, path, yes ? "yes" : "no");
                 if (!yes)
                 {
-                    // From its index cache the graph needs no DAC: open it, and only field values and strings are refused
+                    // From its index cache the graph needs no DAC: open it, and only field values and strings are refused.
                     // A dump that has to be loaded cannot be read without one.
                     try
                     {
@@ -348,7 +357,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         if (item is not null && before is { } previous && previous != handle.Descriptor.SnapshotId)
         {
             _logger?.LogInformation(
-                "Snapshot {Path} was opened again: worker snapshot {PreviousId} is now {Id}; its row is shown afresh and its analysis path starts again",
+                "Snapshot {Path} was opened again: worker snapshot {PreviousId} is now {Id}; its row is shown afresh and its workspace (types grid, path, inspections, retainers) starts again",
                 handle.Path,
                 previous,
                 handle.Descriptor.SnapshotId);

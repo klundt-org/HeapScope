@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- One object (sprint 1.5): fields, references, referrers, retention paths and retained size. Split from the Snapshot tab in sprint 2.4 (2.3.7 review M8). -->
+<!-- One object: fields, references, referrers, retention paths and retained size. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HeapScope.UI.ViewModels"
@@ -34,7 +34,7 @@
     <DockPanel DockPanel.Dock="Top" Margin="0,0,8,4">
       <Button DockPanel.Dock="Right" Content="Show in dominator tree" Command="{Binding ShowInRetainersCommand}" VerticalAlignment="Top"
               ToolTip.Tip="What this object alone keeps alive, and what keeps it alive, on the Retainers tab" />
-      <!-- Sprint 2.7: the Snapshots page holds the bookmarks of every open snapshot. -->
+      <!-- The Snapshots page holds the bookmarks of every open snapshot. -->
       <Button ctl:ButtonIcon.Icon="Bookmark" x:Name="BookmarkButton" DockPanel.Dock="Right" Content="Bookmark" Margin="0,0,6,0" VerticalAlignment="Top"
               Command="{Binding $parent[pages:SnapshotsPage].((vm:SnapshotsViewModel)DataContext).ToggleBookmarkCommand}"
               ToolTip.Tip="Mark this object, or remove its mark (Ctrl+D or Cmd+D). Bookmarks are listed on the left and kept for the next time the snapshot is opened." />
@@ -71,9 +71,9 @@
           </TreeView.ItemTemplate>
         </TreeView>
       </DockPanel>
-      <!-- Outgoing references (1.5) and the objects referencing this one (2.1, loaded when its tab is first shown). -->
+      <!-- Outgoing references and the objects referencing this one (loaded when its tab is first shown). -->
       <TabControl Grid.Column="2" SelectedIndex="{Binding ReferencesTab, Mode=TwoWay}">
-        <!-- Sprint 3.11: the tab's icon sits in its content, not its header, where Tab cannot reach it. -->
+        <!-- The tab's icon sits in its content, not its header, where Tab cannot reach it. -->
         <TabItem Header="Outgoing">
           <DockPanel Margin="0,4,0,0">
             <ctl:InfoIcon DockPanel.Dock="Top" HorizontalAlignment="Left" Text="{x:Static vm:InfoTexts.ObjectOutgoing}" Margin="0,0,0,4" />
@@ -90,7 +90,7 @@
             </DataGrid>
           </DockPanel>
         </TabItem>
-        <!-- Sprint 3.11: the tab's icon sits in its content, not its header, where Tab cannot reach it. -->
+        <!-- The tab's icon sits in its content, not its header, where Tab cannot reach it. -->
         <TabItem Header="Incoming">
           <DockPanel Margin="0,4,0,0">
             <ctl:InfoIcon DockPanel.Dock="Top" HorizontalAlignment="Left" Text="{x:Static vm:InfoTexts.ObjectIncoming}" Margin="0,0,0,4" />
@@ -113,13 +113,13 @@
             </DataGrid>
           </DockPanel>
         </TabItem>
-        <!-- Sprint 2.2: why the object is alive, loaded when the tab is first shown. -->
-        <!-- Sprint 3.11: the tab's icon sits in its content, not its header, where Tab cannot reach it. -->
+        <!-- Why the object is alive, loaded when the tab is first shown. -->
+        <!-- The tab's icon sits in its content, not its header, where Tab cannot reach it. -->
         <TabItem Header="Retention">
           <DockPanel Margin="0,4,0,0">
             <ctl:InfoIcon DockPanel.Dock="Top" HorizontalAlignment="Left" Text="{x:Static vm:InfoTexts.ObjectRetention}" Margin="0,0,0,4" />
             <ctl:NoteText DockPanel.Dock="Top" Text="{Binding RetentionStatus}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />
-            <!-- Sprint 2.3: the retained size and the immediate dominator, a link to open it. -->
+            <!-- The retained size and the immediate dominator, a link to open it. -->
             <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4"
                        IsVisible="{Binding RetainedSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
               <TextBlock Text="{Binding RetainedSummary}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,4,0" />

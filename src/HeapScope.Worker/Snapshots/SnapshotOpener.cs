@@ -632,7 +632,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
     /// <summary>
     /// The older cache, opened after a rebuild failed for want of a DAC, or null when it cannot be opened any more (the caller
-    /// then reports the rebuild's failure). The failed load's memory is returned to the system first, so the two never stack
+    /// then reports the rebuild's failure). The failed load's memory is returned to the system first, so the two never stack.
     /// The warning backs up a contested result: it names both loader versions and why.
     /// </summary>
     private IndexCacheOpenResult? OpenOlder(OlderCache older, SnapshotFingerprint fingerprint, MemoryMode? forced, Exception failure, CancellationToken cancellationToken)

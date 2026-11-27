@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The HeapScope desktop app on Avalonia, for Windows, Linux and macOS (sprint 2.3.6, ADR-025). -->
+  <!-- The HeapScope desktop app on Avalonia, for Windows, Linux and macOS (ADR-025). -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <AssemblyName>HeapScope</AssemblyName>
@@ -8,11 +8,11 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\heapscope.ico</ApplicationIcon>
-    <!-- Precompiled when published for a runtime (dotnet publish -r <rid>); measured in sprint 1.2. -->
+    <!-- Precompiled when published for a runtime (dotnet publish -r <rid>). -->
     <PublishReadyToRun>true</PublishReadyToRun>
     <!--
       The runtime identifiers it is published for, stated so that every SDK restores the same set: newer SDKs add the
-      machine's own for ReadyToRun, which made the lock file differ by SDK (sprint 3.7).
+      machine's own for ReadyToRun, which made the lock file differ by SDK.
     -->
     <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>

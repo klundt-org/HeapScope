@@ -40,7 +40,8 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
     private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = [];
     private readonly Thread _thread;
     private readonly List<string> _violations = [];
-    private readonly HashSet<SnapshotWorkspaceViewModel> _workspaces = [];
+    private readonly HashSet<object> _watched = [];
+    private readonly List<Exception> _faults = [];
 
     public SingleThreadUiDispatcher()
     {
@@ -102,9 +103,26 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
         return done.Task;
     }
 
-    /// <summary>Runs <paramref name="body"/> on the UI thread and waits for its value (from a test's own thread).</summary>
+    /// <summary>What work posted to the UI thread threw; the pump goes on, and a checked run fails on it.</summary>
+    public IReadOnlyList<Exception> Faults
+    {
+        get
+        {
+            lock (_faults)
+            {
+                return [.. _faults];
+            }
+        }
+    }
+
+    /// <summary>Runs <paramref name="body"/> on the UI thread and waits for its value; on that thread it runs inline.</summary>
     public T Invoke<T>(Func<T> body)
     {
+        if (IsOnUiThread)
+        {
+            return body();
+        }
+
         var result = default(T)!;
         RunAsync(() =>
         {
@@ -117,6 +135,14 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
     /// <summary>Records a change of <paramref name="source"/> raised off the UI thread, named <paramref name="name"/>.</summary>
     public void Watch(object source, string name)
     {
+        lock (_watched)
+        {
+            if (!_watched.Add(source))
+            {
+                return;
+            }
+        }
+
         if (source is INotifyPropertyChanged properties)
         {
             properties.PropertyChanged += (_, e) => Check($"{name}.{e.PropertyName}");
@@ -132,7 +158,27 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
     public async Task RunCheckedAsync(Func<Task> body)
     {
         await RunAsync(body);
+        Check();
+    }
+
+    /// <summary>
+    /// Runs what was posted so far, then fails when anything watched changed off the UI thread or posted work threw: for a
+    /// test class's end, so work that finished after the test body is checked too.
+    /// </summary>
+    public void Check()
+    {
+        Invoke(() => true);
         Violations.ShouldBeEmpty();
+        Faults.ShouldBeEmpty();
+    }
+
+    /// <summary>Forgets the violations so far: for a test that makes one on purpose.</summary>
+    public void ForgetViolations()
+    {
+        lock (_violations)
+        {
+            _violations.Clear();
+        }
     }
 
     /// <summary>Watches the Snapshots page, its list, and the views of every workspace it shows.</summary>
@@ -141,6 +187,9 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
         ArgumentNullException.ThrowIfNull(page);
         Watch(page, "page");
         Watch(page.Snapshots, "page.Snapshots");
+        Watch(page.Compare, "page.Compare");
+        Watch(page.Bookmarks, "page.Bookmarks");
+        Watch(page.Bookmarks.Items, "page.Bookmarks.Items");
         WatchWorkspace(page.Current);
         page.PropertyChanged += (_, e) =>
         {
@@ -151,18 +200,14 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
         };
     }
 
-    public void Dispose() => _queue.CompleteAdding();
+    public void Dispose()
+    {
+        _queue.CompleteAdding();
+        _thread.Join(TimeSpan.FromSeconds(5));
+    }
 
     private void WatchWorkspace(SnapshotWorkspaceViewModel workspace)
     {
-        lock (_workspaces)
-        {
-            if (!_workspaces.Add(workspace))
-            {
-                return;
-            }
-        }
-
         var name = $"workspace {System.IO.Path.GetFileName(workspace.Snapshot?.Path) ?? "empty"}";
         Watch(workspace.Types, name + ".Types");
         Watch(workspace.Navigator, name + ".Navigator");
@@ -170,6 +215,18 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
         Watch(workspace.Inspections.Tiles, name + ".Inspections.Tiles");
         Watch(workspace.Inspections.BaselineChoices, name + ".Inspections.BaselineChoices");
         Watch(workspace.Retainers, name + ".Retainers");
+        Watch(workspace.Retainers.Set, name + ".Retainers.Set");
+
+        // The subjects of the path: each one shown is watched from then on.
+        var navigator = workspace.Navigator;
+        Watch(navigator.Current, $"{name}.Navigator.Current ({navigator.Current.GetType().Name})");
+        navigator.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(NavigatorViewModel.Current) && navigator.Current is { } subject)
+            {
+                Watch(subject, $"{name}.Navigator.Current ({subject.GetType().Name})");
+            }
+        };
     }
 
     // Work posted after the test ended is dropped, as a closed window's would be.
@@ -200,7 +257,18 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
         SynchronizationContext.SetSynchronizationContext(new Context(this));
         foreach (var (callback, state) in _queue.GetConsumingEnumerable())
         {
-            callback(state);
+            try
+            {
+                callback(state);
+            }
+            catch (Exception ex)
+            {
+                // Recorded, not thrown: one view model's failure fails its test instead of the test process.
+                lock (_faults)
+                {
+                    _faults.Add(ex);
+                }
+            }
         }
     }
 

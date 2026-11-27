@@ -61,7 +61,7 @@ public enum SnapshotSource
 /// <param name="CapturedUtc">When the capture was done and recorded.</param>
 /// <param name="RuntimeDirectory">Folder of the target's runtime at capture time (where its DAC came from).</param>
 /// <param name="HeapUtc">When the heap was as the snapshot holds it: within the target's pause, or the moment it ended. Null
-/// for a capture before 4.4. For a gcdump <paramref name="CapturedUtc"/> is seconds later (3 to 6 s measured).</param>
+/// for a capture an older HeapScope recorded. For a gcdump <paramref name="CapturedUtc"/> is seconds later (3 to 6 s measured).</param>
 public sealed record SessionSnapshot(
     Guid Id,
     string File,
@@ -906,7 +906,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// Deletes snapshots left half-written (<c>*.dmp.partial</c>, <c>*.gcdump.partial</c> since 1.8, <c>*.nettrace.partial</c> recordings since 2.5, <c>*.nettrace.*.partial</c> since 3.7) under <paramref name="folder"/> (default: the root) that
+    /// Deletes snapshots left half-written (<c>*.dmp.partial</c>, <c>*.gcdump.partial</c>, <c>*.nettrace.partial</c> recordings, <c>*.nettrace.*.partial</c>) under <paramref name="folder"/> (default: the root) that
     /// are older than <paramref name="minimumAge"/> and no longer held by a writer: the safety net when HeapScope was
     /// killed while a canceled capture was still being written. Returns the number of files removed.
     /// </summary>

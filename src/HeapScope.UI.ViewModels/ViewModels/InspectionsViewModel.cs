@@ -136,7 +136,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         _started = false;
         _baselineChosen = false;
         ChooseBaselines(snapshot);
-        if (keepBaseline && (wasChosen || keepAnyBaseline) && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
+        if (keepBaseline && (wasChosen || keepAnyBaseline) && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
         {
             // Before the run starts, so its growth tiles run with it.
             _choosingBaseline = true;
@@ -152,8 +152,9 @@ public sealed partial class InspectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Stops a run that has not finished, for a workspace that is no longer shown: the worker's time goes to
-    /// the snapshot shown, and the inspections run again when this one is shown. A finished run is kept as it is.
+    /// Stops what has not finished, for a workspace that is no longer shown, so the worker's time goes to the snapshot
+    /// shown. A first run that has not finished runs again when shown, with the baseline it had; a rerun of the growth
+    /// tiles stops alone, and the tiles it had not done run when shown. Finished results are kept as they are.
     /// </summary>
     public void Suspend()
     {
@@ -162,7 +163,20 @@ public sealed partial class InspectionsViewModel : ObservableObject
             return;
         }
 
-        _logger.LogInformation("Inspections: the run of {Snapshot} stopped, its workspace no longer shown; it runs again when shown", Snapshot?.Path);
+        if (_runAll.IsCompleted)
+        {
+            _rerun?.Cancel();
+            _logger.LogInformation("Inspections: the growth tiles' rerun of {Snapshot} stopped, its workspace no longer shown; {Stale} run when shown", Snapshot?.Path, StaleTiles().Count);
+            return;
+        }
+
+        var done = Tiles.Count(t => t.Run is not null);
+        _logger.LogInformation(
+            "Inspections: the run of {Snapshot} stopped after {Done} of {Total} inspections (their results dropped), its workspace no longer shown; it runs again when shown, baseline {Baseline} kept",
+            Snapshot?.Path,
+            done,
+            Tiles.Count,
+            Baseline?.Snapshot?.Path ?? "none");
         Show(Snapshot, keepBaseline: true, keepAnyBaseline: true);
     }
 
@@ -181,6 +195,10 @@ public sealed partial class InspectionsViewModel : ObservableObject
         if (value && !_started)
         {
             Start();
+        }
+        else if (value && _runAll.IsCompleted && RunTask.IsCompleted && StaleTiles().Count > 0)
+        {
+            Rerun(Baseline, "left for when shown");
         }
     }
 
@@ -457,8 +475,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (InvalidOperationException ex)
         {
-            // A result this build cannot show (a column missing) fails its own tile only: it used to end
-            // the whole run, and every inspection after it reported as failed.
+            // A result this build cannot show (a column missing) fails its own tile only, not
+            // the whole run: the inspections after it still run.
             _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
             tile.Status = "This result could not be shown: " + ex.Message;
             CanTryAgain = true;

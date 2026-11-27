@@ -33,7 +33,7 @@ namespace HeapScope.Core;
 /// <param name="CapturedAtUtc">When the snapshot was captured, when known.</param>
 /// <param name="FreeBytes">
 /// Free space (the GC's free objects) per heap kind, indexed by <see cref="Graph.HeapKind"/>, for the fragmentation
-/// summary; null when unknown (index caches written before 1.6, snapshots without segments).
+/// summary; null when unknown (older index caches, snapshots without segments).
 /// </param>
 /// <param name="Facts">What the loader recorded beyond the graph; none for older index caches.</param>
 public sealed record SnapshotInfo(

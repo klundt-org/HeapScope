@@ -97,7 +97,7 @@ internal static class IndexFileDirectory
         MemoryMarshal.Write(region, in header);
         if (!signer.Verify(region))
         {
-            // Unsigned (all zero) is what every cache written before 3.7 is; a signature that does not match is another
+            // Unsigned (all zero) is what every cache an older HeapScope wrote is; a signature that does not match is another
             // user's, another machine's, or a forgery (support).
             failure = IndexCacheOpenResult.Invalid(
                 IndexCacheInvalidReason.Untrusted,

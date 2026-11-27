@@ -161,7 +161,7 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         var title = string.Create(CultureInfo.InvariantCulture, $"Record allocations of {processName} ({processId})");
         return jobs.Start(title, async (progress, ct) =>
         {
-            // The current session takes the library's lock, which an open or a deletion can hold for seconds: not on the UI thread (as LiveViewModel does since 3.4).
+            // The current session takes the library's lock, which an open or a deletion can hold for seconds: not on the UI thread (as LiveViewModel does).
             var folder = await Task.Run(() => library.Current.Folder, ct).ConfigureAwait(false);
 
             // Marked in use while it records, as captures and runs are, so the session is not deleted under it.

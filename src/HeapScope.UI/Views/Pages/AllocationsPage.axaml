@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- The Allocations page (sprint 2.5, ADR-028): the allocation traces open in this session, one at a time. For a trace:
+<!-- The Allocations page (ADR-028): the allocation traces open in this session, one at a time. For a trace:
      its timeline (drag selects an interval), the types of the interval, the back traces or call tree, and the top call
      stacks. Selecting a type narrows the trees and stacks to it. Sizes are estimates from samples. -->
 <UserControl xmlns="https://github.com/avaloniaui"

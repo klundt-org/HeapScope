@@ -122,7 +122,7 @@ public sealed record ObjectValue(ObjectValueKind Kind)
 }
 
 /// <summary>
-/// One field of an inspected object, or one array element (typed since 1.6). Compiler backing fields are
+/// One field of an inspected object, or one array element (typed). Compiler backing fields are
 /// named by their property; array elements by their index (<c>[3]</c>, <c>[1,2]</c>).
 /// </summary>
 /// <param name="DeclaredType">The field's declared type (the element type for array elements).</param>

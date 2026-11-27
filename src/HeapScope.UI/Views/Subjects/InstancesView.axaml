@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- A type's objects (sprint 1.5), with its referrers, why alive and what it retains. Split from the Snapshot tab in sprint 2.4 (2.3.7 review M8). -->
+<!-- A type's objects, with its referrers, why alive and what it retains. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HeapScope.UI.ViewModels"
@@ -47,7 +47,7 @@
                 ToolTip.Tip="Show the bytes each object alone keeps alive. The first time for a snapshot this computes its dominators, which can take a while; they are saved with its index cache, when it has one." />
       <TextBlock Text="{Binding Totals}" VerticalAlignment="Center" Margin="12,0,0,0" Classes="subtle" TextTrimming="CharacterEllipsis" />
     </DockPanel>
-    <!-- Sprint 3.13.2: moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
+    <!-- Moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
     <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding ValuesExplanation}" Margin="0,0,0,4" TextWrapping="Wrap" Classes="subtle" />

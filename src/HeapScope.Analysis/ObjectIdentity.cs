@@ -31,7 +31,7 @@ namespace HeapScope.Analysis;
 /// survived when the earlier one has, at its address, an object of the same method table and type key (name and module
 /// file), the same size and the same heap area (small object heap, LOH, POH or frozen): an object never changes any of
 /// these. It must also be in no younger generation, which an object usually is not: the GC can demote
-/// objects around pinned ones, and with regions (.NET 7 and later) a region of few pinned survivors can go back to Gen0
+/// objects around pinned ones, and with regions (.NET 7 and later) a region of few pinned survivors can go back to Gen0.
 /// A pinned object never moves, so the generation is not tested for an object a root pins in
 /// either snapshot; an unpinned object demoted beside one still counts as dead and new. A new object of the same type and
 /// size allocated where a dead one was, in the same or an older generation, still passes: the counts say "by address". A

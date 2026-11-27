@@ -37,7 +37,9 @@ namespace HeapScope.Worker.Rpc;
 /// </summary>
 internal sealed class ResultSetStore
 {
-    public const int DefaultCapacity = 32;
+    // Room for several workspaces' sets (an inspections run alone holds about 20); the byte budget guards the memory
+    // (ADR-044).
+    public const int DefaultCapacity = 128;
     public const long DefaultByteBudget = 256L * 1024 * 1024;
 
     private readonly object _gate = new();
@@ -114,6 +116,8 @@ internal sealed class ResultSetStore
         var set = new StoredResultSet(Guid.NewGuid(), snapshot, source, owner);
         var evicted = new List<StoredResultSet>();
         Guid? shown;
+        int count;
+        long bytes;
         lock (_gate)
         {
             shown = _shown;
@@ -125,16 +129,26 @@ internal sealed class ResultSetStore
                 RemoveLocked(victim.Id);
                 evicted.Add(victim);
             }
+
+            (count, bytes) = (_sets.Count, _bytes);
         }
 
         foreach (var old in evicted)
         {
-            _logger?.LogDebug(
-                "Result set {Id} of snapshot {Snapshot} evicted ({Bytes} bytes; the client shows {Shown}); paging it runs its query again",
+            // A set of a hidden snapshot is meant to go first (Debug); one of the snapshot shown, or with none said, is what a
+            // "my grid ran again" question turns on (Information).
+            var level = old.Snapshot is not null && shown is not null && old.Snapshot != shown ? LogLevel.Debug : LogLevel.Information;
+            _logger?.Log(
+                level,
+                "Result set {Id} of snapshot {Snapshot} evicted ({Bytes} bytes; the client shows {Shown}; {Count}/{Capacity} sets, {Total}/{Budget} bytes); paging it runs its query again",
                 old.Id,
                 old.Snapshot?.ToString() ?? "none",
                 old.Source.EstimatedBytes,
-                shown?.ToString() ?? "none");
+                shown?.ToString() ?? "none",
+                count,
+                Capacity,
+                bytes,
+                ByteBudget);
             old.DisposeOwnerIfIdle();
         }
 
@@ -175,6 +189,30 @@ internal sealed class ResultSetStore
                 set.Owner?.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// Drops every set of a closed snapshot, so none keeps its graph alive through its lease until evicted; owners are
+    /// disposed as on a release. Returns how many went.
+    /// </summary>
+    public int ReleaseSnapshot(Guid snapshot)
+    {
+        var removed = new List<StoredResultSet>();
+        lock (_gate)
+        {
+            foreach (var set in _recency.Where(s => s.Snapshot == snapshot).ToList())
+            {
+                RemoveLocked(set.Id);
+                removed.Add(set);
+            }
+        }
+
+        foreach (var set in removed)
+        {
+            set.DisposeOwnerIfIdle();
+        }
+
+        return removed.Count;
     }
 
     public void Release(Guid id)

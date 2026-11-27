@@ -31,8 +31,8 @@ namespace HeapScope.UI.ViewModels;
 
 
 /// <summary>
-/// The Snapshot tab's subjects and the analysis path (dotMemory's drill-down; a branching path per snapshot
-/// since 2.7): the types grid is the root; links open instances, objects, a type's referrers or its retention
+/// The Snapshot tab's subjects and the analysis path (dotMemory's drill-down; a branching
+/// path): the types grid is the root; links open instances, objects, a type's referrers or its retention
 /// paths as new steps through <see cref="Navigate"/>, and links into the Retainers tab are recorded as steps
 /// (<see cref="Record"/>). Each open snapshot keeps its own <see cref="AnalysisPath"/> while it is open, so switching
 /// snapshots, tabs or pages never loses it. Back and Forward move along the path; choosing a step in the sidebar shows it;

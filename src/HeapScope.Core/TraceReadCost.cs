@@ -24,9 +24,9 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// What reading a finished allocation trace costs the worker, and the largest trace a recording may write so that its read fits
-/// a fixed part for TraceEvent and the runtime's names, plus a part per byte of the file. The 2.5
-/// review measured about 76 MB plus 2.1 bytes per file byte with the worker's GC settings; these leave a margin.
+/// What reading a finished allocation trace costs the worker, and the largest trace a recording may write so that its read fits:
+/// a fixed part for TraceEvent and the runtime's names, plus a part per byte of the file. Measured
+/// at about 76 MB plus 2.1 bytes per file byte with the worker's GC settings; these leave a margin.
 /// </summary>
 public static class TraceReadCost
 {

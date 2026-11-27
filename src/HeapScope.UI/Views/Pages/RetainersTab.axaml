@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- The Retainers tab (sprint 2.4, ADR-027): the biggest retainers as the top of the dominator tree, expanded in place;
+<!-- The Retainers tab (ADR-027): the biggest retainers as the top of the dominator tree, expanded in place;
      a focus with its dominators as a trail; the icicle chart of the focus; and what a type's objects retain together. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -99,7 +99,7 @@
           </TextBlock>
         </DockPanel>
         <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,2,0,2" />
-        <!-- Sprint 3.13.2: moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
+        <!-- Moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
         <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
         <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,2" />
         <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Totals}" Classes="subtle" Margin="0,0,0,2" />

@@ -351,6 +351,11 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   reads or sends them (M2, a protocol change); measuring front end and worker memory with three Medium snapshots open, each with a
   full analysis path, and trimming the row lists of subjects and workspaces not shown (M3; sprint 4.9 made the worker
   evict the sets of snapshots not shown first, ADR-044); export marks for a gcdump's sampled counts (L17).
+- For sprint 4.10, from the 4.9 review (decided autonomously): before tabs multiply the state, measure the UI process's
+  working set and managed heap with three Medium snapshots open, each with a full path and an inspections run, and record it
+  in budgets.md (M6); tag the worker's sets by workspace (an opaque scope id, a protocol change) so a tab's hidden siblings
+  do not share the shown tab's preference (M4); make the workspace the navigator of its own views, so a link lands in the
+  tab it came from (M7). The 4.9 review's Lows are listed in docs/reviews/sprint-4.9.md.
 - More channels and formats (sprint 3.9 decided GitHub Releases with a Windows `.zip`, a Linux `.tar.gz` and the CLI's
   dotnet tool, ADR-039; product owner, 2026-10-31):
   - nuget.org for the dotnet tool: since 3.13.1 the owner uploads the release's package by hand (ADR-039). Next: publish

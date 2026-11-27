@@ -268,7 +268,7 @@ Large results are never sent whole. A query creates a result set in the worker a
 `count` capped at 10,000, and `ReleaseResultSetAsync(id)` when done. Sorting and filtering happen in the
 worker, producing a new result set. The grids use data virtualization and fetch pages on scroll. Result
 sets are typed sources (`IResultSource`: compact arrays such as indices, counts and sizes) formatted to strings only
-for the requested page, never stored as one string per cell. The store evicts least recently used sets beyond 32
+for the requested page, never stored as one string per cell. The store evicts least recently used sets beyond 128
 sets or an estimated 256 MB, whichever comes first (the newest set is always kept). Each set names the snapshot it
 came from, and once the client has said which snapshot its window shows (`ShowSnapshotAsync`, ADR-044), the sets of
 the other snapshots are evicted first, least recently used among them, then the rest; sets of no snapshot (traces, a

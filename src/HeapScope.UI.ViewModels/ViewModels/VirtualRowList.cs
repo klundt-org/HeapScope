@@ -48,7 +48,7 @@ public static class VirtualRowList
 }
 
 /// <summary>
-/// A list of a result set's rows for a virtualizing grid (generic since 1.4): the count is known up front,
+/// A list of a result set's rows for a virtualizing grid (generic): the count is known up front,
 /// rows are created when the grid asks for them and filled by fetching their page from the worker. At most
 /// <see cref="VirtualRowList.MaxPages"/> pages stay loaded: the pages farthest from the last one asked for are dropped
 /// (rows on screen are always near it), so a list of millions of instances holds a few thousand rows. <see cref="Cancel"/> ends the list when a newer query replaces it: page requests in flight

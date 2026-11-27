@@ -54,7 +54,7 @@ public enum IndexCacheInvalidReason
 
     /// <summary>
     /// The cache is not signed with this user's key: written by another user or machine,
-    /// shipped next to a dump, written before 3.7, or forged. It is never used; the dump is read again.
+    /// shipped next to a dump, written by an older HeapScope, or forged. It is never used; the dump is read again.
     /// </summary>
     Untrusted,
 }

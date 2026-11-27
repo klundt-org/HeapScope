@@ -66,8 +66,8 @@ public enum TypeKind : ushort
     Exception = 1 << 4,
 
     /// <summary>
-    /// An array whose elements are references: its non-null slots are its outgoing references. Index caches
-    /// written before 1.6 lack the flag.
+    /// An array whose elements are references: its non-null slots are its outgoing references. Older index
+    /// caches lack the flag.
     /// </summary>
     ReferenceArray = 1 << 5,
 }

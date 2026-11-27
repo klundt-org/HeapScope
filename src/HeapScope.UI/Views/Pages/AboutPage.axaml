@@ -44,7 +44,7 @@
       <Button ctl:ButtonIcon.Icon="Copy" Content="Copy details" Command="{Binding CopyDetailsCommand}"
               ToolTip.Tip="Copies the versions, the system and the log folder, for an issue on HeapScope's page. Nothing is sent anywhere." />
     </StackPanel>
-    <!-- Peer review 4.5 H14: the one place to get help, SUPPORT.md on HeapScope's page, opened in the default browser. -->
+    <!-- The one place to get help, SUPPORT.md on HeapScope's page, opened in the default browser. -->
     <ctl:AttributionText x:Name="HelpLink" Margin="0,12,0,0" TextWrapping="Wrap" LinkUri="https://github.com/klundt-org/HeapScope/blob/main/SUPPORT.md"
                          AutomationProperties.Name="Getting help" ToolTip.Tip="https://github.com/klundt-org/HeapScope/blob/main/SUPPORT.md">
       <Run Text="Questions and problems: " /><Run Classes="link" Text="Getting help" TextDecorations="Underline" /><Run Text=" says how to open an issue on HeapScope's page, what to include, and how to check a log before you attach it." />
@@ -64,7 +64,7 @@
       </StackPanel>
       <TextBlock Margin="0,8,0,0" Text="{Binding LastResult}" TextWrapping="Wrap" />
     </StackPanel>
-    <!-- Sprint 2.7: the one shortcut table, which the window also uses; F1 comes here. -->
+    <!-- The one shortcut table, which the window also uses; F1 comes here. -->
     <TextBlock x:Name="ShortcutsHeading" Text="Keyboard shortcuts" FontWeight="SemiBold" Margin="0,16,0,6" />
     <ItemsControl x:Name="ShortcutList" ItemsSource="{Binding Shortcuts}">
       <ItemsControl.ItemTemplate>

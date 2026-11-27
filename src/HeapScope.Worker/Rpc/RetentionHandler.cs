@@ -567,7 +567,7 @@ internal sealed class RetentionHandler(
             return result;
         });
 
-    /// <summary>A set for the log: a one-type set by its type and module (as before 3.1), any other by its shape.</summary>
+    /// <summary>A set for the log: a one-type set by its type and module, any other by its shape.</summary>
     private static string Describe(ObjectSetSpec spec) =>
         spec.Kind == ObjectSetKind.Types && spec.Types is [var only]
             ? "type " + only.Name + " (" + (string.IsNullOrEmpty(only.Module) ? "no module" : only.Module) + ")"

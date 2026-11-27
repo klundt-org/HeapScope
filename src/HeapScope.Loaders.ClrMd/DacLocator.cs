@@ -103,8 +103,8 @@ public static class DacLocator
             Add(Path.Combine(root, request.RuntimeVersion));
         }
 
-        // The dump records the runtime's file version; installed folders use the product version
-        // Every installed runtime is a candidate; the PE match picks the right one.
+        // The dump records the runtime's file version (10.0.1326.50504); installed folders use the product version
+        // (10.0.13). Every installed runtime is a candidate; the PE match picks the right one.
         foreach (var root in roots)
         {
             foreach (var installed in EnumerateDirectories(root))

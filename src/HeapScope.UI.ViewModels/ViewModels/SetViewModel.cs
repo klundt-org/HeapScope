@@ -48,7 +48,7 @@ public enum SetViews
 
 /// <summary>
 /// An object set as a subject of the Snapshot tab (ADR-030, dotMemory's object set): its Types, Instances,
-/// Generations and Dominators views, and since 3.2 its Paths and Similar Retention views, each queried the first time it is
+/// Generations and Dominators views, and its Paths and Similar Retention views, each queried the first time it is
 /// shown, and "objects retained by this set" on the
 /// Retainers tab. The set is kept as its spec, so the views re-run it after an eviction or a worker restart.
 /// </summary>

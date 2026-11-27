@@ -56,8 +56,8 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     /// LoaderAllocator references for caches written before them. 6: struct statics with references are named by
     /// their field, not only as the runtime's static storage.
     /// 7: the static storage of .NET 8, which it reports only as strong handles, is named as such,
-    /// and thread statics are named by their field, "(thread static)". 8 since its review: the statics are checked
-    /// (SnapshotFacts.StaticsChecked), whose bit builds of 7 used with the other meaning.
+    /// and thread statics are named by their field, "(thread static)". 8: the statics are checked
+    /// (SnapshotFacts.StaticsChecked); builds of 7 used that bit with another meaning, so their caches are rebuilt.
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
@@ -151,7 +151,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         // Freezing copied the chunked object buffers into the final columns; about 20 bytes per object of chunks are
         // garbage now. Without an aggressive collection the GC keeps that memory committed through the reference pass,
-        // which is where the load peaks (measured: about 1.2 GB on the Medium dump). A phase of its own.
+        // which is where the load peaks: about 1.2 GB of chunks on the Medium dump (the load's peak fell from 3.2 GB to 1.7 GB with this
+        // collection). FreezeObjects already lets the chunks go; this collection compacts the heap and returns the freed memory
+        // before the reference pass. A phase of its own.
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
         var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath, cancellationToken) : null, !_options.SecondHandleWalk, progress, cancellationToken);

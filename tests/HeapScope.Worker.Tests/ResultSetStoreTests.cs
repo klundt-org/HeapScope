@@ -136,6 +136,41 @@ public class ResultSetStoreTests
     }
 
     [Fact]
+    public void Closing_a_snapshot_drops_its_sets_and_returns_their_leases()
+    {
+        var (closed, open) = (Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore();
+        var lease = new Owner();
+        var gone = store.Add(closed, new CountingSource(1), lease);
+        var kept = store.Add(open, new CountingSource(1));
+        var trace = store.Add(null, new CountingSource(1));
+
+        store.ReleaseSnapshot(closed).ShouldBe(1);
+
+        lease.Disposed.ShouldBeTrue("the lease no longer keeps the closed snapshot's graph");
+        store.TryGetPage(gone.Id, 0, 1).ShouldBeNull();
+        store.TryGetPage(kept.Id, 0, 1).ShouldNotBeNull();
+        store.TryGetPage(trace.Id, 0, 1).ShouldNotBeNull();
+        store.ReleaseSnapshot(closed).ShouldBe(0);
+    }
+
+    [Fact]
+    public void Two_workspaces_of_inspection_sets_fit_the_default_cap()
+    {
+        // About 20 sets per workspace after an inspections run: two of them stay within the default count cap.
+        var (shown, hidden) = (Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore();
+        store.Show(shown);
+        var hiddenSets = Enumerable.Range(0, 20).Select(_ => store.Add(hidden, new CountingSource(1))).ToList();
+        for (var i = 0; i < 20; i++)
+        {
+            store.Add(shown, new CountingSource(1));
+        }
+
+        hiddenSets.ShouldAllBe(set => store.TryGetPage(set.Id, 0, 1) != null);
+    }
+
+    [Fact]
     public void With_no_snapshot_shown_eviction_is_least_recently_used()
     {
         var (a, b) = (Guid.NewGuid(), Guid.NewGuid());

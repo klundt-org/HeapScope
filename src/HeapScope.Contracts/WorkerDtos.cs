@@ -79,7 +79,7 @@ public enum ResultColumnKind
 /// Front ends render from this one flag (<see cref="ValueBoundTexts"/>).
 /// </param>
 /// <param name="IsHidden">
-/// A column that links a row to what it opens (a raw type name, a module, a tree key) and is not shown (replacing the naming convention of 1.5 and 1.6); exports leave it out.
+/// A column that links a row to what it opens (a raw type name, a module, a tree key) and is not shown; exports leave it out.
 /// </param>
 /// <param name="HasValues">
 /// A column that carries the target's data: string text or field values (ADR-026). A shared export leaves it
