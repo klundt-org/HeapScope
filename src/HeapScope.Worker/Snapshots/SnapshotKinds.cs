@@ -208,6 +208,12 @@ internal sealed class SnapshotKinds
             {
                 notes.Add("This core dump does not record when it was taken; its capture time is the file's time, which a copy of the file can change.");
             }
+
+            // Sprint 4.8 (M3): the DAC is native code that reads untrusted data, with the worker's rights.
+            if (options.RunsElevated)
+            {
+                notes.Add(ElevationTexts.ElevatedDumpNote);
+            }
         }
 
         public override string ExplainMissingFact(string title) =>

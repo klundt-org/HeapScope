@@ -87,6 +87,12 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             AllowMicrosoftSymbolServer ? "--allow-symbol-server" : saved.AllowMicrosoftSymbolServer ? "Settings" : "off");
     }
 
+    /// <summary>
+    /// Whether the worker runs as administrator or root (sprint 4.8, M3): a full dump then gets a note that its DAC runs with those
+    /// rights. Read from the process when the options are read; off for options a test makes.
+    /// </summary>
+    public bool RunsElevated { get; init; }
+
     /// <summary>Whether GC handles of Server GC processes are walked a second time (<c>--second-handle-walk</c>).</summary>
     public bool SecondHandleWalk { get; init; } = true;
 
@@ -172,6 +178,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             SettingsFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["SettingsFolder"]) ? null : configuration.GetSection(SectionName)["SettingsFolder"],
             AllowMicrosoftSymbolServer = allow,
             SecondHandleWalk = second,
+            RunsElevated = Environment.IsPrivilegedProcess,
         };
         error = null;
         return true;

@@ -114,6 +114,16 @@ public static class ElevationTexts
         _ => null,
     };
 
+    /// <summary>
+    /// The note on a full dump opened while HeapScope runs as administrator or root (sprint 4.8, peer review 4.5 M3): reading a
+    /// full dump runs the dumped runtime's DAC, native code, with HeapScope's rights. A draft (docs/design/info-text.md).
+    /// </summary>
+    public static string ElevatedDumpNote => ElevatedDumpNoteOn(s_system);
+
+    public static string ElevatedDumpNoteOn(HostSystem system) => HostSystems.RightsGoByUser(system)
+        ? "HeapScope runs as root, so the DAC that reads this dump, native code from the .NET runtime, runs as root too. A dump made to attack the DAC could then take over this computer: open dumps you did not make yourself as your own user."
+        : "HeapScope runs as administrator, so the DAC that reads this dump, native code from the .NET runtime, runs as administrator too. A dump made to attack the DAC could then take over this computer: open dumps you did not make yourself without administrator rights.";
+
     /// <summary>The refusal to reach a process that needs more rights: what HeapScope cannot do, and what to do instead.</summary>
     public static string Refusal(string? name, int processId, string cannot, string again, HostSystem system) => HostSystems.RightsGoByUser(system)
         ? $"{name ?? "The process"} (pid {processId}) runs as another user, so HeapScope cannot {cannot}. Run HeapScope as that user{OrRoot(system, ", or as root (sudo),")} and {again}."

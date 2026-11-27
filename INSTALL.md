@@ -195,6 +195,12 @@ on the Settings page:
 
 The folder must be on this computer: HeapScope never searches a network folder for a DAC.
 
+### Dumps you did not make
+
+Reading a full dump runs its runtime's DAC, which is native code: a dump made to attack a bug in it could run code as you.
+Open dumps from other people as your own user, never as administrator or root; HeapScope adds a note to a full dump it
+opens with those rights. A gcdump is read by HeapScope's own managed code only.
+
 ## Where HeapScope keeps its data
 
 Sessions and logs go to `%LOCALAPPDATA%\HeapScope` on Windows, `~/.local/share/HeapScope` on Linux (under `$XDG_DATA_HOME` when it is set) and

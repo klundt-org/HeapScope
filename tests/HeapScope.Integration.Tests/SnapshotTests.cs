@@ -249,7 +249,8 @@ public sealed class SnapshotTests : IClassFixture<StaticCacheDump>, IAsyncDispos
         d.ObjectCount.ShouldBeGreaterThan(StaticCacheDump.Items * 2);
         d.Features.HasFlag(SnapshotFeatures.Generations).ShouldBeTrue();
         d.Features.HasFlag(SnapshotFeatures.RootDetails).ShouldBeTrue();
-        d.Notes.ShouldBeEmpty();
+        // CI's Windows runner runs elevated, which adds its note (sprint 4.8, M3).
+        d.Notes.Where(static n => n != HeapScope.Core.ElevationTexts.ElevatedDumpNote).ShouldBeEmpty();
 
         await _host.RestartAsync(Ct);
         var second = await _session.StartOpen(_dump).Result;

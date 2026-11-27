@@ -145,7 +145,7 @@ mapped switch does not return, a note when a load's references fall back to memo
    assets, then publishes. Tag protection and immutable releases are repository settings (owner, listed). Tests: the workflow's dry run
    on a test tag in a fork-free way (workflow_dispatch with publish off).
 5. [x] M2: THIRD-PARTY-NOTICES lists the versions shipped, and a test compares it with the lock files. Test: `Notices_list_the_shipped_versions`.
-6. [ ] M3: opening an untrusted dump runs the dump's runtime's DAC, native code, with the user's rights: security-privacy.md and INSTALL
+6. [x] M3: opening an untrusted dump runs the dump's runtime's DAC, native code, with the user's rights: security-privacy.md and INSTALL
    say so (draft), and opening a dump while elevated adds a note. Sandboxing the reader stays in the Backlog (L). Tests: the note.
 7. [ ] M4: CLI output is a versioned contract: every `--json` output carries `"format": 1`, docs/cli-output.md says what may change
    within a format and what bumps it. Tests: each command's JSON has the field; a contract test per command's top-level shape.

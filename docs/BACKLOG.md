@@ -50,6 +50,10 @@ Sprint 3.11:
 Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.6 to 4.9 to it.
 
 **High**
+- The reader in a sandbox (from peer review 4.5 M3, sprint 4.8; L): reading a full dump runs the runtime's DAC, native code, with
+  the user's rights (security-privacy.md). A worker for untrusted dumps that runs with fewer rights (a restricted token or
+  AppContainer on Windows, a user namespace with seccomp on Linux) would contain a dump made to attack it. 4.8 documents it and
+  notes an elevated open.
 - The tutorial's follow-ups (built in sprint 3.13, ADR-042): pre-built tutorial files (captures and traces shipped, so a
   lesson runs without starting the sample, and where capture is not available); a lesson on reading an object's
   fields (the Inspection scenario has none yet); a per-lesson platform or capability requirement, with the first lesson that
