@@ -59,7 +59,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
 | 4.8 | Ready to release | Closed | 2026-11-27 | sprint-4.8 |
 | 4.9 | Workspaces | Closed | 2026-11-27 | sprint-4.9 |
-| 4.10 | Analysis tabs | Planned | | |
+| 4.10 | Analysis tabs | In Progress | | |
 | 4.11 | Sunburst | Planned | | |
 | 4.12 | WPF leak detectors (optional) | Planned | | |
 
@@ -119,6 +119,47 @@ Owner decisions, 2026-11-18:
 | 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.10: Analysis tabs
+
+**Goal:** several analyses of one snapshot side by side, each in a tab with its own types grid, path and retainers, so a person can
+follow two leads in one dump without losing either; links land in the tab they came from, and the worker keeps the shown tab's
+results first. Inputs: the 4.9 review's deferred M4, M6 and M7 (ADR-044), and its Lows L2 and L6, which touch the same code.
+
+1. [ ] Measure first (4.9 review M6): a smoke run that opens three dumps (`--smoke-open` given more than once), walks a path and runs
+   the inspections on each, and logs the UI process's working set, private bytes and managed heap after each; run on the three
+   Medium dumps (or what of them opens here) and recorded in budgets.md. Tests: the options take several dumps; the smoke run's
+   measure line.
+2. [ ] Tabs of a snapshot: a snapshot's analysis holds its tabs (each a `SnapshotWorkspaceViewModel`: types grid, path, retainers)
+   and one inspections view shared by them (one run per snapshot); the page shows the selected snapshot's current tab. New tab
+   starts at the types grid; closing a tab disposes it and its sets; the last tab of a snapshot cannot be closed; at most 8 tabs
+   per snapshot, a ninth refused with why. Tests: a second tab keeps its own filter and path; the inspections run once for two
+   tabs; closing a tab releases its sets; the cap.
+3. [ ] Links land in their tab (4.9 review M7, L2, L6): a tab is the navigator of its own views, so a link of its snapshot lands in
+   the tab it came from, and one into another snapshot goes to the page, which shows that snapshot's current tab; the navigator
+   keeps one path (its snapshot's); a Retainers link into a tab not yet shown navigates before the tab queries. Tests: a link in
+   the second tab stays there; a cross-snapshot link; the Retainers order.
+4. [ ] The worker keeps the shown tab's sets first (4.9 review M4): the client says which snapshot and which tab are shown
+   (`ShowSnapshotAsync(snapshot, scope)`, protocol 26); new sets of the shown snapshot carry the shown tab; eviction goes other
+   snapshots first, then the shown snapshot's other tabs, then the rest. Tests: the eviction order with two tabs; the scope over the
+   pipe; the page tells the scope on a tab switch.
+5. [ ] The tab strip: on the Snapshots page above the tabs, the selected snapshot's tabs with their titles (the current step's),
+   New tab and Close tab, and Ctrl+T and Ctrl+W (Cmd on macOS) in the shortcut table; texts as drafts. Tests: the view binds the
+   tabs and commands (UI tests), the shortcuts list, the page and workspace tests on the UI thread.
+6. [ ] Docs: ADR-045 for tabs (amending ADR-044), ARCHITECTURE.md 3.2, process-model.md (protocol 26, the store), code-map.md,
+   logging.md (the tab lines), the user guide (a draft), info-text.md (drafts).
+
+**Decisions**
+- Decided autonomously: a tab holds its own types grid, path and retainers; the inspections are per snapshot, shared by its tabs, so
+  a second tab does not run them again.
+- Decided autonomously: a new tab starts at the types grid; "open in a new tab" from a row is left for later (Backlog).
+- Decided autonomously: at most 8 tabs per snapshot; the last tab of a snapshot cannot be closed (closing the snapshot closes them).
+- Decided autonomously: the worker learns the shown tab with the shown snapshot (one call, protocol 26) and tags new sets of that
+  snapshot with it, since only the shown tab queries (ADR-044); sets of no snapshot and Compare's stay untagged.
+- Decided autonomously: Ctrl+T and Ctrl+W (Cmd+T and Cmd+W on macOS) for New tab and Close tab; tabs are not kept across restarts.
+- Decided autonomously: the 4.9 Lows L2 and L6 come in with task 3; the other Lows stay in the review file.
 
 ---
 
