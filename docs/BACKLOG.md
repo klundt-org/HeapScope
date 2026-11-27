@@ -17,6 +17,10 @@ Built in sprint 4.8:
 - A snapshot note when a load kept its references in memory (F12), and the graph's columns split into private and file-backed
   bytes for the memory mode's log (F13; the choice still counts all the columns, review M4).
 - A session document read during a save on Windows (the readers test, one run in five): read again briefly before "missing".
+- The known flaky tests (M14): in 20 loops in a worktree of their own (2026-11-27), the readers test, CounterMonitor and both gcdump
+  cancels never failed; the churn recording failed once (its `diff` ran past 2 min) and the load cancel three times (its 2 s
+  criterion), all while 2 GB loads on the same machine took every processor, and loops 7 to 20 were clean with builds beside them.
+  The churn test now ends at once with the reason when its recording stops, and the CLI monitor's rule run is 30 s.
 
 Swept in sprint 3.12:
 - The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and

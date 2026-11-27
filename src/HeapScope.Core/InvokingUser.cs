@@ -54,6 +54,10 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
     /// </summary>
     public static string? TrustFolder { get; } = Current is null ? null : Path.Combine(RootHome(s_passwd), ".local", "share", "HeapScope");
 
+    // Root's home, under which nothing is ever given to the invoking user (the review's H1 re-check): the trust folder and the
+    // folders above it that HeapScope creates stay root's.
+    private static readonly string? s_rootHome = Current is null ? null : RootHome(s_passwd);
+
     /// <summary>Root's home in the password file's text, or /root.</summary>
     internal static string RootHome(string? passwd)
     {
@@ -106,7 +110,7 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
     public static bool Give(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        if (Current is not { } user)
+        if (Current is not { } user || IsRoots(path, s_rootHome))
         {
             return false;
         }
@@ -119,6 +123,22 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Whether <paramref name="path"/> is root's home or under it (sprint 4.8 review H1): what decides which DAC root loads lives there,
+    /// and a folder or file of it given to the user would let the user choose that code.
+    /// </summary>
+    internal static bool IsRoots(string path, string? rootHome)
+    {
+        if (string.IsNullOrEmpty(rootHome))
+        {
+            return false;
+        }
+
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var home = Path.TrimEndingDirectorySeparator(rootHome);
+        return full == home || full.StartsWith(home + "/", StringComparison.Ordinal);
     }
 
     private static string? ReadPasswd()

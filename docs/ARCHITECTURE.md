@@ -274,7 +274,9 @@ flowchart TD
 Rules:
 - Core references nothing, not even Microsoft.Extensions.*. It holds domain types and data structures, plus the data
   folder, private files and user settings every process shares, and (since 4.7) the readings of memory every process needs: it
-  calls the system for those only (GlobalMemoryStatusEx, /proc and cgroup files, sysctl, proc_pid_rusage), nothing else. The
+  calls the system for those only (GlobalMemoryStatusEx, /proc and cgroup files, sysctl, proc_pid_rusage), and since 4.8, run with
+  sudo on Linux, to know the invoking user and give that user what HeapScope writes (`InvokingUser`: /etc/passwd and `lchown`),
+  nothing else. The
   graph builder may create a private temporary file and map it read-only (the base library's memory-mapped files, its only
   `unsafe` code), for a load's references (graph-format.md 6.3).
   ThirdParty.GcDump references no Microsoft.Extensions.* either.

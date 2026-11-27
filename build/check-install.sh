@@ -98,6 +98,9 @@ if [ "$(uname -s)" = Linux ] && [ "$(id -u)" = 0 ] && entry=$(getent passwd 1000
   ls "$mine"/sudo.dmp.* > /dev/null 2>&1 || fail "Run with sudo, HeapScope wrote no index cache beside the dump"
   grep -q "DAC folder (none) (a saved one is ignored under sudo); symbol server downloads off (a saved one is ignored under sudo)" "$data"/logs/*.log \
     || fail "Run with sudo, HeapScope did not ignore the user's saved DAC folder and download opt-in"
+  # Root's own folder (the trusted DACs and their copies) stays root's (review H1): nothing under root's home is the user's.
+  given=$(find /root -uid 1000 -print 2> /dev/null)
+  [ -z "$given" ] || fail "Run with sudo, HeapScope gave the user files in root's home: $given"
   others=$(find "$home/.local" "$mine" ! -uid 1000 -print)
   [ -z "$others" ] || fail "Run with sudo, HeapScope left files that are not $user's: $others"
   echo "Run with sudo, HeapScope kept $user's data folder and gave $user everything it wrote."

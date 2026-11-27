@@ -76,6 +76,20 @@ public sealed class InvokingUserTests
         InvokingUser.RootHome(null).ShouldBe("/root");
     }
 
+    // The review's H1 re-check: nothing in root's home is given to the user, so the trust folder and its parents stay root's.
+    [Theory]
+    [InlineData("/root", true)]
+    [InlineData("/root/.local/share/HeapScope/trusted-dacs.json", true)]
+    [InlineData("/root/.local", true)]
+    [InlineData("/rootless/file", false)]
+    [InlineData("/home/ubuntu/.local/share/HeapScope", false)]
+    public void Roots_home_is_never_given_away(string path, bool roots)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Linux paths.");
+        InvokingUser.IsRoots(path, "/root").ShouldBe(roots);
+        InvokingUser.IsRoots(path, null).ShouldBeFalse();
+    }
+
     [Fact]
     public void Off_linux_and_when_not_root_no_one_is_given_anything()
     {

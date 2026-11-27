@@ -155,7 +155,7 @@ mapped switch does not return, a note when a load's references fall back to memo
    a log that cannot be written is said once; every failure shown has its log line; the worker's first start says what it is doing
    and is measured; Purge does what its text promises; README's path to a first answer; INSTALL's Linux steps checked on a clean
    container. Tests: per item.
-10. [ ] M14: CI and the project's single points: the required check confirmed, the known flaky tests (CounterMonitor, the gcdump cancel,
+10. [x] M14: CI and the project's single points: the required check confirmed, the known flaky tests (CounterMonitor, the gcdump cancel,
     the load cancellation, the churn recording start) made deterministic or bounded, a .NET servicing policy in DEVELOPER.md, and the
     token and org's single points written down with what the owner holds. Tests: the flaky tests 20 times in a loop without a failure.
 11. [x] From the Backlog: the memory the drop before the mapped switch does not return (find what holds it; `load-dump` back near

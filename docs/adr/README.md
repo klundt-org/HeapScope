@@ -16,7 +16,7 @@ section 13 links here).
 - [ADR-009](ADR-009-application-stack.md) Application stack
 - [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries (amended in 3.12: the loader's own object walk, and in 4.5: the second walk of GC handles)
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene
-- [ADR-012](ADR-012-git.md) Git
+- [ADR-012](ADR-012-git.md) Git (amended in sprints 3.7 and 4.8: the release workflow)
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth
 - [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1, 4.1.1, 4.2 and 4.8: the Linux and macOS meaning; hidden by default; sudo keeps the user's folder)
 - [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment; amended in 4.7: a first load's references in a mapped temporary file; in 4.8: private and file-backed bytes in the log)
