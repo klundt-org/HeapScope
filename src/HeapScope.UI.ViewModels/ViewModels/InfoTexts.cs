@@ -155,6 +155,10 @@ public static class InfoTexts
     public const string OpenedStatus =
         "Opened {0}. Its overview and types are on the Snapshot tab below; the Compare, Inspections and Retainers tabs analyze it further.";
 
+    /// <summary>Snapshots: a link of a snapshot that was closed; {0} is the dump file's name.</summary>
+    public const string LinkOfClosedSnapshot =
+        "This link leads into {0}, which is no longer open. Open the dump again to look there.";
+
     /// <summary>Settings: the status after dump values are turned on.</summary>
     public const string DumpValuesOn = "From now on, HeapScope's logs hold the values it reads from your dumps.";
 

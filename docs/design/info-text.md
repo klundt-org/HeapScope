@@ -486,6 +486,14 @@ Drafts for the owner (sprint 4.8, ready to release; peer review 4.5).
 | INSTALL | A missing DAC (H15) | The section as written in sprint 4.8: the order HeapScope looks in, and how to copy a DAC from an installed runtime, a self-contained application or a container | draft |
 | Settings | Status after downloads are turned on, or off (H15) | From the next dump you open, a missing DAC is downloaded from Microsoft's symbol server. / Missing DACs are no longer downloaded: HeapScope looks on this computer only. | draft |
 
+## Sprint 4.9 additions
+
+Drafts for the owner (sprint 4.9, workspaces; peer review 4.5 H13).
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Snapshots | Status when a link (a bookmark, Compare, an inspection) leads into a snapshot that was closed | This link leads into {file}, which is no longer open. Open the dump again to look there. | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

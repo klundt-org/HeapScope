@@ -21,6 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using System.Globalization;
 using System.IO;
 using HeapScope.Application;
 using HeapScope.Application.Jobs;
@@ -119,6 +120,42 @@ public sealed class WorkspaceTests : IDisposable
         _snapshots.Current.Snapshot.ShouldBeNull();
         _snapshots.Types.Rows.Count.ShouldBe(0);
         _snapshots.Workspaces.ShouldHaveSingleItem("a's workspace stays while a is open");
+    }
+
+    [Fact]
+    public async Task A_link_into_a_snapshot_not_shown_shows_its_workspace_and_step()
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!;
+        var aWorkspace = _snapshots.Current;
+        await _snapshots.OpenPathAsync(Dump("b.dmp"));
+        var bWorkspace = _snapshots.Current;
+        _snapshots.Tab = SnapshotTabs.Inspections;
+
+        _snapshots.Navigate(NavigationTarget.Instances(a.Handle, "App.Order", "App.dll"));
+
+        _snapshots.Selected.ShouldBeSameAs(a);
+        _snapshots.Current.ShouldBeSameAs(aWorkspace);
+        _snapshots.Tab.ShouldBe(SnapshotTabs.Snapshot);
+        aWorkspace.Navigator.Current.ShouldBeOfType<InstancesViewModel>().TypeName.ShouldBe("App.Order");
+        bWorkspace.Navigator.IsTypesShown.ShouldBeTrue("b's path is untouched");
+    }
+
+    [Fact]
+    public async Task A_link_of_a_closed_snapshot_is_refused_with_why()
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!.Handle;
+        await _snapshots.OpenPathAsync(Dump("b.dmp"));
+        var b = _snapshots.Current;
+        await _snapshots.CloseCommand.ExecuteAsync(_snapshots.Snapshots.Single(s => s.Handle == a));
+        _snapshots.Selected = _snapshots.Snapshots.Single();
+
+        _snapshots.Navigate(NavigationTarget.Instances(a, "App.Order", "App.dll"));
+
+        _snapshots.Current.ShouldBeSameAs(b);
+        b.Navigator.IsTypesShown.ShouldBeTrue("nothing of a lands in b's workspace");
+        _snapshots.Status.ShouldBe(string.Format(CultureInfo.CurrentCulture, InfoTexts.LinkOfClosedSnapshot, "a.dmp"));
     }
 
     public void Dispose()

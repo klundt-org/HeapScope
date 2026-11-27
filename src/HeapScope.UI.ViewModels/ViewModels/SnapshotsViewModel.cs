@@ -174,13 +174,20 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     }
 
     /// <summary>
-    /// Follows a link from anywhere on the page (sprint 2.4, 2.3.7 review M8): selects the target's snapshot, picks the tab
-    /// and opens the subject.
+    /// Follows a link from anywhere on the page: shows the workspace of the target's snapshot, picks the tab and opens the
+    /// subject there. A link of a snapshot that is no longer open is refused with why, rather than opened in another one.
     /// </summary>
     public void Navigate(NavigationTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
-        if (Selected?.Handle != target.Snapshot && Snapshots.FirstOrDefault(s => s.Handle == target.Snapshot) is { } item)
+        if (Snapshots.FirstOrDefault(s => s.Handle == target.Snapshot) is not { } item || target.Snapshot.IsClosed)
+        {
+            Status = string.Format(CultureInfo.CurrentCulture, InfoTexts.LinkOfClosedSnapshot, System.IO.Path.GetFileName(target.Snapshot.Path));
+            _logger?.LogInformation("A {Kind} link of {Snapshot} refused: the snapshot is no longer open", target.Kind, target.Snapshot.Descriptor.SnapshotId);
+            return;
+        }
+
+        if (Selected != item)
         {
             Selected = item;
         }

@@ -136,7 +136,7 @@ comments, tests without a UI thread).
    retainers; the Snapshots page keeps one per open snapshot and shows the current one; closing a snapshot disposes its workspace.
    Views bind to the current workspace. Compare stays on the page. Tests: switching between two snapshots keeps each one's filter, sort,
    path, inspection results and retainers as they were, without a new query; closing one drops its workspace.
-2. [ ] Links land in their workspace: a `NavigationTarget` names its snapshot, and following one shows that snapshot's workspace
+2. [x] Links land in their workspace: a `NavigationTarget` names its snapshot, and following one shows that snapshot's workspace
    first (Compare, bookmarks, Retainers links, the Live page's files). Tests: a link into a snapshot not shown shows its workspace and
    step; a link of a closed snapshot is refused with why.
 3. [ ] The worker's result sets follow the workspace shown: the client tells the worker which snapshot is shown, and the result set
