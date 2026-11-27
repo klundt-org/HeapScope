@@ -81,6 +81,7 @@ internal sealed partial class FakeWorkerService : IHeapQueryService
             .. byType ? [r[0], "App.dll"] : Array.Empty<string?>()])];
         var id = Guid.NewGuid();
         _sets[id] = rows;
+        SummarySets.Add(id);
         ResultColumn[] columns = [new("Name", ResultColumnKind.Text, true), new("Objects", ResultColumnKind.Integer), new("Bytes", ResultColumnKind.Bytes), new("Percent", ResultColumnKind.Percent),
             .. retained ? new ResultColumn[] { new(TypeSummaryColumns.Retained, ResultColumnKind.Bytes, Bound: ValueBound.LowerBound) } : [],
             .. byType ? new ResultColumn[] { new(TypeSummaryColumns.TypeName, ResultColumnKind.Text), new(TypeSummaryColumns.Module, ResultColumnKind.Text) } : []];

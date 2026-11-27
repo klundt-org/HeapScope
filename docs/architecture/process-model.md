@@ -276,7 +276,7 @@ sets or an estimated 256 MB, whichever comes first (the newest set is always kep
 came from, and once the client has said which snapshot its window shows (`ShowSnapshotAsync`, ADR-044), the sets of
 the other snapshots are evicted first, least recently used among them, then the rest; sets of no snapshot (traces, a
 synthetic graph) and Compare's diff and trend sets are never preferred. With the tab shown (`scope`, ADR-045), a new set of the
-shown snapshot is that tab's, and the shown snapshot's other tabs' sets go after the other snapshots' and before the rest. Closing a snapshot drops its sets, so a page of one
+shown snapshot is that tab's (the inspections' sets are the snapshot's, shared by its tabs, and carry none), and the shown snapshot's other tabs' sets go after the other snapshots' and before the rest. Closing a snapshot drops its sets, so a page of one
 fails with `ResultSetNotFound` and its handle runs the query again on the reopened snapshot (a set a query adds just
 after the close stays until released or evicted). Evictions log as logging.md says. A set can carry an owner, for
 example a snapshot lease, disposed on release or eviction. Producers must stay compact (indices, counts, sizes),

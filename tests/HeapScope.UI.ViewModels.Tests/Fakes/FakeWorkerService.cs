@@ -78,6 +78,9 @@ internal sealed partial class FakeWorkerService : IWorkerService
     /// <summary>Type summary queries received (tests check filter, sort and grouping).</summary>
     public List<TypeSummaryRequest> SummaryQueries { get; } = [];
 
+    /// <summary>The result set of each type summary, in order (to tell which a close released).</summary>
+    public List<Guid> SummarySets { get; } = [];
+
     /// <summary>Whether summaries report generations.</summary>
     public bool HasGenerations { get; set; } = true;
 

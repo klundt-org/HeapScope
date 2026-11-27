@@ -173,25 +173,45 @@ public class ResultSetStoreTests
     [Fact]
     public void Eviction_takes_other_snapshots_then_the_shown_snapshots_other_tabs()
     {
-        // ADR-045: a set of the shown snapshot belongs to the tab shown when it was added.
+        // ADR-045: a set of the shown snapshot belongs to the tab shown when it was added. The shown tab's own set is older
+        // than the other tab's, so least recently used order alone would take it.
         var (snapshot, other, first, second) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
         var store = new ResultSetStore(capacity: 3);
-        store.Show(snapshot, first);
-        var firstTabs = store.Add(snapshot, new CountingSource(1));
         store.Show(snapshot, second);
-        var secondTabs = store.Add(snapshot, new CountingSource(1));
+        var secondsOlder = store.Add(snapshot, new CountingSource(1));
+        store.Show(snapshot, first);
+        var firstsNewer = store.Add(snapshot, new CountingSource(1));
         var others = store.Add(other, new CountingSource(1));
+        store.Show(snapshot, second);
 
         store.Add(snapshot, new CountingSource(1));
         store.TryGetPage(others.Id, 0, 1).ShouldBeNull("another snapshot's set goes first");
 
         store.Add(snapshot, new CountingSource(1));
-        store.TryGetPage(firstTabs.Id, 0, 1).ShouldBeNull("then the shown snapshot's other tab's");
-        store.TryGetPage(secondTabs.Id, 0, 1).ShouldNotBeNull();
+        store.TryGetPage(firstsNewer.Id, 0, 1).ShouldBeNull("then another tab's, though newer");
+        store.TryGetPage(secondsOlder.Id, 0, 1).ShouldNotBeNull("the shown tab's own stays, though older");
         store.ShownScope.ShouldBe(second);
 
         store.Show(null, second);
         store.ShownScope.ShouldBeNull("no tab without a snapshot");
+    }
+
+    [Fact]
+    public void What_the_tabs_share_stays_with_the_snapshot_across_a_tab_switch()
+    {
+        // The inspections run in the first tab; the second tab is shown; over the cap, the first tab's own set goes, not theirs.
+        var (snapshot, first, second) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore(capacity: 3);
+        store.Show(snapshot, first);
+        var shared = store.Add(snapshot, new CountingSource(1), perTab: false);
+        var firstTabs = store.Add(snapshot, new CountingSource(1));
+        store.Show(snapshot, second);
+        store.Add(snapshot, new CountingSource(1));
+
+        store.Add(snapshot, new CountingSource(1));
+
+        store.TryGetPage(firstTabs.Id, 0, 1).ShouldBeNull("the other tab's set goes");
+        store.TryGetPage(shared.Id, 0, 1).ShouldNotBeNull("the shared inspections stay, though older");
     }
 
     [Fact]

@@ -113,7 +113,7 @@
       </DockPanel>
     </Grid>
     <!-- The selected snapshot's analysis tabs (ADR-045): each its own types grid, path and retainers; the inspections are shared. -->
-    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" IsVisible="{Binding ShowsTabStrip}">
       <Button x:Name="NewTabButton" DockPanel.Dock="Right" Content="New tab" Margin="8,0,0,0" VerticalAlignment="Center" Command="{Binding NewTabCommand}"
               ToolTip.Tip="Opens another analysis of this snapshot at its types grid, with its own path, filter and Retainers tab, beside the ones you have. The inspections are the same in every tab. Up to 8 tabs." />
       <ListBox x:Name="AnalysisTabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding CurrentTab, Mode=TwoWay}"

@@ -126,12 +126,17 @@ internal sealed class ResultSetStore
     /// <summary>
     /// Stores a source of <paramref name="snapshot"/> (null for a set of no snapshot: a trace, a synthetic graph) and returns
     /// the descriptor clients page through. The newest set is always kept, even when it alone exceeds the byte budget. Older
-    /// sets are evicted least recently used first, those of a snapshot not shown before any other.
+    /// sets are evicted least recently used first, those of a snapshot not shown before any other, then the shown snapshot's
+    /// other tabs'.
     /// </summary>
-    public ResultSetInfo Add(Guid? snapshot, IResultSource source, IDisposable? owner = null)
+    /// <param name="perTab">
+    /// Whether the set belongs to the tab shown (a view of one tab). False for what a snapshot's tabs share, its inspections
+    /// (ADR-045): such a set stays with the snapshot, never counted as another tab's.
+    /// </param>
+    public ResultSetInfo Add(Guid? snapshot, IResultSource source, IDisposable? owner = null, bool perTab = true)
     {
         ArgumentNullException.ThrowIfNull(source);
-        var evicted = new List<StoredResultSet>();
+        var evicted = new List<(StoredResultSet Set, string Rule)>();
         Guid? shown;
         Guid? shownScope;
         int count;
@@ -140,32 +145,34 @@ internal sealed class ResultSetStore
         lock (_gate)
         {
             (shown, shownScope) = (_shown, _shownScope);
-            set = new StoredResultSet(Guid.NewGuid(), snapshot, snapshot is not null && snapshot == shown ? shownScope : null, source, owner);
+            set = new StoredResultSet(Guid.NewGuid(), snapshot, perTab && snapshot is not null && snapshot == shown ? shownScope : null, source, owner);
             _sets.Add(set.Id, _recency.AddFirst(set));
             _bytes += source.EstimatedBytes;
             while (_sets.Count > 1 && (_sets.Count > Capacity || _bytes > ByteBudget))
             {
-                var victim = NextToEvictLocked();
+                var (victim, rule) = NextToEvictLocked();
                 RemoveLocked(victim.Id);
-                evicted.Add(victim);
+                evicted.Add((victim, rule));
             }
 
             (count, bytes) = (_sets.Count, _bytes);
         }
 
-        foreach (var old in evicted)
+        foreach (var (old, rule) in evicted)
         {
-            // A set of a hidden snapshot is meant to go first (Debug); one of the snapshot shown, or with none said, is what a
-            // "my grid ran again" question turns on (Information).
-            var hidden = old.Snapshot is not null && shown is not null && (old.Snapshot != shown || (shownScope is not null && old.Scope != shownScope));
-            var level = hidden ? LogLevel.Debug : LogLevel.Information;
+            // A hidden snapshot's or another tab's set is meant to go first (Debug); one the window shows, or with none said, is
+            // what a "my grid ran again" question turns on (Information).
+            var level = rule is OtherSnapshot or OtherTab ? LogLevel.Debug : LogLevel.Information;
             _logger?.Log(
                 level,
-                "Result set {Id} of snapshot {Snapshot} evicted ({Bytes} bytes; the client shows {Shown}; {Count}/{Capacity} sets, {Total}/{Budget} bytes); paging it runs its query again",
+                "Result set {Id} of snapshot {Snapshot}, tab {Scope}, evicted as {Rule} ({Bytes} bytes; the client shows {Shown}, tab {ShownScope}; {Count}/{Capacity} sets, {Total}/{Budget} bytes); paging it runs its query again",
                 old.Id,
                 old.Snapshot?.ToString() ?? "none",
+                old.Scope?.ToString() ?? "none",
+                rule,
                 old.Source.EstimatedBytes,
                 shown?.ToString() ?? "none",
+                shownScope?.ToString() ?? "none",
                 count,
                 Capacity,
                 bytes,
@@ -264,26 +271,31 @@ internal sealed class ResultSetStore
         return new ResultPage(set.Id, start, total, rows);
     }
 
+    private const string OtherSnapshot = "another snapshot's";
+    private const string OtherTab = "another tab's";
+    private const string LeastRecentlyUsed = "the least recently used";
+
     /// <summary>
-    /// The least recently used set of a snapshot not shown, else of the shown snapshot's other tabs, else the least recently used
-    /// set; never the newest one. With no snapshot shown it is plain least recently used, as before the client said anything.
+    /// The least recently used set of a snapshot not shown, else of another tab of the shown snapshot (a set with a tab, not the
+    /// one shown: what the tabs share has none), else the least recently used set; never the newest one. With no snapshot shown
+    /// it is plain least recently used, as before the client said anything.
     /// </summary>
-    private StoredResultSet NextToEvictLocked()
+    private (StoredResultSet Set, string Rule) NextToEvictLocked()
     {
         if (_shown is { } shown)
         {
             if (Oldest(set => set.Snapshot is { } snapshot && snapshot != shown) is { } otherSnapshot)
             {
-                return otherSnapshot;
+                return (otherSnapshot, OtherSnapshot);
             }
 
-            if (_shownScope is { } scope && Oldest(set => set.Snapshot == shown && set.Scope != scope) is { } otherTab)
+            if (_shownScope is { } scope && Oldest(set => set.Snapshot == shown && set.Scope is { } tab && tab != scope) is { } otherTab)
             {
-                return otherTab;
+                return (otherTab, OtherTab);
             }
         }
 
-        return _recency.Last!.Value;
+        return (_recency.Last!.Value, LeastRecentlyUsed);
     }
 
     private StoredResultSet? Oldest(Func<StoredResultSet, bool> match)

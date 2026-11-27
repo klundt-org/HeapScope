@@ -57,14 +57,20 @@ public sealed partial class SnapshotsViewModel
     /// <summary>The tabs of every open snapshot that has been shown, for tests and the log.</summary>
     public IReadOnlyCollection<SnapshotWorkspaceViewModel> Workspaces => [.. _analyses.Values.SelectMany(a => a.Tabs)];
 
+    /// <summary>
+    /// Whether the tab strip shows: a snapshot is selected and the page shows a view of one tab (Snapshot or Retainers). Compare
+    /// spans snapshots and the inspections are shared by the tabs, so neither has tabs of its own.
+    /// </summary>
+    public bool ShowsTabStrip => _analysis.Snapshot is not null && Tab is SnapshotTabs.Snapshot or SnapshotTabs.Retainers;
+
     /// <summary>The analyses of the open snapshots that have been shown.</summary>
     public IReadOnlyCollection<SnapshotAnalysisViewModel> Analyses => _analyses.Values;
 
     /// <summary>Opens a tab of the selected snapshot at its types grid and shows it; the ninth is refused with why.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(ShowsTabStrip))]
     private void NewTab()
     {
-        if (_analysis.Snapshot is not { } snapshot)
+        if (_analysis.Snapshot is not { } snapshot || !ShowsTabStrip)
         {
             return;
         }
@@ -81,7 +87,7 @@ public sealed partial class SnapshotsViewModel
     }
 
     /// <summary>Closes a tab of the selected snapshot (the current one without a parameter), with its path and results; never the last one.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCloseTab))]
     private void CloseTab(SnapshotWorkspaceViewModel? tab)
     {
         tab ??= _analysis.Current;
@@ -90,16 +96,19 @@ public sealed partial class SnapshotsViewModel
             return;
         }
 
+        var index = _analysis.Tabs.IndexOf(tab);
+        var count = _analysis.Tabs.Count;
         if (tab == _analysis.Current)
         {
-            var index = _analysis.Tabs.IndexOf(tab);
             ShowTab(_analysis.Tabs[index == _analysis.Tabs.Count - 1 ? index - 1 : index + 1], "the tab shown closed");
         }
 
         _analysis.RemoveTab(tab);
-        _logger?.LogInformation("Tab {Tab} of {Path} closed: its types grid, path and retainers, and their result sets, released ({Open} tabs open)", tab.Id, snapshot.Path, _analysis.Tabs.Count);
+        _logger?.LogInformation("Tab {Tab} of {Path} closed ({Index} of {Count}): its types grid, path and retainers, and their result sets, released ({Open} tabs open)", tab.Id, snapshot.Path, index + 1, count, _analysis.Tabs.Count);
         RaiseTabs();
     }
+
+    private bool CanCloseTab(SnapshotWorkspaceViewModel? tab) => ShowsTabStrip && _analysis.CanCloseTab;
 
     /// <summary>
     /// Shows the analysis of <paramref name="snapshot"/>, made the first time, at its current tab: the views it had are shown as
@@ -124,16 +133,22 @@ public sealed partial class SnapshotsViewModel
         _analysis.Current.Hide();
         _analysis.Hide();
         _analysis = analysis;
+
+        // The worker first, so the sets the tab's views add are its.
+        _session.ShowInBackground(snapshot, _analysis.Current.Id);
         _analysis.Show();
         _analysis.Current.Navigator.StepShown += OnStepShown;
         _analysis.Current.Show();
         _logger?.LogInformation(
-            "Workspace shown: {Path} (snapshot {Snapshot}), {How}, tab {Tab}, {Open} workspaces open",
+            "Workspace shown: {Path} (snapshot {Snapshot}), {How}, analysis tab {AnalysisTab} ({Index} of {Tabs}), page tab {Tab}, {Open} workspaces open",
             snapshot?.Path ?? "none",
             snapshot?.Descriptor.SnapshotId.ToString() ?? "none",
             kept
                 ? "kept as it was; a stopped inspection run or stale growth tiles run if its Inspections tab is shown, and evicted result sets run again when paged"
                 : "new, its views query the snapshot",
+            _analysis.Current.Id,
+            _analysis.Tabs.IndexOf(_analysis.Current) + 1,
+            _analysis.Tabs.Count,
             Tab,
             _analyses.Count);
         if (activate)
@@ -141,29 +156,38 @@ public sealed partial class SnapshotsViewModel
             Activate();
         }
 
-        _session.ShowInBackground(snapshot, _analysis.Current.Id);
         RaiseTabs();
     }
 
-    /// <summary>Shows another tab of the selected snapshot as it was; the inspections, shared, stay as they are.</summary>
-    private void ShowTab(SnapshotWorkspaceViewModel tab, string why)
+    /// <summary>
+    /// Shows another tab of the selected snapshot as it was; the inspections, shared, stay as they are. Without
+    /// <paramref name="activate"/> the page's tab is not applied yet, so a link can point the tab's view first.
+    /// </summary>
+    private void ShowTab(SnapshotWorkspaceViewModel tab, string why, bool activate = true)
     {
         _analysis.Current.Navigator.StepShown -= OnStepShown;
         _analysis.Current.Hide();
         var kept = tab.IsShown;
         _analysis.Current = tab;
+
+        // The worker first, so the sets the tab's views add are its.
+        _session.ShowInBackground(tab.Snapshot, tab.Id);
         tab.Navigator.StepShown += OnStepShown;
         tab.Show();
         _logger?.LogInformation(
-            "Tab shown ({Why}): tab {Tab} of {Path}, {How}, {Index} of {Open}",
+            "Tab shown ({Why}): tab {Tab} of {Path}, {How}, {Index} of {Open}, page tab {PageTab}",
             why,
             tab.Id,
             tab.Snapshot?.Path ?? "none",
             kept ? "kept as it was" : "new, at the types grid",
             _analysis.Tabs.IndexOf(tab) + 1,
-            _analysis.Tabs.Count);
-        Activate();
-        _session.ShowInBackground(tab.Snapshot, tab.Id);
+            _analysis.Tabs.Count,
+            Tab);
+        if (activate)
+        {
+            Activate();
+        }
+
         RaiseTabs();
     }
 
@@ -177,7 +201,8 @@ public sealed partial class SnapshotsViewModel
     /// <summary>Opens a link of a snapshot in one of its tabs: that tab shown, the target's page tab, and the step.</summary>
     private void NavigateIn(SnapshotWorkspaceViewModel tab, NavigationTarget target)
     {
-        if (_analyses.TryGetValue(target.Snapshot, out var analysis) && analysis != _analysis)
+        // A link of a snapshot not shown, or of one closed meanwhile, goes the page's way, which refuses a closed one with why.
+        if (!_analyses.TryGetValue(target.Snapshot, out var analysis) || analysis != _analysis || target.Snapshot.IsClosed)
         {
             Navigate(target);
             return;
@@ -185,7 +210,7 @@ public sealed partial class SnapshotsViewModel
 
         if (tab != _analysis.Current && _analysis.Tabs.Contains(tab))
         {
-            ShowTab(tab, "a link of it");
+            ShowTab(tab, "a link of it", activate: false);
         }
 
         Open(target);
@@ -236,6 +261,7 @@ public sealed partial class SnapshotsViewModel
         OnPropertyChanged(nameof(Navigator));
         OnPropertyChanged(nameof(Inspections));
         OnPropertyChanged(nameof(Retainers));
+        OnPropertyChanged(nameof(ShowsTabStrip));
         NewTabCommand.NotifyCanExecuteChanged();
         CloseTabCommand.NotifyCanExecuteChanged();
     }

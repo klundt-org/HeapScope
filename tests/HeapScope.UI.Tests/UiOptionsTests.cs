@@ -35,4 +35,12 @@ public sealed class UiOptionsTests
         UiOptions.SplitPaths("  ").ShouldBeEmpty();
         new UiOptions(null, SmokeOpenPath: "a.dmp", SmokeMorePaths: ["b.dmp"]).IsSmokeRun.ShouldBeTrue();
     }
+
+    [Fact]
+    public void The_memory_line_says_what_budgets_md_reads()
+    {
+        // budgets.md's measurements read this line: the counts first, then the three sizes.
+        Smoke.SmokeRunner.MemoryLine.ShouldStartWith("Smoke memory with {Open} snapshots open, {Tabs} tabs: ");
+        Smoke.SmokeRunner.MemoryLine.ShouldContain("working set {WorkingSet:N0} MB, private {Private:N0} MB, managed heap {Heap:N0} MB after a full collection");
+    }
 }

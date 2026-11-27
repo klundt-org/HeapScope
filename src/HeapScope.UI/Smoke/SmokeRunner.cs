@@ -326,6 +326,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
 
         // The trace stops however the run ends: a failing step must not leave it recording.
         VirtualRowList<TypeRowItem> rows;
+        int? checkedSlow = null;
         bool completed;
         try
         {
@@ -385,6 +386,8 @@ internal sealed class SmokeRunner(IServiceProvider services)
 
             if (completed && services.GetRequiredService<UiOptions>().SmokeMorePaths is { Count: > 0 } more)
             {
+                // A measurement: the ceiling counts the first dump's run only, not the cold loads of the others beside it.
+                checkedSlow = phases.SlowOperations;
                 completed = await RunSmokeMoreAsync(snapshots, more, phases, logger);
             }
         }
@@ -418,53 +421,113 @@ internal sealed class SmokeRunner(IServiceProvider services)
             phases.SlowOperations,
             SlowOperationCeiling,
             string.Join(", ", phases.All.Where(p => p.SlowOperations > 0).Select(p => $"{p.Name} {p.SlowOperations}")) is { Length: > 0 } byPhase ? byPhase : "none");
-        return SmokeVerdict.Ceiling(SmokeVerdict.Phase(completed, operation, lag), phases.SlowOperations, SlowOperationCeiling, Program.IsHeadless);
+        if (checkedSlow is { } counted)
+        {
+            logger.LogInformation("Smoke slow operations checked against the ceiling: {Count}, the first dump's (the more dumps' and tabs' are a measurement)", counted);
+        }
+
+        return SmokeVerdict.Ceiling(SmokeVerdict.Phase(completed, operation, lag), checkedSlow ?? phases.SlowOperations, SlowOperationCeiling, Program.IsHeadless);
     }
 
     /// <summary>
-    /// Opens more dumps after the first, each drilled into and inspected as the first was, and logs what the UI process holds
-    /// with each count of snapshots open (the cost of several workspaces, budgets.md). The workspaces stay as left.
+    /// Opens more dumps after the first, each drilled into and inspected as the first was, then opens the most tabs on the last
+    /// one, each with its largest type's objects paged as far as a grid keeps them, then closes the tabs and the snapshots. The
+    /// UI process's memory is logged at each count (the cost of workspaces and tabs, budgets.md).
     /// </summary>
     private static async Task<bool> RunSmokeMoreAsync(SnapshotsViewModel snapshots, IReadOnlyList<string> more, SmokePhases phases, ILogger logger)
     {
         LogMemory(snapshots, logger);
         foreach (var dump in more)
         {
+            var name = System.IO.Path.GetFileName(dump);
+            phases.Begin();
             snapshots.Tab = SnapshotTabs.Snapshot;
             await snapshots.OpenPathAsync(dump);
             await snapshots.Types.QueryTask;
-            if (snapshots.Selected?.Handle.Path != System.IO.Path.GetFullPath(dump) || snapshots.Types.Rows.Count == 0)
+            if (snapshots.Selected is not { } opened || !HeapScope.Contracts.PathIdentity.Same(opened.Handle.Path, System.IO.Path.GetFullPath(dump)) || snapshots.Types.Rows.Count == 0)
             {
                 logger.LogWarning("Smoke more: {Dump} did not open ({Status})", dump, snapshots.Status ?? "no status");
                 return false;
             }
 
             await TouchRowsAsync(snapshots.Types.Rows);
-            phases.End($"open {System.IO.Path.GetFileName(dump)}", cold: false);
-            if (!await RunSmokeDrillAsync(snapshots, phases, logger) || !await RunSmokeInspectionsAsync(snapshots, phases, logger))
+            phases.End($"open {name}", cold: false);
+            if (!await RunSmokeDrillAsync(snapshots, phases, logger))
             {
                 return false;
             }
 
             await Task.Delay(500);
-            phases.End($"more {System.IO.Path.GetFileName(dump)}", cold: false);
+            phases.End($"drill {name}", cold: false);
+            if (!await RunSmokeInspectionsAsync(snapshots, phases, logger))
+            {
+                return false;
+            }
+
+            await Task.Delay(500);
+            phases.End($"inspections {name}", cold: false);
             LogMemory(snapshots, logger);
         }
 
+        // The most tabs on the last snapshot, each grid of objects paged as far as it keeps pages: the worst a tab holds.
+        snapshots.Tab = SnapshotTabs.Snapshot;
+        while (snapshots.CurrentAnalysis.CanAddTab)
+        {
+            phases.Begin();
+            snapshots.NewTabCommand.Execute(null);
+            await snapshots.Types.QueryTask;
+            await TouchRowsAsync(snapshots.Types.Rows);
+            snapshots.Types.OpenRowCommand!.Execute(snapshots.Types.Rows.GetRow(0));
+            if (snapshots.Navigator.Current is not InstancesViewModel instances)
+            {
+                return Failed(logger, "a new tab's largest type's objects did not open");
+            }
+
+            await instances.QueryTask;
+            await PageAllAsync(instances.Rows);
+            await Task.Delay(200);
+            phases.End($"tab {snapshots.Tabs.Count}", cold: false);
+        }
+
+        LogMemory(snapshots, logger);
+        while (snapshots.CurrentAnalysis.CanCloseTab)
+        {
+            snapshots.CloseTabCommand.Execute(null);
+        }
+
+        LogMemory(snapshots, logger);
+        foreach (var item in snapshots.Snapshots.ToList())
+        {
+            await snapshots.CloseCommand.ExecuteAsync(item);
+        }
+
+        await Task.Delay(500);
+        LogMemory(snapshots, logger);
         return true;
     }
 
-    // A contract with budgets.md's measurements: keep the wording.
+    /// <summary>The line budgets.md's measurements read; keep the wording.</summary>
+    internal const string MemoryLine =
+        "Smoke memory with {Open} snapshots open, {Tabs} tabs: working set {WorkingSet:N0} MB, private {Private:N0} MB, managed heap {Heap:N0} MB after a full collection";
+
     private static void LogMemory(SnapshotsViewModel snapshots, ILogger logger)
     {
         var heap = GC.GetTotalMemory(forceFullCollection: true);
         using var process = System.Diagnostics.Process.GetCurrentProcess();
-        logger.LogInformation(
-            "Smoke memory with {Open} snapshots open: working set {WorkingSet:N0} MB, private {Private:N0} MB, managed heap {Heap:N0} MB after a full collection",
-            snapshots.Snapshots.Count,
-            process.WorkingSet64 >> 20,
-            process.PrivateMemorySize64 >> 20,
-            heap >> 20);
+#pragma warning disable CA2254 // The template is a constant, shared with its test.
+        logger.LogInformation(MemoryLine, snapshots.Snapshots.Count, snapshots.Workspaces.Count, process.WorkingSet64 >> 20, process.PrivateMemorySize64 >> 20, heap >> 20);
+#pragma warning restore CA2254
+    }
+
+    // Every page a grid keeps (VirtualRowList.MaxPages), as a person scrolling to the end would leave it.
+    private static async Task PageAllAsync<TRow>(VirtualRowList<TRow> rows)
+        where TRow : class, IIndexedRow
+    {
+        for (var page = 0; page < VirtualRowList.MaxPages && page * VirtualRowList.PageSize < rows.Count; page++)
+        {
+            rows.GetRow(page * VirtualRowList.PageSize);
+            await rows.WhenLoadedAsync();
+        }
     }
 
     /// <summary>

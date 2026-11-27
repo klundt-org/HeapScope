@@ -83,19 +83,48 @@ public sealed class AnalysisTabsTests : IDisposable
     });
 
     [Fact]
-    public Task The_inspections_run_once_for_the_tabs_of_a_snapshot() => _ui.RunCheckedAsync(async () =>
+    public Task The_inspections_run_once_for_the_tabs_of_a_snapshot_even_across_a_tab_switch_mid_run() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var first = _snapshots.Current;
+
+        // The run is held while the tab changes: it goes on, neither stopped nor started again.
+        var gate = new TaskCompletionSource();
+        _worker.Service.InspectionGate = gate;
         _snapshots.Tab = SnapshotTabs.Inspections;
         var inspections = _snapshots.Inspections;
-        await inspections.RunTask;
-        var runs = _worker.Service.InspectionRuns.Count;
-
+        await WaitUntilAsync(() => _worker.Service.InspectionRuns.Count == 1);
+        _snapshots.Tab = SnapshotTabs.Snapshot;
         _snapshots.NewTabCommand.Execute(null);
+        _snapshots.CurrentTab = first;
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        gate.SetResult();
+        _worker.Service.InspectionGate = null;
+        await inspections.RunTask;
 
         _snapshots.Inspections.ShouldBeSameAs(inspections);
-        await inspections.RunTask;
-        _worker.Service.InspectionRuns.Count.ShouldBe(runs);
+        _worker.Service.InspectionRuns.Count.ShouldBe(_worker.Service.Inspections.Count(i => i.Unavailable is null), "each inspection that can run ran once");
+    });
+
+    [Fact]
+    public Task The_tab_strip_is_for_the_views_of_one_tab() => _ui.RunCheckedAsync(async () =>
+    {
+        _snapshots.ShowsTabStrip.ShouldBeFalse("no snapshot");
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        _snapshots.ShowsTabStrip.ShouldBeTrue();
+
+        // Compare spans snapshots and the inspections are shared: no tabs there.
+        foreach (var tab in new[] { SnapshotTabs.Compare, SnapshotTabs.Inspections })
+        {
+            _snapshots.Tab = tab;
+            _snapshots.ShowsTabStrip.ShouldBeFalse();
+            _snapshots.NewTabCommand.CanExecute(null).ShouldBeFalse();
+            _snapshots.CloseTabCommand.CanExecute(null).ShouldBeFalse();
+        }
+
+        _snapshots.Tab = SnapshotTabs.Retainers;
+        _snapshots.NewTabCommand.CanExecute(null).ShouldBeTrue();
+        _snapshots.CloseTabCommand.CanExecute(null).ShouldBeFalse("the last tab stays");
     });
 
     [Fact]
@@ -107,16 +136,111 @@ public sealed class AnalysisTabsTests : IDisposable
         _snapshots.CloseTabCommand.Execute(null);
         _snapshots.Tabs.ShouldBe([first], "the last tab of a snapshot stays");
 
+        var firstsSet = _worker.Service.SummarySets[^1];
         _snapshots.NewTabCommand.Execute(null);
         var second = _snapshots.Current;
         await second.Types.QueryTask;
-        var released = _worker.Service.Released.Count;
+        var secondsSet = _worker.Service.SummarySets[^1];
+        secondsSet.ShouldNotBe(firstsSet);
 
         _snapshots.CloseTabCommand.Execute(null);
 
         _snapshots.Tabs.ShouldBe([first]);
         _snapshots.Current.ShouldBeSameAs(first);
-        await WaitUntilAsync(() => _worker.Service.Released.Count > released);
+        await WaitUntilAsync(() => _worker.Service.Released.Contains(secondsSet));
+        _worker.Service.Released.ShouldNotContain(firstsSet, "the first tab keeps its sets");
+    });
+
+    [Fact]
+    public Task Closing_a_tab_not_shown_or_the_first_one_shows_the_right_neighbour() => _ui.RunCheckedAsync(async () =>
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var first = _snapshots.Current;
+        _snapshots.NewTabCommand.Execute(null);
+        var second = _snapshots.Current;
+        _snapshots.NewTabCommand.Execute(null);
+        var third = _snapshots.Current;
+
+        // The x of a tab not shown: the shown one stays.
+        _snapshots.CloseTabCommand.Execute(second);
+        _snapshots.Tabs.ShouldBe([first, third]);
+        _snapshots.Current.ShouldBeSameAs(third);
+
+        // The first tab, shown: the next one is shown.
+        _snapshots.CurrentTab = first;
+        _snapshots.CloseTabCommand.Execute(null);
+        _snapshots.Tabs.ShouldBe([third]);
+        _snapshots.Current.ShouldBeSameAs(third);
+    });
+
+    [Fact]
+    public Task Closing_a_snapshot_closes_all_its_tabs() => _ui.RunCheckedAsync(async () =>
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!;
+        _snapshots.NewTabCommand.Execute(null);
+        _snapshots.NewTabCommand.Execute(null);
+        await _snapshots.OpenPathAsync(Dump("b.dmp"));
+        _snapshots.Workspaces.Count.ShouldBe(4);
+
+        await _snapshots.CloseCommand.ExecuteAsync(a);
+
+        _snapshots.Analyses.ShouldHaveSingleItem().Snapshot!.Path.ShouldEndWith("b.dmp", Case.Sensitive);
+        _snapshots.Workspaces.Count.ShouldBe(1);
+    });
+
+    [Fact]
+    public Task An_inspection_rows_link_lands_in_the_tab_shown() => _ui.RunCheckedAsync(async () =>
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!;
+        var first = _snapshots.Current;
+        _snapshots.NewTabCommand.Execute(null);
+        var second = _snapshots.Current;
+
+        // The inspections' navigator is the snapshot's analysis, which sends a link to the tab shown.
+        _snapshots.CurrentAnalysis.Navigate(NavigationTarget.Instances(a.Handle, "App.Order", "App.dll"));
+
+        _snapshots.Current.ShouldBeSameAs(second);
+        second.Navigator.Current.ShouldBeOfType<InstancesViewModel>();
+        first.Navigator.IsTypesShown.ShouldBeTrue();
+    });
+
+    [Fact]
+    public Task Back_and_Forward_move_the_page_only_for_the_tab_shown() => _ui.RunCheckedAsync(async () =>
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!;
+        var first = _snapshots.Current;
+        _snapshots.Navigate(NavigationTarget.Instances(a.Handle, "App.Order", "App.dll"));
+        _snapshots.Navigate(NavigationTarget.Retainers(a.Handle, address: 0x1000));
+        _snapshots.Tab.ShouldBe(SnapshotTabs.Retainers);
+        _snapshots.NewTabCommand.Execute(null);
+        var second = _snapshots.Current;
+
+        // The hidden first tab goes back: the page stays where it is.
+        first.Navigator.BackCommand.Execute(null);
+        _snapshots.Tab.ShouldBe(SnapshotTabs.Retainers);
+        _snapshots.Current.ShouldBeSameAs(second);
+
+        // The shown tab goes back from a Retainers step to the types grid: the page shows the Snapshot tab.
+        second.Navigate(NavigationTarget.Retainers(a.Handle, address: 0x2000));
+        second.Navigator.BackCommand.Execute(null);
+        _snapshots.Tab.ShouldBe(SnapshotTabs.Snapshot);
+    });
+
+    [Fact]
+    public Task A_tabs_path_takes_no_step_of_another_snapshot() => _ui.RunCheckedAsync(async () =>
+    {
+        await _snapshots.OpenPathAsync(Dump("b.dmp"));
+        var b = _snapshots.Selected!;
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var navigator = _snapshots.Current.Navigator;
+        var steps = navigator.Trail.Count;
+
+        navigator.Navigate(NavigationTarget.Instances(b.Handle, "App.Order", "App.dll")).ShouldBeNull();
+        Should.Throw<InvalidOperationException>(() => navigator.Record(NavigationTarget.Retainers(b.Handle, address: 0x1000)));
+        navigator.Trail.Count.ShouldBe(steps);
     });
 
     [Fact]

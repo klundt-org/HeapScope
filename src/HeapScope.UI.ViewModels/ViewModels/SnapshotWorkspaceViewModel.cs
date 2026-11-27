@@ -61,7 +61,7 @@ public sealed partial class SnapshotWorkspaceViewModel : ObservableObject, INavi
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _navigateIn = navigateIn ?? throw new ArgumentNullException(nameof(navigateIn));
         Types = new TypeSummaryViewModel(session, dispatcher, loggers?.CreateLogger<TypeSummaryViewModel>(), this);
-        Navigator = new NavigatorViewModel(session, Types, this, loggers);
+        Navigator = new NavigatorViewModel(session, Types, this, loggers) { Tab = Id };
         Retainers = new RetainersViewModel(session, dispatcher, loggers?.CreateLogger<RetainersViewModel>(), this, loggers?.CreateLogger<RetainedBySetViewModel>());
         Navigator.PropertyChanged += (_, e) =>
         {

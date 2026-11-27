@@ -426,6 +426,9 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     partial void OnSelectedTabChanged(int value)
     {
         OnPropertyChanged(nameof(Tab));
+        OnPropertyChanged(nameof(ShowsTabStrip));
+        NewTabCommand.NotifyCanExecuteChanged();
+        CloseTabCommand.NotifyCanExecuteChanged();
         Activate();
         Compare.IsActive = value == (int)SnapshotTabs.Compare;
     }

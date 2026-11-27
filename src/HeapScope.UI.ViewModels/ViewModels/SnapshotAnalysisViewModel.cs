@@ -47,8 +47,6 @@ public sealed partial class SnapshotAnalysisViewModel : ObservableObject, INavig
     private bool _shown;
     private bool _disposed;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanCloseTab))]
     private SnapshotWorkspaceViewModel _current;
 
     /// <param name="snapshot">The snapshot, or null for the page's empty analysis while nothing is selected.</param>
@@ -70,6 +68,13 @@ public sealed partial class SnapshotAnalysisViewModel : ObservableObject, INavig
         Snapshot = snapshot;
         Inspections = new InspectionsViewModel(session, loggers?.CreateLogger<InspectionsViewModel>(), this);
         _current = AddTab();
+    }
+
+    /// <summary>The tab shown; the page changes it (<c>SnapshotsViewModel.ShowTab</c>), which moves what goes with it.</summary>
+    public SnapshotWorkspaceViewModel Current
+    {
+        get => _current;
+        internal set => SetProperty(ref _current, value);
     }
 
     /// <summary>The snapshot analyzed; null for the empty one.</summary>

@@ -97,6 +97,9 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     private SnapshotHandle? _shown;
     private Guid? _shownScope;
 
+    // One tell at a time, each sending what is shown when it runs: a quick switch away and back ends with the latest told.
+    private readonly SemaphoreSlim _telling = new(1, 1);
+
     /// <summary>Raised on any thread when a snapshot is opened, reopened or closed.</summary>
     public event EventHandler? SnapshotsChanged;
 
@@ -230,13 +233,26 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// </summary>
     public void ShowInBackground(SnapshotHandle? handle, Guid? scope = null) =>
         _ = ShowAsync(handle, CancellationToken.None, scope).ContinueWith(
-            static (t, state) => ((ILogger)state!).LogInformation(t.Exception, "Telling the worker which snapshot is shown failed; it evicts in least recently used order until told"),
+            static (t, state) => ((ILogger)state!).LogWarning(t.Exception, "Telling the worker which snapshot is shown failed; it evicts in least recently used order until told"),
             _logger,
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
 
     private async Task TellShownAsync(CancellationToken cancellationToken)
+    {
+        await _telling.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await TellLatestAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _telling.Release();
+        }
+    }
+
+    private async Task TellLatestAsync(CancellationToken cancellationToken)
     {
         SnapshotHandle? shown;
         Guid? scope;

@@ -44,24 +44,28 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   - "Offered the report of a run that closed unexpectedly, {report} ({n} found); the user chose ...".
 - **Workspaces (sprint 4.9, ADR-044)**, so "my results changed" or "the grid ran again" after a switch has its lines:
   - "Workspace shown: {path} (snapshot {id}), new, its views query the snapshot | kept as it was; a stopped inspection run
-    or stale growth tiles run if its Inspections tab is shown, and evicted result sets run again when paged, tab {tab}, {n}
-    workspaces open", logged before the tab is shown, so what the tab starts follows it (a new
-    workspace's first queries start just before it), and "Workspace of {path} closed: its types grid, path, inspections and retainers, and their result
-    sets, released"; a dump opened again says its workspace starts again.
+    or stale growth tiles run if its Inspections tab is shown, and evicted result sets run again when paged, analysis tab {id}
+    ({n} of {count}), page tab {Snapshot|Compare|Inspections|Retainers}, {n} workspaces open", logged before the page tab is
+    applied, so what it starts follows it (a new workspace's first queries start just before it), and "Workspace of {path}
+    closed: its {n} tabs (types grid, path, retainers), its inspections, and their result sets, released"; a dump opened again
+    says its workspace starts again.
   - A hidden workspace's inspections: "the run of {path} stopped after {done} of {total} inspections (their results dropped),
     its workspace no longer shown; it runs again when shown, baseline {baseline} kept", "the growth tiles' rerun of {path}
     stopped ...; {n} run when shown", and "the growth tiles of {path} run when shown ({n} stale)" for a baseline that changed
     while it was hidden; the rerun when shown logs "baseline {b} left for when shown".
   - A link into a snapshot no longer open: "A {kind} link of {snapshot} refused: the snapshot is no longer open".
-  - Tabs (sprint 4.10, ADR-045): "Tab shown ({why}): tab {id} of {path}, new, at the types grid | kept as it was, {n} of {count}",
-    "Tab {id} of {path} closed: its types grid, path and retainers, and their result sets, released ({n} tabs open)", "New tab of
-    {path} refused: 8 tabs open", the closed workspace's count of tabs, and the tell's tab ("worker snapshot {id}, tab {scope}").
-    A navigator refusing a link of another snapshot is a warning.
+  - Tabs (sprint 4.10, ADR-045): "Tab shown ({why}): tab {id} of {path}, new, at the types grid | kept as it was, {n} of
+    {count}, page tab {tab}", where why is chosen (the strip), new (New tab), the tab shown closed, or a link of it; "Tab {id} of
+    {path} closed ({n} of {count}): its types grid, path and retainers, and their result sets, released ({n} tabs open)"; "New tab
+    of {path} refused: 8 tabs open"; and the tell's tab ("worker snapshot {id}, tab {scope}", Debug). Every "Analysis path:"
+    line names its tab ("in snapshot {id}, tab {tab}"), so a step or a link is tied to the tab it landed in; a path refusing a
+    link of another snapshot is a warning with the same names.
   - Which snapshot the worker keeps: the client's "The worker was not told the window shows {path}: no worker runs | not open
-    in worker generation N yet" and a failed tell (Information); "The worker was told the window shows ..." (Debug). The
-    worker's store logs an eviction of the shown snapshot's set, of a set of no snapshot, or of any set while none is shown, at Information with the
-    store's state ("{count}/{capacity} sets, {bytes}/{budget} bytes"); a hidden snapshot's eviction is Debug
-    (`Logging:File:MinimumLevel=Debug` shows them). A closed snapshot's sets: "Snapshot {id} closed: {n} of its result sets
+    in worker generation N yet" (Information), a failed tell (a warning), and "The worker was told the window shows ..." (Debug).
+    The worker's store names each eviction's set, its tab, the rule that took it (another snapshot's, another tab's, the least
+    recently used) and what the client shows, with the store's state ("{count}/{capacity} sets, {bytes}/{budget} bytes"). The
+    sets meant to go first, another snapshot's or another tab's, are logged at Debug (`Logging:File:MinimumLevel=Debug` shows
+    them); the least recently used, which can be the shown tab's own or the snapshot's shared inspections, at Information. A closed snapshot's sets: "Snapshot {id} closed: {n} of its result sets
     dropped". A re-run is the client's "Result set X was gone (evicted, or the worker restarted); the query ran again as Y"
     beside the worker's answer for Y.
 - **Correlation (sprint 2.3.7)**: every job (`JobTracker`: open, capture) and every CLI command runs under an
