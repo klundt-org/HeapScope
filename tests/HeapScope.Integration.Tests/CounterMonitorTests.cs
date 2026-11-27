@@ -99,13 +99,14 @@ public sealed class CounterMonitorTests
     {
         using var api = await FixtureProcess.StartApiAsync("--Leaks:Enabled=all", "--Leaks:ItemsPerRequest=2000", "--Leaks:PayloadBytes=512");
         var pid = api.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        using var cli = ChildProcess.Start(TestPaths.CliExe, "monitor", "--pid", pid, "--duration", "12", "--growth", "5MB", "--rearm", "once");
+        // 30 s (sprint 4.8, M14): under load the session's start and 20 requests could take most of 12, and the rule's snapshot missed it.
+        using var cli = ChildProcess.Start(TestPaths.CliExe, "monitor", "--pid", pid, "--duration", "30", "--growth", "5MB", "--rearm", "once");
         // Leak only after two samples: the baseline is the first sample's rule size (the heap after a GC once one ran, the heap now
         // before), measured once the session is up.
         await WaitUntilAsync(() => System.Text.RegularExpressions.Regex.Matches(cli.Output, @"^\d\d:\d\d:\d\d ", System.Text.RegularExpressions.RegexOptions.Multiline).Count >= 2);
         await api.PostWorkAsync(20, Ct);
 
-        // The rule compares the heap after a GC; a server GC may not run on its own within the 12 s (peer review P11).
+        // The rule compares the heap after a GC; a server GC may not run on its own within the run (peer review P11).
         await api.CollectGarbageAsync(Ct);
         (await cli.WaitForExitAsync(TimeSpan.FromSeconds(120))).ShouldBeTrue(cli.Output);
 

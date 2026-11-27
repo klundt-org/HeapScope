@@ -70,7 +70,7 @@ public sealed class CacheRebuildTests : IDisposable
         "Field values and strings are not read: the DAC (Data Access Component) next to the dump is not trusted. Trust it to read them (on the command line, add --trust-dac aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa).";
 
     private const string MissingReason =
-        "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.14 runtime was not found. Install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line), then close the snapshot and open the dump again.";
+        "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.14 runtime was not found. Install that runtime or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line), then close the snapshot and open the dump again.";
 
     private void WriteDamagedCache()
     {
@@ -411,6 +411,68 @@ public sealed class CacheRebuildTests : IDisposable
         catch (UnauthorizedAccessException)
         {
             // As above.
+        }
+    }
+
+    // Sprint 4.8 review M6: the graph a load built is gone once the snapshot switched to its mapped cache. The loading frame kept it
+    // alive through the switch's collection before (task 11: 698 MB of GC heap after the drop on a 2 GB dump).
+    [Fact]
+    public async Task A_load_switched_to_mapped_lets_go_of_the_graph_it_built()
+    {
+        var loader = new TrackingLoader(_dump);
+        bool? aliveAtTheSwitch = null;
+        var log = new SwitchLogger(() => aliveAtTheSwitch = loader.Built?.TryGetTarget(out _));
+        using var store = new SnapshotStore(_options, _locator, IndexCacheSigner.None, log)
+        {
+            LoaderForTests = _ => loader,
+            DacCheckForTests = _ => null,
+            ProcessNameForTests = _ => ("LeakyConsole", "the executable's path the dump records"),
+        };
+
+        var opened = await store.OpenAsync(new OpenSnapshotRequest(_dump, Mode: SnapshotMemoryMode.Mapped), new Phases(), Ct);
+
+        opened.Mode.ShouldBe(SnapshotMemoryMode.Mapped);
+        opened.FromCache.ShouldBeFalse();
+        // Read when the switch logs what its collection left: the graph must already be gone then, not only after the open.
+        aliveAtTheSwitch.ShouldBe(false, "the switch's collection freed the built graph");
+    }
+
+    /// <summary>Calls back when the mapped switch logs what its collection left.</summary>
+    private sealed class SwitchLogger(Action atTheSwitch) : Microsoft.Extensions.Logging.ILogger<SnapshotStore>
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (formatter(state, exception).StartsWith("Mapped switch:", StringComparison.Ordinal))
+            {
+                atTheSwitch();
+            }
+        }
+    }
+
+    /// <summary>A load that works and keeps only a weak reference to the graph it built.</summary>
+    private sealed class TrackingLoader(string dump) : ISnapshotLoader
+    {
+        public WeakReference<HeapScope.Core.Graph.HeapGraph>? Built { get; private set; }
+
+        public SnapshotKind Kind => SnapshotKind.FullDump;
+
+        public int Version => ClrMdDumpLoader.CurrentVersion;
+
+        public LoadResult Load(string dumpPath, IProgress<LoadProgress>? progress = null, CancellationToken cancellationToken = default)
+        {
+            var graph = SyntheticGraphs.Chain(10);
+            Built = new WeakReference<HeapScope.Core.Graph.HeapGraph>(graph);
+            return new LoadResult(
+                graph,
+                new SnapshotInfo(SnapshotKind.FullDump, dump, Facts: SnapshotFacts.StaticsChecked),
+                SnapshotCapabilities.ObjectGraph,
+                new LoadDiagnostics([], 0, 0),
+                new LoadTimings(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero));
         }
     }
 

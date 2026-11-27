@@ -70,6 +70,44 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// <summary>Opt-in: let ClrMD download a missing DAC from Microsoft's symbol server (<c>--allow-symbol-server true</c>).</summary>
     public bool AllowMicrosoftSymbolServer { get; init; }
 
+    /// <summary>
+    /// The DAC lookup a load uses now (sprint 4.8, H15; ADR-017 amended): the command line's <see cref="DacFolder"/> wins over the
+    /// one saved on the Settings page, and downloads are on when the command line or the saved settings turn them on. Read at each
+    /// load, so a change on the Settings page reaches the next open without a restart. A settings file that cannot be read is
+    /// no saved folder and downloads off.
+    /// </summary>
+    public WorkerSymbols Symbols() => Symbols(InvokingUser.Current is not null);
+
+    /// <param name="underSudo">
+    /// Run with sudo (sprint 4.8 review H1): the saved settings are the invoking user's file, which that user can write, so a saved
+    /// DAC folder and a saved opt-in are ignored; the command line's still apply.
+    /// </param>
+    internal WorkerSymbols Symbols(bool underSudo)
+    {
+        if (underSudo)
+        {
+            return new WorkerSymbols(
+                DacFolder,
+                DacFolder is not null ? "the command line or appsettings" : "a saved one is ignored under sudo",
+                AllowMicrosoftSymbolServer,
+                AllowMicrosoftSymbolServer ? "the command line or appsettings" : "a saved one is ignored under sudo");
+        }
+
+        var saved = HeapScopeSettings.Read(SettingsFolders);
+        var savedFolder = string.IsNullOrWhiteSpace(saved.DacFolder) ? null : saved.DacFolder;
+        return new WorkerSymbols(
+            DacFolder ?? savedFolder,
+            DacFolder is not null ? "the command line or appsettings" : savedFolder is not null ? "Settings" : "none",
+            AllowMicrosoftSymbolServer || saved.AllowMicrosoftSymbolServer,
+            AllowMicrosoftSymbolServer ? "the command line or appsettings" : saved.AllowMicrosoftSymbolServer ? "Settings" : "off");
+    }
+
+    /// <summary>
+    /// Whether the worker runs as administrator or root (sprint 4.8, M3): a full dump then gets a note that its DAC runs with those
+    /// rights. Read from the process when the options are read; off for options a test makes.
+    /// </summary>
+    public bool RunsElevated { get; init; }
+
     /// <summary>Whether GC handles of Server GC processes are walked a second time (<c>--second-handle-walk</c>).</summary>
     public bool SecondHandleWalk { get; init; } = true;
 
@@ -155,6 +193,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
             SettingsFolder = string.IsNullOrWhiteSpace(configuration.GetSection(SectionName)["SettingsFolder"]) ? null : configuration.GetSection(SectionName)["SettingsFolder"],
             AllowMicrosoftSymbolServer = allow,
             SecondHandleWalk = second,
+            RunsElevated = Environment.IsPrivilegedProcess,
         };
         error = null;
         return true;

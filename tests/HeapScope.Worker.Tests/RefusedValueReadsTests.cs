@@ -44,7 +44,7 @@ namespace HeapScope.Worker.Tests;
 public sealed class RefusedValueReadsTests : IDisposable
 {
     private const string Reason =
-        "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.14 runtime was not found. Install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line), then close the snapshot and open the dump again.";
+        "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.14 runtime was not found. Install that runtime or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line), then close the snapshot and open the dump again.";
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "HeapScopeTests", Guid.NewGuid().ToString("N"));
     private readonly ServiceProvider _services;

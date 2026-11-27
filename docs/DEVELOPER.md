@@ -242,14 +242,18 @@ dotnet test --solution HeapScope.sln
   at the end, the timeline file (`counters-<pid>-<time>.csv` in the session folder). Ctrl+C stops; a process that
   cannot be monitored exits 1.
 - DAC lookup (ADR-017): local only. A dump from a runtime that is not installed needs its `mscordaccore.dll` in a DAC
-  folder (CLI `--dac-folder <folder>`, UI `--Symbols:DacFolder <folder>` or the `Symbols:DacFolder` setting) or next to
+  folder (the Settings page's DAC folder or `heapscope-cli settings --saved-dac-folder <folder>`, saved per user; for one run
+  CLI `--dac-folder <folder>` or UI `--Symbols:DacFolder <folder>`; per installation the `Symbols:DacFolder` setting, which
+  wins over the saved one) or next to
   the dump, where it is loaded only once trusted (ADR-035, sprint 3.6): the app asks when it opens the dump (loaded or
   from its index cache), naming the file and its SHA-256, and remembers a yes in `trusted-dacs.json` in HeapScope's data
   folder (`%LOCALAPPDATA%\HeapScope`); the CLI refuses, names the hash and the trusted folders it searched, and
   `--trust-dac <sha256>` (repeatable) trusts it for that run. A DAC HeapScope's capture copied is trusted already, unless
   HeapScope ran elevated. To revoke a trust, delete its entry (or the file); the private copies under
-  `%LOCALAPPDATA%\HeapScope\dac` can be deleted at any time. `--allow-symbol-server` (CLI) or `Symbols:AllowMicrosoftSymbolServer true` opts in to
-  downloads and logs a warning. Both reach the worker on its command line only.
+  `%LOCALAPPDATA%\HeapScope\dac` can be deleted at any time. Download missing DACs from Microsoft on the Settings page (asks first), `heapscope-cli settings --symbol-server on --yes`,
+  `--allow-symbol-server` for one run or `Symbols:AllowMicrosoftSymbolServer true` opts in to downloads and logs a warning.
+  The command line options reach the worker on its command line; the saved ones it reads from `settings.json` at each load
+  (ADR-017, amended in sprint 4.8).
 - Worker GC heaps: half the logical processors by default, so the worker cannot starve the UI; override with
   `--Worker:GcHeapCount <n>` (UI), the `Worker__GcHeapCount` environment variable, or `DOTNET_GCHeapCount` (hexadecimal).
 - A Server GC dump that ends the worker while its GC handles are read: `--Worker:SecondHandleWalk false` (UI) or `Worker__SecondHandleWalk=false`
@@ -546,7 +550,9 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   that only arrives as a dependency counts too. The SIL Open Font License is allowed for fonts only (product owner,
   2026-11-03): the app ships the Inter typeface (ADR-040), with its license text in `build/licenses/Avalonia.Fonts.Inter`,
   which `build/check-package.sh` looks for in a published build. Update `THIRD-PARTY-NOTICES.md` whenever a dependency is
-  added, removed or vendored.
+  added, removed, updated or vendored: `ThirdPartyNoticesTests` (sprint 4.8, peer review 4.5 M2) fails until every package the
+  app's, the CLI's, the worker's and the sample's lock files resolve is listed at the version resolved, so a Dependabot
+  update that changes a shipped version fails CI until its PR updates the notices too.
 - **Adding a worker area** (sprint 3.8): a contract in Contracts (`I...Service`, methods ending in `Async` with the
   token last, names unique across contracts), listed in `WorkerContracts.All` and in `IWorkerService`'s bases; a handler
   (`...Handler : RpcHandler, I...Service`) registered in `WorkerRpcTargets` with `RpcTarget.For`; a fake partial in
@@ -688,7 +694,9 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     `osx-x64` are built on Linux and not run. On manual runs it uploads the archives (`HeapScope-<rid>`, kept 14 days),
     whatever the tests do, and it always uploads HeapScope's logs of the checks (`package-logs-<rid>`).
   The local gate runs the same tiers. Fixture dumps are never uploaded. The required check ("CI passed") on `develop`
-  and `main` is a repository setting the owner applies (the ruleset "Protect main and develop").
+  and `main` is a repository setting the owner applies (the ruleset "Protect main and develop"); confirmed on 2026-11-26
+  (sprint 4.8, M14) with `gh api repos/klundt-org/HeapScope/rulesets`, which showed no tag ruleset yet. Check it again after any
+  change to the job names in `ci.yml`: a required check that no job reports any more leaves every PR waiting.
 - A sprint's PR into `develop` is squash merged; the annotated tag `sprint-X.Y` goes on the resulting commit on
   `develop` and is pushed. In autonomous mode Claude merges sprint PRs once the gate passes; otherwise the owner
   merges.
@@ -700,8 +708,11 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - Versions follow the sprint number: `/close-sprint` sets `<Version>X.Y.0</Version>` in `Directory.Build.props`
   (`X.Y.Z` for an in-between sprint such as 2.3.5).
 - Releases: when the owner says so, a PR from `develop` to `main`, merged with a merge commit (never squash, so the
-  branches do not drift), then the annotated tag `vX.Y.0` on `main` and a GitHub Release (`gh release create`, marked
-  pre-release for now). Only the owner decides when to release. The CLI's dotnet tool goes to nuget.org from the release's
+  branches do not drift), then the annotated tag `vX.Y.0` on `main` (`git tag -a`, pushed), then
+  `gh workflow run release.yml --ref vX.Y.0 -f tag=vX.Y.0 -f publish=true` (since sprint 4.8, peer review 4.5 M1; on the tag, so its
+  provenance names the tag's commit), which makes the GitHub
+  Release as a draft, builds and runs it, and publishes it, marked pre-release for now (`-f prerelease=false` when that ends).
+  Only the owner decides when to release. The CLI's dotnet tool goes to nuget.org from the release's
   attached `HeapScope.Cli.X.Y.Z.nupkg`: the owner uploads it on nuget.org (Upload; a version can be unlisted, never
   replaced). The package's license file is `LICENSE.txt`, which `build/pack-tool.sh` joins from
   `build/package-license-header.txt`, `ADDITIONAL-TERMS.md`, `COMMERCIAL.md` and `LICENSE`, so nuget.org shows the
@@ -711,18 +722,76 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   every change to the CLI since the last version on nuget.org (it starts them over after a release, and adds to them
   otherwise). The architecture test `ReleaseNotesTests` fails a version missing from either, and `release.yml` refuses a
   release whose package notes start with another version.
-- Release builds (sprint 3.7; channels and formats since 3.9, ADR-039): publishing the GitHub release runs `release.yml`,
-  which builds the tag for win-x64 (a `.zip`), linux-x64, osx-arm64 and osx-x64 (each a `.tar.gz`; the macOS ones on Linux,
-  and its last step puts a note at the top of the release's notes saying they are untested) and packs the CLI's dotnet tool (its version
-  must match the tag), installs that tool file on Windows and Linux (`build/check-tool.sh` without a dump), with read
-  access only, and then, in one job that builds nothing, attaches the archives, the tool
-  package, an SBOM of the app, the CLI and the worker, and `SHA256SUMS`, attesting each in GitHub's attestation store
-  (`gh attestation verify <file> --repo
-  klundt-org/HeapScope` checks one; attestations need a public repository or GitHub Enterprise). To try it before a
-  release: `gh workflow run release.yml -f tag=<tag>` builds without attaching (a dry run; `-f dry-run=false` attaches);
-  manual runs need the workflow on the default branch. If a build fails after publishing, rerun the failed jobs: one
-  runtime failing does not cancel the others, and attaching replaces files of the same name. Security reports:
-  `SECURITY.md`.
+- Release builds (sprint 3.7; channels and formats since 3.9, ADR-039; built before it is public since 4.8, M1): `release.yml`
+  runs by hand only, on the tag (`--ref vX.Y.Z`: the run's ref and commit are what the provenance names, review H6), in this order.
+  Prepare: it resolves the tag's commit once, which every job builds, refuses a run that is not on the tag; the tag must be an annotated `vX.Y.Z` tag on `main` matching `<Version>`, and no
+  release of it may have files (HeapScope never replaces a release's files: a mistake is a new version); it creates a draft
+  with a line to INSTALL.md and the `RELEASE-NOTES.md` sections since the last release, or keeps the owner's draft and its
+  notes when one is there with no files. Build, with read access only: the tag for win-x64 (a `.zip`), linux-x64, osx-arm64
+  and osx-x64 (each a `.tar.gz`; the macOS ones on Linux, never run); win-x64 and linux-x64 are unpacked, capture the
+  LeakyConsole fixture with their own CLI and run as a user gets them (`build/check-install.sh`: `--version`, the worker, a
+  summary, the app without a display; Linux in a plain `ubuntu:24.04` container as root, which also checks a run by sudo); the
+  CLI's dotnet tool is packed (its version and its package notes must be the tag's) and installed on Windows and Linux
+  (`build/check-tool.sh`); SBOMs of the app, the CLI, the worker and the sample. Attest, in a job that holds only the rights to
+  attest: the nine files the release holds are named one by one (a missing or an extra file stops it), `SHA256SUMS` is made of
+  them, and each of the ten gets a build provenance attestation (`gh attestation verify <file> --repo klundt-org/HeapScope`
+  checks one; attestations need a public repository or GitHub Enterprise). Publish, in a job that builds nothing: the files
+  are attached without replacing any (an upload of a name already there fails), the note that the macOS packages are untested
+  goes at the top of the notes, and the draft is published. A failure before Publish leaves a draft, visible to maintainers
+  only: rerun the failed jobs, or delete the draft and run again. To try it without a release:
+  `gh workflow run release.yml --ref <branch> -f tag=<tag, branch or commit>` builds and runs everything and creates, attests and
+  attaches nothing (`publish` is off by default). The architecture test `ReleaseWorkflowTests` holds the workflow to these
+  rules. Security reports: `SECURITY.md`.
+- .NET servicing (sprint 4.8, peer review 4.5 M14). The released builds are self-contained, so they carry the .NET runtime of the SDK
+  that built them, and the CLI's dotnet tool runs on the user's installed .NET 10. Each monthly .NET servicing release (usually the
+  second Tuesday) is taken within two weeks: the SDK is updated on the development machines and CI's `setup-dotnet` follows
+  `global.json`; Dependabot's updates of the `Microsoft.Extensions.*` and `System.*` packages are merged once CI passes, with
+  THIRD-PARTY-NOTICES.md updated in the same PR (`ThirdPartyNoticesTests` fails until it is). When a servicing release fixes a
+  security issue in a part HeapScope ships, the next release follows within two weeks, whatever the sprint, and its notes name
+  the runtime it carries. The dumps HeapScope analyzes are another matter: the known answers are checked on .NET 8, 9 and 10
+  (`TestedRuntimes`), kept after Microsoft's end of support for as long as the fixtures can be captured, since services run old
+  runtimes; a new major version opens with the note that its answers are not checked until a sprint adds its known answers.
+- Single points of failure, and what the owner holds (sprint 4.8, M14). Written down so a lost account or machine is a known
+  recovery, not a surprise:
+  - The owner's GitHub account (rklundt) is the only owner of the organization klundt-org and of the repository: merging,
+    releasing and every repository setting go through it. It needs two-factor sign-in with its recovery codes kept offline; a
+    second organization owner (an account of the owner's own, kept for recovery) would remove this single point, and is the
+    owner's to decide.
+  - The `gh` sign-in on the development machines (the token Claude's sessions use for PRs, workflow runs and reading CI) lives
+    in each machine's credential store. A lost or retired machine: `gh auth logout` there, or revoke the token in the account's
+    settings (Applications, or Personal access tokens).
+  - nuget.org: the owner's account uploads `HeapScope.Cli` by hand from the release's file; no API key is stored on disk, in CI
+    or in the repository.
+  - The workflows hold no stored secrets: `release.yml` and `ci.yml` use the job's own `GITHUB_TOKEN`, with the least
+    permissions each job needs, and attestations use GitHub's OIDC token.
+  - Build inputs on the repository: the SkiaSharp native libraries' pre-release (`skia-native-<version>-<n>`, ADR-038), which
+    every package build downloads and checks by SHA-256. Deleting it breaks the builds until it is rebuilt
+    (`skia-native.yml`); immutable releases (below) protect it once on.
+  - CI runs on GitHub's hosted runners only: no machine of the owner's is in HeapScope's CI.
+- Repository settings for releases (the owner's to apply; drafted in sprint 4.8, M1): a tag ruleset on `v*` that blocks
+  updates and deletion and allows creation by the owner only (Settings, Rules, Rulesets, New tag ruleset: target `v*`, restrict
+  updates and deletions); immutable releases (Settings, General, Releases: "Enable release immutability"), so a published
+  release's files and tag cannot change; and the required check "CI passed" on `main` and `develop`, as now. `release.yml`
+  refuses to replace files either way; the settings stop a person, or a token, from doing it by hand.
+- **The release checklist** (sprint 4.8; the first full release follows the trial by people outside, `docs/trial.md`, when the owner
+  says). Each step is the owner's or done on the owner's word:
+  1. The owner says to release, and which version. The trial's reports are read: no open High, and every wrong result explained
+     or fixed.
+  2. Every text marked draft in `docs/design/info-text.md` is approved or changed by the owner, and its rows say so.
+  3. `develop` is green and the local gate passed on it (`bash build/gate.sh`). `Directory.Build.props` has the version, and
+     `RELEASE-NOTES.md` and `src/HeapScope.Cli/package-release-notes.txt` start with it (`ReleaseNotesTests`); the notes say what
+     changed for a user, and a new JSON format if there is one (docs/cli-output.md).
+  4. The repository settings above are applied: the tag ruleset on `v*` and immutable releases (once on, a published release's
+     files cannot change, so check the draft first).
+  5. A PR from `develop` to `main`, merged with a merge commit once "CI passed"; then `git tag -a vX.Y.Z` on that commit of
+     `main` and `git push origin vX.Y.Z`.
+  6. A dry run on the tag: `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z`. Then the release:
+     `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z -f publish=true`, with `-f prerelease=false` for a full release.
+  7. Check what it published: the nine files and `SHA256SUMS` on the release, `gh attestation verify <file> --repo
+     klundt-org/HeapScope` for one of them, the macOS note at the top, and the Windows and Linux downloads installed as
+     INSTALL.md says on a machine that has never had HeapScope.
+  8. The owner uploads `HeapScope.Cli.X.Y.Z.nupkg` from the release to nuget.org.
+  9. `RELEASE-NOTES.md`'s table at the top gets the release's row, in the next PR into `develop`.
 - SkiaSharp native libraries (ADR-038, 2026-10-30): `.github/workflows/skia-native.yml` builds `libSkiaSharp` for win-x64,
   linux-x64 and macOS (one universal library for both macOS runtimes) from SkiaSharp's sources at a pinned commit, with
   only `skia_use_dng_sdk` and `skia_use_piex` off; it checks each library (`build/check-no-dng.sh`) and attests the set.

@@ -12,7 +12,8 @@ contributor agreement is planned, and this file will say when it is in place.
 
 ## What is welcome
 
-- Bug reports and feature requests, as GitHub issues. Describe the problem in words. Please do not paste code you
-  would like included, and do not attach dumps, traces or logs: they can hold your application's data.
+- Bug reports, questions and feature requests, as GitHub issues ([SUPPORT.md](SUPPORT.md) says what to include). Describe the
+  problem in words. Please do not paste code you would like included, and never attach dumps, gcdumps, traces or index caches:
+  they hold your application's data. Issues are public: paste only the log lines around the message, after you have read them, as SUPPORT.md says.
 - Security problems: report them privately, as `SECURITY.md` describes. Do not open a public issue.
 - Questions about commercial licensing: rayklundt (at) outlook (dot) com.

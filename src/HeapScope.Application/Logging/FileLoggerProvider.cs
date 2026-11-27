@@ -154,6 +154,15 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
 
     public ILogger CreateLogger(string categoryName) => new FileLogger(this, categoryName);
 
+    /// <summary>What to tell the user once this process's log could not be written (sprint 4.8, peer review 4.5 M13); null while it can.</summary>
+    public string? Unavailable { get; private set; }
+
+    /// <summary>
+    /// Raised once, on the thread pool, the first time a line cannot be written: with <see cref="Unavailable"/>, which the front end
+    /// shows (the command line on stderr, the app in a message), since the log itself cannot say it.
+    /// </summary>
+    public event Action<string>? BecameUnavailable;
+
     public void SetScopeProvider(IExternalScopeProvider scopeProvider) => _scopes = scopeProvider;
 
     public void Dispose()
@@ -208,6 +217,12 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
             {
                 // Logging must never take the application down; the debug output still has the record.
                 System.Diagnostics.Debug.WriteLine($"HeapScope file log unavailable: {ex.Message}");
+                if (Unavailable is null)
+                {
+                    // Said once (M13), off this lock: a handler may log.
+                    var said = Unavailable = $"HeapScope cannot write its log in {_directory}: {ex.Message} It goes on without a log, so a problem now cannot be traced. Free space on that drive or check that the folder is yours, then start it again.";
+                    ThreadPool.QueueUserWorkItem(_ => BecameUnavailable?.Invoke(said));
+                }
             }
         }
     }

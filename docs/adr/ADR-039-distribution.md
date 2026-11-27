@@ -1,6 +1,7 @@
 # ADR-039 Distribution (added in sprint 3.9, amends ADR-025)
 
-- Context: since 3.7, `release.yml` builds every runtime identifier on a published release, self-contained (ADR-025),
+- Context: since 3.7, `release.yml` builds every runtime identifier for a release (on a published release until 4.8, which
+  builds and runs it before it is public), self-contained (ADR-025),
   with SBOMs, checksums and attestations; 3.8.0 was the first release with builds attached. Sprint 3.9 decides who
   installs HeapScope, from where and in which forms (product owner, 2026-10-31). HeapScope is open source with no
   budget for certificates or store accounts, and CI has no macOS runners (2026-10-31).

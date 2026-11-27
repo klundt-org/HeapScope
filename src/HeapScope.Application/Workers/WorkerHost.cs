@@ -47,6 +47,10 @@ namespace HeapScope.Application.Workers;
 public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 {
     private static readonly TimeSpan s_shutdownCallTimeout = TimeSpan.FromSeconds(1);
+
+    /// <summary>What to do when a worker does not start in time (sprint 4.8, M5): the app's Restart worker, or the command again.</summary>
+    internal const string StartTimeoutNextStep =
+        "A busy computer, or the first start after an install, can take longer: try again with Restart worker in the banner at the top of the app's window, or run the command again. HeapScope's log says what the worker did.";
     private static readonly TimeSpan s_exitCodeWait = TimeSpan.FromSeconds(2);
 
     private readonly WorkerHostOptions _options;
@@ -131,6 +135,12 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             ThrowIfUnavailable();
             if (_session is { } session)
             {
+                // Said in the log (sprint 4.8 review H3): what it ends fails as ended by the restart, not as a crash.
+                _logger.LogInformation(
+                    "Worker restart: stopping generation {Generation} (pid {Pid}, {State}) to start a new one",
+                    Generation,
+                    session.Info.ProcessId,
+                    session.IsAlive ? "running" : "already stopped");
                 Volatile.Write(ref _session, null);
                 await StopSessionAsync(session, cancellationToken).ConfigureAwait(false);
             }
@@ -219,6 +229,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 
             SetState(WorkerState.Starting, null);
             WorkerSession session;
+            var started = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 // On the pool (peer review 4.5 H10): the gate's wait can end at once, and starting checks files and starts a process.
@@ -233,7 +244,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             catch (Exception ex) when (ex is WorkerException)
             {
                 // The banner shows the message; the log keeps it too (sprint 2.3.7 review H4).
-                _logger.LogWarning(ex, "The analysis worker could not be started: {Message}", ex.Message);
+                _logger.LogWarning(ex, "The analysis worker could not be started after {Ms:N0} ms: {Message}", started.Elapsed.TotalMilliseconds, ex.Message);
                 SetState(WorkerState.Crashed, ex.Message);
                 throw;
             }
@@ -248,6 +259,13 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 
             Interlocked.Increment(ref _generation);
             Volatile.Write(ref _session, session);
+            // Measured (sprint 4.8, M13): the first start after an install or an update can take many seconds while the system
+            // checks the new files.
+            _logger.LogInformation(
+                "Worker started in {Ms:N0} ms (generation {Generation}{First})",
+                started.Elapsed.TotalMilliseconds,
+                Generation,
+                Generation == 1 ? ", the first of this run" : string.Empty);
             SetState(WorkerState.Running, null);
             return session;
         }
@@ -370,7 +388,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {
-            throw new WorkerStartException($"The analysis worker did not open its pipe within {_options.ConnectTimeout.TotalSeconds:N0} s.");
+            throw new WorkerStartException($"The analysis worker did not open its pipe within {_options.ConnectTimeout.TotalSeconds:N0} s. {StartTimeoutNextStep}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -393,7 +411,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {
-            throw new WorkerStartException($"The analysis worker did not answer the handshake within {_options.ConnectTimeout.TotalSeconds:N0} s.");
+            throw new WorkerStartException($"The analysis worker did not answer the handshake within {_options.ConnectTimeout.TotalSeconds:N0} s. {StartTimeoutNextStep}");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -460,6 +478,11 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             _logger.LogWarning("Symbol server downloads are on: a missing DAC may be downloaded from Microsoft's symbol server (module identifiers only, never dump contents).");
             info.ArgumentList.Add("--allow-symbol-server");
             info.ArgumentList.Add("true");
+        }
+        else if (HeapScope.Core.InvokingUser.Current is null && HeapScope.Core.HeapScopeSettings.Read(HeapScope.Core.HeapScopeFolders.Default).AllowMicrosoftSymbolServer)
+        {
+            // Sprint 4.8 (H15): turned on on the Settings page, which the worker reads at each load; said here too, for the CLI's stderr.
+            _logger.LogWarning("Symbol server downloads are on (Settings page, {File}): a missing DAC may be downloaded from Microsoft's symbol server (module identifiers only, never dump contents).", HeapScope.Core.HeapScopeSettings.PathIn(HeapScope.Core.HeapScopeFolders.Default));
         }
 
         if (!_options.SecondHandleWalk)
@@ -566,6 +589,13 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             }
         }
 
+        if (session.Stopping)
+        {
+            // A restart or a stop the user asked for ended this call (sprint 4.8 review H3).
+            _logger.LogInformation("A call to the worker ended because the worker was stopped for a restart or a close ({Cause})", cause.GetType().Name);
+            return new WorkerCrashedException(WorkerCrashedException.EndedByRestartMessage, cause) { EndedByRestart = true };
+        }
+
         OnSessionLost(session, cause.GetType().Name);
         return new WorkerCrashedException(session.TryGetExitCode(), cause);
     }
@@ -641,6 +671,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
     private static WorkerOperationException Translate(RemoteInvocationException ex)
     {
         var code = Enum.IsDefined(typeof(HeapScopeErrorCode), ex.ErrorCode) ? (HeapScopeErrorCode)ex.ErrorCode : HeapScopeErrorCode.Unknown;
+        ErrorIds.Note(ex.Message);
         return new WorkerOperationException(code, ex.Message, ex) { DacTrust = code == HeapScopeErrorCode.DacNotTrusted ? DacTrustOf(ex.ErrorData) : null };
     }
 

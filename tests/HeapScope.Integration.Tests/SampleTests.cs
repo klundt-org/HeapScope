@@ -137,13 +137,21 @@ public sealed class SampleTests : IDisposable
         var library = new SessionLibrary(_root.File("churn"));
         var capture = new CaptureService(new ProcessDiscovery(), new DumpCapturer(), library, new JobTracker(TimeProvider.System));
         var recording = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopped = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         var dumps = new List<string>();
         await using (var run = new MonitorService(capture).Start(
             sample.ProcessId,
             new MonitorOptions(TimeSpan.FromSeconds(1), MonitorRules.None, RecordAllocations: true),
-            r => r.TraceStarted += (_, _) => recording.TrySetResult()))
+            r =>
+            {
+                r.TraceStarted += (_, _) => recording.TrySetResult();
+                r.TraceStopped += (_, why) => stopped.TrySetResult(why);
+            }))
         {
-            await recording.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+            // Sprint 4.8 (M14): it did not start within 60 s once under the gate's full load. Bounded at 120 s, and a recording
+            // that stops or a run that ends first fails at once with its reason, instead of waiting out the bound.
+            var first = await Task.WhenAny(recording.Task, stopped.Task, run.Completion).WaitAsync(TimeSpan.FromSeconds(120), Ct);
+            first.ShouldBe(recording.Task, stopped.Task.IsCompleted ? "the recording stopped: " + await stopped.Task : "the run ended before its recording started");
             dumps.Add((await capture.StartCapture(sample.ProcessId, kind: HeapScope.Contracts.SnapshotKindDto.GcDump).Result).Path);
             await Task.Delay(TimeSpan.FromSeconds(5), Ct);
             dumps.Add((await capture.StartCapture(sample.ProcessId, kind: HeapScope.Contracts.SnapshotKindDto.GcDump).Result).Path);

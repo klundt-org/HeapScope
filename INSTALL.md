@@ -58,7 +58,8 @@ HeapScope's files are not signed. Check them against the release's checksums and
    ln -sf ~/.local/opt/HeapScope-vX.Y.Z-linux-x64/heapscope-cli ~/.local/bin/heapscope-cli
    ```
 
-4. Run `heapscope` for the app, `heapscope-cli --help` for the CLI.
+4. Run `heapscope` for the app, `heapscope-cli --help` for the CLI. If they are not found, log out and in again: Ubuntu adds
+   `~/.local/bin` to your `PATH` when you log in, once the folder exists; elsewhere add it in your shell's profile.
 
 ## macOS (untested)
 
@@ -87,7 +88,7 @@ If you try a macOS package, please say how it went in an [issue](https://github.
 reported yet. In a clone of the repository, `bash build/capture-check.sh <folder>/heapscope-cli` tries every kind of capture
 on the sample that comes with HeapScope and says what failed. Its output shows no other process, but it does show your
 folders: read it, then put it in the issue. When something failed it also prints where HeapScope's log is. The log names
-your processes, so leave it out of the issue and share it only with someone you trust.
+your processes and folders, so paste only the lines about the failure into the issue (SUPPORT.md says how).
 
 To build on your Mac instead, with the .NET 10 SDK, run `bash build/publish.sh osx-arm64 <folder>` (or `osx-x64`) in a clone
 of the repository. That build is untested too.
@@ -144,8 +145,16 @@ To update, put the new version's file in that folder and run `dotnet tool update
   Then `heapscope-cli summary app.dmp` shows what is on its heap. Capturing a process that runs as administrator needs
   HeapScope run as administrator too.
 - Linux: the same, in the app or with `heapscope-cli`. HeapScope captures the processes that run as your user; another
-  user's process needs HeapScope run as that user, or as root (`sudo`). As root, a full dump of another user's
-  process goes to a folder that user can write (`--out`): the runtime writes it as that user. Some systems stop one process from examining
+  user's process needs HeapScope run as that user, or as root (`sudo`). sudo does not keep your `PATH`, so give it the full
+  path, as in `sudo "$(command -v heapscope-cli)" capture --pid <pid> --out /tmp/app.dmp` (the archive's link in
+  `~/.local/bin`, or the dotnet tool). The dotnet tool also needs the .NET it runs on: if you
+  installed .NET in your home folder (`~/.dotnet`), add `DOTNET_ROOT="$HOME/.dotnet"` after `sudo`. Run with sudo, HeapScope keeps
+  your data folder (your sessions, logs and settings, not root's) and gives you what it writes, the dump included, so it is
+  yours to open and delete afterwards. It is the folder your own runs use by default (`~/.local/share/HeapScope`): sudo drops
+  `XDG_DATA_HOME` and `HEAPSCOPE_DATA_FOLDER`, so if you set either, give it to sudo too (`sudo HEAPSCOPE_DATA_FOLDER=... "$(command -v heapscope-cli)" ...`).
+  Run with sudo, HeapScope ignores a DAC folder and a download choice saved on the Settings page, since your own programs can
+  change that file: give `--dac-folder` or `--allow-symbol-server` on the command line instead. As root, a full dump of another user's process goes to a folder that user can write
+  (`--out`, such as `/tmp`): the runtime writes it as that user, and HeapScope then makes it yours. Some systems stop one process from examining
   another (`kernel.yama.ptrace_scope` of 2 or 3, or a container without `SYS_PTRACE`); HeapScope then says what to
   change, and changes nothing itself. A process that keeps its diagnostics socket in another temp folder (its `TMPDIR`)
   is found when HeapScope runs with the same `TMPDIR`.
@@ -158,13 +167,43 @@ full dump of another version opens with a note that its answers are not checked,
 HeapScope does not analyze it. A heap dump of .NET 8 taken on Windows (`dotnet-dump collect --type Heap`) leaves out the static
 fields: take a full dump (`--type Full`, or HeapScope's own capture).
 
-To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version
-the dumped process ran on. HeapScope finds it in the .NET runtimes installed on the machine and in its own runtime when
-the versions match, so a dump from a server with another .NET version usually needs that runtime installed, or its DAC
-in a folder you name (`--dac-folder`, or the `Symbols:DacFolder` setting). A DAC that came with the dump (in its folder)
-is native code from whoever made the dump: the app asks before using it and remembers a yes, and the CLI uses it only
-with `--trust-dac <sha256>`, which its refusal names. A DAC that HeapScope's own capture copied is trusted. When none is
-found, the message says what to do, including downloading it from Microsoft's symbol server if you allow that.
+### A missing DAC
+
+To open a dump, HeapScope needs the dumped runtime's data access component (DAC): `mscordaccore.dll` on Windows,
+`libmscordaccore.so` on Linux, `libmscordaccore.dylib` on macOS. It must be the DAC of the exact .NET version the dumped
+process ran on, for the same system and processor as the dump. HeapScope looks for it, in this order:
+
+1. in the .NET runtimes installed on this computer (`shared/Microsoft.NETCore.App/<version>` under the dotnet folder);
+2. in the DAC folder: the one on the Settings page, or `--dac-folder <folder>` for one command line run (a `--dac-folder`,
+   or `Symbols:DacFolder` in `appsettings.json`, wins over the Settings page);
+3. in HeapScope's own runtime, when its version matches;
+4. next to the dump, in its folder or in `dac/<version>` beside it, where HeapScope's own capture puts the target's DAC. A DAC
+   HeapScope's capture copied is trusted. Any other DAC there came with the dump and is native code from whoever made it: the
+   app asks before using it and remembers a yes, and the CLI uses it only with `--trust-dac <sha256>`, which its refusal names;
+5. on Microsoft's symbol server, only when you turned on **Download missing DACs from Microsoft** on the Settings page (or
+   `heapscope-cli settings --symbol-server on --yes`, or `--allow-symbol-server` for one run). Off by default: a download
+   sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents.
+
+When none matches, the message names the version it needs and the folders it searched. The simplest fix is to install that
+.NET runtime. Otherwise copy the DAC from the machine the dump came from into a folder of your own, and choose that folder
+on the Settings page:
+
+- From an installed runtime: the DAC is in `shared/Microsoft.NETCore.App/<version>/` under the dotnet folder, for example
+  `C:\Program Files\dotnet\shared\Microsoft.NETCore.App\8.0.11\mscordaccore.dll` on Windows or
+  `/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.11/libmscordaccore.so` on Linux (`/usr/lib/dotnet` for some
+  distributions' packages). On Linux and macOS copy `libcoreclr.so` (`libcoreclr.dylib`) from the same folder too:
+  HeapScope checks the two came from the same build.
+- From a self-contained application: the same files are in the application's own folder.
+- From a container: `docker cp <container>:/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.11/libmscordaccore.so .`, and
+  `libcoreclr.so` the same way.
+
+The folder must be on this computer: HeapScope never searches a network folder for a DAC.
+
+### Dumps you did not make
+
+Reading a full dump runs its runtime's DAC, which is native code: a dump made to attack a bug in it could run code as you.
+Open dumps from other people as your own user, never as administrator or root; HeapScope adds a note to a full dump it
+opens with those rights. A gcdump is read by HeapScope's own managed code only.
 
 ## Where HeapScope keeps its data
 
@@ -177,12 +216,15 @@ under "Logs and getting help".
 
 ## Settings
 
-The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: whether the text
-typed in filters is written into the logs (on by default), and whether values read from dumps are (off by default; turning
-it on asks you to confirm, or needs `--yes` on the command line). It is saved in `settings.json` in the data folder.
+The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: the DAC folder and
+whether a missing DAC may be downloaded from Microsoft (off by default; turning it on asks you to confirm, or needs `--yes` on
+the command line), whether the text typed in filters is written into the logs (on by default), and whether values read from
+dumps are (off by default; turning it on asks you to confirm, or needs `--yes`). It is saved in `settings.json` in the data
+folder.
 
 HeapScope reads its other settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
-environment variables that name the setting with `__` between its parts. For example, a DAC folder:
+environment variables that name the setting with `__` between its parts. For example, a DAC folder for every user of this
+installation, which wins over the Settings page:
 
 ```json
 { "Symbols": { "DacFolder": "/srv/dacs" } }
@@ -209,6 +251,12 @@ release, so copy it across; for the dotnet tool, use environment variables, sinc
 - Linux, a message about ICU ("Couldn't find a valid ICU package"): install ICU (see the Linux steps above).
 - Linux, the app stops while starting its display (SkiaSharp cannot load `libSkiaSharp`): install fontconfig.
 - The dotnet tool, "You must install or update .NET": install the .NET 10 runtime, or use the archive.
+
+## Getting help
+
+If something here does not work, open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues) with the
+details the About page copies (Copy details) or `heapscope-cli --version`. [SUPPORT.md](SUPPORT.md) says what to include and how to
+which log lines to paste (issues are public).
 
 ## Updating and removing
 

@@ -1,3 +1,11 @@
+4.8.0: Ready to release.
+
+- Every --format json output starts with "Format": 1, and inspect without a name writes {"Format": 1, "Inspections": [...]} (4.8.0).
+- settings --saved-dac-folder <folder|none> and --symbol-server on|off (on with --yes) save the DAC lookup the app uses too (4.8.0).
+- Run with sudo on Linux, it keeps your data folder, gives you the files it writes, and ignores a saved DAC folder and download choice (4.8.0).
+- A refusal for a missing DAC names a DAC folder it could not search, and why (4.8.0).
+- A log that cannot be written is said once on stderr (4.8.0).
+
 4.7.0: Runtimes, Linux and large heaps.
 
 - Dumps of .NET 8 and 9 are tested; another version opens with a note, one from before .NET 5 says it is not supported (4.7.0).

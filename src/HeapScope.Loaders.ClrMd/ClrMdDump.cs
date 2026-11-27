@@ -39,7 +39,7 @@ internal static class ClrMdDump
         var targetOptions = new DataTargetOptions();
         targetOptions.CacheOptions.MaxDumpCacheSize = options.MaxDumpCacheBytes;
         targetOptions.UseLockFreeMemoryMapReader = true;
-        if (!options.AllowMicrosoftSymbolServer)
+        if (!options.DownloadsAllowed)
         {
             targetOptions.FileLocator = LocalOnlyFileLocator.Instance;
         }
@@ -86,13 +86,13 @@ internal static class ClrMdDump
         // A dump is read by a worker of its own system and architecture (ADR-025): say so before any DAC is looked for or
         // loaded (sprint 2.3.6 review; a DAC of the wrong architecture would only fail to load with a vaguer message). A
         // dump of another system can still be read with the symbol server's cross-platform DAC when that is allowed.
-        if (DacLocator.Mismatch(clr.DataTarget.DataReader.TargetPlatform, clr.DataTarget.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.AllowMicrosoftSymbolServer) is { } mismatch)
+        if (DacLocator.Mismatch(clr.DataTarget.DataReader.TargetPlatform, clr.DataTarget.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.DownloadsAllowed) is { } mismatch)
         {
             throw new RuntimeComponentMissingException(mismatch);
         }
 
         var path = ResolveDac(clr, dumpPath, options, platform, out var request, out var fileName, out var looked, out var rule);
-        if (path is null && !options.AllowMicrosoftSymbolServer)
+        if (path is null && !options.DownloadsAllowed)
         {
             throw new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request));
         }
@@ -115,7 +115,7 @@ internal static class ClrMdDump
         {
             throw new SnapshotFormatException(
                 $"The .NET {request.RuntimeVersion} runtime in the dump could not be opened with {path ?? fileName}: {ex.Message} "
-                + "Make sure the DAC is the one from that exact runtime version (Symbols:DacFolder), then open the dump again.",
+                + "Make sure the DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line) is the one from that exact runtime version, then open the dump again.",
                 ex);
         }
     }
@@ -144,13 +144,13 @@ internal static class ClrMdDump
             }
 
             var platform = CurrentPlatform();
-            if (DacLocator.Mismatch(target.DataReader.TargetPlatform, target.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.AllowMicrosoftSymbolServer) is { } mismatch)
+            if (DacLocator.Mismatch(target.DataReader.TargetPlatform, target.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.DownloadsAllowed) is { } mismatch)
             {
                 return new RuntimeComponentMissingException(mismatch);
             }
 
             var path = ResolveDac(target.ClrVersions[0], dumpPath, options, platform, out var request, out var fileName, out var looked, out _);
-            return path is null && !options.AllowMicrosoftSymbolServer
+            return path is null && !options.DownloadsAllowed
                 ? new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request))
                 : null;
         }
@@ -217,7 +217,7 @@ internal static class ClrMdDump
             request.RuntimeVersion,
             fileName,
             $"The .NET {request.RuntimeVersion} runtime's DAC ({fileName}) was not found locally and was not downloaded from Microsoft's symbol server: {why.TrimEnd('.')}. "
-            + "Check the network, or install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line).",
+            + "Check the network, or install that runtime or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line).",
             inner);
 
     /// <summary>
@@ -266,7 +266,7 @@ internal static class ClrMdDump
                     if (options.IsTrustedDac?.Invoke(sha256) != true)
                     {
                         // The files the trusted folders held and why they did not match go with the refusal (review H3).
-                        throw new UntrustedDacException(beside, sha256, request.RuntimeVersion, [.. candidates.Select(c => c.ToString())]);
+                        throw new UntrustedDacException(beside, sha256, request.RuntimeVersion, [.. candidates.Select(c => c.ToString()), .. DacLocator.DacFolderNotSearched(options) is { } leftOut ? [leftOut] : Array.Empty<string>()]);
                     }
 
                     path = CopyTrusted(beside, sha256, options.TrustedDacCopyFolder);
@@ -276,13 +276,13 @@ internal static class ClrMdDump
                 {
                     // Not the dump's fault (review): say it is the DAC or its private copy.
                     throw new RuntimeComponentMissingException(
-                        $"The DAC next to the dump, {beside}, could not be read or copied into HeapScope's private DAC folder: {ex.Message} Close programs that hold it, check the free disk space, or put the DAC in the Symbols:DacFolder folder.",
+                        $"The DAC next to the dump, {beside}, could not be read or copied into HeapScope's private DAC folder: {ex.Message} Close programs that hold it, check the free disk space, or put the DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line).",
                         ex);
                 }
             }
         }
 
-        looked = [.. candidates.Select(c => c.ToString())];
+        looked = [.. candidates.Select(c => c.ToString()), .. DacLocator.DacFolderNotSearched(options) is { } notSearched ? [notSearched] : Array.Empty<string>()];
         return path;
     }
 

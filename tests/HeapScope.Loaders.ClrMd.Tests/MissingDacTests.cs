@@ -56,6 +56,8 @@ public sealed class MissingDacTests : IDisposable
         missing.RuntimeVersion.ShouldNotBeNullOrEmpty();
         Should.NotThrow(() => ClrMdDumpLoader.CheckDacTrust(dump, NoLocalDac()), "only a DAC that needs trust is the open's question");
         ClrMdDumpLoader.CheckDac(dump, NoLocalDac() with { AllowMicrosoftSymbolServer = true }).ShouldBeNull("the symbol server may still give it");
+        ClrMdDumpLoader.CheckDac(dump, NoLocalDac() with { AllowMicrosoftSymbolServer = true, AllowMicrosoftSymbolServerNow = () => false })
+            .ShouldBeOfType<RuntimeComponentMissingException>("an opt-in turned off since is off (sprint 4.8 review M5)");
         var (name, source) = ClrMdDumpLoader.ReadProcessName(dump, NoLocalDac());
         name.ShouldNotBeNullOrEmpty("LeakyConsole, or dotnet when the fixture ran through the dotnet host");
         source.ShouldNotBeNullOrEmpty();

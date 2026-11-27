@@ -284,6 +284,8 @@ public sealed partial class AllocationTraceViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Allocation stacks", ex.Message);
             Stacks.Clear();
             StacksStatus = ex.Message;
         }

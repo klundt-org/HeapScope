@@ -6,11 +6,20 @@ references such as "ARCHITECTURE.md 12" still name the right section.
 ## 12. Security and privacy
 - Full dumps contain everything in the process memory: connection strings, tokens, personal data. HeapScope
   treats every dump and every index cache as sensitive.
-- Nothing is ever uploaded. There is no telemetry. Symbol and DAC downloads are off by default (ADR-017).
+- Nothing is ever uploaded. There is no telemetry. Symbol and DAC downloads are off by default (ADR-017); turning them on on the Settings page asks first, with what a download
+  sends (the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks)), and every process that follows it logs a warning.
+- Opening a full dump runs native code with HeapScope's rights (sprint 4.8, peer review 4.5 M3). The worker reads a full dump
+  through the dumped runtime's data access component (DAC), native code from the .NET runtime (Microsoft's, from an installed
+  runtime or a folder the user chose; one that came with the dump only once trusted, ADR-035), which parses the dump's own
+  bytes. A dump made to attack a bug in the DAC could run code as the user who opened it, and as administrator or root when
+  HeapScope runs elevated: a full dump opened that way gets a note saying so (`ElevationTexts.ElevatedDumpNote`). HeapScope's
+  own readers are managed code and refuse malformed input (fuzzed nightly); a gcdump is read by managed code only. The advice
+  is to open dumps one did not make as one's own user, never elevated. Running the reader in a sandbox (a process with fewer
+  rights than the user's) is in the Backlog.
 - A dump is untrusted input. Paths recorded in it (the runtime's folder, module paths) never lead the worker to a
   network share: the DAC lookup and ClrMD's file locator accept local fixed-drive paths only, and the dumped runtime's
-  folder only when it is an installed shared runtime folder. A DAC in `Symbols:DacFolder` is native code the user chose
-  to trust by putting it there. A DAC next to the dump came with the dump, so it is native code from whoever made the
+  folder only when it is an installed shared runtime folder. A DAC in the DAC folder (the Settings page's, `--dac-folder` or `Symbols:DacFolder`) is
+  native code the user chose to trust by putting it there; a saved folder must exist and is never a network folder. A DAC next to the dump came with the dump, so it is native code from whoever made the
   dump: since 3.6 (ADR-035) it is searched last and loaded only when trusted by its SHA-256 (the app asks, naming the file
   and its hash, and keeps a yes in `trusted-dacs.json`; the CLI takes `--trust-dac <sha256>` for one run; HeapScope's own
   capture trusts the DAC it copies from the target's runtime), and then from a private copy checked against the hash.
@@ -67,8 +76,10 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   win-x64 (a `.zip`), linux-x64 and both macOS runtimes (each a `.tar.gz`; the macOS ones are built on Linux and marked untested
   on the release) and packs the CLI's dotnet tool, installs that tool file on Windows and
   Linux, and attaches them, an SBOM (CycloneDX) of the app, the CLI and the worker, and `SHA256SUMS`, all with build
-  provenance attestations in GitHub's attestation store (`release.yml`; the builds hold read access only, one job that
-  builds nothing attests and attaches; a manual run is a dry run by default); CI and release builds are deterministic
+  provenance attestations in GitHub's attestation store (`release.yml`; since 4.8 it makes a draft first, runs the Windows and
+  Linux archives before anything is public, attests each file by name, attaches without replacing any file and publishes last;
+  the builds hold read access only, the attest job only the rights to attest, and the jobs that write releases build nothing;
+  a run without `publish` is a dry run); CI and release builds are deterministic
   (`ContinuousIntegrationBuild`). Nothing is signed: users verify by checksum and attestation (INSTALL.md). The dotnet
   tool installs from the downloaded file only, through a `nuget.config` that clears every other source, since HeapScope
   does not hold its package ID on nuget.org yet (3.9 review H1).
@@ -135,6 +146,10 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   index caches and their sidecars, monitoring timelines and traces are created 0700 (folders) and 0600 (files) instead
   of the process umask, which often lets other users read them. A folder the user picked keeps its permissions; on
   Windows the files get an owner-only access list (sprint 3.7, above).
+- Run with sudo on Linux (sprint 4.8, H17; ADR-014 amended), those folders and files are the invoking user's, not root's: HeapScope
+  keeps that user's data folder and gives the user what it creates and a dump it protects after a capture, with `lchown`, which
+  never follows a link. The user is the one sudo names (`SUDO_UID`), who could run anything as root already, so nothing is given
+  to anyone who could not read it before.
 
 - Allocation traces (sprint 2.5) hold type and method names, times and sizes, not heap contents. Record allocations writes
   them into the session folder (user-only, like dumps); the CLI writes them where `--out` says. Reading one writes

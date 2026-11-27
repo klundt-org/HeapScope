@@ -94,7 +94,34 @@ internal static partial class CliCommands
     private static string Mb(long bytes) =>
         (bytes / (1024.0 * 1024.0)).ToString("N1", CultureInfo.InvariantCulture) + " MB";
 
-    /// <summary>Writes <paramref name="document"/> as indented JSON, the format of every command's <c>--format json</c>.</summary>
-    private static Task WriteJsonAsync(TextWriter output, object document) =>
-        output.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(document, s_json));
+    /// <summary>
+    /// The version of the JSON every command writes (sprint 4.8, peer review 4.5 M4; docs/cli-output.md): its first member,
+    /// <c>"Format"</c>. Within a format, members are only added; removing, renaming or retyping one, or changing what it means,
+    /// is a new format.
+    /// </summary>
+    internal const int JsonFormat = 1;
+
+    /// <summary>
+    /// Writes <paramref name="document"/> as indented JSON, the format of every command's <c>--format json</c>: an object whose
+    /// first member is <c>"Format": 1</c>. A list is the object's <paramref name="listName"/> member.
+    /// </summary>
+    internal static Task WriteJsonAsync(TextWriter output, object document, string listName = "Items")
+    {
+        var node = System.Text.Json.JsonSerializer.SerializeToNode(document, s_json);
+        var versioned = new System.Text.Json.Nodes.JsonObject { ["Format"] = JsonFormat };
+        if (node is System.Text.Json.Nodes.JsonObject members)
+        {
+            foreach (var (name, value) in members.ToList())
+            {
+                members.Remove(name);
+                versioned[name] = value;
+            }
+        }
+        else
+        {
+            versioned[listName] = node;
+        }
+
+        return output.WriteLineAsync(versioned.ToJsonString(s_json));
+    }
 }

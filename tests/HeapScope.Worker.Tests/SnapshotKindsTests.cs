@@ -79,6 +79,23 @@ public sealed class SnapshotKindsTests : IDisposable
         }
     }
 
+    // Sprint 4.8 (M3): reading a full dump runs the runtime's DAC, native code, with the worker's rights.
+    [Fact]
+    public void A_full_dump_opened_elevated_says_its_dac_runs_with_those_rights_and_a_gcdump_does_not()
+    {
+        var elevated = new SnapshotKinds(new WorkerOptions("pipe", null) { RunsElevated = true });
+        var full = new List<string>();
+        var gcdump = new List<string>();
+
+        elevated.For(SnapshotKind.FullDump).AddNotes(Metadata(SnapshotKind.FullDump, SnapshotCapabilities.FullDump), full);
+        elevated.For(SnapshotKind.GcDump).AddNotes(Metadata(SnapshotKind.GcDump, SnapshotCapabilities.ObjectGraph | SnapshotCapabilities.CompleteGraph), gcdump);
+
+        full.ShouldBe([ElevationTexts.ElevatedDumpNote]);
+        gcdump.ShouldNotContain(ElevationTexts.ElevatedDumpNote, "a gcdump is read by managed code only");
+        ElevationTexts.ElevatedDumpNoteOn(HostSystem.Windows).ShouldContain("without administrator rights");
+        ElevationTexts.ElevatedDumpNoteOn(HostSystem.Linux).ShouldContain("runs as root too");
+    }
+
     [Fact]
     public void Missing_facts_and_cross_kind_names_are_explained_per_kind()
     {

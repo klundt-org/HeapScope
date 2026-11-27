@@ -134,9 +134,9 @@ public static class InfoTexts
     public const string Jobs =
         "Lists long work such as opening a dump, capturing or recording, with its progress and how it ended. Use it to see what finished or failed, and why. Jobs appear here by themselves; press Cancel on one that is running.";
 
-    /// <summary>Settings (sprint 3.12).</summary>
+    /// <summary>Settings (sprint 3.12; the DAC since sprint 4.8, a draft).</summary>
     public const string Settings =
-        "Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
+        "Choose where HeapScope finds the DAC a dump needs and what it writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
 
     // Sprint 3.13.2 (owner, 2026-11-19): Include dump values in logs, approved by the owner on 2026-11-19 (docs/design/info-text.md).
 
@@ -162,13 +162,77 @@ public static class InfoTexts
     public const string DumpValuesOff =
         "HeapScope's logs no longer get values read from your dumps. Logs written while this was on still hold them: Purge logs deletes them.";
 
+    // Sprint 4.8 (H15): the Settings page's Dumps section; drafts for the owner (docs/design/info-text.md, Sprint 4.8 additions).
+
+    /// <summary>Settings: the DAC folder's tooltip.</summary>
+    public const string DacFolderTip =
+        "A folder on this computer where HeapScope looks for a dump's DAC (mscordaccore.dll, or libmscordaccore.so on Linux) when the dump's .NET runtime is not installed here. Copy the DAC from that runtime's folder on the machine the dump came from. The app and the command line follow it.";
+
+    /// <summary>Settings: the title of the folder picker for the DAC folder.</summary>
+    public const string DacFolderPickerTitle = "Choose the folder that holds the DAC";
+
+    /// <summary>Settings: the status after a DAC folder is saved; {0} is the folder.</summary>
+    public const string DacFolderSaved = "DAC folder saved: {0}. HeapScope looks there from the next dump you open.";
+
+    /// <summary>Settings: the status after the DAC folder is cleared.</summary>
+    public const string DacFolderCleared = "No DAC folder: HeapScope looks in the .NET runtimes installed here.";
+
+    /// <summary>Settings: the note when appsettings or the command line gives the DAC folder; {0} is the folder.</summary>
+    public const string DacFolderConfigured = "This installation's own settings (appsettings.json, the environment or the command line) set the DAC folder to {0}, which HeapScope uses instead of the one here.";
+
+    /// <summary>Settings: the note when appsettings turn downloads on.</summary>
+    public const string SymbolServerConfigured = "This installation's own settings (appsettings.json, the environment or the command line) turn downloads on, whatever the box here says.";
+
+    /// <summary>Settings: Download missing DACs from Microsoft's tooltip.</summary>
+    public const string SymbolServerTip =
+        "When no DAC on this computer matches a dump's runtime, download it from Microsoft's symbol server. Off by default. A download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents.";
+
+    /// <summary>Settings: the title of the question asked before downloads are turned on.</summary>
+    public const string SymbolServerQuestionTitle = "Download missing DACs from Microsoft?";
+
+    /// <summary>Settings: the question asked before downloads are turned on.</summary>
+    public const string SymbolServerQuestion =
+        "When no DAC on this computer matches a dump's runtime, HeapScope will download it from Microsoft's symbol server. Each download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents. The app and the command line on this computer follow this setting until you turn it off here.";
+
+    /// <summary>Settings: the status after downloads are turned on.</summary>
+    public const string SymbolServerOn = "From the next dump you open, a missing DAC is downloaded from Microsoft's symbol server.";
+
+    /// <summary>Settings: the status after downloads are turned off.</summary>
+    public const string SymbolServerOff = "Missing DACs are no longer downloaded: HeapScope looks on this computer only.";
+
+    // Sprint 4.8 (M5): the worker. Drafts for the owner (docs/design/info-text.md, Sprint 4.8 additions).
+
+    /// <summary>Crash banner: added when the next request started a new worker before the user did.</summary>
+    public const string WorkerBackOnItsOwn =
+        "A new worker started for the next request, and open snapshots are read back from their saved index when next used.";
+
+    /// <summary>The status bar while the worker starts (M13: the first start after an install can take long).</summary>
+    public const string WorkerStarting = "Worker starting: the first start after installing or updating HeapScope can take a while";
+
+    /// <summary>The message at the next start after the app closed unexpectedly; {0} is the report's path.</summary>
+    public const string CrashReportOffer =
+        "HeapScope closed unexpectedly last time. A report of where it failed is in {0}: the versions, the system and the error, which may quote text you typed or saw, so read it before you share any of it. To help fix it, open an issue on HeapScope's page and paste its error and first lines of stack (Getting help, on the About page).";
+
+    /// <summary>The title of <see cref="CrashReportOffer"/>.</summary>
+    public const string CrashReportOfferTitle = "HeapScope closed unexpectedly";
+
+    /// <summary>The status bar's Restart worker: the question's title.</summary>
+    public const string RestartWorkerQuestionTitle = "Restart the worker?";
+
+    /// <summary>The status bar's Restart worker: the question.</summary>
+    public const string RestartWorkerQuestion =
+        "The worker is the separate process that does the analysis. Restarting it ends what it is doing now: opens, queries, recordings and live sessions stop, and open snapshots are read back from their saved index when next used. Use it when the worker stops answering.";
+
+    /// <summary>The status bar's Restart worker: its tooltip.</summary>
+    public const string RestartWorkerTip = "Stop the worker and start a new one, for a worker that stops answering. Asks first.";
+
     /// <summary>Learn (sprint 3.13).</summary>
     public const string Learn =
         "Lessons that teach HeapScope on a sample process of its own, with problems planted on purpose. Use it to learn the pages hands-on before you look at your own application. Choose a lesson and press Start lesson, then follow its steps and answer its question.";
 
     /// <summary>About.</summary>
     public const string About =
-        "Shows the version, the system, the log folder and every keyboard shortcut. Use it when you need a shortcut, or want to ask for support. F1 comes here from any page, and Copy details puts the support details on the clipboard.";
+        "Shows the version, the system, the log folder and every keyboard shortcut, and where to get help. Use it when you need a shortcut, or want to report a problem or ask a question. F1 comes here from any page, and Copy details puts the details an issue needs on the clipboard.";
 
     /// <summary>Home: Recent sessions heading.</summary>
     public const string Sessions =

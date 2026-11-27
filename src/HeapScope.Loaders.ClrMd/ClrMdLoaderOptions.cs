@@ -44,6 +44,15 @@ public sealed record ClrMdLoaderOptions
     public bool AllowMicrosoftSymbolServer { get; init; }
 
     /// <summary>
+    /// Whether the user still allows downloads now (sprint 4.8 review M5): a snapshot's field reader opens its dump later, perhaps
+    /// hours after the load, and a download the user turned off since must not happen. Null: <see cref="AllowMicrosoftSymbolServer"/> alone.
+    /// </summary>
+    public Func<bool>? AllowMicrosoftSymbolServerNow { get; init; }
+
+    /// <summary>Whether a missing DAC may be downloaded at this moment: the opt-in, still on.</summary>
+    public bool DownloadsAllowed => AllowMicrosoftSymbolServer && (AllowMicrosoftSymbolServerNow?.Invoke() ?? true);
+
+    /// <summary>
     /// The locator that downloads a DAC when <see cref="AllowMicrosoftSymbolServer"/> is on; null means ClrMD's own, which
     /// reaches Microsoft's symbol server. Tests pass their own, to tell a failed download from a DAC that fails to load.
     /// </summary>

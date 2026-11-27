@@ -156,6 +156,17 @@ public sealed partial class BookmarksViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Empties the list after Purge all deleted the bookmarks file (sprint 4.8, M13): every open snapshot's bookmarks are read
+    /// again on its next toggle, from the file that is now gone.
+    /// </summary>
+    public void ForgetAll()
+    {
+        _loads.Clear();
+        Items.Clear();
+        _logger.LogInformation("Bookmarks: the list was emptied after Purge all deleted the bookmarks");
+    }
+
     /// <summary>The bookmark of an object, if it has one.</summary>
     public BookmarkItem? Find(SnapshotHandle snapshot, ulong address) =>
         Items.FirstOrDefault(i => i.Snapshot == snapshot && i.Address == address);

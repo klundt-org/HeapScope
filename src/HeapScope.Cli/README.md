@@ -29,6 +29,9 @@ Installing needs the .NET 10 SDK; running needs the .NET 10 runtime, which the S
 - `heapscope-cli monitor`, `trace` and `allocations`: watch a running process and see what it allocates.
 - `heapscope-cli sample start`: a sample process with memory problems planted on purpose, to learn on.
 
+Most commands take `--format json` for scripts and CI: one object per command, starting with `"Format": 1`, whose members
+only grow within a format ([the JSON output](https://github.com/klundt-org/HeapScope/blob/main/docs/cli-output.md)).
+
 `heapscope-cli --help` lists every command. The
 [user guide](https://github.com/klundt-org/HeapScope/blob/main/docs/USER-GUIDE.md) and
 [install guide](https://github.com/klundt-org/HeapScope/blob/main/INSTALL.md) cover the rest.

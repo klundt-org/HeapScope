@@ -28,7 +28,8 @@ namespace HeapScope.Core;
 /// copies, trace conversion, and the files at the root (the index cache key, trusted DACs, bookmarks). The root is
 /// <c>%LOCALAPPDATA%\HeapScope</c> (the platform's local application data folder elsewhere), or the folder
 /// <see cref="EnvironmentVariable"/> names, which every process HeapScope starts inherits; the worker also takes
-/// <c>--data-folder</c>. Tests set it so nothing they do reaches the user's own folders.
+/// <c>--data-folder</c>. Tests set it so nothing they do reaches the user's own folders. Run with sudo on Linux, the default is
+/// the invoking user's folder, not root's (sprint 4.8, H17; <see cref="InvokingUser"/>).
 /// </summary>
 public sealed class HeapScopeFolders
 {
@@ -55,9 +56,11 @@ public sealed class HeapScopeFolders
     /// The folders this process uses unless told otherwise, read once at its start. A value of only spaces counts as unset
     /// (3.8 review): a malformed variable must not stop every HeapScope process before it can log anything.
     /// </summary>
-    public static HeapScopeFolders Default { get; } = string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(EnvironmentVariable))
-        ? new HeapScopeFolders(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HeapScope"), "the default", isDefault: true)
-        : new HeapScopeFolders(Environment.GetEnvironmentVariable(EnvironmentVariable)!, EnvironmentVariable);
+    public static HeapScopeFolders Default { get; } = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(EnvironmentVariable))
+        ? new HeapScopeFolders(Environment.GetEnvironmentVariable(EnvironmentVariable)!, EnvironmentVariable)
+        : InvokingUser.Current is { } user
+            ? new HeapScopeFolders(user.DataFolder, $"the default of {user.Name}, who ran it with sudo", isDefault: true)
+            : new HeapScopeFolders(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HeapScope"), "the default", isDefault: true);
 
     /// <summary>Where <see cref="Root"/> came from, for the start lines: the default, the environment variable or an option.</summary>
     public string Source { get; }
@@ -74,8 +77,11 @@ public sealed class HeapScopeFolders
     /// <summary>Index caches of snapshots in folders HeapScope cannot write.</summary>
     public string Cache => Path.Combine(Root, "cache");
 
-    /// <summary>Private copies of trusted DACs, one folder per SHA-256 (ADR-035).</summary>
-    public string DacCopies => Path.Combine(Root, "dac");
+    /// <summary>
+    /// Private copies of trusted DACs, one folder per SHA-256 (ADR-035). Run with sudo, root's own folder's, never the invoking
+    /// user's (sprint 4.8 review H1): a copy the user could replace after its hash was checked would run as root.
+    /// </summary>
+    public string DacCopies => Path.Combine(InvokingUser.TrustFolder ?? Root, "dac");
 
     /// <summary>
     /// TraceEvent's <c>.etlx</c> files while a trace is read: the user's own temporary folder on Windows, HeapScope's

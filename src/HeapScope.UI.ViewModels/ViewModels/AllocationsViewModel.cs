@@ -106,6 +106,8 @@ public sealed partial class AllocationsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Allocations", ex.Message);
             Status = ex.Message;
         }
     }

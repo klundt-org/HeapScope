@@ -65,6 +65,69 @@ internal static class LoadDumpBenchmark
         }
 
         using var sampler = new PrivateBytesSampler();
+        var first = LoadAndWrite(path, cacheMb, edgeFolder, cache, sampler);
+        var (firstLoad, managedHeap, fingerprint, loadPeak) = (first.Elapsed, first.ManagedHeap, first.Fingerprint, first.Peak);
+
+        // Switch to mapped mode (ARCHITECTURE.md 6.5): drop the built graph, compact once, reopen mapped.
+        var transition = Stopwatch.StartNew();
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        var privateAfterDrop = Private();
+        // Where what the drop did not return sits (sprint 4.8, task 11): the GC's own heap and commit, against the process's private bytes.
+        var gc = GC.GetGCMemoryInfo(GCKind.Any);
+        Measurement.Line("After the drop", $"private {Measurement.Mb(privateAfterDrop)}; GC heap {Measurement.Mb(gc.HeapSizeBytes)}, committed {Measurement.Mb(gc.TotalCommittedBytes)}, fragmented {Measurement.Mb(gc.FragmentedBytes)}; outside the GC {Measurement.Mb(privateAfterDrop - gc.TotalCommittedBytes)}");
+        if (args.GetInt("hold-after-drop", 0) is > 0 and var hold)
+        {
+            // To capture this process here and see what the drop did not free (heapscope-cli capture --kind gcdump).
+            Console.WriteLine($"load-dump: holding {hold} s after the drop, pid {Environment.ProcessId}");
+            Thread.Sleep(TimeSpan.FromSeconds(hold));
+        }
+        var mappedStopwatch = Stopwatch.StartNew();
+        var mapped = IndexCacheReader.Open(cache, IndexCacheSigner.None, fingerprint, MemoryMode.Mapped);
+        var mappedReopen = mappedStopwatch.Elapsed;
+        Measurement.Line("Mapped transition", $"{transition.Elapsed.TotalSeconds:N1} s, private {Measurement.Mb(privateAfterDrop)} after drop, {Measurement.Mb(Private())} mapped, {(mapped.Success ? "ok" : mapped.Detail)}");
+        mapped.Graph?.Dispose();
+
+        var reopen = Stopwatch.StartNew();
+        var inMemory = IndexCacheReader.Open(cache, IndexCacheSigner.None, fingerprint, MemoryMode.InMemory);
+        Measurement.Line("Reopen in memory", $"{reopen.Elapsed.TotalSeconds:N1} s, {(inMemory.Success ? "ok" : inMemory.Detail)}");
+        inMemory.Graph?.Dispose();
+
+        var inMemoryReopen = reopen.Elapsed;
+        if (!keep)
+        {
+            File.Delete(cache);
+        }
+
+        var peak = loadPeak;
+        Measurement.Line("Peak private bytes, whole run", $"{Measurement.Mb(sampler.Peak)} (with the reopens; not a budget)");
+        var loadBudget = new FileInfo(path).Length < 1024L * 1024 * 1024 ? TimeSpan.FromSeconds(20) : TimeSpan.FromMinutes(3);
+        var checks = new (string Name, bool Met)[]
+        {
+            ($"First load under {loadBudget.TotalSeconds:N0} s", firstLoad <= loadBudget),
+            ("Peak private bytes under 1.5x the managed heap", peak <= managedHeap * 1.5 || peak <= 512L * 1024 * 1024),
+            ("Peak private bytes under 4 GB", peak <= 4L * 1024 * 1024 * 1024),
+            ("Reopen mapped under 2 s", mapped.Success && mappedReopen <= TimeSpan.FromSeconds(2)),
+            ("Reopen in memory under 20 s", inMemory.Success && inMemoryReopen <= TimeSpan.FromSeconds(20)),
+        };
+        foreach (var (name, met) in checks)
+        {
+            Measurement.Line(name, met ? "met" : "MISSED");
+        }
+
+        return checks.All(c => c.Met) ? 0 : 1;
+    }
+
+/// <summary>What the first load leaves for the rest of the run: nothing of its graph (sprint 4.8, task 11).</summary>
+    private sealed record FirstLoad(TimeSpan Elapsed, long ManagedHeap, SnapshotFingerprint Fingerprint, long Peak);
+
+    /// <summary>
+    /// The first load and the cache's write, in a frame of its own, which disposes the graph when it returns: a local of Run held
+    /// the whole graph while Run went on (task 11: the 576 MB the drop "kept" on the 2 GB dump were this benchmark's own locals).
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static FirstLoad LoadAndWrite(string path, int cacheMb, string? edgeFolder, string cache, PrivateBytesSampler sampler)
+    {
         var stopwatch = Stopwatch.StartNew();
         var loader = new ClrMdDumpLoader(new ClrMdLoaderOptions { MaxDumpCacheBytes = cacheMb * 1024L * 1024L, EdgeFolder = edgeFolder });
         var result = loader.Load(path, new PhaseLogger(sampler));
@@ -102,51 +165,12 @@ internal static class LoadDumpBenchmark
         Measurement.Line("First load total", $"{firstLoad.TotalSeconds:N1} s");
         Measurement.Line("Peak private bytes (load + write)", Measurement.Mb(sampler.Peak));
 
+
+
         // The budgets are the first load's: the reopens below hold a second graph beside what the drop did not return.
-        var loadPeak = sampler.Peak;
-
-        // Switch to mapped mode (ARCHITECTURE.md 6.5): drop the built graph, compact once, reopen mapped.
-        var transition = Stopwatch.StartNew();
+        var loaded = new FirstLoad(firstLoad, managedHeap, fingerprint, sampler.Peak);
         graph.Dispose();
-        result = null;
-        graph = null;
-        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-        var privateAfterDrop = Private();
-        var mappedStopwatch = Stopwatch.StartNew();
-        var mapped = IndexCacheReader.Open(cache, IndexCacheSigner.None, fingerprint, MemoryMode.Mapped);
-        var mappedReopen = mappedStopwatch.Elapsed;
-        Measurement.Line("Mapped transition", $"{transition.Elapsed.TotalSeconds:N1} s, private {Measurement.Mb(privateAfterDrop)} after drop, {Measurement.Mb(Private())} mapped, {(mapped.Success ? "ok" : mapped.Detail)}");
-        mapped.Graph?.Dispose();
-
-        var reopen = Stopwatch.StartNew();
-        var inMemory = IndexCacheReader.Open(cache, IndexCacheSigner.None, fingerprint, MemoryMode.InMemory);
-        Measurement.Line("Reopen in memory", $"{reopen.Elapsed.TotalSeconds:N1} s, {(inMemory.Success ? "ok" : inMemory.Detail)}");
-        inMemory.Graph?.Dispose();
-
-        var inMemoryReopen = reopen.Elapsed;
-        if (!keep)
-        {
-            File.Delete(cache);
-        }
-
-        var peak = loadPeak;
-        Measurement.Line("Peak private bytes, whole run", $"{Measurement.Mb(sampler.Peak)} (with the reopens; not a budget)");
-        var loadBudget = new FileInfo(path).Length < 1024L * 1024 * 1024 ? TimeSpan.FromSeconds(20) : TimeSpan.FromMinutes(3);
-        var checks = new (string Name, bool Met)[]
-        {
-            ($"First load under {loadBudget.TotalSeconds:N0} s", firstLoad <= loadBudget),
-            ("Peak private bytes under 1.5x the managed heap", peak <= managedHeap * 1.5 || peak <= 512L * 1024 * 1024),
-            ("Peak private bytes under 4 GB", peak <= 4L * 1024 * 1024 * 1024),
-            ("Reopen mapped under 2 s", mapped.Success && mappedReopen <= TimeSpan.FromSeconds(2)),
-            ("Reopen in memory under 20 s", inMemory.Success && inMemoryReopen <= TimeSpan.FromSeconds(20)),
-        };
-        foreach (var (name, met) in checks)
-        {
-            Measurement.Line(name, met ? "met" : "MISSED");
-        }
-
-        return checks.All(c => c.Met) ? 0 : 1;
+        return loaded;
     }
 
     /// <summary>Cancels a load as <paramref name="phase"/> starts and reports how long the loader took to stop.</summary>

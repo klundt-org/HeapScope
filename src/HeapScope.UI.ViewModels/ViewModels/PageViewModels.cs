@@ -219,6 +219,8 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            logger?.LogInformation("{Section} shown as: {Message}", "Sessions", ex.Message);
             SessionStatus = "Sessions could not be read: " + ex.Message;
         }
     }
@@ -240,6 +242,8 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            logger?.LogInformation("{Section} shown as: {Message}", "Sessions", ex.Message);
             SessionStatus = $"The session {summary.Name} could not be opened: {ex.Message}";
             return;
         }
@@ -331,7 +335,7 @@ public sealed partial class JobsPageViewModel(ObservableCollection<JobViewModel>
 /// About page: product and worker versions, what HeapScope runs on and where its logs are, with a copy action for support
 /// (sprint 2.3.7 review M16).
 /// </summary>
-public sealed partial class AboutViewModel(WorkerOperations operations, IUserInteraction? interaction = null, string? logFolder = null) : ObservableObject
+public sealed partial class AboutViewModel(WorkerOperations operations, IUserInteraction? interaction = null, string? logFolder = null, Microsoft.Extensions.Logging.ILogger<AboutViewModel>? logger = null) : ObservableObject
 {
     [ObservableProperty]
     private string _workerDetails = "Not queried yet.";
@@ -352,8 +356,18 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
 
     /// <summary>The details above as one text, for a support request.</summary>
     [RelayCommand]
-    private Task CopyDetailsAsync() => interaction?.CopyTextAsync(
-        $"{Environment}{System.Environment.NewLine}Log folder: {LogFolder ?? "unknown"}{System.Environment.NewLine}{WorkerDetails}") ?? Task.CompletedTask;
+    private Task CopyDetailsAsync() => interaction?.CopyTextAsync(Details) ?? Task.CompletedTask;
+
+    /// <summary>
+    /// What Copy details copies: the version and system, the log folder, the worker, and the id of the last unexpected failure
+    /// this run (sprint 4.8, M13), which finds its lines in the log.
+    /// </summary>
+    public string Details => string.Join(
+        System.Environment.NewLine,
+        Environment,
+        $"Log folder: {LogFolder ?? "unknown"}",
+        WorkerDetails,
+        $"Last error id: {HeapScope.Application.Workers.ErrorIds.Last ?? "none this run"}");
 
     [RelayCommand]
     private async Task RefreshAsync(CancellationToken cancellationToken)
@@ -367,6 +381,8 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            // What About shows, for the log (sprint 4.8 review M3).
+            logger?.LogInformation("{Section} shown as: {Message}", "About, the worker", ex.Message);
             WorkerDetails = ex.Message;
         }
     }

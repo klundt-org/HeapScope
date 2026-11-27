@@ -23,6 +23,7 @@
 
 using System.Globalization;
 using System.Runtime.InteropServices;
+using HeapScope.Core;
 using Microsoft.Diagnostics.NETCore.Client;
 
 namespace HeapScope.Capture;
@@ -217,7 +218,7 @@ public sealed class DumpCapturer(
         ArgumentException.ThrowIfNullOrEmpty(path);
         CapturePlatform.EnsureSupported();
         progress?.Report(new CaptureProgress("Checking"));
-        Directory.CreateDirectory(PartialSnapshotFile.DirectoryOf(path, "dump"));
+        PrivateFiles.CreateUserDirectory(PartialSnapshotFile.DirectoryOf(path, "dump"));
         var estimate = Preflight(process, path, estimated);
         var file = PartialSnapshotFile.Reserve(path, "dump");
         cancellationToken.ThrowIfCancellationRequested();

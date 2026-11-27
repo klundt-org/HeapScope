@@ -29,6 +29,8 @@ using HeapScope.Application.Jobs;
 using HeapScope.Application.Workers;
 using HeapScope.Contracts;
 using HeapScope.UI.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.ViewModels;
 
@@ -103,8 +105,24 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _crashMessage;
 
-    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null)
+    /// <summary>Whether the status bar offers Restart worker: while a worker runs or starts (sprint 4.8, M5).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RestartRunningWorkerCommand))]
+    private bool _canRestartWorker;
+
+    // While the user's own restart runs: the worker coming back then ends the crash banner (sprint 4.8, M5).
+    private bool _restarting;
+    private readonly IUserInteraction? _interaction;
+    private readonly ILogger _logger;
+
+    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null, IUserInteraction? interaction = null, ILogger<ShellViewModel>? logger = null)
     {
+        _interaction = interaction;
+        _logger = (ILogger?)logger ?? NullLogger.Instance;
+        if (settings is not null)
+        {
+            settings.Purged += (_, _) => snapshots?.Bookmarks.ForgetAll();
+        }
         Exports = exports ?? new GridExportService(new AutomaticUserInteraction());
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
@@ -250,20 +268,79 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         _operations.Worker.StateChanged -= OnWorkerStateChanged;
     }
 
+    /// <summary>The crash banner's Restart worker: the worker stopped, so nothing is lost by asking nothing.</summary>
     [RelayCommand]
-    private async Task RestartWorkerAsync(CancellationToken cancellationToken)
+    private Task RestartWorkerAsync(CancellationToken cancellationToken) => RestartAsync("the crash banner", cancellationToken);
+
+    private async Task RestartAsync(string from, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Restart worker pressed in {From}", from);
         IsCrashBannerVisible = false;
+        _restarting = true;
         try
         {
             await _operations.Worker.RestartAsync(cancellationToken);
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            _logger.LogInformation("{Section} shown as: {Message}", "Restart worker", ex.Message);
             CrashMessage = ex.Message;
             IsCrashBannerVisible = true;
         }
+        finally
+        {
+            _restarting = false;
+        }
     }
+
+    /// <summary>
+    /// The status bar's Restart worker, for a worker that stops answering (sprint 4.8, peer review 4.5 M5): it asks first, since
+    /// it ends what the worker does now (opens, queries, recordings, live sessions), then stops the worker and starts a new one.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRestartWorker))]
+    private async Task RestartRunningWorkerAsync(CancellationToken cancellationToken)
+    {
+        var yes = _interaction is null || await _interaction.ConfirmAsync(InfoTexts.RestartWorkerQuestionTitle, InfoTexts.RestartWorkerQuestion, RestartWorkerConfirm, RestartWorkerCancel);
+        _logger.LogInformation("Asked to restart the worker (the status bar); the user answered {Answer}", yes ? "yes" : "no");
+        if (!yes)
+        {
+            return;
+        }
+
+        await RestartAsync("the status bar", cancellationToken);
+    }
+
+    /// <summary>
+    /// Offers the report of an earlier run that closed unexpectedly (sprint 4.8, peer review 4.5 M13), once: the newest, with a
+    /// way to show it in its folder; every report found is marked offered. Returns the report offered, or null.
+    /// </summary>
+    public async Task<string?> OfferCrashReportsAsync(string logFolder)
+    {
+        var reports = await Task.Run(() => HeapScope.Application.Logging.CrashReport.NotOffered(logFolder));
+        if (reports.Count == 0 || _interaction is null)
+        {
+            return null;
+        }
+
+        var offered = await Task.Run(() => reports.Select(HeapScope.Application.Logging.CrashReport.MarkOffered).ToList());
+        var newest = offered[^1];
+        var show = await _interaction.ConfirmAsync(InfoTexts.CrashReportOfferTitle, string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.CrashReportOffer, newest), CrashReportShow, CrashReportClose);
+        _logger.LogInformation("Offered the report of a run that closed unexpectedly, {Report} ({Count} found); the user chose {Choice}", newest, offered.Count, show ? CrashReportShow : CrashReportClose);
+        if (show)
+        {
+            await _interaction.ShowInFolderAsync(newest);
+        }
+
+        return newest;
+    }
+
+    public const string CrashReportShow = "Show the report";
+
+    public const string CrashReportClose = "Close";
+
+    public const string RestartWorkerConfirm = "Restart worker";
+
+    public const string RestartWorkerCancel = "Cancel";
 
     [RelayCommand]
     private void DismissCrashBanner() => IsCrashBannerVisible = false;
@@ -349,21 +426,28 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         WorkerStatus = state switch
         {
             WorkerState.NotStarted => "Worker not started",
-            WorkerState.Starting => "Worker starting",
+            WorkerState.Starting => InfoTexts.WorkerStarting,
             WorkerState.Running => _operations.Worker.Info is { } info ? $"Worker running (pid {info.ProcessId})" : "Worker running",
             WorkerState.Crashed => "Worker stopped unexpectedly",
             WorkerState.Stopped => "Worker stopped",
             _ => state.ToString(),
         };
 
+        CanRestartWorker = state is WorkerState.Running or WorkerState.Starting;
         if (state == WorkerState.Crashed)
         {
             CrashMessage = message ?? "The analysis worker stopped unexpectedly.";
             IsCrashBannerVisible = true;
         }
-        else if (state == WorkerState.Running)
+        else if (state == WorkerState.Running && _restarting)
         {
             IsCrashBannerVisible = false;
+        }
+        else if (state == WorkerState.Running && IsCrashBannerVisible && CrashMessage?.EndsWith(InfoTexts.WorkerBackOnItsOwn, StringComparison.Ordinal) != true)
+        {
+            // The next request started a new worker (sprint 4.8, M5: the banner went at once before): it stays until dismissed,
+            // so the crash is seen, and says what came back.
+            CrashMessage = $"{CrashMessage} {InfoTexts.WorkerBackOnItsOwn}";
         }
     }
 }

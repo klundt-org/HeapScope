@@ -1,0 +1,20 @@
+name: A question
+description: How to do something, or what a page or a result means.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An issue is public: write nothing here you would not publish, and paste only log lines you have read (SUPPORT.md says how).
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What you want to do or understand, and what you tried. The user guide (docs/USER-GUIDE.md) may answer it too.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: HeapScope's details (optional)
+      description: What About, Copy details puts on the clipboard, if it matters.

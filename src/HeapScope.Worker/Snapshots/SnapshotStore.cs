@@ -44,7 +44,8 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     private readonly SnapshotKinds _kinds = new(
         options,
         choice => LogDac(logger, choice),
-        (dump, reason) => logger.LogWarning("References of {Dump} kept {Reason}; from there on they take 4 bytes each of the worker's memory", dump, reason));
+        (dump, reason) => logger.LogWarning("References of {Dump} kept {Reason}; from there on they take 4 bytes each of the worker's memory", dump, reason),
+        symbols => LogSymbols(logger, symbols));
     private readonly IndexCacheSigner _signer = signer;
     private readonly ReverseIndexBuilder _reverseBuilder = new(logger, signer);
     private SnapshotOpener? _opener;
@@ -238,6 +239,19 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
             logger.LogInformation("DAC for {Dump}: {Dac}, accepted by {Rule}; looked at {Candidates}", choice.DumpPath, choice.Path, choice.Rule, string.Join("; ", choice.Candidates));
         }
     }
+
+    /// <summary>
+    /// The DAC lookup the loads use from now on (sprint 4.8, H15), with where each value came from: the command line or the
+    /// Settings page. Downloads on is a warning, as at the worker's start (ADR-017).
+    /// </summary>
+    private static void LogSymbols(ILogger logger, WorkerSymbols symbols) => logger.Log(
+        symbols.AllowMicrosoftSymbolServer ? LogLevel.Warning : LogLevel.Information,
+        "DAC lookup from here on: DAC folder {Folder} ({FolderFrom}); symbol server downloads {Downloads} ({DownloadsFrom}){Note}",
+        symbols.DacFolder ?? "(none)",
+        symbols.DacFolderFrom,
+        symbols.AllowMicrosoftSymbolServer ? "on" : "off",
+        symbols.AllowFrom,
+        symbols.AllowMicrosoftSymbolServer ? "; a missing DAC may be downloaded from Microsoft's symbol server, which sends module identifiers (never dump contents)" : string.Empty);
 
     private sealed record Entry(ISnapshot Snapshot, SnapshotDescriptor Descriptor, IndexState Index)
     {

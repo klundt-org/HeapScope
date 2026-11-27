@@ -317,7 +317,7 @@ internal sealed class EdgeStore : IDisposable
     /// A read-only mapping of the temporary file, which then owns the file: disposing it unmaps the view and closes the file,
     /// which deletes it (Windows). Spans taken from it must not outlive the graph's last lease, as for a mapped cache.
     /// </summary>
-    private sealed unsafe class EdgeMapping : MemoryManager<int>
+    private sealed unsafe class EdgeMapping : MemoryManager<int>, IFileBackedMemory
     {
         private readonly FileStream _stream;
         private readonly MemoryMappedFile _mapped;

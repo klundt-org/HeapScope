@@ -36,4 +36,7 @@ namespace HeapScope.Core.Loading;
 /// <param name="Handles">How the GC handles were read (full dumps only, peer review 4.5).</param>
 /// <param name="Statics">What the check of the static fields found (full dumps only, sprint 4.7).</param>
 /// <param name="Edges">Where the references were kept while the graph was built, and why if not in their file (sprint 4.7).</param>
-public sealed record LoadDiagnostics(IReadOnlyList<string> DebuggableModules, long UnreadableObjects, int StaticFieldRoots, int IncompleteSegments = 0, DacChoice? Dac = null, string? ProcessNameSource = null, HandleWalk? Handles = null, string? Statics = null, string? Edges = null);
+/// <param name="EdgesFallback">
+/// Why the references went to memory instead of their file, with what to do, when they did (sprint 4.8): the snapshot's note.
+/// </param>
+public sealed record LoadDiagnostics(IReadOnlyList<string> DebuggableModules, long UnreadableObjects, int StaticFieldRoots, int IncompleteSegments = 0, DacChoice? Dac = null, string? ProcessNameSource = null, HandleWalk? Handles = null, string? Statics = null, string? Edges = null, string? EdgesFallback = null);

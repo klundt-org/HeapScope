@@ -592,6 +592,8 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         jsonCode.ShouldBe(0, output);
 
         // The notes go to stderr; the JSON is read from stdout alone.
+        // Format 1's members (sprint 4.8, M4; docs/cli-output.md).
+        CliJsonContractTests.Written(json, out _).ShouldBe(CliJsonContractTests.Members("allocations"));
         using (var document = System.Text.Json.JsonDocument.Parse(json[json.IndexOf('{', StringComparison.Ordinal)..(json.LastIndexOf('}') + 1)]))
         {
             var root = document.RootElement;

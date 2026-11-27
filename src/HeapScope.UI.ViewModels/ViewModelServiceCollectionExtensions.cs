@@ -79,7 +79,8 @@ public static class ViewModelServiceCollectionExtensions
         services.AddSingleton(sp => new AboutViewModel(
             sp.GetRequiredService<WorkerOperations>(),
             sp.GetRequiredService<IUserInteraction>(),
-            sp.GetService<HeapScope.Application.Logging.FileLoggerProvider>()?.Directory));
+            sp.GetService<HeapScope.Application.Logging.FileLoggerProvider>()?.Directory,
+            sp.GetService<ILogger<AboutViewModel>>()));
         services.AddSingleton(sp => new LiveViewModel(
             sp.GetRequiredService<MonitorService>(),
             sp.GetRequiredService<ICaptureService>(),
@@ -106,7 +107,9 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<AllocationsViewModel>(),
             sp.GetRequiredService<GridExportService>(),
             sp.GetRequiredService<SettingsViewModel>(),
-            sp.GetRequiredService<LearnViewModel>()));
+            sp.GetRequiredService<LearnViewModel>(),
+            sp.GetRequiredService<IUserInteraction>(),
+            sp.GetService<ILogger<ShellViewModel>>()));
         return services;
     }
 }

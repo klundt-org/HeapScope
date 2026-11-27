@@ -359,10 +359,13 @@ jobs:
           else
             # The container runs as root, and HeapScope's files are private to their owner: hand them back to the runner's
             # user afterwards, so the logs can be uploaded.
+            # First INSTALL.md's Linux steps as written, from the archive, on a container with nothing installed: its apt line
+            # installs the libraries (build/check-install-steps.sh, sprint 4.8 review M10). Then the build as a user gets it.
             docker run --rm -e HEAPSCOPE_DATA_FOLDER=/tmp/heapscope -e Logging__File__Directory=/dump/logs -e OWNER="$(id -u):$(id -g)" \
-              -v "$UNPACKED:/heapscope:ro" -v "$RUNNER_TEMP/dump:/dump" \
-              -v "$PWD/build:/build:ro" ubuntu:24.04 bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-              libicu74 libfontconfig1 > /dev/null && bash /build/check-install.sh /heapscope /dump/leaky.dmp; code=$?; \
+              -v "$UNPACKED:/heapscope:ro" -v "$RUNNER_TEMP/dump:/dump" -v "$RUNNER_TEMP/out:/out:ro" -v "$PWD/INSTALL.md:/INSTALL.md:ro" \
+              -v "$PWD/build:/build:ro" ubuntu:24.04 bash -c 'apt-get update -qq \
+              && bash /build/check-install-steps.sh /INSTALL.md /out/HeapScope-linux-x64.tar.gz /dump/leaky.dmp \
+              && bash /build/check-install.sh /heapscope /dump/leaky.dmp; code=$?; \
               chown -R "$OWNER" /dump; exit $code'
           fi
       - name: Install the CLI's dotnet tool from its file

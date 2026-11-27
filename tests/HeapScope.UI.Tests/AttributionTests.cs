@@ -72,6 +72,19 @@ public class AttributionTests
         }
     }
 
+    // Peer review 4.5 H14: the About page links to the one place to get help, on the repository the notice links to.
+    [Fact]
+    public void About_links_to_getting_help_on_the_repository()
+    {
+        var page = XDocument.Load(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "src", "HeapScope.UI", "Views", "Pages", "AboutPage.axaml"));
+        var help = page.Descendants(s_controls + "AttributionText").Single(e => (string?)e.Attribute(s_x + "Name") == "HelpLink");
+
+        ((string?)help.Attribute("LinkUri")).ShouldBe(global::HeapScope.Contracts.HelpLinks.Support);
+        global::HeapScope.Contracts.HelpLinks.Support.ShouldStartWith(ProductInfo.RepositoryUrl + "/");
+        global::HeapScope.Contracts.HelpLinks.Issues.ShouldBe(ProductInfo.RepositoryUrl + "/issues");
+        ((string?)help.Descendants(s_avalonia + "Run").Single(r => (string?)r.Attribute("Classes") == "link").Attribute("Text")).ShouldBe("Getting help");
+    }
+
     [Theory]
     [InlineData("Light.axaml")]
     [InlineData("Dark.axaml")]

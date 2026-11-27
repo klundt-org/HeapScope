@@ -12,16 +12,16 @@ section 13 links here).
 - [ADR-005](ADR-005-compact-struct-of-arrays-object-graph.md) Compact, struct-of-arrays object graph
 - [ADR-006](ADR-006-on-disk-index-cache.md) On-disk index cache (amended by ADR-041)
 - [ADR-007](ADR-007-out-of-process-worker.md) Out-of-process worker (amended by ADR-025)
-- [ADR-008](ADR-008-headless-core-and-cli.md) Headless core and CLI
+- [ADR-008](ADR-008-headless-core-and-cli.md) Headless core and CLI (amended in sprint 4.8: the JSON output's format)
 - [ADR-009](ADR-009-application-stack.md) Application stack
 - [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries (amended in 3.12: the loader's own object walk, and in 4.5: the second walk of GC handles)
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene
-- [ADR-012](ADR-012-git.md) Git
+- [ADR-012](ADR-012-git.md) Git (amended in sprints 3.7 and 4.8: the release workflow)
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth
-- [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1, 4.1.1 and 4.2: the Linux and macOS meaning; hidden by default)
-- [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment; amended in 4.7: a first load's references in a mapped temporary file)
+- [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1, 4.1.1, 4.2 and 4.8: the Linux and macOS meaning; hidden by default; sudo keeps the user's folder)
+- [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment; amended in 4.7: a first load's references in a mapped temporary file; in 4.8: private and file-backed bytes in the log)
 - [ADR-016](ADR-016-contracts-owns-the-wire-vocabulary.md) Contracts owns the wire vocabulary (added in sprint 0.1)
-- [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035)
+- [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035 and in sprint 4.8)
 - [ADR-018](ADR-018-diffs-compare-per-type-totals-no-object-identity-across-dump.md) Diffs compare per-type totals; no object identity across dumps (added in sprint 1.4; amended by ADR-032)
 - [ADR-019](ADR-019-the-ui-process-is-never-power-throttled.md) The UI process is never power-throttled (added in sprint 1.5)
 - [ADR-020](ADR-020-inspections-are-analysis-plugins-with-declared-capabilities.md) Inspections are Analysis plugins with declared capabilities (added in sprint 1.6, amended in 4.6: what could not be read is said, and in 4.7: the memory an inspection works in)

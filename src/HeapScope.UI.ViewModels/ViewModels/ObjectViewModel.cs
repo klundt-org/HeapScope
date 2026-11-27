@@ -445,6 +445,8 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Object", ex.Message);
             Status = ex.Message;
         }
         catch (Exception ex)

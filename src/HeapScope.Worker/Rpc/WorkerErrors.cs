@@ -56,9 +56,9 @@ internal static class WorkerErrors
         _ => null,
     };
 
-    /// <summary>What the user sees when the worker fails unexpectedly (the owner's wording, 2026-11-14).</summary>
+    /// <summary>What the user sees when the worker fails unexpectedly (the owner's wording, 2026-11-14; where to report it, 4.8 draft).</summary>
     public static string UnexpectedMessage(string id) =>
-        $"The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, send HeapScope's log to support with this id: {id}.";
+        $"The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, report it at {HelpLinks.Issues} with this id: {id}.";
 
     /// <summary>The message users see for an exception with <paramref name="code"/>: plain language and a next step.</summary>
     public static string MessageOf(Exception exception, HeapScopeErrorCode code) => code switch

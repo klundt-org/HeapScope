@@ -82,6 +82,9 @@
         <Button x:Name="CancelExport" DockPanel.Dock="Right" Classes="compact" Content="Cancel export" Margin="8,0,0,0"
                 Command="{Binding Exports.CancelCommand}" IsVisible="{Binding Exports.IsExporting}" />
         <TextBlock x:Name="ExportStatus" DockPanel.Dock="Right" Text="{Binding Exports.Status}" Classes="subtle" Margin="12,0,0,0" />
+        <!-- Sprint 4.8 (M5): for a worker that stops answering; asks first (ShellViewModel). -->
+        <Button DockPanel.Dock="Right" Classes="link" Content="Restart worker" Margin="12,0,0,0" Command="{Binding RestartRunningWorkerCommand}"
+                IsVisible="{Binding CanRestartWorker}" ToolTip.Tip="{x:Static vm:InfoTexts.RestartWorkerTip}" />
         <TextBlock Text="{Binding WorkerStatus}" Classes="subtle" ToolTip.Tip="Shows the state of the worker, the separate process that does the analysis." />
       </DockPanel>
     </Border>

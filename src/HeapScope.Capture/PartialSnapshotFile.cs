@@ -21,6 +21,8 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
+using HeapScope.Core;
+
 namespace HeapScope.Capture;
 
 /// <summary>
@@ -63,7 +65,7 @@ public sealed class PartialSnapshotFile
         ArgumentException.ThrowIfNullOrEmpty(path);
         var fullPath = Path.GetFullPath(path);
         var file = new PartialSnapshotFile(fullPath, DirectoryOf(fullPath, noun), noun);
-        System.IO.Directory.CreateDirectory(file.Directory);
+        PrivateFiles.CreateUserDirectory(file.Directory);
         if (File.Exists(file.FullPath) || File.Exists(file.PartialPath))
         {
             throw new DumpFileExistsException($"{file.FullPath} already exists; HeapScope never overwrites a {noun}. Choose another file name.");

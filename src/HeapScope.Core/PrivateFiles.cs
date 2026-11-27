@@ -30,7 +30,8 @@ namespace HeapScope.Core;
 /// read them. On Windows a file it creates gets an owner-only access list since sprint 3.7 (peer review P15): the profile's
 /// own list covers files under the profile, not a dump's index cache in a folder the user picked (<c>--out</c>). Applies
 /// to what HeapScope writes (sessions, logs, index caches and their sidecars, timelines, traces, exports), not to a folder
-/// the user picked.
+/// the user picked. Run with sudo on Linux, what it creates here, and a file it protects, is given to the user who ran it
+/// (sprint 4.8, H17; <see cref="InvokingUser"/>).
 /// </summary>
 public static class PrivateFiles
 {
@@ -62,6 +63,37 @@ public static class PrivateFiles
         while (missing.TryPop(out var folder))
         {
             Directory.CreateDirectory(folder, FolderMode);
+            InvokingUser.Give(folder);
+        }
+
+        return new DirectoryInfo(path);
+    }
+
+    /// <summary>
+    /// Creates <paramref name="path"/> and missing parents as <see cref="Directory.CreateDirectory(string)"/> does, for a folder the
+    /// user picked (a capture's <c>--out</c>): the umask's mode, and under sudo each new folder is the invoking user's (sprint 4.8).
+    /// </summary>
+    public static DirectoryInfo CreateUserDirectory(string path)
+    {
+        if (InvokingUser.Current is null)
+        {
+            return Directory.CreateDirectory(path);
+        }
+
+        var missing = new Stack<string>();
+        for (var folder = Path.GetFullPath(path); !Directory.Exists(folder); folder = Path.GetDirectoryName(folder)!)
+        {
+            missing.Push(folder);
+            if (Path.GetDirectoryName(folder) is null)
+            {
+                break;
+            }
+        }
+
+        while (missing.TryPop(out var folder))
+        {
+            Directory.CreateDirectory(folder);
+            InvokingUser.Give(folder);
         }
 
         return new DirectoryInfo(path);
@@ -76,6 +108,7 @@ public static class PrivateFiles
     public static FileStream Open(string path, System.IO.FileMode mode, FileAccess access, FileShare share, int bufferSize = 4096, FileOptions options = FileOptions.None, long preallocationSize = 0)
     {
         var settings = new FileStreamOptions { Mode = mode, Access = access, Share = share, BufferSize = bufferSize, Options = options, PreallocationSize = preallocationSize };
+        var created = InvokingUser.Current is not null && mode is not System.IO.FileMode.Open and not System.IO.FileMode.Truncate and not System.IO.FileMode.Append && !File.Exists(path);
         if (!OperatingSystem.IsWindows() && mode is System.IO.FileMode.CreateNew or System.IO.FileMode.Create or System.IO.FileMode.OpenOrCreate)
         {
             settings.UnixCreateMode = FileMode;
@@ -91,6 +124,11 @@ public static class PrivateFiles
         }
 
         var stream = new FileStream(path, settings);
+        if (created)
+        {
+            InvokingUser.Give(path);
+        }
+
         if (OperatingSystem.IsWindows() && mode is System.IO.FileMode.Create)
         {
             // A file that existed before keeps its own list through the step above: it is made owner-only here.
@@ -119,6 +157,8 @@ public static class PrivateFiles
         if (!OperatingSystem.IsWindows())
         {
             File.SetUnixFileMode(path, FileMode);
+            // Under sudo, a dump the runtime wrote as the process's user becomes the invoking user's (sprint 4.8, H17).
+            InvokingUser.Give(path);
             return;
         }
 

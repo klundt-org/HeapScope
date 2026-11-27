@@ -128,6 +128,11 @@ notes who can capture whom.
   tabs, Ctrl+F for the filter, Ctrl+L for the analysis path, F5 to refresh.
 - **Appearance.** HeapScope follows your system's light or dark theme, and changes with it while it runs. To choose one,
   start the app with `--Ui:Theme Light` or `--Ui:Theme Dark`.
+- **A missing DAC.** A dump from a .NET version not installed here needs that runtime's DAC. Install the runtime, or copy
+  its DAC into a folder of yours and choose it as the DAC folder on the Settings page (`heapscope-cli settings
+  --saved-dac-folder <folder>`, or `--dac-folder` for one run). Download missing DACs from Microsoft, on the same page, gets
+  it from Microsoft's symbol server instead; it is off by default and asks first, since a download sends the name, time stamp and
+  size of each module it asks for (the runtime's, and any whose image the dump lacks). [INSTALL](../INSTALL.md#a-missing-dac) says where HeapScope looks and how to copy one.
 
 ## Logs and getting help
 
@@ -137,11 +142,16 @@ asks you to confirm, or `heapscope-cli settings --dump-values-in-logs on --yes`;
 whether it holds them; the text you type in filters, unless you turn that off with Include filter text in logs or
 `heapscope-cli settings --filter-text-in-logs off`): `%LOCALAPPDATA%\HeapScope\logs` on Windows, `~/.local/share/HeapScope/logs` on Linux and
 `~/Library/Application Support/HeapScope/logs` on macOS (under the folder `HEAPSCOPE_DATA_FOLDER` names, when set).
-The About page shows the folder and copies the version details for a support request. For more detail in one run,
+The About page shows the folder and copies the version details for an issue. For more detail in one run,
 start the app with `--Logging:File:MinimumLevel Debug`, or set the environment variable
 `Logging__File__MinimumLevel=Debug` (the CLI reads settings from the environment, not from its arguments). Logs are kept
-14 days. They hold file paths and type names, so share them only with someone you trust. Purge logs on the Settings page
+14 days. They hold file paths and type names, so share them only with someone you trust, and in a public issue paste only the
+lines around the message (SUPPORT.md says how). Purge logs on the Settings page
 (or `heapscope-cli purge logs`) deletes them, but the ones other running HeapScope processes write (the app's own log goes
 on in a new file, so all it wrote before goes too; after you turn dump values off, it waits two seconds so the last values
 go with it); Purge all deletes the logs,
 every session of the library and the bookmarks, never a dump you opened from your own folders.
+
+If HeapScope closes unexpectedly, it writes a crash report beside its logs and offers it at its next start; its error and first lines
+of stack can go into an issue. To get help, open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues) with the details Copy details
+gives (the version, the system and the id of the last unexpected failure); [SUPPORT.md](../SUPPORT.md) says what to include and which log lines to paste (issues are public). The About page links to it.

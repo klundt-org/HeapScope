@@ -208,9 +208,32 @@ public sealed class DacLocatorTests : IDisposable
 
         exception.Message.ShouldContain(".NET 8.0.11");
         exception.Message.ShouldContain(DacName);
-        exception.Message.ShouldContain("Symbols:AllowMicrosoftSymbolServer");
         exception.Message.ShouldContain(@"C:\a\mscordaccore.dll");
         exception.RuntimeVersion.ShouldBe("8.0.11");
+    }
+
+    // Sprint 4.8 review H2: a DAC folder the search leaves out is named in the refusal, with why.
+    [Fact]
+    public void A_dac_folder_that_is_not_searched_says_so()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The locator's rules are checked with Windows paths here.");
+
+        DacLocator.DacFolderNotSearched(new ClrMdLoaderOptions { DacFolder = @"\\server\dacs" }).ShouldNotBeNull()
+            .ShouldBe(@"\\server\dacs (the DAC folder: not searched, since it is not on a local fixed disk; copy the DAC to a folder on one)");
+        DacLocator.DacFolderNotSearched(new ClrMdLoaderOptions { DacFolder = Path.GetTempPath() }).ShouldBeNull();
+        DacLocator.DacFolderNotSearched(new ClrMdLoaderOptions()).ShouldBeNull();
+    }
+
+    // Sprint 4.8 (H15): the message is shared by the app and the command line, so it names where each front end sets the folder
+    // and the opt-in, and no setting the app has no page for.
+    [Fact]
+    public void Missing_component_message_names_the_settings_page_and_the_command_line_options()
+    {
+        var message = new RuntimeComponentMissingException("8.0.11", DacName, []).Message;
+
+        message.ShouldContain("the DAC folder (on the Settings page in the app, or --dac-folder on the command line)");
+        message.ShouldContain("turn on Download missing DACs from Microsoft on the Settings page, or add --allow-symbol-server on the command line");
+        message.ShouldNotContain("Symbols:");
     }
 
     [Fact]

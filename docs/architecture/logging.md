@@ -16,6 +16,32 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   to debug output, Avalonia's warnings (area, template and source type only) and failures before its host exists; the
   CLI also writes Warning and up to stderr. The worker logs single-line records to stderr, which the client forwards
   into its own log.
+- **When the log cannot help (sprint 4.8, peer review 4.5 M13)**: a log that cannot be written is said once, since it cannot say it
+  itself (`FileLoggerProvider.BecameUnavailable`: the CLI on stderr, the app in a message), with the folder, the error and what to
+  do. When the app ends on an unhandled exception it writes a crash report beside the logs (`CrashReport`:
+  `heapscope-<date>-ui-<pid>-crash-<time>.log`, the build, the system, where and the exception), which its next start offers once
+  with a way to show it; it is a log file, so the 14 days and Purge logs apply. A failure a view shows is logged as shown
+  ("{Section} shown as: {Message}") where no other line says it. The worker's start is measured ("Worker started in N ms", the
+  first of a run said), and the status bar says a first start after an install can take a while; a start that fails says how long it tried. Copy details on the About
+  page carries the id of the last unexpected worker failure (`ErrorIds`), which names its lines in the worker's log.
+- **What sprint 4.8 added to the logs** (review M18), so a contested DAC, memory mode or restart has its line:
+  - The worker's DAC lookup, the first time a load uses it and whenever it changes: "DAC lookup from here on: DAC folder X (where
+    from); symbol server downloads on|off (where from)", where from being the command line or appsettings (the client passes both
+    as options), Settings, none, or "a saved one is ignored under sudo"; a warning when downloads are on.
+  - The Settings page and `heapscope-cli settings`: "Setting saved to {file}: DAC folder ..." and "... symbol server downloads on,
+    confirmed by the user ..." (a warning), "Asked to download missing DACs ...; the user answered ...", "DAC folder not saved:
+    {reason}", and the client's warning at a worker's start when the saved opt-in is on.
+  - A refusal for a missing DAC lists a DAC folder the search left out, with why ("not searched, since it is not on a local fixed
+    disk").
+  - The memory mode: "Memory mode {mode}: graph N MB (P MB private, F MB in its references' file), budget ...", and after a
+    mapped switch "Mapped switch: after the drop the worker holds N MB private, the GC heap H MB". A load whose references went to
+    memory gets the snapshot note that says why, beside the warning logged when it happened.
+  - Run with sudo on Linux: every log's header names the data folder's source ("the default of {user}, who ran it with sudo").
+    A full dump opened as administrator or root gets the note that its DAC runs with those rights.
+  - Restart worker: "Restart worker pressed in {the crash banner|the status bar}", "Asked to restart the worker (the status bar);
+    the user answered ...", "Worker restart: stopping generation N (pid P, ...)", and for each call it ended "A call to the worker
+    ended because the worker was stopped for a restart or a close", whose message says so instead of "stopped unexpectedly".
+  - "Offered the report of a run that closed unexpectedly, {report} ({n} found); the user chose ...".
 - **Correlation (sprint 2.3.7)**: every job (`JobTracker`: open, capture) and every CLI command runs under an
   `Activity`; its trace id is a scope of every line it causes, in the front end and, through StreamJsonRpc's activity
   tracing (W3C trace context in each request), in the worker. Not every app call has one yet (checked in sprint 3.12): the
@@ -137,7 +163,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   the data folder (`HeapScopeSettings`), and every process follows a change within a second (`LogPrivacy`): the worker's
   provenance lines, the CLI's command line (by option: a `--filter` value follows the setting whatever it looks like) and
   the growth gate's line. Logs are local evidence for support; they are not meant to be
-  published, since paths name the user and the machine. A result meant to be shared goes through the shared analysis
+  published, since paths name the user and the machine: SUPPORT.md (sprint 4.8 review H4) asks for the lines around a message in a
+  public issue, never a whole log, and offers a private way for one. A result meant to be shared goes through the shared analysis
   export (ADR-026), which strips names by default.
 - Exceptions are caught at boundaries only: worker RPC methods, view model commands, CLI command handlers.
   Inner code throws specific exceptions (`CapabilityNotSupportedException`, `SnapshotFormatException`,

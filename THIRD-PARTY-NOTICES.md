@@ -26,9 +26,9 @@ under the MIT License, whose text is below.
 
 | Package | Version | Copyright |
 |---|---|---|
-| Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Headless and their platform packages (Avalonia.Skia, Avalonia.HarfBuzz, Avalonia.Win32, Avalonia.X11, Avalonia.FreeDesktop, Avalonia.FreeDesktop.AtSpi, Avalonia.Native, Avalonia.Remote.Protocol) | 12.1.5 | The AvaloniaUI Project |
+| Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Headless and their platform packages (Avalonia.Skia, Avalonia.HarfBuzz, Avalonia.Win32, Avalonia.X11, Avalonia.FreeDesktop, Avalonia.FreeDesktop.AtSpi, Avalonia.Native, Avalonia.Remote.Protocol) | 12.1.6 | The AvaloniaUI Project |
 | Avalonia.Controls.DataGrid | 12.1.2 | The AvaloniaUI Project |
-| Avalonia.Fonts.Inter (the package; the Inter fonts in it are under the SIL Open Font License, below) | 12.1.5 | The AvaloniaUI Project |
+| Avalonia.Fonts.Inter (the package; the Inter fonts in it are under the SIL Open Font License, below) | 12.1.6 | The AvaloniaUI Project |
 | Azure.Core (via ClrMD) | 1.53.0 | Microsoft Corporation |
 | Azure.Identity (via ClrMD) | 1.21.0 | Microsoft Corporation |
 | CommunityToolkit.Mvvm | 8.4.2 | .NET Foundation and Contributors |
@@ -37,7 +37,7 @@ under the MIT License, whose text is below.
 | Microsoft.Diagnostics.NETCore.Client | 0.2.750501 | Microsoft Corporation |
 | Microsoft.Diagnostics.Runtime (ClrMD) | 4.2.751201 | Microsoft Corporation |
 | Microsoft.Diagnostics.Tracing.TraceEvent | 4.0.2 | Microsoft Corporation (see the note on native binaries below) |
-| Microsoft.Extensions.* (Hosting, Configuration, DependencyInjection, Logging, Options, Primitives, FileProviders, FileSystemGlobbing, Diagnostics) | 10.0.14 | Microsoft Corporation |
+| Microsoft.Extensions.* (Hosting, Configuration, DependencyInjection, Logging, Options, Primitives, FileProviders, FileSystemGlobbing, Diagnostics) | 10.0.15 | Microsoft Corporation |
 | Microsoft.Identity.Client, Microsoft.Identity.Client.Extensions.Msal (via ClrMD) | 4.83.1 | Microsoft Corporation |
 | Microsoft.IdentityModel.Abstractions (via ClrMD) | 8.14.0 | Microsoft Corporation |
 | Microsoft.NET.StringTools | 17.6.3 | Microsoft Corporation |
@@ -50,9 +50,9 @@ under the MIT License, whose text is below.
 | SkiaSharp, HarfBuzzSharp and their native assets (via Avalonia) | 3.119.4, 8.3.1.3 | Microsoft Corporation |
 | StreamJsonRpc | 2.26.150 | Microsoft Corporation |
 | System.ClientModel, System.Memory.Data (via ClrMD) | 1.10.0, 10.0.3 | Microsoft Corporation |
-| System.CommandLine | 2.0.14 | Microsoft Corporation |
-| System.Diagnostics.EventLog | 10.0.14 | Microsoft Corporation |
-| System.IO.Hashing | 10.0.14 | Microsoft Corporation |
+| System.CommandLine | 2.0.15 | Microsoft Corporation |
+| System.Diagnostics.EventLog | 10.0.15 | Microsoft Corporation |
+| System.IO.Hashing | 10.0.15 | Microsoft Corporation |
 | System.Reflection.TypeExtensions | 4.7.0 | Microsoft Corporation |
 | System.Security.Cryptography.ProtectedData (via ClrMD) | 4.5.0 | Microsoft Corporation |
 | Tmds.DBus.Protocol (via Avalonia, Linux) | 0.94.1 | Tom Deseyn |
@@ -107,10 +107,10 @@ HeapScope ships no code under the GPL or the LGPL. This is checked again wheneve
 
 ### The Inter typeface inside Avalonia.Fonts.Inter
 
-The package Avalonia.Fonts.Inter 12.1.5 is MIT (The AvaloniaUI Project). The fonts it holds, Inter 3.019, are licensed
+The package Avalonia.Fonts.Inter 12.1.6 is MIT (The AvaloniaUI Project). The fonts it holds, Inter 3.019, are licensed
 under the SIL Open Font License, Version 1.1: Copyright 2016-2020 The Inter Project Authors,
 https://github.com/rsms/inter. "Inter" is a trademark of Rasmus Andersson. The fonts ship unmodified inside
-`Avalonia.Fonts.Inter.dll`; the full license text is in `licenses/Avalonia.Fonts.Inter.12.1.5/OFL.txt` in a published build
+`Avalonia.Fonts.Inter.dll`; the full license text is in `licenses/Avalonia.Fonts.Inter.12.1.6/OFL.txt` in a published build
 and in `build/licenses/Avalonia.Fonts.Inter/OFL.txt` in the source. The Open Font License covers the fonts only, not
 HeapScope or anything else in the build.
 

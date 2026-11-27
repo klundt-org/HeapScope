@@ -64,7 +64,8 @@ public sealed class TrustedDacs
     /// <param name="folder">The folder of the file; null for HeapScope's own data folder in the user's profile.</param>
     public TrustedDacs(string? folder = null, ILogger<TrustedDacs>? logger = null)
     {
-        Path = System.IO.Path.Combine(folder ?? Bookmarks.BookmarkStore.DefaultFolder, FileName);
+        // Run with sudo, root's own list, never the invoking user's, which that user could write (sprint 4.8 review H1).
+        Path = System.IO.Path.Combine(folder ?? Core.InvokingUser.TrustFolder ?? Bookmarks.BookmarkStore.DefaultFolder, FileName);
         _logger = logger ?? (ILogger)NullLogger.Instance;
     }
 

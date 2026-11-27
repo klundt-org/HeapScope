@@ -1,0 +1,34 @@
+name: Something does not work
+description: An error, a crash, a hang, or something that will not open or capture.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never attach a memory dump, gcdump, trace or index cache: they hold everything the process had in memory.
+        An issue is public: paste only the log lines around the message, after you have read them and replaced what you do not want public (your user name and paths, names from your code), never a whole log. SUPPORT.md says what a log holds.
+  - type: textarea
+    id: details
+    attributes:
+      label: HeapScope's details
+      description: Paste what About, Copy details puts on the clipboard (or heapscope-cli --version and your system).
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened, with the message HeapScope showed and its id if it has one.
+    validations:
+      required: true
+  - type: input
+    id: snapshot
+    attributes:
+      label: The snapshot
+      description: A full dump, a gcdump or a core dump, and the .NET version of the process, if you know them.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines (optional)
+      description: The lines around the message's id from HeapScope's log, after you have replaced what you do not want public. Never a whole log.
+      render: text

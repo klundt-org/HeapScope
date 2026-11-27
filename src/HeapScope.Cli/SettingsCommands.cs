@@ -31,7 +31,9 @@ namespace HeapScope.Cli;
 /// <summary>
 /// The <c>settings</c> and <c>purge</c> commands (sprint 3.12 review M4, ADR-008: every feature in the UI and on the command
 /// line): the Settings page's Include filter text in logs, Purge logs and Purge all, for a user without the app (CI). Since
-/// sprint 3.13.2, Include dump values in logs too, which turns on only with --yes (the app asks instead).
+/// sprint 3.13.2, Include dump values in logs too, which turns on only with --yes (the app asks instead). Since sprint 4.8 (H15),
+/// the DAC folder (<c>--saved-dac-folder</c>, since the run's own <c>--dac-folder</c> is taken) and Download missing DACs from
+/// Microsoft (<c>--symbol-server</c>, on only with --yes).
 /// </summary>
 internal static partial class CliCommands
 {
@@ -47,10 +49,21 @@ internal static partial class CliCommands
             Description = "Write the values HeapScope reads from dumps (field values and string text) into its logs (on, with --yes) or only their length (off, the default). Dumps can hold passwords, tokens and personal data. The app, the worker and the command line follow it.",
         };
         dumpValues.AcceptOnlyFromAmong("on", "off");
-        var yes = new Option<bool>("--yes") { Description = "Confirm turning on --dump-values-in-logs; without it, the command says what it would do and changes nothing." };
+        var dacFolder = new Option<string?>("--saved-dac-folder")
+        {
+            Description = "Save the folder on this computer searched for a dump's DAC when its runtime is not installed here, or none to clear it. The app and the command line follow it; --dac-folder overrides it for one run.",
+        };
+        var symbolServer = new Option<string?>("--symbol-server")
+        {
+            Description = "Download a missing DAC from Microsoft's symbol server (on, with --yes) or never (off, the default). A download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks), never dump contents. The app and the command line follow it.",
+        };
+        symbolServer.AcceptOnlyFromAmong("on", "off");
+        var yes = new Option<bool>("--yes") { Description = "Confirm turning on --dump-values-in-logs or --symbol-server; without it, the command says what it would do and changes nothing." };
         var command = new Command("settings", "Show HeapScope's settings, or change one. They apply to the app and the command line on this machine.");
         command.Options.Add(filterText);
         command.Options.Add(dumpValues);
+        command.Options.Add(dacFolder);
+        command.Options.Add(symbolServer);
         command.Options.Add(yes);
         command.SetAction((parseResult, ct) => RunAsync(parseResult, services, async context =>
         {
@@ -63,6 +76,34 @@ internal static partial class CliCommands
                 await context.Output.WriteLineAsync(DumpValuesQuestion).ConfigureAwait(false);
                 await WriteSettingsAsync(context, settings).ConfigureAwait(false);
                 return Success;
+            }
+
+            if (parseResult.GetValue(symbolServer) == "on" && !parseResult.GetValue(yes))
+            {
+                context.Logger.LogInformation("Settings not changed: --symbol-server on needs --yes");
+                await context.Output.WriteLineAsync(SymbolServerQuestion).ConfigureAwait(false);
+                await WriteSettingsAsync(context, settings).ConfigureAwait(false);
+                return Success;
+            }
+
+            if (parseResult.GetValue(dacFolder) is { } folder)
+            {
+                try
+                {
+                    settings.SetDacFolder(string.Equals(folder.Trim(), "none", StringComparison.OrdinalIgnoreCase) ? null : folder);
+                }
+                catch (ArgumentException ex)
+                {
+                    // Checked before anything is saved, so nothing else changes either.
+                    context.Logger.LogInformation("Settings not changed: {Reason}", ex.Message);
+                    await context.Error.WriteLineAsync("Nothing was changed: " + ex.Message).ConfigureAwait(false);
+                    return Usage;
+                }
+            }
+
+            if (parseResult.GetValue(symbolServer) is { } allow)
+            {
+                settings.SetAllowMicrosoftSymbolServer(allow == "on");
             }
 
             if (parseResult.GetValue(filterText) is { } value)
@@ -89,8 +130,15 @@ internal static partial class CliCommands
 
     private static async Task WriteSettingsAsync(CliContext context, SettingsService settings)
     {
+        await context.Output.WriteLineAsync($"DAC folder: {settings.DacFolder ?? "none"}{(settings.ConfiguredDacFolder is { } configured ? $" (this run uses {configured}, from --dac-folder or appsettings)" : string.Empty)}").ConfigureAwait(false);
+        await context.Output.WriteLineAsync($"Download missing DACs from Microsoft: {(settings.AllowMicrosoftSymbolServer ? "on" : "off")}{(settings.ConfiguredSymbolServer ? " (on for this run, from --allow-symbol-server or appsettings)" : string.Empty)}").ConfigureAwait(false);
         await context.Output.WriteLineAsync($"Include filter text in logs: {(settings.IncludeFilterTextInLogs ? "on" : "off")}").ConfigureAwait(false);
         await context.Output.WriteLineAsync($"Include dump values in logs: {(settings.IncludeDumpValuesInLogs ? "on" : "off")}").ConfigureAwait(false);
+        if (HeapScope.Application.Settings.SettingsService.UnderSudo)
+        {
+            await context.Output.WriteLineAsync("Run with sudo, HeapScope ignores the saved DAC folder and download choice (your own programs can change this file): give --dac-folder or --allow-symbol-server instead.").ConfigureAwait(false);
+        }
+
         await context.Output.WriteLineAsync($"Settings file: {settings.SettingsPath}").ConfigureAwait(false);
         await context.Output.WriteLineAsync($"Log folder: {settings.LogFolder}").ConfigureAwait(false);
     }
@@ -98,6 +146,10 @@ internal static partial class CliCommands
     /// <summary>What --dump-values-in-logs on without --yes says (sprint 3.13.2; approved by the owner on 2026-11-19).</summary>
     internal const string DumpValuesQuestion =
         "Turning this on writes the values HeapScope reads from your dumps (field values and string text) into its logs, and they can include passwords, tokens and personal data. The logs stay on this machine and are never sent anywhere, but anyone you give a log to can read them. Nothing was changed: run it again with --yes to turn it on.";
+
+    /// <summary>What --symbol-server on without --yes says (sprint 4.8, a draft in docs/design/info-text.md).</summary>
+    internal const string SymbolServerQuestion =
+        "Turning this on lets HeapScope download a missing DAC from Microsoft's symbol server when no DAC on this computer matches a dump's runtime. Each download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents. The app and the command line on this computer follow it. Nothing was changed: run it again with --yes to turn it on.";
 
     private static Command BuildPurgeCommand(Func<IServiceProvider> services)
     {

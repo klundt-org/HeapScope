@@ -149,6 +149,15 @@ HeapScope is in pre-release. Plainly:
 Download a release for Windows or Linux, with no .NET needed, or get the CLI as a `dotnet tool`. Untested macOS packages
 are there too. [INSTALL.md](INSTALL.md) takes you from download to your first snapshot.
 
+Your first answer, in a few minutes:
+1. Open the app and go to **Learn**, choose a lesson and press **Start lesson**: it starts HeapScope's own sample, a process
+   that leaks on purpose, and takes you through finding the leak; nothing of yours is needed.
+2. Then your own process: on **Processes**, choose it and press **Capture dump** (or `heapscope-cli capture --pid <pid> --out app.dmp`).
+3. Read the **Inspections** tab first: each finding says its likely cause and fix. The **Snapshot** tab shows what fills the
+   heap by type, and **Retainers** why it is still there (or `heapscope-cli inspect app.dmp` and `heapscope-cli paths app.dmp --type <type>`).
+
+When something does not work, [Getting help](SUPPORT.md) says where to ask and what to include.
+
 Or build it from source:
 
 - Build: `dotnet build HeapScope.sln`
@@ -160,8 +169,15 @@ Or build it from source:
 
 - [User guide](docs/USER-GUIDE.md): how each part works, the shortcuts and filters, logs and getting help.
 - [Install](INSTALL.md) and [release notes](RELEASE-NOTES.md).
+- [Trying HeapScope](docs/trial.md): what to try before the first full release, how to report it, and what is known not to work.
+- [The command line's JSON output](docs/cli-output.md): what a script can rely on.
 - [Developer guide](docs/DEVELOPER.md), [architecture](docs/ARCHITECTURE.md) and [how to contribute](CONTRIBUTING.md).
 - [Security policy](SECURITY.md).
+
+## Getting help
+
+Questions, problems and results that look wrong: open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues).
+[SUPPORT.md](SUPPORT.md) says what to include, and which lines of HeapScope's log to paste (issues are public). Never attach a memory dump.
 
 ## License
 

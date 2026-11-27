@@ -55,6 +55,12 @@ public sealed class EdgeStoreTests : IDisposable
         builder.EdgesKept.ShouldStartWith("written to a temporary file and mapped (");
         builder.EdgesKept.ShouldContain(OperatingSystem.IsWindows() ? Path.Combine(_folder, "edges-") : "unnamed in " + _folder);
         new HeapGraphBuilder().EdgesKept.ShouldBeNull();
+
+        // Sprint 4.8 (F13): the references are the file's, the rest private; built in memory, all private.
+        onDisk.FileBackedColumnBytes.ShouldBe(onDisk.Edges.ByteLength);
+        onDisk.PrivateColumnBytes.ShouldBe(onDisk.ColumnBytes - onDisk.Edges.ByteLength);
+        inMemory.FileBackedColumnBytes.ShouldBe(0);
+        inMemory.PrivateColumnBytes.ShouldBe(inMemory.ColumnBytes);
     }
 
     [Fact]

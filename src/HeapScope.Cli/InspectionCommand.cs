@@ -171,7 +171,8 @@ internal static partial class CliCommands
                     l.Result?.Bytes,
                     l.Result?.WastedBytes,
                     l.Result?.Note,
-                })).ConfigureAwait(false);
+                }),
+                "Inspections").ConfigureAwait(false);
             return Success;
         }
 

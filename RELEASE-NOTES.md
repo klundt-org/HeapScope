@@ -22,6 +22,27 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.8.0: Ready to release (sprint 4.8)
+
+- **Getting help** has one place: HeapScope's issues on GitHub, with forms for a bug, a wrong result and a question, and SUPPORT.md
+  saying what to include. Issues are public, so it asks for the lines of a log around a message, never a whole log. The About page
+  links to it, and Copy details carries the id of the last unexpected failure.
+- **A missing DAC is not a dead end**: the Settings page (and `heapscope-cli settings`) has the DAC folder and, off by default and
+  asking first, downloads from Microsoft's symbol server. A folder HeapScope cannot search is refused or named, and INSTALL says
+  where HeapScope looks and how to copy a DAC.
+- **sudo on Linux** works as written: HeapScope keeps your data folder and gives you what it writes, the dump included; the advice
+  gives the full path. Run that way, it ignores a DAC folder and download choice saved in the app, which your own programs could change.
+- **The command line's JSON** is versioned: every `--format json` output starts with `"Format": 1` (docs/cli-output.md). `inspect`
+  without a name now writes an object whose `Inspections` member is the list it wrote before.
+- **The worker**: a crash banner stays until you dismiss it; Restart worker in the status bar ends a worker that stops answering
+  (it asks first), and what it ends says so.
+- **When something goes wrong**: the app writes a crash report and offers it at its next start; a log that cannot be written is said
+  once; a full dump opened as administrator or root says its DAC runs with those rights.
+- **Large dumps**: after a first load switches to mapped mode the worker returns the graph's memory (50 MB kept on a 2 GB dump, from
+  743 MB).
+- **Releases** are built, run and attested before they are public.
+- **Limits**: the capture refusal's sudo advice does not give the full path yet; the macOS packages are still untested.
+
 ## 4.7.0: Runtimes, Linux and large heaps (sprint 4.7)
 
 - **Dumps of .NET 8 and 9** are tested as .NET 10's are, on Windows and Linux. A dump of another version opens with a note that

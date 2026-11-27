@@ -195,7 +195,7 @@ perf/
 2.3.6; no macOS runners since 2026-10-31).
 .github/workflows/fuzz.yml     Nightly mutation tests with more iterations (sprint 3.7).
 .github/workflows/release.yml  Release builds (win-x64 .zip; linux-x64 and untested macOS .tar.gz; the CLI's dotnet tool), SBOM, checksums
-                               and attestations (sprint 3.7; ADR-039).
+                               and attestations (sprint 3.7; ADR-039); a draft, built and run, published last (sprint 4.8).
 .github/workflows/skia-native.yml SkiaSharp's native library built without the DNG SDK and piex (ADR-038).
 fixtures/
   Leaks                        Shared leak implementations and semantic fixtures (namespace Fixtures.Leaks).
@@ -274,7 +274,9 @@ flowchart TD
 Rules:
 - Core references nothing, not even Microsoft.Extensions.*. It holds domain types and data structures, plus the data
   folder, private files and user settings every process shares, and (since 4.7) the readings of memory every process needs: it
-  calls the system for those only (GlobalMemoryStatusEx, /proc and cgroup files, sysctl, proc_pid_rusage), nothing else. The
+  calls the system for those only (GlobalMemoryStatusEx, /proc and cgroup files, sysctl, proc_pid_rusage), and since 4.8, run with
+  sudo on Linux, to know the invoking user and give that user what HeapScope writes (`InvokingUser`: /etc/passwd and `lchown`),
+  nothing else. The
   graph builder may create a private temporary file and map it read-only (the base library's memory-mapped files, its only
   `unsafe` code), for a load's references (graph-format.md 6.3).
   ThirdParty.GcDump references no Microsoft.Extensions.* either.

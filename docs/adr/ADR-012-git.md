@@ -22,3 +22,7 @@
 - Amended in sprint 3.7 (peer review P13, P16, P17): a nightly fuzz workflow (`fuzz.yml`, on `develop`), a release
   workflow run by a published release or by hand as a dry run (`release.yml`), Actions pinned to commits, locked
   restores, Dependabot; the Linux job's DAC trust check fails rather than skips (`HEAPSCOPE_REQUIRE_FIXTURE`).
+- Amended in sprint 4.8 (peer review 4.5 M1): `release.yml` runs by hand only and makes the release itself: a draft first, then
+  every build, the archives that can run here run as a user gets them, an attestation of each file by name, an upload that
+  replaces nothing, and the draft published last. A release published by hand no longer starts it. It runs on the tag (`--ref vX.Y.Z`), so the provenance names the tag's commit, and every job builds the commit resolved once (review H6). Tag protection and
+  immutable releases are repository settings the owner applies (DEVELOPER.md 7).

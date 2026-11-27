@@ -28,6 +28,7 @@ using HeapScope.Application.Sessions;
 using HeapScope.Application.Tutorial;
 using HeapScope.Contracts;
 using HeapScope.UI.Services;
+using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
@@ -174,6 +175,8 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException or UnauthorizedAccessException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Process list", ex.Message);
             Status = "The process list could not be read: " + ex.Message;
         }
         finally
@@ -206,6 +209,8 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (SampleRefusedException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Sample", ex.Message);
             SampleStatus = ex.Message;
         }
     }
@@ -241,6 +246,8 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (SampleRefusedException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Sample", ex.Message);
             Status = ex.Message;
         }
         finally
@@ -359,16 +366,22 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (CaptureFailedException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Recording", ex.Message);
             Status = ex.Message;
         }
         catch (HeapScope.Application.Allocations.TraceRecordedButNotReadException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Recording", ex.Message);
             // The trace is kept: say where, and how to open it later (the 2.5 review).
             LastRecordingPath = ex.Path;
             Status = ex.Message;
         }
         catch (HeapScope.Application.Workers.WorkerException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Recording", ex.Message);
             Status = ex.Message;
         }
         finally
@@ -407,6 +420,8 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (CaptureFailedException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Capture", ex.Message);
             Status = ex.Message;
         }
         finally

@@ -109,6 +109,14 @@ public sealed class SettingsCommandTests
     }
 
     [Fact]
+    public void The_symbol_server_question_is_the_draft_in_the_table()
+    {
+        var table = File.ReadAllText(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "docs", "design", "info-text.md"));
+
+        table.ShouldContain("`settings --symbol-server on` without `--yes` (H15) | " + CliCommands.SymbolServerQuestion + " |");
+    }
+
+    [Fact]
     public void The_refusal_is_the_one_the_owner_approved()
     {
         var table = File.ReadAllText(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "docs", "design", "info-text.md"));
