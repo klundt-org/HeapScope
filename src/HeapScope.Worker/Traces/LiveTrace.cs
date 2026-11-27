@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Traces;
 
-/// <summary>A trace the worker follows while it is recorded (sprint 4.3, ADR-037), with the memory reserved for it.</summary>
+/// <summary>A trace the worker follows while it is recorded (ADR-037), with the memory reserved for it.</summary>
 internal sealed class LiveTrace : IDisposable
 {
     /// <summary>How often the log gets where a live trace stands.</summary>

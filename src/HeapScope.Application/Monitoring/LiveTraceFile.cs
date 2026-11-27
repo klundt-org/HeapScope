@@ -23,7 +23,7 @@
 
 namespace HeapScope.Application.Monitoring;
 
-/// <summary>A run's allocation trace that is being written (sprint 4.3, ADR-037): the worker can follow it.</summary>
+/// <summary>A run's allocation trace that is being written (ADR-037): the worker can follow it.</summary>
 /// <param name="Path">The trace, under its final name.</param>
 /// <param name="NamesPath">A short trace that names the methods compiled before, deleted when the recording ends; null without one.</param>
 public sealed record LiveTraceFile(string Path, string? NamesPath);

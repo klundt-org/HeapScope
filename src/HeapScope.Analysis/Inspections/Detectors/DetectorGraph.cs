@@ -28,7 +28,7 @@ using HeapScope.Core.Graph;
 
 namespace HeapScope.Analysis.Inspections;
 
-// The leak detectors (sprint 2.6, ADR-020 amended): inspections of kind Leak that name a leak pattern, its cause and its
+// The leak detectors (ADR-020 amended): inspections of kind Leak that name a leak pattern, its cause and its
 // fix. Each counts reachable objects only (garbage the GC has not collected is no leak), reads the fields it needs
 // through the typed reader, and logs its thresholds as parameters and, as its basis, what it scanned, what it left out
 // and why, and every row it reports, so a disputed finding is traced to its rule and inputs.
@@ -94,7 +94,7 @@ internal static class DetectorGraph
         return top.Count > shown ? string.Create(CultureInfo.InvariantCulture, $"{text} and {top.Count - shown:N0} more types") : text;
     }
 
-    /// <summary>"a; b; c and 12 more": a log line's list of rows, cut at <see cref="InspectionCounts.ListedCap"/> (sprint 3.12, B7).</summary>
+    /// <summary>"a; b; c and 12 more": a log line's list of rows, cut at <see cref="InspectionCounts.ListedCap"/>.</summary>
     public static string Listed(IEnumerable<string> items)
     {
         var all = items.ToList();

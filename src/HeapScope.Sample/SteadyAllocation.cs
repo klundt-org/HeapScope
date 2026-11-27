@@ -24,10 +24,10 @@
 namespace HeapScope.Sample;
 
 /// <summary>
-/// The steady allocation scenario (sprint 3.13): a background thread prices orders without end. Each order's lines live on
+/// The steady allocation scenario: a background thread prices orders without end. Each order's lines live on
 /// the stack and its priced result on the heap for a moment, and one in a hundred results is kept in a bounded window, so an
 /// allocation trace names <see cref="PricedOrder"/> as the type allocated most and <see cref="PriceOrder"/> as its call site,
-/// while the heap stays about the same size. (Review H1: the lines were objects too, and outnumbered the result.)
+/// while the heap stays about the same size. (the lines were objects too, and outnumbered the result.)
 /// </summary>
 internal static class SteadyAllocation
 {

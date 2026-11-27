@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Page faults per load phase (LoadMeter, sprint 3.12 R5) through a Windows call. -->
+    <!-- Page faults per load phase (LoadMeter) through a Windows call. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.Diagnostics.Runtime" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The one path rule (sprint 3.12 review M3), compiled here as an internal copy: this project cannot reference Contracts. -->
+    <!-- The one path rule, compiled here as an internal copy: this project cannot reference Contracts. -->
     <Compile Include="..\HeapScope.Contracts\PathIdentity.cs" Link="Shared\PathIdentity.cs" />
   </ItemGroup>
   <PropertyGroup>

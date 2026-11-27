@@ -65,7 +65,7 @@ internal static class RuntimeLibrary
     /// <summary>A runtime library's embedded file version, read once per file and write time (a list reads every process's).</summary>
     public static string? FileVersion(string library)
     {
-        // Sprint 4.1 review H5: the path comes from the target's mappings; as root HeapScope reads only a regular file of a sane size.
+        // The path comes from the target's mappings; as root HeapScope reads only a regular file of a sane size.
         if (!TargetFiles.IsReadable(library))
         {
             return null;

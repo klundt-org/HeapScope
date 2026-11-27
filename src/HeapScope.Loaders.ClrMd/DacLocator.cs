@@ -33,15 +33,14 @@ namespace HeapScope.Loaders.ClrMd;
 /// <param name="ImageSize">PE image size the dump records for the DAC; 0 when unknown.</param>
 /// <param name="RuntimeVersion">Version of the dumped runtime, for example <c>10.0.13</c>.</param>
 /// <param name="RuntimeDirectory">Folder of the runtime in the dumped process (a path on the machine that took the dump).</param>
-/// <param name="BuildId">The identity a Linux or macOS dump records for the DAC (ELF build id, Mach-O UUID; sprint
-/// 2.3.5); null for a Windows DAC, which is matched by <paramref name="TimeStamp"/> and <paramref name="ImageSize"/>.</param>
+/// <param name="BuildId">The identity a Linux or macOS dump records for the DAC (ELF build id, Mach-O UUID); null for a Windows DAC, which is matched by <paramref name="TimeStamp"/> and <paramref name="ImageSize"/>.</param>
 /// <param name="BuildIdOfRuntime">When set, <paramref name="BuildId"/> is the identity of this runtime library (for example
 /// <c>libcoreclr.so</c>), under which the DAC is archived, not the DAC's own: the DAC is accepted from a folder whose
 /// runtime library has that identity, the exact runtime it ships with.</param>
 public sealed record DacRequest(
     string FileName, int TimeStamp, int ImageSize, string RuntimeVersion, string? RuntimeDirectory, byte[]? BuildId = null, string? BuildIdOfRuntime = null);
 
-/// <summary>A file the DAC search looked at, and why it was or was not used (sprint 2.3.7).</summary>
+/// <summary>A file the DAC search looked at, and why it was or was not used.</summary>
 public sealed record DacCandidate(string Path, string Outcome)
 {
     public override string ToString() => $"{Path} ({Outcome})";
@@ -50,14 +49,14 @@ public sealed record DacCandidate(string Path, string Outcome)
 /// <summary>
 /// Finds the DAC on this machine only (ADR-017): the dumped runtime's own folder when it exists here, the matching
 /// installed shared runtime, the user's DAC folder and HeapScope's own runtime; then the dump's folder, whose DAC is loaded
-/// only once trusted (peer review P2). A file is accepted only when its PE time
+/// only once trusted. A file is accepted only when its PE time
 /// stamp and image size match what the dump records, so a DAC of another build is never loaded.
 /// </summary>
 public static class DacLocator
 {
     /// <summary>
     /// The dumped runtime's version. ClrMD reads 0.0 when a core file does not hold the runtime's version string; the
-    /// runtime's folder name (for example <c>10.0.14</c>) names it then (sprint 2.3.5).
+    /// runtime's folder name (for example <c>10.0.14</c>) names it then.
     /// </summary>
     public static string RuntimeVersion(Version version, string? runtimeDirectory)
     {
@@ -69,7 +68,7 @@ public static class DacLocator
             : version.ToString();
     }
 
-    // Paths compared by the one path rule (sprint 2.3.5 review; sprint 3.12 review M3: macOS ignores case too).
+    // Paths compared by the one path rule (macOS ignores case too).
     private static StringComparer PathComparer => HeapScope.Shared.PathIdentity.Comparer();
 
     private static StringComparison PathComparison => HeapScope.Shared.PathIdentity.Comparison();
@@ -116,7 +115,7 @@ public static class DacLocator
 
         Add(options.DacFolder);
 
-        // A self-contained HeapScope carries its own runtime's DAC (sprint 2.3.6): a candidate like any folder that is not
+        // A self-contained HeapScope carries its own runtime's DAC: a candidate like any folder that is not
         // an installed runtime, so a DAC paired with its runtime library still needs the matching version string.
         if (options.OwnRuntimeDirectory is { } own)
         {
@@ -127,17 +126,17 @@ public static class DacLocator
     }
 
     /// <summary>
-    /// The folders next to the dump, searched only after <see cref="CandidateDirectories"/> found nothing (peer review P2):
+    /// The folders next to the dump, searched only after <see cref="CandidateDirectories"/> found nothing:
     /// the dump's own folder and <c>dac/&lt;version&gt;</c> beside it, where HeapScope's capture keeps the target's DAC
-    /// (sprint 1.1). A DAC found there came with the dump, so it is loaded only once trusted.
+    /// A DAC found there came with the dump, so it is loaded only once trusted.
     /// </summary>
     public static IReadOnlyList<string> BesideDumpDirectories(DacRequest request, string dumpPath)
     {
         ArgumentNullException.ThrowIfNull(request);
         var result = new List<string>();
         var dumpFolder = Path.GetDirectoryName(Path.GetFullPath(dumpPath));
-        // Sprint 4.1 review H4: the folder named by the version first, then every other dac/ folder. The capture names it by
-        // the runtime library's file version, which ClrMD does not always read from a Linux core file (0.0, so the request
+        // The folder named by the version first, then every other dac/ folder. The capture names it by
+        // the runtime library's file version, which ClrMD does not always read from a Linux core file (so the request
         // names the runtime's folder instead); the identity checks pick the right file wherever it is.
         var dacRoot = dumpFolder is null ? null : Path.Combine(dumpFolder, "dac");
         foreach (var directory in new[] { dumpFolder, dacRoot is null ? null : Path.Combine(dacRoot, request.RuntimeVersion) }.Concat(OtherDacFolders(dacRoot)))
@@ -173,7 +172,7 @@ public static class DacLocator
     /// Returns the path of a matching DAC, or null, and the files that were looked at. A DAC found through its runtime
     /// library's identity (<see cref="DacRequest.BuildIdOfRuntime"/>) is accepted from an installed runtime folder (under
     /// <paramref name="installedRoots"/>, where the two ship together), or anywhere else only when both files embed the
-    /// same version string (sprint 2.3.5 review M1: a folder filled by hand can pair a runtime with another build's DAC).
+    /// same version string (a folder filled by hand can pair a runtime with another build's DAC).
     /// </summary>
     public static string? Find(DacRequest request, IReadOnlyList<string> directories, out IReadOnlyList<string> searched, IReadOnlyList<string>? installedRoots = null)
     {
@@ -184,7 +183,7 @@ public static class DacLocator
 
     /// <summary>
     /// As <see cref="Find(DacRequest, IReadOnlyList{string}, out IReadOnlyList{string}, IReadOnlyList{string}?)"/>, and says
-    /// why each file was or was not used and which rule accepted the one returned (sprint 2.3.7 review M3): a rejected
+    /// why each file was or was not used and which rule accepted the one returned: a rejected
     /// file must not look like a missing one.
     /// </summary>
     public static string? Find(DacRequest request, IReadOnlyList<string> directories, out IReadOnlyList<DacCandidate> candidates, out string? rule, IReadOnlyList<string>? installedRoots = null)
@@ -309,7 +308,7 @@ public static class DacLocator
 
     /// <summary>
     /// The DAC folder (<see cref="ClrMdLoaderOptions.DacFolder"/>) when the search leaves it out, with why, for the refusal's list of
-    /// what was searched (sprint 4.8 review H2: a saved folder on a removable or network drive was dropped without a word); null
+    /// what was searched (a saved folder on a removable or network drive was dropped without a word); null
     /// when there is none or it is searched.
     /// </summary>
     public static string? DacFolderNotSearched(ClrMdLoaderOptions options)
@@ -323,7 +322,7 @@ public static class DacLocator
     /// <summary>
     /// True for a fully qualified path on a local fixed drive; false for UNC paths (<c>\\server\share</c>, <c>\\?\UNC</c>),
     /// device paths and network or removable drives. On Linux and macOS, the mount holding the path decides, after
-    /// symbolic links are resolved (<see cref="UnixLocalPath"/>, sprint 2.3.5 review H1).
+    /// symbolic links are resolved (<see cref="UnixLocalPath"/>).
     /// </summary>
     public static bool IsLocalFixedPath(string path) =>
         OperatingSystem.IsWindows() ? IsLocalFixedWindowsPath(path) : UnixLocalPath.IsLocal(path, UnixLocalPath.CurrentMounts());
@@ -381,7 +380,7 @@ public static class DacLocator
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         string?[] candidates = OperatingSystem.IsWindows()
             ? [Environment.GetEnvironmentVariable("DOTNET_ROOT"), Path.Combine(programFiles, "dotnet")]
-            // The usual install folders on Linux and macOS (sprint 2.3.5 review): distribution packages, Microsoft's
+            // The usual install folders on Linux and macOS: distribution packages, Microsoft's
             // installers and the install script's default.
             : [
                 Environment.GetEnvironmentVariable("DOTNET_ROOT"), "/usr/share/dotnet", "/usr/lib/dotnet", "/usr/lib64/dotnet",
@@ -409,7 +408,7 @@ public static class DacLocator
 
     /// <summary>
     /// The shared runtime folder (<c>.../shared</c>) of the runtime this process runs on, or null when it runs
-    /// self-contained (sprint 2.3.6 review: three folders up from a self-contained worker is an arbitrary user folder, which
+    /// self-contained (three folders up from a self-contained worker is an arbitrary user folder, which
     /// must not count as an installed runtime).
     /// </summary>
     public static string? RunningSharedFolder()
@@ -432,7 +431,7 @@ public static class DacLocator
     {
         if (dumpArchitecture != host)
         {
-            // HeapScope's releases are x64 only (ADR-039); the dotnet tool runs as its machine's architecture (3.9 review M3).
+            // HeapScope's releases are x64 only (ADR-039); the dotnet tool runs as its machine's architecture.
             return $"This dump comes from an {dumpArchitecture} process and HeapScope runs as {host}: open it on an {dumpArchitecture} machine with HeapScope's dotnet tool, or with a build of HeapScope from source for {dumpArchitecture}.";
         }
 

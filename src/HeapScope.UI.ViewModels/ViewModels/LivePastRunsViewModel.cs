@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Live page's past runs (sprint 3.4; split from <see cref="LiveViewModel"/> in sprint 4.3): the current session's monitoring
+/// The Live page's past runs (a part of <see cref="LiveViewModel"/>): the current session's monitoring
 /// runs, and showing one read only.
 /// </summary>
 public sealed partial class LivePastRunsViewModel : ObservableObject
@@ -55,15 +55,14 @@ public sealed partial class LivePastRunsViewModel : ObservableObject
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <summary>The current session's monitoring runs, newest first (sprint 3.4).</summary>
+    /// <summary>The current session's monitoring runs, newest first.</summary>
     public ObservableCollection<PastRunItem> Runs { get; } = [];
 
-    /// <summary>Lists the current session's monitoring runs (sprint 3.4).</summary>
+    /// <summary>Lists the current session's monitoring runs.</summary>
     [RelayCommand]
     private async Task RefreshRunsAsync()
     {
-        // Read from disk, off the UI thread (a read waits up to a second for a program that holds the document, sprint 3.6
-        // review): runs are recorded there as they start and end (never creating a session to list nothing).
+        // Read from disk, off the UI thread (a read waits up to a second for a program that holds the document): runs are recorded there as they start and end (never creating a session to list nothing).
         var folder = _capture.Library.CurrentFolder;
         var session = folder is null ? null : await Task.Run(() => SessionLibrary.TryRead(folder));
         Runs.Clear();
@@ -81,7 +80,7 @@ public sealed partial class LivePastRunsViewModel : ObservableObject
     private bool CanOpenPastRun(PastRunItem? item) => !IsRunning;
 
     /// <summary>
-    /// Shows a past run read only (sprint 3.4, decision 5): its timeline's counters, its snapshots and forced collections as
+    /// Shows a past run read only: its timeline's counters, its snapshots and forced collections as
     /// markers, and its snapshots as cards. Everything is read before anything is shown.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanOpenPastRun))]
@@ -95,7 +94,7 @@ public sealed partial class LivePastRunsViewModel : ObservableObject
         var run = item.Run;
 
         // Only a CSV timeline inside its session folder, reached through no link: Delete timeline acts on this path, and
-        // Open timeline hands it to the system, so a received session cannot name a program to run (peer review S3).
+        // Open timeline hands it to the system, so a received session cannot name a program to run.
         var (timelineCheck, traceCheck) = await Task.Run(() => Session.RunFiles(item.Folder, run));
         if (timelineCheck.Path is not { } path)
         {
@@ -166,7 +165,7 @@ public sealed partial class LivePastRunsViewModel : ObservableObject
 
         foreach (var snapshot in session.Document.Snapshots.Where(s => item.Run.SnapshotIds.Contains(s.Id)).OrderByDescending(s => s.CapturedUtc))
         {
-            // A received session may name a network path: it is never looked at (sprint 3.7, peer review S3).
+            // A received session may name a network path: it is never looked at.
             var file = session.PathOf(snapshot);
             var gone = !Session.IsLocal(file) ? "not on this machine" : File.Exists(file) ? null : "deleted";
             cards.Add(new SnapshotCard(snapshot.CapturedUtc, snapshot.Label ?? snapshot.Source.ToString(), file, snapshot.SizeBytes, gone));

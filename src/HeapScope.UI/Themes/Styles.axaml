@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- HeapScope's styles over the Fluent theme (sprint 2.3.6): the theme colors on standard controls, number cells, tiles. -->
+<!-- HeapScope's styles over the Fluent theme: the theme colors on standard controls, number cells, tiles. -->
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Styles.Resources>
@@ -160,7 +160,7 @@
     <Setter Property="Margin" Value="0,0,8,8" />
   </Style>
 
-  <!-- A control that can be turned off says what it needs in its tooltip, so the tooltip shows while it is off (3.11 review M9). -->
+  <!-- A control that can be turned off says what it needs in its tooltip, so the tooltip shows while it is off. -->
   <Style Selector=":is(Button), MenuItem, ComboBox, TextBox">
     <Setter Property="ToolTip.ShowOnDisabled" Value="True" />
   </Style>

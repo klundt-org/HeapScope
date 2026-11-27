@@ -30,7 +30,7 @@ using System.Text;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// A process's facts on macOS (sprint 4.2, untested: nobody has run it on a Mac), through libproc and sysctl, parsed by
+/// A process's facts on macOS (untested: nobody has run it on a Mac), through libproc and sysctl, parsed by
 /// <see cref="MacProcData"/>. The image path and the user id are readable for any process; the command line, the footprint
 /// and the regions only for the caller's own user's or as root, so those reads return null for another user's. Elsewhere
 /// the libraries are missing and every read returns null. Each read keeps its outcome, for the log.
@@ -58,7 +58,7 @@ internal sealed partial class MacProcessFacts : IProcessFacts
 
     /// <summary>
     /// The dyld shared cache: the region walk reports it as one empty submap and leaves it out, but createdump walks into it
-    /// and a full dump holds it (4.2 review). It is the same for every process of this architecture.
+    /// and a full dump holds it. It is the same for every process of this architecture.
     /// </summary>
     public long UncountedBytes => _sharedCache.Value ?? DefaultSharedCacheBytes;
 
@@ -87,7 +87,7 @@ internal sealed partial class MacProcessFacts : IProcessFacts
 
     public long? ReadableBytes(int processId) => Walk(processId, stopAtRuntime: false).ReadableBytes;
 
-    /// <summary>The physical footprint (.NET 10's <c>PrivateMemorySize64</c> is always 0 on macOS, 4.2 review).</summary>
+    /// <summary>The physical footprint (.NET 10's <c>PrivateMemorySize64</c> is always 0 on macOS).</summary>
     public long? PrivateBytes(Process process)
     {
         ArgumentNullException.ThrowIfNull(process);

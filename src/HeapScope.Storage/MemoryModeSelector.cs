@@ -34,9 +34,8 @@ public sealed partial record MemoryBudget(long TotalPhysicalBytes, long Availabl
     public long BudgetBytes => Math.Max(0, Math.Min((long)(TotalPhysicalBytes * Fraction), AvailableBytes));
 
     /// <summary>
-    /// The budget from live operating system figures (<see cref="SystemMemory"/>: on Windows, Linux and macOS since sprint 4.7,
-    /// peer review 4.5 H7), read now rather than at the last garbage collection. A GC heap hard limit, when set, caps both values; it is never used as the total by
-    /// itself (gc-specialist review of 0.5).
+    /// The budget from live operating system figures (<see cref="SystemMemory"/>: on Windows, Linux and macOS), read now rather than at the last garbage collection. A GC heap hard limit, when set, caps both values; it is never used as the total by
+    /// itself.
     /// </summary>
     public static MemoryBudget Current(double fraction = 0.5, MemoryMode? forced = null)
     {

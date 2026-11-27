@@ -29,9 +29,9 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Timer leaks (sprint 2.6): at least <see cref="MinTimers"/> periodic timers in the runtime's timer queue whose
+/// Timer leaks: at least <see cref="MinTimers"/> periodic timers in the runtime's timer queue whose
 /// callbacks belong to one type. The queue holds every started timer, so each keeps its callback's target alive until it
-/// is disposed. Only periodic timers in the queue count (review H4): a one-shot timer (<c>Task.Delay</c>,
+/// is disposed. Only periodic timers in the queue count: a one-shot timer (<c>Task.Delay</c>,
 /// <c>CancelAfter</c>) releases itself when it fires, and a paused or fired one is out of the queue. A
 /// <c>System.Timers.Timer</c>'s callback is the timer itself: its <c>Elapsed</c> handlers' targets are counted. A callback
 /// on a static method or a lambda cache belongs to the timer's state.
@@ -127,7 +127,7 @@ internal sealed class TimerLeaksDetector : IInspection
             }
             else
             {
-                // A static callback or a lambda cache names no owner: the state passed to the timer does (review H4).
+                // A static callback or a lambda cache names no owner: the state passed to the timer does.
                 kind = "System.Threading.Timer";
                 found = [callback is { } own && !DetectorGraph.IsCompilerGenerated(own.Type) ? own : Fields.Reference(reader, address, RuntimeLayouts.Timers.State) ?? callback];
             }

@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>Texts the referrer views share (sprint 2.1 review M7, M9).</summary>
+/// <summary>Texts the referrer views share.</summary>
 internal static class ReferrersText
 {
     /// <summary>A worker phase as a status line: "Indexing incoming references... 42%".</summary>
@@ -46,17 +46,17 @@ internal static class ReferrersText
         completeGraph ? string.Empty : " (this snapshot is incomplete, so some referrers may be missing)";
 }
 
-/// <summary>Texts about retained sizes (sprint 2.3).</summary>
+/// <summary>Texts about retained sizes.</summary>
 internal static class RetainedText
 {
-    /// <summary>Why retained sizes are not shown after a failed retained query (review M8), with the worker's reason.</summary>
+    /// <summary>Why retained sizes are not shown after a failed retained query, with the worker's reason.</summary>
     public static string NotShown(string reason) => "Retained sizes are not shown: " + reason;
 
     /// <summary>What an object's retained bytes mean.</summary>
     public const string ObjectsRetain = "An object's retained bytes are what it alone keeps alive; objects no root reaches retain nothing (blank).";
 }
 
-/// <summary>One object referencing the inspected object (sprint 2.1), filled when its page arrives.</summary>
+/// <summary>One object referencing the inspected object, filled when its page arrives.</summary>
 public sealed class ReferrerRowItem(int index) : ObservableObject, IIndexedRow, IObjectLink
 {
     public int Index { get; } = index;
@@ -114,7 +114,7 @@ public sealed class ReferrerRowItem(int index) : ObservableObject, IIndexedRow, 
     }
 }
 
-/// <summary>One referrer type of a type's objects (sprint 2.1), filled when its page arrives.</summary>
+/// <summary>One referrer type of a type's objects, filled when its page arrives.</summary>
 public sealed class TypeReferrerRowItem(int index) : ObservableObject, IIndexedRow
 {
     public int Index { get; } = index;
@@ -163,7 +163,7 @@ public sealed class TypeReferrerRowItem(int index) : ObservableObject, IIndexedR
 }
 
 /// <summary>
-/// Who references the objects of a type (sprint 2.1, dotMemory's incoming references for a set): one row per referrer
+/// Who references the objects of a type (dotMemory's incoming references for a set): one row per referrer
 /// type, sortable by any column; opening a row shows that type's objects. Opened from a type's instances.
 /// </summary>
 public sealed partial class TypeReferrersViewModel : GridQueryViewModel<TypeReferrerRowItem>, INavigationSubject
@@ -210,7 +210,7 @@ public sealed partial class TypeReferrersViewModel : GridQueryViewModel<TypeRefe
 
     protected override async Task<GridQuery<TypeReferrerRowItem>> RunQueryAsync(CancellationToken cancellationToken)
     {
-        // The first query builds the snapshot's index in the worker: its phases replace the busy text (review M7).
+        // The first query builds the snapshot's index in the worker: its phases replace the busy text.
         var finished = false;
         var progress = new Progress<JobProgress>(p =>
         {

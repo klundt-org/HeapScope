@@ -75,15 +75,15 @@ public enum CaptureFailure
     /// <summary>Listing and capturing processes is not available on this system (ADR-025).</summary>
     NotSupportedOnThisSystem = 7,
 
-    /// <summary>A capture or forced collection of this process is running already (sprint 3.4: one at a time per process).</summary>
+    /// <summary>A capture or forced collection of this process is running already (one at a time per process).</summary>
     Busy = 8,
 }
 
-/// <summary>A forced garbage collection (sprint 3.4): whether its end was seen, and how long it took.</summary>
+/// <summary>A forced garbage collection: whether its end was seen, and how long it took.</summary>
 public sealed record ForcedGcResult(int ProcessId, bool Completed, TimeSpan Elapsed, int GcNumber = -1)
 {
     /// <summary>
-    /// The outcome in words (review of 3.4): finished, never started (the runtime ignored the request, or the target did
+    /// The outcome in words: finished, never started (the runtime ignored the request, or the target did
     /// not answer in time), or started without its end seen.
     /// </summary>
     public string Outcome => Completed
@@ -101,7 +101,7 @@ public interface ICaptureService
     bool IsHeapScopeElevated { get; }
 
     /// <summary>
-    /// Why listing and capturing processes is not available on this system, or null where it is (sprint 2.3.6): front ends
+    /// Why listing and capturing processes is not available on this system, or null where it is: front ends
     /// say so instead of offering commands that fail.
     /// </summary>
     string? UnavailableReason { get; }
@@ -110,9 +110,9 @@ public interface ICaptureService
     Task<IReadOnlyList<ProcessEntry>> ListProcessesAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Captures a full dump, or a gcdump when <paramref name="kind"/> says so (sprint 1.8), as a tracked job; fails with
+    /// Captures a full dump, or a gcdump when <paramref name="kind"/> says so, as a tracked job; fails with
     /// <see cref="CaptureFailedException"/>. <paramref name="source"/> records why (a rule of a monitoring run is
-    /// <see cref="SnapshotSource.Timed"/>, sprint 1.7).
+    /// <see cref="SnapshotSource.Timed"/>).
     /// </summary>
     Jobs.TrackedJob<CaptureResult> StartCapture(
         int processId,
@@ -122,12 +122,12 @@ public interface ICaptureService
         SnapshotKindDto kind = SnapshotKindDto.FullDump);
 
     /// <summary>
-    /// Forces a full blocking garbage collection in the process (sprint 3.4); fails with <see cref="CaptureFailedException"/>
+    /// Forces a full blocking garbage collection in the process; fails with <see cref="CaptureFailedException"/>
     /// (<see cref="CaptureFailure.Busy"/> while a capture of it runs).
     /// </summary>
     Task<ForcedGcResult> ForceGcAsync(int processId, CancellationToken cancellationToken);
 
-    /// <summary>Whether a capture or forced collection of the process is running (sprint 3.4: rules wait for it).</summary>
+    /// <summary>Whether a capture or forced collection of the process is running (rules wait for it).</summary>
     bool IsBusy(int processId);
 }
 

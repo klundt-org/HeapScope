@@ -24,8 +24,7 @@
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// Why a snapshot's roots are not all known, so an object held only by one of them can look unreachable (peer review 4.5, sprint
-/// 4.7): <paramref name="Reason"/> as a clause ("not all GC handles could be checked for this snapshot") and <paramref name="HeldBy"/>
+/// Why a snapshot's roots are not all known, so an object held only by one of them can look unreachable: <paramref name="Reason"/> as a clause ("not all GC handles could be checked for this snapshot") and <paramref name="HeldBy"/>
 /// as what such an object is held by ("a handle").
 /// </summary>
 internal sealed record UncheckedRoots(string Reason, string HeldBy)
@@ -39,7 +38,7 @@ internal sealed record UncheckedRoots(string Reason, string HeldBy)
     /// </summary>
     public static readonly UncheckedRoots Statics = new("the static fields of this dump could not be checked", "a static field");
 
-    /// <summary>Both: an older cache of a Server GC process, or a heap dump of one (the review of 4.7 said only one reason).</summary>
+    /// <summary>Both: an older cache of a Server GC process, or a heap dump of one, which names both reasons.</summary>
     public static readonly UncheckedRoots Both = new("neither all GC handles nor the static fields of this dump could be checked", "a handle or a static field");
 
     /// <summary><see cref="Reason"/> as the start of a sentence.</summary>

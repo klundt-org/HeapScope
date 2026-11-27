@@ -29,7 +29,7 @@ using HeapScope.UI.Services;
 namespace HeapScope.UI;
 
 /// <summary>
-/// Entry point (sprint 2.3.6, ADR-025): the desktop app on Windows, Linux and macOS. With <c>--headless</c> the same app
+/// Entry point (ADR-025): the desktop app on Windows, Linux and macOS. With <c>--headless</c> the same app
 /// runs without a display (Avalonia's headless platform), for smoke runs in CI.
 /// </summary>
 internal static class Program
@@ -52,7 +52,7 @@ internal static class Program
         catch (Exception ex)
         {
             // A failure before the host exists (no display, a missing native library, a bad option) reached no log, and a
-            // desktop launch has no console (sprint 2.3.7 review M18): it is written to the file log directly.
+            // desktop launch has no console: it is written to the file log directly.
             LogFatalStart(appArgs, ex);
             Console.Error.WriteLine($"HeapScope could not start: {ex.Message}");
             return 1;
@@ -62,7 +62,7 @@ internal static class Program
     /// <summary>The app builder; headless runs draw with Skia off screen, so layout and text are measured as on screen.</summary>
     public static AppBuilder BuildApp(string[] args, bool headless)
     {
-        // Avalonia's own warnings (binding errors, platform problems) go to the HeapScope log once it exists (review M18).
+        // Avalonia's own warnings (binding errors, platform problems) go to the HeapScope log once it exists.
         var builder = AppBuilder.Configure(() => new App(args)).UseAppFont().AfterSetup(_ => Avalonia.Logging.Logger.Sink = new Services.AvaloniaLogSink());
         return headless
             ? builder.UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
@@ -71,7 +71,7 @@ internal static class Program
 
     /// <summary>
     /// Writes a start failure to the file log when HeapScope's own logging does not exist yet: before the host, or when
-    /// building it failed (sprint 2.3.7 review M18, H4). Reads the log folder from <c>--Logging:File:Directory dir</c> or
+    /// building it failed. Reads the log folder from <c>--Logging:File:Directory dir</c> or
     /// <c>--Logging:File:Directory=dir</c>.
     /// </summary>
     internal static void LogFatalStart(string[] args, Exception exception)

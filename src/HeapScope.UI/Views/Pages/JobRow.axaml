@@ -38,7 +38,7 @@
                  Value="{Binding Percent, Mode=OneWay}" IsIndeterminate="{Binding IsIndeterminate}" />
     <TextBlock Grid.Column="2" Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
     <Button Grid.Column="3" Classes="compact" Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsRunning}" />
-    <!-- A refusal puts its next step last, so it wraps here and can be copied (sprint 3.10 review M19). -->
+    <!-- A refusal puts its next step last, so it wraps here and can be copied. -->
     <SelectableTextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding Failure}" TextWrapping="Wrap" Margin="22,2,0,2"
                          IsVisible="{Binding Failure, Converter={x:Static ObjectConverters.IsNotNull}}" />
   </Grid>

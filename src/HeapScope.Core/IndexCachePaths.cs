@@ -27,7 +27,7 @@ using System.Text;
 namespace HeapScope.Core;
 
 /// <summary>
-/// Where a snapshot's index cache and its sidecars are (ARCHITECTURE.md 7; sprint 3.4 moved the rule here so deleting a
+/// Where a snapshot's index cache and its sidecars are (ARCHITECTURE.md 7; the rule lives here so deleting a
 /// snapshot finds them): next to the snapshot (<c>app.dmp.hsidx</c>, sidecars <c>app.dmp.rev.hsidx</c>) or under the
 /// fallback root, named after a hash of the snapshot's full path.
 /// </summary>
@@ -36,13 +36,13 @@ public static class IndexCachePaths
     /// <summary>The index cache file extension.</summary>
     public const string Extension = ".hsidx";
 
-    /// <summary>The reverse references sidecar (sprint 2.0).</summary>
+    /// <summary>The reverse references sidecar.</summary>
     public const string ReverseKind = "rev";
 
-    /// <summary>The dominator tree sidecar (sprint 2.1).</summary>
+    /// <summary>The dominator tree sidecar.</summary>
     public const string DominatorKind = "dom";
 
-    /// <summary>Every sidecar kind; a deletion removes exactly these (sprint 3.4 review: never a sibling dump's cache).</summary>
+    /// <summary>Every sidecar kind; a deletion removes exactly these (never a sibling dump's cache).</summary>
     public static IReadOnlyList<string> SidecarKinds { get; } = [ReverseKind, DominatorKind];
 
     /// <summary>The fallback folder for snapshots in folders HeapScope cannot write.</summary>
@@ -64,7 +64,7 @@ public static class IndexCachePaths
 
     /// <summary>
     /// Every cache file of a snapshot that exists: the base cache and its known sidecars, next to it and in the fallback
-    /// root, and the writer's temporary files of each (<c>&lt;cache&gt;.&lt;32 hex digits&gt;.tmp</c>).
+    /// root, and the writer's temporary files of each (<c>&lt; cache&gt; .&lt; 32 hex digits&gt; .tmp</c>).
     /// </summary>
     public static IReadOnlyList<string> Existing(string snapshotPath, string? fallbackRoot = null)
     {

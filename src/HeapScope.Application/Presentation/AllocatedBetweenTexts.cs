@@ -26,7 +26,7 @@ using HeapScope.Contracts;
 
 namespace HeapScope.Application.Presentation;
 
-/// <summary>What the app and the command line say about the allocations between two snapshots (sprint 4.4).</summary>
+/// <summary>What the app and the command line say about the allocations between two snapshots.</summary>
 public static class AllocatedBetweenTexts
 {
     public const string NotOneSession = "The two snapshots are not in one session folder, so no recorded run is known to lie between them. Capture both while a run on the Live page records allocations.";

@@ -24,7 +24,7 @@
 namespace HeapScope.Application.Tutorial;
 
 /// <summary>
-/// The sample's scenario catalog as <c>--list</c> prints it (sprint 3.13, ADR-042): its version, which changes when a scenario
+/// The sample's scenario catalog as <c>--list</c> prints it (ADR-042): its version, which changes when a scenario
 /// is added or changes what it plants, and the scenarios.
 /// </summary>
 public sealed record SampleCatalog(int Version, IReadOnlyList<SampleScenario> Scenarios);

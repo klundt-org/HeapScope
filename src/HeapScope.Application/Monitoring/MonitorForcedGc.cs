@@ -32,5 +32,5 @@ using HeapScope.Application.Events;
 
 namespace HeapScope.Application.Monitoring;
 
-/// <summary>A garbage collection the run forced in its target (sprint 3.4), or why it failed.</summary>
+/// <summary>A garbage collection the run forced in its target, or why it failed.</summary>
 public sealed record MonitorForcedGc(DateTimeOffset At, ForcedGcResult? Result, string? Error);

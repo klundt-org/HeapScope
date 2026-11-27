@@ -51,7 +51,7 @@ internal static partial class CliCommands
     };
 
     /// <summary>
-    /// DACs trusted for this run by SHA-256 (sprint 3.6, peer review P2): a DAC found only next to a dump came with it, so
+    /// DACs trusted for this run by SHA-256: a DAC found only next to a dump came with it, so
     /// it is loaded only when its hash is named here (the refusal prints the exact option to add).
     /// </summary>
     public static readonly Option<string[]> TrustDacOption = new("--trust-dac")
@@ -73,7 +73,7 @@ internal static partial class CliCommands
         },
     };
 
-    /// <summary>What a capture writes (sprint 1.8): a full dump (the default) or a gcdump.</summary>
+    /// <summary>What a capture writes: a full dump (the default) or a gcdump.</summary>
     internal static Option<string> KindOption()
     {
         var kind = new Option<string>("--kind") { Description = "What to capture: full (a full memory dump) or gcdump (the object graph only: smaller, no field values or string text).", DefaultValueFactory = _ => "full" };
@@ -83,7 +83,7 @@ internal static partial class CliCommands
 
     internal static SnapshotKindDto KindOf(string? kind) => kind == "gcdump" ? SnapshotKindDto.GcDump : SnapshotKindDto.FullDump;
 
-    /// <summary>The <c>--retained</c> option of summary, instances and object (sprint 2.3).</summary>
+    /// <summary>The <c>--retained</c> option of summary, instances and object.</summary>
     internal static Option<bool> RetainedOption(string description) => new("--retained") { Description = description };
 
     private static Option<string> GroupOption()

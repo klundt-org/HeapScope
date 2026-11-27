@@ -46,6 +46,13 @@ dotnet test --solution HeapScope.sln
   parts it implements with `AreaWorkerService.Create(...)` (Application tests), and any other call fails naming its
   contract. `HeapScope.Cli.Tests` runs the CLI in process (`CliApp.RunAsync` with its own output and error writers):
   usage errors need no host, and the tables are checked as text against fixed rows.
+- The UI thread in view model tests (sprint 4.9, peer review 4.5 M15): `SingleThreadUiDispatcher` (in the same
+  `Fakes/` folder) is a UI thread of its own with a synchronization context, so a test body run with
+  `RunCheckedAsync` and its awaits continue there as in the app. `WatchPage` watches the Snapshots page and every
+  workspace it shows, and a property or collection change raised on another thread fails the test. The page and
+  workspace tests (`SnapshotsViewModelTests`, `WorkspaceTests`) use it; other view model tests use
+  `ImmediateUiDispatcher`, which runs work on the calling thread and so cannot see such a change. New page-level tests
+  use the single-thread one.
 - Data folders (sprint 3.8): every test process sets `HEAPSCOPE_DATA_FOLDER` to `HeapScopeTests/data` under the temporary
   folder (`tests/Shared/TestDataFolder.cs`) before anything reads `HeapScopeFolders`, and the workers and front ends it
   starts inherit it, so no test writes into the user's sessions, logs, index cache key, trusted DACs or bookmarks. Set it
@@ -490,9 +497,17 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   and small records or enums that serve only the file's main type. `PublicTypesPerFileTests` lists the files that held
   more in 3.8: none may be added, a listed file may not grow, and a file split below two leaves the list (update
   `PublicTypesPerFile.txt`). Split a listed file when a change works in it anyway.
-- **Comments** (sprint 3.8, peer review S8): state the current reason, not the history. Cite a sprint, review or ADR
-  id only beside a guard someone might otherwise simplify away, so its reason can be found; the history lives in git,
-  the review files and the ADRs. Apply it to the code a change touches.
+- **View model size** (peer review 4.5 M15): a file of HeapScope.UI.ViewModels stays at 600 lines or fewer
+  (`ViewModelSizeTests`). A class that outgrows it is split along its parts: a type of its own in its own file, or a
+  partial file per part named after it (`CompareViewModel.Links.cs`, `SnapshotsViewModel.Dac.cs`). The test's exceptions
+  list is a ratchet, empty since sprint 4.9.
+- **Comments** (sprint 3.8, peer review S8; tightened by M15 in sprint 4.9): state the current reason, not the history.
+  Source comments under `src/` cite no sprint or review id at all, nor a release by number for history ("since 3.4"; an
+  older format is "an older HeapScope" or "older index caches"); a decision keeps its ADR number, beside a guard someone
+  might otherwise simplify away. The history lives in git, the review files and the ADRs. `SourceCommentTests` refuses an
+  id in C# comments (a run of comment lines read as one, and `/* */`) and in the XML comments of `.axaml` and project
+  files; tests may still name the review a test proves. User-facing strings are not comments: they change with the
+  owner's approval of the text.
 - **Derived state** (sprint 3.8, peer review P20): Analysis returns values and keeps nothing, no static caches and no
   mutable static state (`AnalysisStateTests`). What a snapshot derives gets a `DerivedData` slot in the worker:
   computed once for concurrent callers and dropped when the snapshot closes.

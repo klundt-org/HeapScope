@@ -70,7 +70,7 @@ public static class IndexCacheReader
             }
 
             // Sequential verification is several times faster than hashing through the mapping and does not grow the
-            // worker's working set (gc-specialist review of 0.5).
+            // worker's working set.
             if (IndexFileDirectory.VerifySequentially(stream, directory, cancellationToken) is { } corrupted)
             {
                 return corrupted;
@@ -122,7 +122,7 @@ public static class IndexCacheReader
     }
 
     /// <summary>
-    /// The cache's metadata alone (sprint 3.12): the header, directory and fingerprint are checked, and the metadata section's
+    /// The cache's metadata alone: the header, directory and fingerprint are checked, and the metadata section's
     /// own checksum, but no graph section is read. A worker decides from it whether an older loader wrote the cache before it
     /// reads gigabytes of graph it would throw away. Null when the cache is missing or invalid, with <paramref name="failure"/>
     /// saying why.
@@ -180,7 +180,7 @@ public static class IndexCacheReader
 
     /// <summary>
     /// Bytes the graph's sections would take in memory, from the directory; null when the cache is missing or invalid, with
-    /// <paramref name="failure"/> saying why when it exists but is invalid (3.7 review H3: an untrusted cache is logged).
+    /// <paramref name="failure"/> saying why when it exists but is invalid (an untrusted cache is logged).
     /// </summary>
     public static long? GetInMemoryBytes(string path, IndexCacheSigner signer, out IndexCacheOpenResult? failure)
     {

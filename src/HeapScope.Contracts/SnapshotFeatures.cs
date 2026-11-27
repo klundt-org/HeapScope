@@ -54,7 +54,7 @@ public static class CapabilityDescriptions
 {
     /// <summary>
     /// Why a feature is unavailable in a snapshot of <paramref name="kind"/>. A full dump holds everything; features it
-    /// lacks are not built yet (field values, string contents and thread stacks read the dump again, sprint 1.5) or
+    /// lacks are not built yet (field values, string contents and thread stacks read the dump again) or
     /// could not be read from a damaged dump.
     /// </summary>
     public static string ExplainMissing(SnapshotFeatures missing, SnapshotKindDto kind)

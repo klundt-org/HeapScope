@@ -24,7 +24,7 @@
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// What a live trace keeps at most (sprint 4.3). The defaults hold 30 minutes a second at a time. At the limits all
+/// What a live trace keeps at most. The defaults hold 30 minutes a second at a time. At the limits all
 /// of it takes 75 MB, names included, and two views 23 MB more (measured, budgets.md); folding the stacks again holds the nodes and one
 /// stretch twice.
 /// </summary>

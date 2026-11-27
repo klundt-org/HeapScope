@@ -24,7 +24,7 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// What the logs may hold, by the user's settings (sprint 3.12, B1): <c>settings.json</c> read once and again only when it
+/// What the logs may hold, by the user's settings: <c>settings.json</c> read once and again only when it
 /// changes, checked at most once a second, so a change on the Settings page reaches a running worker and the next line of
 /// every process without a restart. <see cref="Current"/> is the process's; tests make their own.
 /// </summary>
@@ -55,7 +55,7 @@ public sealed class LogPrivacy
     public static void Use(HeapScopeFolders folders) => Volatile.Write(ref s_current, new LogPrivacy(folders));
 
     /// <summary>
-    /// Raised with the new values when a setting read changes (the review's M19: each process logs the privacy it applies).
+    /// Raised with the new values when a setting read changes (each process logs the privacy it applies).
     /// Raised under the instance's lock; a handler must not read <see cref="IncludeFilterText"/> or <see cref="IncludeDumpValues"/>.
     /// </summary>
     public event Action<LogPrivacyChange>? Changed;
@@ -77,7 +77,7 @@ public sealed class LogPrivacy
     }
 
     /// <summary>
-    /// Whether values read from a dump (field values, string text) may be written into a log line now (sprint 3.13.2): off by
+    /// Whether values read from a dump (field values, string text) may be written into a log line now: off by
     /// default, and off until the settings file has been read once.
     /// </summary>
     public bool IncludeDumpValues
@@ -129,7 +129,7 @@ public sealed class LogPrivacy
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // As an unreadable file below (review H5): never the default "on" before the file was read once.
+            // As an unreadable file below: never the default "on" before the file was read once.
             SetUnreadable();
 
             return;
@@ -142,7 +142,7 @@ public sealed class LogPrivacy
 
         if (!HeapScopeSettings.TryRead(_folders, out var settings, wait: false))
         {
-            // There and unreadable now (sprint 3.12 review H5): never fall back to the default "on" (see SetUnreadable); the write
+            // There and unreadable now: never fall back to the default "on" (see SetUnreadable); the write
             // time is not recorded, so the next check reads again.
             SetUnreadable();
             return;
@@ -153,10 +153,8 @@ public sealed class LogPrivacy
         Set(settings.IncludeFilterTextInLogs, settings.IncludeDumpValuesInLogs);
     }
 
-    // A file that cannot be read now: filter text keeps what was read last, or is off until the file was read once (3.12
-    // review H5); dump values are off whatever was read before, since they are on only by the user's confirmed choice
-    // (sprint 3.13.2 review M1).
-    // The write time is forgotten, so the next check that can read the file reads it again, even unchanged (3.13.2 re-review).
+    // A file that cannot be read now: filter text keeps what was read last, or is off until the file was read once; dump values are off whatever was read before, since they are on only by the user's confirmed choice.
+    // The write time is forgotten, so the next check that can read the file reads it again, even unchanged.
     private void SetUnreadable()
     {
         _written = default;

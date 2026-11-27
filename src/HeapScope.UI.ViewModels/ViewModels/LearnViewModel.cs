@@ -33,11 +33,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Learn page (sprint 3.13, ADR-042): the lessons with their progress; a lesson started runs its sample and shows the page it
+/// The Learn page (ADR-042): the lessons with their progress; a lesson started runs its sample and shows the page it
 /// starts on, its steps stay beside every page (the shell's lesson panel), and its question is answered here, checked against
 /// the type the sample planted. A new feature's lesson is one entry in <see cref="LessonCatalog"/>.
-/// The answer is checked against what was read when the lesson started, and only once its sample is running (review H3); the
-/// log has the lesson, its scenarios, the expected type and the choices, so a contested answer can be backed up (review H5).
+/// The answer is checked against what was read when the lesson started, and only once its sample is running; the
+/// log has the lesson, its scenarios, the expected type and the choices, so a contested answer can be backed up.
 /// </summary>
 public sealed partial class LearnViewModel : ObservableObject
 {
@@ -67,7 +67,7 @@ public sealed partial class LearnViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StartLessonCommand))]
     private bool _isBusy;
 
-    /// <param name="capture">Capture, which every lesson starts with: where it is not available, no lesson starts (review M3).</param>
+    /// <param name="capture">Capture, which every lesson starts with: where it is not available, no lesson starts.</param>
     /// <param name="dispatcher">Where a sample's exit is reported (it is raised on any thread); null runs it at once.</param>
     public LearnViewModel(SampleService? samples, LessonProgress progress, ILogger<LearnViewModel>? logger = null, ICaptureService? capture = null, IUiDispatcher? dispatcher = null)
     {
@@ -240,7 +240,7 @@ public sealed partial class LearnViewModel : ObservableObject
         Choices.Clear();
     }
 
-    // Review H3: a lesson whose sample was stopped elsewhere, or exited, says so; its steps and question stay.
+    // A lesson whose sample was stopped elsewhere, or exited, says so; its steps and question stay.
     private void OnSamplesChanged()
     {
         if (SampleProcessId is { } id && _samples?.IsSample(id) != true)

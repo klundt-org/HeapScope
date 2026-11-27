@@ -29,7 +29,7 @@ using Avalonia.Layout;
 namespace HeapScope.UI.Views;
 
 /// <summary>
-/// A small modal message or question window (sprint 2.3.6: Avalonia has no message box). Modal to its owner when there
+/// A small modal message or question window (Avalonia has no message box). Modal to its owner when there
 /// is one; the UI thread keeps running while it is open.
 /// </summary>
 public sealed class MessageWindow : Window
@@ -47,7 +47,7 @@ public sealed class MessageWindow : Window
         var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         if (buttons == MessageButtons.YesNo)
         {
-            // A destructive question's own words leave the safe answer as the default (sprint 3.12, Purge all).
+            // A destructive question's own words leave the safe answer as the default (Purge all).
             row.Children.Add(Button(labels?.Yes ?? "Yes", true, isDefault: labels is null));
             row.Children.Add(Button(labels?.No ?? "No", false, isDefault: labels is not null, isCancel: true));
         }
@@ -64,7 +64,7 @@ public sealed class MessageWindow : Window
         DockPanel.SetDock(row, Dock.Bottom);
     }
 
-    /// <summary>Raised when a message window is about to show (tests answer it, sprint 2.3.6 review).</summary>
+    /// <summary>Raised when a message window is about to show (tests answer it).</summary>
     internal static event Action<MessageWindow>? Showing;
 
     /// <summary>Shows the window and returns true for Yes or OK, false for No or when it is closed.</summary>

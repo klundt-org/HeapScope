@@ -23,7 +23,7 @@
 
 namespace HeapScope.Analysis.Retention;
 
-/// <summary>What a row of the flattened dominator tree is (sprint 2.4).</summary>
+/// <summary>What a row of the flattened dominator tree is.</summary>
 public enum DominatorRowKind
 {
     /// <summary>One object.</summary>

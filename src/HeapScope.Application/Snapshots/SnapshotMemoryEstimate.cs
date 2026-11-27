@@ -38,7 +38,7 @@ public readonly record struct PhysicalMemory(long TotalBytes, long AvailableByte
 
 /// <summary>
 /// Estimates the worker's peak memory for a first load of a dump before asking the worker (ARCHITECTURE.md 10), so the
-/// user is warned before the machine starts paging. Calibrated in sprint 1.2 on the sample dumps (memory-mapped dump
+/// user is warned before the machine starts paging. Calibrated on the sample dumps (memory-mapped dump
 /// reading, ClrMD cache capped at 512 MB): Small 568 MB dump peaked at 227 MB, Medium 4.0 GB at 2.4 GB. The fixed
 /// part leaves room for ClrMD's cache and denser heaps than the fixtures.
 /// </summary>

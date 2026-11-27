@@ -29,7 +29,7 @@ namespace HeapScope.Core;
 /// <c>%LOCALAPPDATA%\HeapScope</c> (the platform's local application data folder elsewhere), or the folder
 /// <see cref="EnvironmentVariable"/> names, which every process HeapScope starts inherits; the worker also takes
 /// <c>--data-folder</c>. Tests set it so nothing they do reaches the user's own folders. Run with sudo on Linux, the default is
-/// the invoking user's folder, not root's (sprint 4.8, H17; <see cref="InvokingUser"/>).
+/// the invoking user's folder, not root's (<see cref="InvokingUser"/>).
 /// </summary>
 public sealed class HeapScopeFolders
 {
@@ -54,7 +54,7 @@ public sealed class HeapScopeFolders
 
     /// <summary>
     /// The folders this process uses unless told otherwise, read once at its start. A value of only spaces counts as unset
-    /// (3.8 review): a malformed variable must not stop every HeapScope process before it can log anything.
+    /// a malformed variable must not stop every HeapScope process before it can log anything.
     /// </summary>
     public static HeapScopeFolders Default { get; } = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(EnvironmentVariable))
         ? new HeapScopeFolders(Environment.GetEnvironmentVariable(EnvironmentVariable)!, EnvironmentVariable)
@@ -79,13 +79,13 @@ public sealed class HeapScopeFolders
 
     /// <summary>
     /// Private copies of trusted DACs, one folder per SHA-256 (ADR-035). Run with sudo, root's own folder's, never the invoking
-    /// user's (sprint 4.8 review H1): a copy the user could replace after its hash was checked would run as root.
+    /// user's: a copy the user could replace after its hash was checked would run as root.
     /// </summary>
     public string DacCopies => Path.Combine(InvokingUser.TrustFolder ?? Root, "dac");
 
     /// <summary>
     /// TraceEvent's <c>.etlx</c> files while a trace is read: the user's own temporary folder on Windows, HeapScope's
-    /// data folder elsewhere, where the temporary folder is shared by every user (peer review P15); under another root,
+    /// data folder elsewhere, where the temporary folder is shared by every user; under another root,
     /// that root.
     /// </summary>
     public string Etlx => _isDefault && OperatingSystem.IsWindows()

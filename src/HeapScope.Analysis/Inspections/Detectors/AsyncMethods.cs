@@ -27,7 +27,7 @@ using HeapScope.Core.Graph;
 
 namespace HeapScope.Analysis.Inspections;
 
-/// <summary>Names of async methods from the runtime's state machine boxes (sprint 3.5).</summary>
+/// <summary>Names of async methods from the runtime's state machine boxes.</summary>
 public static class AsyncMethods
 {
     /// <summary>

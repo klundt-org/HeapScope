@@ -23,7 +23,7 @@
 
 namespace HeapScope.Core;
 
-/// <summary>The operating system HeapScope runs on, as far as capture and its texts differ (sprint 4.2; ADR-025).</summary>
+/// <summary>The operating system HeapScope runs on, as far as capture and its texts differ (ADR-025).</summary>
 public enum HostSystem
 {
     /// <summary>A system HeapScope has no capture for.</summary>

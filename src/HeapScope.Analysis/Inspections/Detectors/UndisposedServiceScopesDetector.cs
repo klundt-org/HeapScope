@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Undisposed service scopes (sprint 2.6, ASP.NET Core): at least <see cref="MinScopes"/> reachable dependency injection
+/// Undisposed service scopes (ASP.NET Core): at least <see cref="MinScopes"/> reachable dependency injection
 /// scopes not disposed, the root scope left out. A scope created with CreateScope and never disposed keeps its scoped and
 /// disposable services.
 /// </summary>

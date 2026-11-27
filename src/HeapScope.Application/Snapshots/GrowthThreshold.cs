@@ -26,7 +26,7 @@ using System.Globalization;
 namespace HeapScope.Application.Snapshots;
 
 /// <summary>
-/// A growth limit for <c>diff --fail-on-growth</c> (sprint 1.4): a size in bytes, or a percent of the matching rows'
+/// A growth limit for <c>diff --fail-on-growth</c>: a size in bytes, or a percent of the matching rows'
 /// baseline bytes. Growth exactly at the limit passes. A percent of a zero baseline allows no growth at all: anything
 /// that grows from nothing exceeds every percentage.
 /// </summary>

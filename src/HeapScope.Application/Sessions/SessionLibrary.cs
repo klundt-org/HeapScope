@@ -47,7 +47,7 @@ public enum SnapshotSource
     /// <summary>Captured on request (UI or CLI).</summary>
     Manual = 0,
 
-    /// <summary>Captured by a rule (timed or threshold snapshots, sprint 1.7).</summary>
+    /// <summary>Captured by a rule (timed or threshold snapshots).</summary>
     Timed = 1,
 
     /// <summary>An existing file added to the session.</summary>
@@ -55,13 +55,13 @@ public enum SnapshotSource
 }
 
 /// <summary>One snapshot recorded in a session (paths are relative to the session folder when inside it).</summary>
-/// <param name="Id">Stable id, so diffs and timelines (1.4, 1.7) can refer to a snapshot.</param>
+/// <param name="Id">Stable id, so diffs and timelines can refer to a snapshot.</param>
 /// <param name="File">The file, relative to the session folder when inside it.</param>
 /// <param name="Label">Optional label such as "baseline".</param>
 /// <param name="CapturedUtc">When the capture was done and recorded.</param>
 /// <param name="RuntimeDirectory">Folder of the target's runtime at capture time (where its DAC came from).</param>
-/// <param name="HeapUtc">When the heap was as the snapshot holds it (sprint 4.4): within the target's pause, or the moment it ended. Null
-/// for a capture before 4.4. For a gcdump <paramref name="CapturedUtc"/> is seconds later (3 to 6 s measured).</param>
+/// <param name="HeapUtc">When the heap was as the snapshot holds it: within the target's pause, or the moment it ended. Null
+/// for a capture an older HeapScope recorded. For a gcdump <paramref name="CapturedUtc"/> is seconds later (3 to 6 s measured).</param>
 public sealed record SessionSnapshot(
     Guid Id,
     string File,
@@ -101,7 +101,7 @@ public sealed record SessionDocument(
 
     /// <summary>
     /// Snapshot entries with a value this build does not know (a snapshot kind or source a newer build added), kept as they
-    /// were written and saved back unchanged (sprint 3.12, B4): one such entry used to make the whole session unreadable.
+    /// were written and saved back unchanged: one such entry used to make the whole session unreadable.
     /// This build neither shows nor deletes them.
     /// </summary>
     [JsonIgnore]
@@ -113,14 +113,14 @@ public sealed record SessionDocument(
 }
 
 /// <summary>
-/// A monitoring run recorded in its session (sprint 3.4, decision 5): what was watched and how, when, and the files and
+/// A monitoring run recorded in its session: what was watched and how, when, and the files and
 /// snapshots it produced (paths relative to the session folder). <see cref="EndedUtc"/> is null while it runs (or when the
 /// app ended without recording its end).
 /// </summary>
 /// <param name="Rules">The rules as the user wrote them (labels), for the record.</param>
 /// <param name="ForcedGcs">When the run forced a garbage collection in the target (only collections whose end was seen).</param>
-/// <param name="TraceNote">Why the allocation trace was not recorded, or stopped before the run (review of 3.4).</param>
-/// <param name="ClockShiftSeconds">How far the machine's clock moved against its counter during the run (sprint 4.4): a trace counts the
+/// <param name="TraceNote">Why the allocation trace was not recorded, or stopped before the run.</param>
+/// <param name="ClockShiftSeconds">How far the machine's clock moved against its counter during the run: a trace counts the
 /// second, which stops while some systems sleep, and the heap times of a capture are of the first.</param>
 public sealed record SessionRun(
     Guid Id,
@@ -144,7 +144,7 @@ public sealed record SessionRun(
 }
 
 /// <summary>
-/// What a deletion removed, or would remove when planned (sprint 3.4): the files and their bytes, the files that could not
+/// What a deletion removed, or would remove when planned: the files and their bytes, the files that could not
 /// be deleted (each with its reason), and the files left in place on purpose (a session's dumps outside its folder).
 /// </summary>
 public sealed record Deletion(IReadOnlyList<string> Files, long Bytes, IReadOnlyList<string>? Failed = null, IReadOnlyList<string>? Kept = null)
@@ -166,8 +166,8 @@ public sealed record Session(string Folder, SessionDocument Document)
     /// <summary>
     /// True for a path on this machine: not a network share or device path (any two leading separators, so
     /// <c>\\server</c>, <c>//server</c>, <c>\/server</c>, <c>\\?\</c> and <c>\\.\</c>, nor <c>\??\</c>) and, on Windows, not
-    /// on a mapped network drive. A session received from someone else may name any path (sprint 3.7, peer review S3);
-    /// looking at a network one reaches out to that server and offers it the user's credentials (3.7 review H1). Nothing
+    /// on a mapped network drive. A session received from someone else may name any path;
+    /// looking at a network one reaches out to that server and offers it the user's credentials. Nothing
     /// here touches the path itself.
     /// </summary>
     public static bool IsLocal(string path)
@@ -197,7 +197,7 @@ public sealed record Session(string Folder, SessionDocument Document)
 
     /// <summary>
     /// The full path of <paramref name="relative"/> when it is a regular file inside this session's folder, reached through
-    /// no link; null otherwise (sprint 3.7, peer review S3: a received session's run may name any file).
+    /// no link; null otherwise (a received session's run may name any file).
     /// </summary>
     public string? FileInside(string? relative) => CheckFile(relative).Path;
 
@@ -218,7 +218,7 @@ public sealed record Session(string Folder, SessionDocument Document)
         }
 
         // The rule deleting a session's files uses: inside the folder by its full path, with no folder on the way a link
-        // (3.7 review H2); then the file itself is no link either.
+        // then the file itself is no link either.
         var folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Folder));
         var path = Path.GetFullPath(Path.Combine(folder, relative));
         if (!IsLocal(path))
@@ -265,7 +265,7 @@ public sealed record Session(string Folder, SessionDocument Document)
 public sealed record SessionSummary(string Folder, string Name, DateTimeOffset CreatedUtc, DateTimeOffset LastOpenedUtc, int SnapshotCount, long SizeBytes);
 
 /// <summary>
-/// The session snapshot library (sprint 1.1): one folder per session under <see cref="Root"/>, each with a
+/// The session snapshot library: one folder per session under <see cref="Root"/>, each with a
 /// <c>session.json</c>. Captures go into the current session, created on first use or chosen with <see cref="Open"/>.
 /// Every change is a read-modify-write of the file on disk under a cross-process lock (<c>session.lock</c>), so
 /// concurrent captures and several HeapScope runs never lose records. Damaged or foreign folders are skipped when listing.
@@ -280,14 +280,14 @@ public sealed class SessionLibrary
     private readonly HashSet<string> _setAsideNoted = new(PathIdentity.Comparer());
 
     // _gate guards _currentFolder only and is never held across file work, so CurrentFolder and HasCurrent stay cheap on
-    // the UI thread (peer review P1). _currentWork serializes reading or creating the current session; _writeGate
+    // the UI thread. _currentWork serializes reading or creating the current session; _writeGate
     // serializes this library's updates before they take the cross-process lock.
     private readonly object _gate = new();
     private readonly object _currentWork = new();
     private readonly object _writeGate = new();
     private string? _currentFolder;
 
-    // Sessions something writes into (a capture, a monitoring run) and sessions being deleted (sprint 3.4 review H1):
+    // Sessions something writes into (a capture, a monitoring run) and sessions being deleted:
     // a deletion refuses the first, and the second refuse to start in a session being deleted.
     private readonly object _useGate = new();
     private readonly Dictionary<string, List<string>> _inUse = new(PathIdentity.Comparer());
@@ -311,7 +311,7 @@ public sealed class SessionLibrary
     /// <summary>
     /// The session of this run, created on first use or when its folder or document is gone. A current session whose
     /// document exists but cannot be read fails with <see cref="SessionUnreadableException"/> instead of moving the next
-    /// captures into a new session (peer review P1).
+    /// captures into a new session.
     /// </summary>
     public Session Current
     {
@@ -349,7 +349,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// Lets go of the current session (sprint 3.12, Purge all): its folder is not touched, and the next capture starts a new
+    /// Lets go of the current session (Purge all): its folder is not touched, and the next capture starts a new
     /// session.
     /// </summary>
     public void ForgetCurrent()
@@ -405,8 +405,7 @@ public sealed class SessionLibrary
 
     /// <summary>
     /// Makes an existing session the current one (captures go there). Returns null when there is no session there; a
-    /// session that exists but cannot be read fails with <see cref="SessionUnreadableException"/> and says why (sprint 3.6
-    /// review: unreadable is not missing).
+    /// session that exists but cannot be read fails with <see cref="SessionUnreadableException"/> and says why (unreadable is not missing).
     /// </summary>
     public Session? Open(string folder)
     {
@@ -414,7 +413,7 @@ public sealed class SessionLibrary
         var full = Path.IsPathFullyQualified(folder) ? folder : Path.Combine(Root, folder);
 
         // With the current session's own work, so a capture reading or creating the current session at the same moment
-        // cannot put its new session over the one opened here (review).
+        // cannot put its new session over the one opened here.
         lock (_currentWork)
         {
             var read = SessionDocumentFile.Read(full);
@@ -467,7 +466,7 @@ public sealed class SessionLibrary
     /// <summary>Marks a session as opened now.</summary>
     public Session Touch(string folder) => Update(folder, document => document with { LastOpenedUtc = _time.GetUtcNow() });
 
-    /// <summary>Records a monitoring run, replacing the record with its id (sprint 3.4: written at its start and end).</summary>
+    /// <summary>Records a monitoring run, replacing the record with its id (written at its start and end).</summary>
     public Session RecordRun(string folder, SessionRun run)
     {
         ArgumentNullException.ThrowIfNull(run);
@@ -482,7 +481,7 @@ public sealed class SessionLibrary
 
     /// <summary>
     /// Marks a session as written into by <paramref name="what"/> (a capture, a monitoring run) until the result is
-    /// disposed (sprint 3.4 review H1): it cannot be deleted meanwhile. Fails when the session is being deleted.
+    /// disposed: it cannot be deleted meanwhile. Fails when the session is being deleted.
     /// </summary>
     public IDisposable MarkInUse(string folder, string what)
     {
@@ -525,7 +524,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// What deleting a snapshot of a session would remove (sprint 3.4, decision 6): its file, its partial file, and its
+    /// What deleting a snapshot of a session would remove: its file, its partial file, and its
     /// index caches and sidecars (next to it and in <paramref name="cacheFallbackRoot"/>). Refused, with the reason, for a
     /// snapshot outside its session folder (a dump captured to a path of the user's choosing stays theirs) or reached
     /// through a link; nothing is deleted here.
@@ -538,7 +537,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// Deletes a snapshot of a session (sprint 3.4, decision 6): what <see cref="PlanSnapshotDeletion"/> lists, then its
+    /// Deletes a snapshot of a session: what <see cref="PlanSnapshotDeletion"/> lists, then its
     /// entry. The caller has made sure it is not open. A file that cannot be deleted is reported in
     /// <see cref="Deletion.Failed"/>; the entry stays while the dump itself does, so the snapshot is still listed.
     /// </summary>
@@ -557,28 +556,28 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// What deleting a whole session would remove (sprint 3.4): every file in its folder (links are not followed) and its
+    /// What deleting a whole session would remove: every file in its folder (links are not followed) and its
     /// snapshots' caches in the fallback root. Dumps the session records outside its folder are kept and listed in
     /// <see cref="Deletion.Kept"/>. Refused, with the reason, for a folder that is not a session of this library, the
     /// current session, or a session something writes into. Nothing is deleted here.
     /// </summary>
-    /// <param name="allowCurrent">Purge all (sprint 3.12): the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
+    /// <param name="allowCurrent">Purge all: the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
     public Deletion PlanSessionDeletion(string folder, string? cacheFallbackRoot = null, bool allowCurrent = false)
     {
         var session = SessionToDelete(folder, allowCurrent);
         var (files, kept) = SessionFiles(session, cacheFallbackRoot);
 
-        // What the folder's removal takes too (the review's M14): its lock file and links, which are removed, never followed.
+        // What the folder's removal takes too: its lock file and links, which are removed, never followed.
         var all = files.Concat(Leftovers(session.Folder)).ToList();
         return new Deletion(all, files.Sum(f => new FileInfo(f).Length), Kept: kept);
     }
 
     /// <summary>
-    /// Deletes a whole session (sprint 3.4) under its lock: what <see cref="PlanSessionDeletion"/> lists, with
+    /// Deletes a whole session under its lock: what <see cref="PlanSessionDeletion"/> lists, with
     /// <c>session.json</c> last, so a deletion that fails part way leaves a session that is still listed and can be deleted
     /// again. The caller has made sure none of its snapshots is open.
     /// </summary>
-    /// <param name="allowCurrent">Purge all (sprint 3.12): the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
+    /// <param name="allowCurrent">Purge all: the current session too, which <see cref="ForgetCurrent"/> lets go of first.</param>
     public Deletion DeleteSession(string folder, string? cacheFallbackRoot = null, bool allowCurrent = false)
     {
         var full = SessionToDelete(folder, allowCurrent).Folder;
@@ -619,7 +618,7 @@ public sealed class SessionLibrary
             try
             {
                 // Empty folders and the lasting lock file, closed above; links are removed, never followed. Both are counted
-                // with the files (the review's M14).
+                // with the files.
                 Directory.Delete(full, recursive: true);
                 deletion = deletion with { Files = [.. deletion.Files, .. leftovers] };
             }
@@ -639,7 +638,7 @@ public sealed class SessionLibrary
         }
     }
 
-    /// <summary>The session that records the snapshot at <paramref name="path"/>, with its entry, or null (sprint 3.4).</summary>
+    /// <summary>The session that records the snapshot at <paramref name="path"/>, with its entry, or null.</summary>
     public (Session Session, SessionSnapshot Snapshot)? FindSnapshot(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -657,7 +656,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// Sessions not opened for <paramref name="age"/> (sprint 3.4, "Clean up old sessions"), oldest first, the current one
+    /// Sessions not opened for <paramref name="age"/> ("Clean up old sessions"), oldest first, the current one
     /// left out. Nothing is deleted here.
     /// </summary>
     public IReadOnlyList<SessionSummary> ListOlderThan(TimeSpan age)
@@ -790,7 +789,7 @@ public sealed class SessionLibrary
     private static IEnumerable<string> SnapshotFiles(string path, string? cacheFallbackRoot) =>
         new[] { path, path + ".partial" }.Where(File.Exists).Concat(IndexCachePaths.Existing(path, cacheFallbackRoot));
 
-    /// <summary>Deletes the files it can; the others are reported with their reason (sprint 3.4 review H4).</summary>
+    /// <summary>Deletes the files it can; the others are reported with their reason.</summary>
     private static Deletion DeleteFiles(IEnumerable<string> files)
     {
         var deleted = new List<string>();
@@ -854,7 +853,7 @@ public sealed class SessionLibrary
     /// <summary>
     /// Removes a session folder that holds no snapshots and no files (a capture that failed after creating it). Nothing is
     /// removed while anything but the caller's own claim (<paramref name="ownClaim"/>, from <see cref="MarkInUse"/>) writes
-    /// into it (sprint 3.6 review: another capture or a run may have taken the new session meanwhile).
+    /// into it (another capture or a run may have taken the new session meanwhile).
     /// </summary>
     public void DeleteIfEmpty(string folder, string? ownClaim = null)
     {
@@ -907,7 +906,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// Deletes snapshots left half-written (<c>*.dmp.partial</c>, <c>*.gcdump.partial</c> since 1.8, <c>*.nettrace.partial</c> recordings since 2.5, <c>*.nettrace.*.partial</c> since 3.7) under <paramref name="folder"/> (default: the root) that
+    /// Deletes snapshots left half-written (<c>*.dmp.partial</c>, <c>*.gcdump.partial</c>, <c>*.nettrace.partial</c> recordings, <c>*.nettrace.*.partial</c>) under <paramref name="folder"/> (default: the root) that
     /// are older than <paramref name="minimumAge"/> and no longer held by a writer: the safety net when HeapScope was
     /// killed while a canceled capture was still being written. Returns the number of files removed.
     /// </summary>
@@ -923,7 +922,7 @@ public sealed class SessionLibrary
         var removed = 0;
         try
         {
-            // Links are never followed (sprint 3.7, peer review S4): a junction in the library could point anywhere.
+            // Links are never followed: a junction in the library could point anywhere.
             var options = new EnumerationOptions { RecurseSubdirectories = folder is null, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true };
             foreach (var file in Directory.EnumerateFiles(root, "*.dmp.partial", options).Concat(Directory.EnumerateFiles(root, "*.gcdump.partial", options)).Concat(Directory.EnumerateFiles(root, "*.nettrace.partial", options)).Concat(Directory.EnumerateFiles(root, "*.nettrace.*.partial", options)))
             {
@@ -949,8 +948,7 @@ public sealed class SessionLibrary
     }
 
     /// <summary>
-    /// Logs, once per session and process, the entries a newer HeapScope wrote with values this build does not know (sprint
-    /// 3.12, B4; review M18): kept and saved as they are, but not shown, so "my snapshot vanished" has an answer.
+    /// Logs, once per session and process, the entries a newer HeapScope wrote with values this build does not know: kept and saved as they are, but not shown, so "my snapshot vanished" has an answer.
     /// </summary>
     private void NoteSetAside(Session session)
     {
@@ -1003,7 +1001,7 @@ public sealed class SessionLibrary
             }
             else if (read.Status == SessionReadStatus.Unreadable)
             {
-                // Listed in the log, not in the app (review): "my session vanished from the list" has an answer.
+                // Listed in the log, not in the app: "my session vanished from the list" has an answer.
                 skipped++;
                 _logger.LogDebug("Session folder {Folder} not listed: {Reason}", folder, read.Reason);
             }
@@ -1037,12 +1035,12 @@ public sealed class SessionLibrary
 
     /// <summary>
     /// Opens <c>session.lock</c> exclusively, retrying for up to 30 seconds while another run holds it. Each holder flushes
-    /// the document to disk, which takes long on a busy machine; 10 seconds was too short for many waiters (a gate flake in
-    /// sprints 2.3.5 to 2.3.7 lost an update to the deadline, not to a race).
+    /// the document to disk, which takes long on a busy machine; 10 seconds was too short for many waiters (a gate flake
+    /// lost an update to the deadline, not to a race).
     /// </summary>
     private static FileStream AcquireLock(string folder)
     {
-        // A lasting file (sprint 3.6 review): deleted on close, a waiter on Linux and macOS could lock the unlinked file
+        // A lasting file: deleted on close, a waiter on Linux and macOS could lock the unlinked file
         // while a third process locks a new one, and both would write. Deleting a session removes it with the folder.
         var path = Path.Combine(folder, LockName);
         var watch = System.Diagnostics.Stopwatch.StartNew();

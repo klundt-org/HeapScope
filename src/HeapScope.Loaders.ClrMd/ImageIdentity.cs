@@ -28,7 +28,7 @@ using System.Text;
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// The identity a Linux or macOS dump records for a native image (sprint 2.3.5): an ELF image's GNU build id, a Mach-O
+/// The identity a Linux or macOS dump records for a native image: an ELF image's GNU build id, a Mach-O
 /// image's LC_UUID. A DAC found on this machine is used only when its identity equals the dump's, as a Windows DAC must
 /// match the dump's PE time stamp and size (ADR-017), so a DAC of another build is never loaded. ClrMD's own readers of
 /// these formats are internal, so the two small readers live here.
@@ -47,7 +47,7 @@ public static class ImageIdentity
     /// <summary>
     /// The version string every CoreCLR native binary embeds after <c>@(#)Version </c> (for example
     /// <c>10.0.1426.52326 @Commit: ...</c>), or null. Two binaries with the same string come from the same runtime build
-    /// (sprint 2.3.5 review M1: a DAC paired with its runtime library is checked this way outside installed runtimes).
+    /// (a DAC paired with its runtime library is checked this way outside installed runtimes).
     /// </summary>
     public static string? ReadVersionString(string path)
     {

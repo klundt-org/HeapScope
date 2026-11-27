@@ -25,7 +25,7 @@
 namespace HeapScope.Application.Workers;
 
 /// <summary>
-/// A worker failure a front end shows as a message (sprint 2.3.7 review M12): the worker could not start, crashed, or
+/// A worker failure a front end shows as a message: the worker could not start, crashed, or
 /// rejected an operation. Catching this one type replaces the three-way pattern repeated in fifteen places.
 /// </summary>
 public abstract class WorkerException : Exception

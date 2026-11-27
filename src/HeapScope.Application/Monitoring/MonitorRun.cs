@@ -47,7 +47,7 @@ public sealed class MonitorRun : IAsyncDisposable
     /// <summary>The label of a snapshot taken with Get snapshot.</summary>
     public const string ManualLabel = "manual";
 
-    /// <summary>The run stops recording allocations when the disk has less free space than this (review H7 of 3.4).</summary>
+    /// <summary>The run stops recording allocations when the disk has less free space than this.</summary>
     public const long TraceMinimumFreeBytes = 1L << 30;
 
     private readonly ICaptureService _capture;
@@ -88,16 +88,16 @@ public sealed class MonitorRun : IAsyncDisposable
 
     public event EventHandler<MonitorCapture>? Captured;
 
-    /// <summary>Raised when a forced collection ends (sprint 3.4), on a background thread.</summary>
+    /// <summary>Raised when a forced collection ends, on a background thread.</summary>
     public event EventHandler<MonitorForcedGc>? GcForced;
 
     /// <summary>
     /// Raised when the allocation trace stops before the run (refused, failed, or stopped at its size or disk limit), with
-    /// the reason in words, on a background thread (review of 3.4: shown at once, not at the end of the run).
+    /// the reason in words, on a background thread (shown at once, not at the end of the run).
     /// </summary>
     public event EventHandler<string>? TraceStopped;
 
-    /// <summary>The allocation trace is being written and can be read beside it (sprint 4.3, ADR-037).</summary>
+    /// <summary>The allocation trace is being written and can be read beside it (ADR-037).</summary>
     public event EventHandler<LiveTraceFile>? TraceStarted;
 
     /// <summary>
@@ -106,13 +106,13 @@ public sealed class MonitorRun : IAsyncDisposable
     /// </summary>
     public event EventHandler<string>? TraceEnded;
 
-    /// <summary>The run's id in its session's record (sprint 3.4).</summary>
+    /// <summary>The run's id in its session's record.</summary>
     public Guid Id { get; } = Guid.NewGuid();
 
     /// <summary>The session folder the run records into, when it has one.</summary>
     public string? SessionFolder => _record?.Folder;
 
-    /// <summary>The allocation trace, once the run ended with one (sprint 3.4).</summary>
+    /// <summary>The allocation trace, once the run ended with one.</summary>
     public string? TracePath { get; private set; }
 
     /// <summary>Why the allocation trace was not recorded or stopped early, when asked for.</summary>
@@ -164,7 +164,7 @@ public sealed class MonitorRun : IAsyncDisposable
     }
 
     /// <summary>
-    /// Takes a snapshot now (sprint 3.4, the Live page's Get snapshot): a manual capture of the run's process with the run's
+    /// Takes a snapshot now (the Live page's Get snapshot): a manual capture of the run's process with the run's
     /// kind, recorded as the run's card and timeline marker. Refused (a failed card) while a capture of it runs, and once
     /// the run is stopping.
     /// </summary>
@@ -182,7 +182,7 @@ public sealed class MonitorRun : IAsyncDisposable
     }
 
     /// <summary>
-    /// Forces a full collection in the run's process (sprint 3.4), marked on the timeline and in the run's record when it
+    /// Forces a full collection in the run's process, marked on the timeline and in the run's record when it
     /// finished. Refused once the run is stopping.
     /// </summary>
     public Task<MonitorForcedGc> ForceGcAsync(CancellationToken cancellationToken)
@@ -233,7 +233,6 @@ public sealed class MonitorRun : IAsyncDisposable
         if (Options.RecordAllocations)
         {
             // A limit whose read would not fit this machine beside two snapshots is lowered at the start, not found at the read
-            // (peer review 4.5 H8, sprint 4.7).
             var memory = HeapScope.Application.Snapshots.PhysicalMemory.Current();
             var limit = HeapScope.Core.TraceReadCost.Fit(Options.TraceLimitBytes, memory.TotalBytes);
             if (limit < Options.TraceLimitBytes)
@@ -254,7 +253,7 @@ public sealed class MonitorRun : IAsyncDisposable
         Completion = RunAsync(counters);
     }
 
-    /// <summary>Whether the run is stopping or stopped: nothing new starts then (review H6 of 3.4).</summary>
+    /// <summary>Whether the run is stopping or stopped: nothing new starts then.</summary>
     private bool Stopping => _closing || _stop.IsCancellationRequested;
 
     /// <summary>Tracks a capture or forced collection, so the run's end waits for it (call under the gate).</summary>
@@ -294,7 +293,7 @@ public sealed class MonitorRun : IAsyncDisposable
 
         lock (_gate)
         {
-            // Only a collection whose end was seen is marked as forced (review of 3.4): the marker backs the advice that
+            // Only a collection whose end was seen is marked as forced: the marker backs the advice that
             // objects compared across it may have moved.
             if (result.Result is { Completed: true })
             {
@@ -322,7 +321,7 @@ public sealed class MonitorRun : IAsyncDisposable
 
     /// <summary>
     /// Reports a problem with the allocation trace. Every problem is logged; the first is what the run shows and records,
-    /// unless a later one says the trace was not kept after all (3.8 review: a stop that failed after an early stop).
+    /// unless a later one says the trace was not kept after all (a stop that failed after an early stop).
     /// </summary>
     private void TraceProblem(string message, Exception? ex)
     {
@@ -399,8 +398,8 @@ public sealed class MonitorRun : IAsyncDisposable
         finally
         {
             // Teardown never throws: a capture's own failure is recorded by CaptureAsync, and the timeline is closed
-            // whatever happened (review H3 of 1.7). Nothing new starts from here on, and every capture and forced
-            // collection still running is awaited (review H6 of 3.4).
+            // whatever happened. Nothing new starts from here on, and every capture and forced
+            // collection still running is awaited.
             Task[] pending;
             lock (_gate)
             {
@@ -413,7 +412,7 @@ public sealed class MonitorRun : IAsyncDisposable
             _logger.LogInformation("Monitoring run {RunId} (pid {Pid}) ended: {Captures} snapshots taken, {Rules} by rules", Id, ProcessId, taken, _rules.Count);
 
             // The allocation trace stops after the captures: stopping a runtime session while a gcdump's is open can
-            // induce another collection (review of 3.4). Keep what it wrote.
+            // induce another collection. Keep what it wrote.
             if (_recording is not null && await _recording.StopAsync().ConfigureAwait(false) is { } written)
             {
                 TracePath = written.Path;
@@ -437,11 +436,11 @@ public sealed class MonitorRun : IAsyncDisposable
         MonitorSample seen;
         lock (_gate)
         {
-            // After Stop no rule fires: the user asked for no more dumps (review of 1.7).
+            // After Stop no rule fires: the user asked for no more dumps.
             var stopped = Stopping;
 
             // A capture or forced collection of this process from anywhere (the Processes page, Get snapshot, Force GC)
-            // counts as running (decision 3).
+            // counts as running.
             var own = _pending.Any(t => !t.IsCompleted);
             var running = own || _capture.IsBusy(ProcessId);
             fired = stopped ? null : _rules.Evaluate(sample, captureRunning: running);
@@ -455,7 +454,7 @@ public sealed class MonitorRun : IAsyncDisposable
             }
             else if (_rules.Deferred is { } deferred)
             {
-                // Logged once per busy stretch (review H5 of 3.4): the rule fires at the first sample after it.
+                // Logged once per busy stretch: the rule fires at the first sample after it.
                 if (!_deferLogged)
                 {
                     _deferLogged = true;
@@ -521,7 +520,6 @@ public sealed class MonitorRun : IAsyncDisposable
             }
 
             // Another capture of the process won the race between the busy check and the gate: the rule is not used up
-            // (review H5 of 3.4).
             if (busy && rule is not null)
             {
                 _rules.Missed(rule);

@@ -23,7 +23,7 @@
 
 namespace HeapScope.Application.Sessions;
 
-/// <summary>Why a path a session names is not used as one of its files (sprint 3.8, 3.7 review M2).</summary>
+/// <summary>Why a path a session names is not used as one of its files.</summary>
 public enum SessionFileRefusal
 {
     /// <summary>The session records no such file.</summary>

@@ -12,7 +12,8 @@ You receive the sprint id, the changed and new files, the sprint's section of `d
 to `docs/ARCHITECTURE.md` and `docs/DEVELOPER.md`. Read DEVELOPER.md fully, then the changed files.
 
 ## What to check
-- **Readability**: clear names, small focused types, no dead code, comments where intent is not obvious.
+- **Readability**: clear names, small focused types (a view model file at 600 lines or fewer), no dead code, comments where
+  intent is not obvious that say why without sprint or review ids (DEVELOPER.md 4; the architecture tests check both).
 - **Tests**: every acceptance criterion has a test or a recorded measurement; meaningful edge cases covered;
   tests deterministic, isolated, not timing-fragile; integration tests clean up processes and files.
 - **Error handling**: specific exceptions, caught only at boundaries, user messages with a next step, no

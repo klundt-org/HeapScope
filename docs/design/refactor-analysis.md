@@ -67,7 +67,7 @@ Ranked by value for cost.
 |---|---|---|
 | Live page view model split (Backlog 3.8 P11): 764 lines, three concerns, replaced runs never disposed, file I/O on the UI thread | Profiler-style live session (do it first) | M |
 | Allocation model keyed by type and frame identity, absolute times, built in chunks; a streaming trace reader (Backlog 2.5); one worker resource scope for snapshots and traces | Live session, or allocations between two snapshots | L |
-| Analysis workspace per snapshot (Backlog 3.8 P21) | Analysis tabs | L |
+| Analysis workspace per snapshot (Backlog 3.8 P21; done in sprint 4.9, ADR-044) | Analysis tabs | L |
 | Capture availability per operation, with seams per system | Capture on Linux and macOS | M |
 | Inspection applicability (`AppliesTo`) | WPF leak detectors | S |
 | Parallel loader; graph built straight into the mapped cache; objects-by-type index; gcdump loader memory (Backlog 1.8) | Larger dumps, gcdumps at scale | M to L |

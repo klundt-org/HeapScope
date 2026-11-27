@@ -36,7 +36,7 @@ public enum TraceKind
     /// <summary>Garbage collections, their pauses and sampled allocations.</summary>
     Gc = 1,
 
-    /// <summary>Sampled allocations with call stacks (sprint 2.5), for the Allocations page and the <c>allocations</c> command.</summary>
+    /// <summary>Sampled allocations with call stacks, for the Allocations page and the <c>allocations</c> command.</summary>
     Allocations = 2,
 }
 
@@ -46,7 +46,7 @@ public enum TraceKind
 public sealed record TraceResult(string Path, long Bytes, TimeSpan Duration, bool StoppedEarly, string? Problem = null);
 
 /// <summary>
-/// Records EventPipe traces of .NET processes, HeapScope's own included (sprint 1.5): no dotnet-trace install. Failures
+/// Records EventPipe traces of .NET processes, HeapScope's own included: no dotnet-trace install. Failures
 /// are <see cref="CaptureFailedException"/> with a plain-language next step, like captures.
 /// </summary>
 public sealed class TraceService(ILogger<TraceService>? logger = null)
@@ -57,7 +57,7 @@ public sealed class TraceService(ILogger<TraceService>? logger = null)
     public Task<TraceResult> RecordAsync(int processId, string path, TraceKind kind, TimeSpan duration, CancellationToken cancellationToken) =>
         RecordAsync(processId, () => TraceRecorder.RecordAsync(processId, path, (TraceProfile)(int)kind, duration, cancellationToken));
 
-    /// <summary>Records allocations into a file that a reader beside it follows (sprint 4.3, ADR-037).</summary>
+    /// <summary>Records allocations into a file that a reader beside it follows (ADR-037).</summary>
     public Task<TraceResult> RecordLiveAsync(int processId, string path, TimeSpan duration, TimeSpan counterInterval, string? noNames, Action<LiveTraceStart>? started, CancellationToken cancellationToken) =>
         RecordAsync(processId, () => TraceRecorder.RecordLiveAsync(processId, path, duration, counterInterval, noNames, started, cancellationToken));
 
@@ -72,7 +72,7 @@ public sealed class TraceService(ILogger<TraceService>? logger = null)
         {
             if (ex is TargetUnavailableException { Evidence: { } evidence })
             {
-                // Sprint 4.1 review H6: what the reason given rests on.
+                // What the reason given rests on.
                 _logger.LogInformation("Pid {Pid} could not be traced: {Evidence}", processId, evidence);
             }
             else if (ex is ElevationRequiredException && CapturePlatform.UserIdsOf(processId) is { } ids)

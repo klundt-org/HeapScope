@@ -22,6 +22,7 @@
 // Commercial licenses are available. See COMMERCIAL.md.
 
 using HeapScope.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Rpc;
 
@@ -30,24 +31,43 @@ namespace HeapScope.Worker.Rpc;
 /// per page. Least recently used sets are evicted when either the set count or the estimated byte budget is
 /// exceeded, so a client that never releases cannot grow the worker without bound. A set may carry an owner
 /// (for example a snapshot lease) that is disposed when the set is released or evicted, or, when a page is being
-/// formatted at that moment, after that page: sources read the graph and the dump while formatting (sprint 1.5 review).
+/// formatted at that moment, after that page: sources read the graph and the dump while formatting.
+/// A set names the snapshot it came from; once the client says which snapshot its window shows (<see cref="Show"/>), the
+/// sets of the others are evicted first, so the workspace on screen keeps its rows while hidden ones give way (ADR-044).
 /// </summary>
 internal sealed class ResultSetStore
 {
-    public const int DefaultCapacity = 32;
+    // Room for several workspaces' sets (an inspections run alone holds about 20); the byte budget guards the memory
+    // (ADR-044).
+    public const int DefaultCapacity = 128;
     public const long DefaultByteBudget = 256L * 1024 * 1024;
 
     private readonly object _gate = new();
     private readonly Dictionary<Guid, LinkedListNode<StoredResultSet>> _sets = [];
     private readonly LinkedList<StoredResultSet> _recency = new();
+    private readonly ILogger? _logger;
     private long _bytes;
+    private Guid? _shown;
 
-    public ResultSetStore(int capacity = DefaultCapacity, long byteBudget = DefaultByteBudget)
+    public ResultSetStore(int capacity = DefaultCapacity, long byteBudget = DefaultByteBudget, ILogger? logger = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(byteBudget, 1);
         Capacity = capacity;
         ByteBudget = byteBudget;
+        _logger = logger;
+    }
+
+    /// <summary>The snapshot the client shows, whose sets are evicted last; null when it shows none or never said.</summary>
+    public Guid? ShownSnapshot
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _shown;
+            }
+        }
     }
 
     public int Capacity { get; }
@@ -76,29 +96,59 @@ internal sealed class ResultSetStore
         }
     }
 
-    /// <summary>
-    /// Stores a source and returns the descriptor clients page through. The newest set is always kept, even when it
-    /// alone exceeds the byte budget; older sets are evicted first.
-    /// </summary>
-    public ResultSetInfo Add(IResultSource source, IDisposable? owner = null)
+    /// <summary>The client shows <paramref name="snapshot"/> now (null: none): from here on the other snapshots' sets go first.</summary>
+    public void Show(Guid? snapshot)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        var set = new StoredResultSet(Guid.NewGuid(), source, owner);
-        var evicted = new List<StoredResultSet>();
         lock (_gate)
         {
+            _shown = snapshot;
+        }
+    }
+
+    /// <summary>
+    /// Stores a source of <paramref name="snapshot"/> (null for a set of no snapshot: a trace, a synthetic graph) and returns
+    /// the descriptor clients page through. The newest set is always kept, even when it alone exceeds the byte budget. Older
+    /// sets are evicted least recently used first, those of a snapshot not shown before any other.
+    /// </summary>
+    public ResultSetInfo Add(Guid? snapshot, IResultSource source, IDisposable? owner = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var set = new StoredResultSet(Guid.NewGuid(), snapshot, source, owner);
+        var evicted = new List<StoredResultSet>();
+        Guid? shown;
+        int count;
+        long bytes;
+        lock (_gate)
+        {
+            shown = _shown;
             _sets.Add(set.Id, _recency.AddFirst(set));
             _bytes += source.EstimatedBytes;
             while (_sets.Count > 1 && (_sets.Count > Capacity || _bytes > ByteBudget))
             {
-                var oldest = _recency.Last!.Value;
-                RemoveLocked(oldest.Id);
-                evicted.Add(oldest);
+                var victim = NextToEvictLocked();
+                RemoveLocked(victim.Id);
+                evicted.Add(victim);
             }
+
+            (count, bytes) = (_sets.Count, _bytes);
         }
 
         foreach (var old in evicted)
         {
+            // A set of a hidden snapshot is meant to go first (Debug); one of the snapshot shown, or with none said, is what a
+            // "my grid ran again" question turns on (Information).
+            var level = old.Snapshot is not null && shown is not null && old.Snapshot != shown ? LogLevel.Debug : LogLevel.Information;
+            _logger?.Log(
+                level,
+                "Result set {Id} of snapshot {Snapshot} evicted ({Bytes} bytes; the client shows {Shown}; {Count}/{Capacity} sets, {Total}/{Budget} bytes); paging it runs its query again",
+                old.Id,
+                old.Snapshot?.ToString() ?? "none",
+                old.Source.EstimatedBytes,
+                shown?.ToString() ?? "none",
+                count,
+                Capacity,
+                bytes,
+                ByteBudget);
             old.DisposeOwnerIfIdle();
         }
 
@@ -141,6 +191,30 @@ internal sealed class ResultSetStore
         }
     }
 
+    /// <summary>
+    /// Drops every set of a closed snapshot, so none keeps its graph alive through its lease until evicted; owners are
+    /// disposed as on a release. Returns how many went.
+    /// </summary>
+    public int ReleaseSnapshot(Guid snapshot)
+    {
+        var removed = new List<StoredResultSet>();
+        lock (_gate)
+        {
+            foreach (var set in _recency.Where(s => s.Snapshot == snapshot).ToList())
+            {
+                RemoveLocked(set.Id);
+                removed.Add(set);
+            }
+        }
+
+        foreach (var set in removed)
+        {
+            set.DisposeOwnerIfIdle();
+        }
+
+        return removed.Count;
+    }
+
     public void Release(Guid id)
     {
         StoredResultSet? removed;
@@ -169,6 +243,26 @@ internal sealed class ResultSetStore
         return new ResultPage(set.Id, start, total, rows);
     }
 
+    /// <summary>
+    /// The least recently used set of a snapshot not shown, else the least recently used set; never the newest one. With no
+    /// snapshot shown it is plain least recently used, as before the client said anything.
+    /// </summary>
+    private StoredResultSet NextToEvictLocked()
+    {
+        if (_shown is { } shown)
+        {
+            for (var node = _recency.Last; node is not null && node != _recency.First; node = node.Previous)
+            {
+                if (node.Value.Snapshot is { } snapshot && snapshot != shown)
+                {
+                    return node.Value;
+                }
+            }
+        }
+
+        return _recency.Last!.Value;
+    }
+
     private StoredResultSet? RemoveLocked(Guid id)
     {
         if (!_sets.Remove(id, out var node))
@@ -184,9 +278,11 @@ internal sealed class ResultSetStore
     }
 
     /// <summary>A stored set and the pages being formatted from it (<see cref="Readers"/>, guarded by the store's lock).</summary>
-    private sealed class StoredResultSet(Guid id, IResultSource source, IDisposable? owner)
+    private sealed class StoredResultSet(Guid id, Guid? snapshot, IResultSource source, IDisposable? owner)
     {
         public Guid Id { get; } = id;
+
+        public Guid? Snapshot { get; } = snapshot;
 
         public IResultSource Source { get; } = source;
 

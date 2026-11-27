@@ -25,7 +25,7 @@
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// The allocations a diff shows (sprint 4.4): an open allocation trace of the same process and the interval between the two
+/// The allocations a diff shows: an open allocation trace of the same process and the interval between the two
 /// heaps, on the machine's clock. What of it the trace does not cover is left out, and the result says what was counted.
 /// </summary>
 public sealed record DiffAllocationScope(Guid TraceId, DateTimeOffset FromUtc, DateTimeOffset ToUtc);

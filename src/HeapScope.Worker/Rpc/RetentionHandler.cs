@@ -73,7 +73,7 @@ internal sealed class RetentionHandler(
             var (reverse, info) = await derived.GetReverseAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
 
             // Whether a root reaches the object is decided by the root path tree, which is exact; the bounded search only
-            // finds the paths, and falls back to the tree's path when it stops before a root (review H2).
+            // finds the paths, and falls back to the tree's path when it stops before a root.
             var rootPaths = await snapshots.GetRootPathTreeAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false)
                 ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
             snapshot.TryGetService<IObjectReader>(out var reader);
@@ -94,7 +94,7 @@ internal sealed class RetentionHandler(
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            // Which roots hold the object, as shown (sprint 2.3.7 review H3): a disputed "held by a static field" is
+            // Which roots hold the object, as shown: a disputed "held by a static field" is
             // answered from the log, not by running the query again.
             Logger.LogInformation(
                 "Retention paths of 0x{Address:x} in snapshot {Id}: reachable {Reachable}, {Visited} objects visited, stopped early {StoppedEarly}, truncated {Truncated}, root path fallback {Fallback}; roots {Roots}; key paths {KeyPaths}",
@@ -132,7 +132,7 @@ internal sealed class RetentionHandler(
             ObjectSet? members = null;
             if (request.Set is { } spec)
             {
-                // A set's key paths (sprint 3.2): the 2.2 grouping over its members.
+                // A set's key paths: the 2.2 grouping over its members.
                 members = await resolver.ResolveAsync(request.SnapshotId, snapshot, spec, progress, cancellationToken).ConfigureAwait(false);
                 ObjectSetResolver.RequireMembers(members);
                 matched = members.TypeCount;
@@ -142,7 +142,7 @@ internal sealed class RetentionHandler(
                 types = TypeGroups.MatchTypes(graph, request.TypeName, request.Module, out matched);
                 if (matched == 0)
                 {
-                    // Answered before the tree is built for nothing (2.1 review M8).
+                    // Answered before the tree is built for nothing.
                     return new TypePathsResult([], 0, 0, 0, 0, 0, 0, 0, SnapshotAccess.IsComplete(snapshot), 0, RetentionMapping.UnreachableNote(snapshot.Info));
                 }
             }
@@ -170,7 +170,7 @@ internal sealed class RetentionHandler(
                 treeSeconds,
                 RetentionMapping.UnreachableNote(snapshot.Info));
 
-            // The key paths as shown, with their roots (sprint 2.3.7 review H3).
+            // The key paths as shown, with their roots.
             Logger.LogInformation(
                 "Retention paths of {Subject} in snapshot {Id}: {Objects} objects, {Unreachable} unreachable, {Other} further paths; key paths {KeyPaths}",
                 request.Set is { } asked ? asked.Shape : $"type {request.TypeName} ({request.Module ?? "no module"})",
@@ -257,7 +257,7 @@ internal sealed class RetentionHandler(
 
             var ancestors = view.Ancestors.Select(a => new DominatorAncestorDto(DominatorTreeRows.ObjectKey(graph.Addresses[a]), graph.Types.GetName(graph.TypeIndices[a]), graph.Addresses[a], (long)tree.RetainedSize(a))).ToArray();
 
-            // What the user looked at (sprint 2.3.7 review H3; the 2.4 review): the rows of the list just opened (or the
+            // What the user looked at: the rows of the list just opened (or the
             // top), the trail and the open keys, so a disputed row or trail is answered from the log. Types, addresses and
             // sizes only (11).
             string Describe(DominatorRow r) => string.Create(CultureInfo.InvariantCulture, $"{r.Kind} {r.Name}{(r.Object >= 0 ? $" 0x{graph.Addresses[r.Object]:x}" : string.Empty)} retains {r.Retained}");
@@ -282,7 +282,7 @@ internal sealed class RetentionHandler(
                 string.Join("; ", shown.Select(Describe)));
             var rowAddresses = view.Rows.Select(r => r.Object >= 0 ? graph.Addresses[r.Object] : 0).ToArray();
             return new DominatorTreeResult(
-                resultSets.Add(new DominatorTreeSource(view, rowAddresses)),
+                resultSets.Add(request.SnapshotId, new DominatorTreeSource(view, rowAddresses)),
                 focus >= 0 ? DominatorTreeRows.ObjectKey(request.FocusAddress) : null,
                 ancestors,
                 (long)view.FocusRetained,
@@ -299,7 +299,7 @@ internal sealed class RetentionHandler(
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            // Any object set since sprint 3.1; a type name stays the short form of a one-type set.
+            // Any object set; a type name stays the short form of a one-type set.
             var spec = request.Set ?? (string.IsNullOrEmpty(request.TypeName)
                 ? throw new RequestRefusedException("A type name or a set is required.", nameof(request))
                 : ObjectSetSpec.OfType(request.TypeName, request.Module));
@@ -307,7 +307,7 @@ internal sealed class RetentionHandler(
             using var _ = lease;
             var graph = snapshot.Graph;
 
-            // Resolved, and checked for members, before anything is computed (2.3 review M7; the 2.4 review).
+            // Resolved, and checked for members, before anything is computed.
             var set = await resolver.ResolveAsync(request.SnapshotId, snapshot, spec, progress, cancellationToken).ConfigureAwait(false);
             ObjectSetResolver.RequireMembers(set);
             var matched = set.TypeCount;
@@ -324,7 +324,7 @@ internal sealed class RetentionHandler(
             var (result, lowerBound) = await Task.Run(
                 () =>
                 {
-                    // Like every large computation of the worker, its memory is reserved first (2.3 review M2; the 2.4 review).
+                    // Like every large computation of the worker, its memory is reserved first.
                     using var reservation = snapshots.Reserve(
                         request.SnapshotId,
                         (long)(SetRetention.WorkingBytesPerObject + GroupRetention.WorkingBytesPerObject) * graph.ObjectCount,
@@ -359,7 +359,7 @@ internal sealed class RetentionHandler(
             var seconds = stopwatch.Elapsed.TotalSeconds;
             var total = tree.ReachableBytes();
 
-            // The totals and the first rows as shown (sprint 2.3.7 review H3): a disputed "this set retains" is answered from the log.
+            // The totals and the first rows as shown: a disputed "this set retains" is answered from the log.
             Logger.LogInformation(
                 "Retained by set: {Shape} in snapshot {Id}, {Matched} types among the members, {AllObjects} objects of which {SetObjects} reachable, of {SetBytes} bytes, retain {Objects} objects of {Bytes} bytes (lower bound {LowerBound}, heap {Total}) in {Seconds:0.00} s; first rows {First}",
                 Describe(spec),
@@ -375,7 +375,7 @@ internal sealed class RetentionHandler(
                 seconds,
                 string.Join("; ", source.Describe(10)));
             return new RetainedBySetResult(
-                resultSets.Add(source),
+                resultSets.Add(request.SnapshotId, source),
                 matched,
                 result.SetObjects,
                 (long)result.SetBytes,
@@ -406,7 +406,7 @@ internal sealed class RetentionHandler(
             var tops = await Task.Run(
                 () =>
                 {
-                    // The walks, the tops' arrays and their sort all run inside the reservation (the 3.1 review).
+                    // The walks, the tops' arrays and their sort all run inside the reservation.
                     using var reservation = snapshots.Reserve(request.SnapshotId, (long)SetDominators.WorkingBytesPerObject * graph.ObjectCount, phase)
                         ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
                     try
@@ -426,7 +426,7 @@ internal sealed class RetentionHandler(
                 topRetained += (long)tree.RetainedSize(top);
             }
 
-            // What the view rests on (2.3.7 review H3): the set, the top members and their bytes, the largest first.
+            // What the view rests on: the set, the top members and their bytes, the largest first.
             Logger.LogInformation(
                 "Set dominators: {Shape} in snapshot {Id}, {Members} members ({Unreachable} unreachable), {Tops} top members retain {Retained} bytes in {Seconds:0.00} s; largest {Largest}",
                 request.Set.Shape,
@@ -438,8 +438,8 @@ internal sealed class RetentionHandler(
                 stopwatch.Elapsed.TotalSeconds,
                 source.Describe(5));
 
-            // The rows read the graph and the dominators while they live, so they keep a lease of their own (the 3.1 review).
-            return new SetDominatorsResult(resultSets.Add(source, snapshot.AcquireLease()), ObjectSetResolver.Info(set), tops.Count, topRetained, tops.UnreachableMembers, info);
+            // The rows read the graph and the dominators while they live, so they keep a lease of their own.
+            return new SetDominatorsResult(resultSets.Add(request.SnapshotId, source, snapshot.AcquireLease()), ObjectSetResolver.Info(set), tops.Count, topRetained, tops.UnreachableMembers, info);
         });
 
     public Task<SimilarRetentionResult> QuerySimilarRetentionAsync(SimilarRetentionRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
@@ -465,7 +465,7 @@ internal sealed class RetentionHandler(
             var groups = await Task.Run(
                 () =>
                 {
-                    // The member groups, the patterns and the signature memo (the 3.2 review), compacted after.
+                    // The member groups, the patterns and the signature memo, compacted after.
                     using var reservation = snapshots.Reserve(request.SnapshotId, SimilarRetention.WorkingBytes(set.Count, graph.ObjectCount), phase)
                         ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
                     try
@@ -501,8 +501,8 @@ internal sealed class RetentionHandler(
                 stopwatch.Elapsed.TotalSeconds,
                 RetentionMapping.UnreachableNote(snapshot.Info));
 
-            // What the view rests on (decision 7): the set, the groups, and the largest groups with the paths shown; every
-            // listed group at Debug (the 3.2 review), numbered as the app and the CLI number them.
+            // What the view rests on: the set, the groups, and the largest groups with the paths shown; every
+            // listed group at Debug, numbered as the app and the CLI number them.
             Logger.LogInformation(
                 "Similar retention (rule v{Version}, reverse index {Mode}): {Shape} in snapshot {Id}, {Members} members in {Groups} groups ({Unreachable} unreachable, {Limited} with more than {Max} referrers) grouped in {Seconds:0.00} s; largest {Largest}",
                 SimilarRetention.Version,
@@ -554,7 +554,7 @@ internal sealed class RetentionHandler(
                 (long)segments[0].Width,
                 info);
 
-            // The widest bars below the top, as drawn (sprint 2.3.7 review H3).
+            // The widest bars below the top, as drawn.
             Logger.LogInformation(
                 "Icicle of snapshot {Id}: focus {Focus}, {Levels} levels, share {Share}, {Segments} bars of {Total} bytes; widest {Widest}",
                 request.SnapshotId,
@@ -567,7 +567,7 @@ internal sealed class RetentionHandler(
             return result;
         });
 
-    /// <summary>A set for the log: a one-type set by its type and module (as before 3.1), any other by its shape.</summary>
+    /// <summary>A set for the log: a one-type set by its type and module, any other by its shape.</summary>
     private static string Describe(ObjectSetSpec spec) =>
         spec.Kind == ObjectSetKind.Types && spec.Types is [var only]
             ? "type " + only.Name + " (" + (string.IsNullOrEmpty(only.Module) ? "no module" : only.Module) + ")"
@@ -593,7 +593,7 @@ internal sealed class RetentionHandler(
         var tree = dominators.Dominators;
         if (focus >= 0 && !tree.IsReachable(focus))
         {
-            // Why, for this kind of snapshot, and where to go instead (the 2.4 review).
+            // Why, for this kind of snapshot, and where to go instead.
             throw new RequestRefusedException(string.Create(
                 CultureInfo.InvariantCulture,
                 $"0x{address:x} is not in the dominator tree. {RetentionMapping.UnreachableNote(snapshot.Info)} It retains nothing; the biggest retainers show the tree from the top."));

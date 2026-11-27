@@ -32,7 +32,7 @@ using HeapScope.Core;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// One group of Similar Retention (sprint 3.2, ADR-031): members retained the same way.
+/// One group of Similar Retention (ADR-031): members retained the same way.
 /// </summary>
 /// <param name="FirstType">The type of the group's first member.</param>
 /// <param name="PathCount">Distinct key paths of the group's pattern.</param>
@@ -54,7 +54,7 @@ public sealed record SimilarRetentionSet(
     long LimitedMembers);
 
 /// <summary>
-/// Groups a set's members by retention pattern (sprint 3.2, dotMemory's Similar Retention). A member's pattern is the set of
+/// Groups a set's members by retention pattern (dotMemory's Similar Retention). A member's pattern is the set of
 /// distinct key path signatures (<see cref="KeyPaths"/>: shortest path from a root, repeats of one type folded) of its
 /// direct referrers that a root reaches without passing through the member, its own shortest path always among them,
 /// plus its root when it is one. Members with the same pattern are retained the same way and form a group. A group is
@@ -65,16 +65,16 @@ public static class SimilarRetention
     /// <summary>Rule version, logged with each answer (ADR-031): a change of the pattern rule bumps it.</summary>
     public const int Version = 1;
 
-    /// <summary>Direct referrers looked at per member, its own shortest path's included (decision 1).</summary>
+    /// <summary>Direct referrers looked at per member, its own shortest path's included.</summary>
     public const int MaxReferrers = 16;
 
     /// <summary>
     /// Steps climbed from a referrer toward its root to see whether its path passes through the member (a back pointer,
-    /// which retains nothing; the 3.2 review). Back pointers are nearly always a child or two below the member.
+    /// which retains nothing). Back pointers are nearly always a child or two below the member.
     /// </summary>
     public const int MaxBackPointerDepth = 256;
 
-    /// <summary>Distinct patterns at most: a set with more is refused with a message to narrow it (the 3.2 review).</summary>
+    /// <summary>Distinct patterns at most: a set with more is refused with a message to narrow it.</summary>
     public const int MaxPatterns = 1_000_000;
 
     /// <summary>Memory per member while grouping: its group number.</summary>
@@ -248,7 +248,7 @@ public static class SimilarRetention
                 pattern[count++] = assignment.Signatures.Of(referrer);
             }
 
-            // Sorted and deduplicated in place; looked up as a span, so only a new pattern allocates (the 3.2 review).
+            // Sorted and deduplicated in place; looked up as a span, so only a new pattern allocates.
             var span = pattern.AsSpan(0, count);
             span.Sort();
             var distinct = 1;
@@ -337,7 +337,7 @@ public static class SimilarRetention
 
         public long Limited { get; set; }
 
-        /// <summary>Group numbers by rank: objects, then bytes, descending, then the first member ascending (decision 2).</summary>
+        /// <summary>Group numbers by rank: objects, then bytes, descending, then the first member ascending.</summary>
         public int[] Ranked()
         {
             var ranked = new int[Totals.Count];

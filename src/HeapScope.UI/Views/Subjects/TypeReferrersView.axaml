@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- Who references a type's objects (sprint 2.1). Split from the Snapshot tab in sprint 2.4 (2.3.7 review M8). -->
+<!-- Who references a type's objects. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HeapScope.UI.ViewModels"
@@ -34,7 +34,7 @@
       <ctl:InfoIcon DockPanel.Dock="Left" Text="{x:Static vm:InfoTexts.Referrers}" Margin="0,0,6,0" />
       <TextBlock Text="{Binding Totals}" VerticalAlignment="Center" Classes="subtle" TextTrimming="CharacterEllipsis" />
     </DockPanel>
-    <!-- Sprint 3.13.2: moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
+    <!-- Moves while the grid's query runs, so a long first Retained sizes does not look stuck. -->
     <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" Height="4" MinHeight="4" Margin="0,0,0,4" IsVisible="{Binding IsQuerying}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,4" TextWrapping="Wrap" />
     <DataGrid x:Name="TypeReferrersGrid" ctl:GridExports.ExportName="TypeReferrers" CanUserSortColumns="True"

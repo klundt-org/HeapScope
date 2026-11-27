@@ -36,12 +36,12 @@ internal sealed partial class SnapshotStore
     public const string DominatorSidecarKind = HeapScope.Core.IndexCachePaths.DominatorKind;
 
     /// <summary>
-    /// The dominators of a loaded snapshot (sprint 2.3, ARCHITECTURE.md 6.4): opened from their sidecar, or computed on first
+    /// The dominators of a loaded snapshot (ARCHITECTURE.md 6.4): opened from their sidecar, or computed on first
     /// use after the reverse references index (<see cref="DominatorIndexBuilder"/>), and kept until the snapshot closes.
     /// Shared like the other derived data: one computation, its progress to every waiter, its own lease. Returns null when
     /// the snapshot is not loaded or closes meanwhile.
     /// </summary>
-    /// <exception cref="InsufficientMemoryException">The working arrays would not fit the worker's budget (decision 4).</exception>
+    /// <exception cref="InsufficientMemoryException">The working arrays would not fit the worker's budget.</exception>
     public async Task<DominatorIndex?> GetDominatorsAsync(Guid snapshotId, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         if (!_snapshots.TryGetValue(snapshotId, out var entry))
@@ -63,12 +63,12 @@ internal sealed partial class SnapshotStore
     }
 
     /// <summary>
-    /// The lower bound of the retained bytes of every group of <paramref name="grouping"/> (decision 6), numbered as
+    /// The lower bound of the retained bytes of every group of <paramref name="grouping"/>, numbered as
     /// <see cref="TypeGroups.GroupOfType"/> numbers them; computed once per grouping from the dominators and kept with the
     /// snapshot. Returns null when the snapshot is not loaded or closes meanwhile.
     /// </summary>
     /// <summary>
-    /// Reserves memory for a large computation on a snapshot's graph that has no slot of its own (sprint 2.4: set
+    /// Reserves memory for a large computation on a snapshot's graph that has no slot of its own (set
     /// retention, per request), against the same worker-wide budget; null when the snapshot is not open. Dispose it, then
     /// <see cref="MemoryReservations.Collect"/>, when the computation ends.
     /// </summary>
@@ -76,7 +76,7 @@ internal sealed partial class SnapshotStore
         _snapshots.TryGetValue(snapshotId, out var entry) ? _reservations.Reserve(bytes, what, entry.Index.Mode, entry.Index.Identity != 0) : null;
 
     /// <summary>
-    /// Reserves memory for work that belongs to no snapshot (sprint 2.5: reading an allocation trace), against the same
+    /// Reserves memory for work that belongs to no snapshot (reading an allocation trace), against the same
     /// worker-wide budget. Dispose it, then <see cref="MemoryReservations.Collect"/>, when the work ends.
     /// </summary>
     public IDisposable ReserveWorking(long bytes, string what, string nextStep) => _reservations.Reserve(bytes, what, nextStep);
@@ -120,7 +120,7 @@ internal sealed partial class SnapshotStore
                     }
                     finally
                     {
-                        // The working cursors (4 bytes per object) are garbage now (review M3).
+                        // The working cursors (4 bytes per object) are garbage now.
                         MemoryReservations.Collect();
                     }
                 }
@@ -157,7 +157,7 @@ internal sealed partial class SnapshotStore
         }
         else
         {
-            // Refused before the reverse index is built for nothing (review M1); the builder reserves the memory itself.
+            // Refused before the reverse index is built for nothing; the builder reserves the memory itself.
             _reservations.Check(DominatorIndexBuilder.NeededBytes(graph.ObjectCount, managedOutputs: !hasCache), "Computing retained sizes", entry.Index.Mode, hasCache);
             var reverse = await GetReverseReferencesAsync(entry.Descriptor.SnapshotId, throttled, cancellationToken).ConfigureAwait(false)
                 ?? throw new ObjectDisposedException(nameof(SnapshotStore));

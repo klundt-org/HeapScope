@@ -26,9 +26,9 @@ using System.Diagnostics;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// What HeapScope reads about a process besides its diagnostics channel, per system (sprint 4.1): Windows asks the kernel
+/// What HeapScope reads about a process besides its diagnostics channel, per system: Windows asks the kernel
 /// (<see cref="WindowsProcessFacts"/>), Linux reads <c>/proc</c> (<see cref="LinuxProcessFacts"/>), macOS asks libproc
-/// (<see cref="MacProcessFacts"/>, sprint 4.2). Each read returns null
+/// (<see cref="MacProcessFacts"/>). Each read returns null
 /// when it is not allowed or the process has gone, so a process is still listed with what could be read.
 /// </summary>
 internal interface IProcessFacts

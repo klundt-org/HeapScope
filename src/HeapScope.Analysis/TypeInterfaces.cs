@@ -27,9 +27,9 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis;
 
 /// <summary>
-/// The interfaces of each type of a snapshot (sprint 3.2, ADR-031), read from the dump through up to
+/// The interfaces of each type of a snapshot (ADR-031), read from the dump through up to
 /// <see cref="TriesPerType"/> objects of each type. A type whose interfaces could not be read is kept apart
-/// (<see cref="IsUnread"/>, the <see cref="TypeGroups.Unread"/> row), never shown as implementing nothing (the 3.2 review).
+/// (<see cref="IsUnread"/>, the <see cref="TypeGroups.Unread"/> row), never shown as implementing nothing.
 /// </summary>
 public sealed class TypeInterfaces
 {

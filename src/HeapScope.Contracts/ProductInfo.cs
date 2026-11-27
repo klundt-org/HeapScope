@@ -47,7 +47,7 @@ public static class ProductInfo
 
     /// <summary>
     /// The version with the build's source revision (<c>2.3.7+1a2b3c4...</c>) when the build recorded one: logs carry it,
-    /// so a local build and a CI build of the same version can be told apart (sprint 2.3.7).
+    /// so a local build and a CI build of the same version can be told apart.
     /// </summary>
     public static string InformationalVersion { get; } = ReadVersion(withRevision: true);
 

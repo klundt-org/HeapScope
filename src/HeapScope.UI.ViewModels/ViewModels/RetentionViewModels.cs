@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>Texts the retention views share (sprint 2.2).</summary>
+/// <summary>Texts the retention views share.</summary>
 internal static class RetentionText
 {
     /// <summary>A key path, root first, ending at the objects' type; runs of framework steps folded unless shown.</summary>
@@ -87,7 +87,7 @@ public sealed class KeyPathItem(KeyPathDto path, bool showFramework) : IObjectLi
 }
 
 /// <summary>
-/// One object of an object's retention tree (sprint 2.2), shown as "how it holds the next one" plus its type; its children
+/// One object of an object's retention tree, shown as "how it holds the next one" plus its type; its children
 /// are the objects holding it, toward the roots. A folded run of framework objects is one item whose text counts them.
 /// </summary>
 public sealed partial class RetentionNodeItem : ObservableObject, IObjectLink
@@ -103,7 +103,7 @@ public sealed partial class RetentionNodeItem : ObservableObject, IObjectLink
         var how = node.Field ?? (node.ViaDependentHandle ? "(dependent handle)" : null);
 
         // A gap node stands for the middle of a long path (its text says how many objects); a folded node for a run of
-        // objects of one type (review H1).
+        // objects of one type.
         Text = node.Address == 0
             ? node.TypeName
             : (folded > 0 ? string.Create(CultureInfo.CurrentCulture, $"({folded:N0} framework objects) ") : string.Empty)
@@ -130,7 +130,7 @@ public sealed partial class RetentionNodeItem : ObservableObject, IObjectLink
 
     /// <summary>
     /// The tree from node 0 toward the roots; runs of framework objects with one holder each fold into the next object
-    /// unless shown (decision 4).
+    /// unless shown.
     /// </summary>
     public static RetentionNodeItem BuildTree(IReadOnlyList<RetentionNodeDto> nodes, bool showFramework)
     {
@@ -163,8 +163,8 @@ public sealed partial class RetentionNodeItem : ObservableObject, IObjectLink
 }
 
 /// <summary>
-/// Why the objects of a type are alive (sprint 2.2, dotMemory's Key Retention Paths): one row per path from a root, the
-/// largest first; opening a row shows its example object. Opened from a type's instances. Since 3.2 also a set's Paths
+/// Why the objects of a type are alive (dotMemory's Key Retention Paths): one row per path from a root, the
+/// largest first; opening a row shows its example object. Opened from a type's instances. Also a set's Paths
 /// view, and the paths can be shown merged into a diagram.
 /// </summary>
 public sealed partial class TypePathsViewModel : ObservableObject, INavigationSubject
@@ -181,7 +181,7 @@ public sealed partial class TypePathsViewModel : ObservableObject, INavigationSu
     [NotifyPropertyChangedFor(nameof(Diagram))]
     private IReadOnlyList<KeyPathItem> _paths = [];
 
-    /// <summary>Shows the paths merged into a diagram instead of the list (sprint 3.2).</summary>
+    /// <summary>Shows the paths merged into a diagram instead of the list.</summary>
     [ObservableProperty]
     private bool _showDiagram;
 
@@ -218,7 +218,7 @@ public sealed partial class TypePathsViewModel : ObservableObject, INavigationSu
             () => _set is null);
     }
 
-    /// <summary>The key paths of a set's members (sprint 3.2: the set's Paths view).</summary>
+    /// <summary>The key paths of a set's members (the set's Paths view).</summary>
     public TypePathsViewModel(SnapshotSession session, SnapshotHandle snapshot, ObjectSetQuery set, string setTitle, ILogger? logger = null, INavigator? navigator = null)
         : this(session, snapshot, string.Empty, null, logger, navigator)
     {
@@ -241,10 +241,10 @@ public sealed partial class TypePathsViewModel : ObservableObject, INavigationSu
     /// <summary>The navigation title.</summary>
     public string Title => "Why alive: " + (_setTitle ?? (string.IsNullOrEmpty(Module) ? TypeName : $"{TypeName} [{Module}]"));
 
-    /// <summary>The paths merged into one graph (sprint 3.2).</summary>
+    /// <summary>The paths merged into one graph.</summary>
     public KeyPathDiagram Diagram => _result is null ? KeyPathDiagram.Empty : KeyPathDiagram.Build(_result.Paths, ShowFramework, target: _setTitle);
 
-    /// <summary>Opens the type's objects as a set on its Similar Retention view (sprint 3.2).</summary>
+    /// <summary>Opens the type's objects as a set on its Similar Retention view.</summary>
     public IRelayCommand SimilarRetentionCommand { get; }
 
     /// <summary>Opens a row's example object (set by the navigator).</summary>

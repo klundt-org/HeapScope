@@ -30,15 +30,14 @@ public static class WorkerProtocol
     /// Bumped on any incompatible change to the worker's contracts or their DTOs. The history of every version, and the
     /// rule for when to bump, is in docs/architecture/process-model.md (ARCHITECTURE.md 4.4); it is kept there only.
     /// </summary>
-    public const int Version = 24;
+    public const int Version = 25;
 
     /// <summary>Maximum rows returned by one <see cref="IWorkerService.GetRowsAsync"/> call.</summary>
     public const int MaxPageSize = 10_000;
 
     /// <summary>
     /// Prefix of worker pipe names; the rest is 24 random hex digits. Off Windows a pipe is a Unix domain socket in the
-    /// temp folder, whose path macOS limits to 104 characters with a long temp folder, so the name stays short (sprint
-    /// 2.3.5).
+    /// temp folder, whose path macOS limits to 104 characters with a long temp folder, so the name stays short.
     /// </summary>
     public const string PipeNamePrefix = "HeapScope.W.";
 }

@@ -29,7 +29,7 @@ using Microsoft.Diagnostics.Tracing;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// Reads the sampled allocations of a trace while it is recorded (sprint 4.3, ADR-037): a thread of its own follows the growing
+/// Reads the sampled allocations of a trace while it is recorded (ADR-037): a thread of its own follows the growing
 /// file through <see cref="LiveTraceStream"/> and adds the samples up in <see cref="LiveAllocations"/>. Nothing of the file is
 /// kept but that, and the finished file stays the record (<see cref="AllocationTraceReader"/> reads it).
 /// </summary>

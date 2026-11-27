@@ -24,7 +24,7 @@
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// Progress of a shared computation sent to everyone waiting for it (sprint 2.1 review M7): each waiter subscribes for as
+/// Progress of a shared computation sent to everyone waiting for it: each waiter subscribes for as
 /// long as it waits, gets the latest report at once, and stops receiving when it unsubscribes (it finished waiting or
 /// canceled), so a computation never reports into a call that has already returned.
 /// </summary>

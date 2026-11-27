@@ -37,8 +37,8 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.Services;
 
 /// <summary>
-/// Builds the heavy views once, unseen, while the app is idle after its first window (sprint 3.12, task 4): task 3's
-/// recordings put most of a page's cold first show in styles and control templates built on first use, so this pays that
+/// Builds the heavy views once, unseen, while the app is idle after its first window: recordings
+/// put most of a page's cold first show in styles and control templates built on first use, so this pays that
 /// cost before the user opens the page. One view per step at the dispatcher's idle priority, so input waits at most one
 /// step: first the Snapshots page in its place in the shell, kept for its first show, then the other pages and the views a
 /// page shows only with data, measured and arranged in a hidden host and dropped. The status bar shows that it runs
@@ -99,7 +99,7 @@ public sealed class ViewPrewarmer
         (nameof(AboutPage), static () => new AboutPage()),
     ];
 
-    /// <summary>The views a run builds alone: <see cref="Views"/>, or a test's own (sprint 3.12 review M12: a step that fails).</summary>
+    /// <summary>The views a run builds alone: <see cref="Views"/>, or a test's own (a step that fails).</summary>
     internal IReadOnlyList<(string Name, Func<Control> Create)> StandaloneViews { get; init; } = Views;
 
     /// <summary>The views built by the last run, in order (for its log line and tests).</summary>
@@ -151,7 +151,7 @@ public sealed class ViewPrewarmer
         }
         catch (Exception ex)
         {
-            // Outside a step (finding the pages, the collection): the prewarm is never the app's problem (the review's M12).
+            // Outside a step (finding the pages, the collection): the prewarm is never the app's problem.
             _logger.LogWarning(ex, "View prewarm stopped by an error after {Built} views; the others are built when first shown", _built.Count);
         }
         finally

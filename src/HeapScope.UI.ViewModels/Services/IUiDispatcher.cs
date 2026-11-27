@@ -27,7 +27,7 @@ namespace HeapScope.UI.Services;
 /// <summary>
 /// Runs work on the UI thread (ARCHITECTURE.md 8). Application raises events on any thread; view models marshal
 /// through this abstraction, which tests replace with an immediate implementation. Each UI toolkit has its own
-/// implementation (sprint 2.3.6: Avalonia).
+/// implementation (Avalonia).
 /// </summary>
 public interface IUiDispatcher
 {
@@ -35,9 +35,9 @@ public interface IUiDispatcher
     void Post(Action action);
 
     /// <summary>
-    /// Continues after the UI's pending render and input work (sprint 1.5): a grid binds its rows after the page that
+    /// Continues after the UI's pending render and input work: a grid binds its rows after the page that
     /// asked for them has been laid out, so the two are separate UI operations rather than one twice as long. Completes at
-    /// once off the UI thread and where the toolkit has no such notion (sprint 2.3.6: was a static hook).
+    /// once off the UI thread and where the toolkit has no such notion (was a static hook).
     /// </summary>
     Task YieldToRenderAsync();
 }

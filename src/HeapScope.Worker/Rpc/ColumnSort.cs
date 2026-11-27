@@ -26,7 +26,7 @@ using HeapScope.Core;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Sorting a result set's rows by a column name (sprint 1.9, shared by the row-based result sources): one comparison per
+/// Sorting a result set's rows by a column name (shared by the row-based result sources): one comparison per
 /// sortable column, ascending or descending, ties broken by the row's name so the order is stable between queries, and
 /// an unknown column refused with the list of sortable ones.
 /// </summary>

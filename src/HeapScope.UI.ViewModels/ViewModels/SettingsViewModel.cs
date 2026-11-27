@@ -31,10 +31,10 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Settings page (sprint 3.12, B1; owner, 2026-11-12), above About: its Logging section has Include filter text in logs
+/// The Settings page (owner, 2026-11-12), above About: its Logging section has Include filter text in logs
 /// (on by default; the app, the worker and the command line follow it), Include dump values in logs (off by default, and
 /// turned on only after the user confirms; owner, 2026-11-19), Purge logs and Purge all, which asks first. The page shows the
-/// settings file each time it is shown, since the command line can change it while the app runs. Since sprint 4.8 (H15), its
+/// settings file each time it is shown, since the command line can change it while the app runs. Its
 /// Dumps section has the DAC folder (typed or chosen) and Download missing DACs from Microsoft, which asks first (ADR-017).
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
@@ -134,7 +134,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         try
         {
-            // Off the UI thread (sprint 4.8 review): checking a folder on a drive that is gone can take many seconds.
+            // Off the UI thread: checking a folder on a drive that is gone can take many seconds.
             var saved = await Task.Run(() => _settings.SetDacFolder(folder));
             Status = saved is null ? InfoTexts.DacFolderCleared : string.Format(CultureInfo.CurrentCulture, InfoTexts.DacFolderSaved, saved);
             DacFolder = saved;
@@ -167,7 +167,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         if (value)
         {
-            // As dump values (ADR-017 amended, sprint 4.8): not saved until the user says yes.
+            // As dump values (ADR-017 amended): not saved until the user says yes.
             _confirmingSymbols = true;
             SymbolServerConfirmation = ConfirmSymbolServerAsync();
             return;
@@ -266,7 +266,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         if (_confirming)
         {
-            // The question is open (review M8): the box shows on until it is answered.
+            // The question is open: the box shows on until it is answered.
             Revert(true);
             return;
         }
@@ -291,7 +291,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            // Never on without an answer (review M8): the question could not be shown, so nothing is saved.
+            // Never on without an answer: the question could not be shown, so nothing is saved.
             _logger?.LogWarning(ex, "The question to include dump values in logs could not be shown; the setting stays off");
             yes = false;
         }
@@ -346,7 +346,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // The review's M10: the log folder could not be listed; shown with a next step, not the last-chance dialog.
+            // The log folder could not be listed; shown with a next step, not the last-chance dialog.
             _logger?.LogWarning(ex, "Purge logs could not list {Folder}", _settings.LogFolder);
             Status = Stopped(ex);
         }
@@ -377,7 +377,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             }
 
             var (done, deleted) = await _settings.PurgeAllAsync(cancellationToken);
-            // The bookmarks are gone from disk, so from the screen too (sprint 4.8, M13: they stayed listed).
+            // The bookmarks are gone from disk, so from the screen too (they stayed listed).
             Purged?.Invoke(this, EventArgs.Empty);
             Status = deleted.Complete
                 ? string.Create(CultureInfo.CurrentCulture, $"Deleted everything HeapScope keeps: {done.Sessions} sessions, {deleted.Files.Count} files ({Format.Bytes(deleted.Bytes)}).")
@@ -385,13 +385,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (InvalidOperationException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger?.LogInformation("{Section} shown as: {Message}", "Purge all", ex.Message);
             Status = "Nothing was deleted: " + ex.Message;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HeapScope.Application.Workers.WorkerException)
         {
-            // The review's M10: a folder that could not be listed, or a snapshot the worker could not close; the service logged it.
+            // A folder that could not be listed, or a snapshot the worker could not close; the service logged it.
             _logger?.LogWarning(ex, "Purge all stopped");
             Status = Stopped(ex);
         }
@@ -412,7 +412,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <summary>
     /// What Purge all would ask now, without asking: the screenshot run shows it in the real question window and answers
-    /// Cancel itself (sprint 4.1), since a smoke run answers every question yes. Null when HeapScope refuses to purge now.
+    /// Cancel itself, since a smoke run answers every question yes. Null when HeapScope refuses to purge now.
     /// </summary>
     public async Task<string?> PurgeAllQuestionAsync()
     {

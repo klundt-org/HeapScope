@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// "Objects retained by this set" (sprint 2.4): what every object of a type keeps alive together, exactly, by type, next
+/// "Objects retained by this set": what every object of a type keeps alive together, exactly, by type, next
 /// to the type summary's lower bound. A row opens its type's objects.
 /// </summary>
 public sealed partial class RetainedBySetViewModel : GridQueryViewModel<CellRowItem>
@@ -51,7 +51,7 @@ public sealed partial class RetainedBySetViewModel : GridQueryViewModel<CellRowI
     [ObservableProperty]
     private string? _module;
 
-    /// <summary>The set (sprint 3.1) when it is not one type's objects, and its title.</summary>
+    /// <summary>The set when it is not one type's objects, and its title.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsShown))]
     private ObjectSetQuery? _setQuery;
@@ -72,7 +72,7 @@ public sealed partial class RetainedBySetViewModel : GridQueryViewModel<CellRowI
         : base(RetainedBySetColumns.Retained, dispatcher, logger)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
-        // A row opens the retained objects of its type (sprint 3.1), not every object of the type.
+        // A row opens the retained objects of its type, not every object of the type.
         OpenRowCommand = new RelayCommand<CellRowItem?>(row =>
         {
             if (row?[RetainedBySetColumns.TypeName] is { } typeName && Snapshot is { } snapshot && Retained is { } retained)
@@ -91,7 +91,7 @@ public sealed partial class RetainedBySetViewModel : GridQueryViewModel<CellRowI
             () => IsShown);
     }
 
-    /// <summary>Opens the retained objects as a set with all its views (sprint 3.1).</summary>
+    /// <summary>Opens the retained objects as a set with all its views.</summary>
     public IRelayCommand OpenAsSetCommand { get; }
 
     /// <summary>The set shown: <see cref="SetQuery"/>, or the one type's objects.</summary>
@@ -129,7 +129,7 @@ public sealed partial class RetainedBySetViewModel : GridQueryViewModel<CellRowI
         OpenAsSetCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>Asks for what any set's members retain (sprint 3.1); <see cref="Start"/> queries it.</summary>
+    /// <summary>Asks for what any set's members retain; <see cref="Start"/> queries it.</summary>
     public void ShowSet(SnapshotHandle snapshot, ObjectSetQuery set, string title)
     {
         Show(snapshot, (string?)null, null);

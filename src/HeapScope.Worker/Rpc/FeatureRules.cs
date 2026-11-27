@@ -102,7 +102,7 @@ internal static class FeatureRules
     }
 
     // A missing capability as Contracts words it for the snapshot's kind (a gcdump's "capture a full dump"); a full dump
-    // whose values are refused says why instead (sprint 3.12, one rule for value reads).
+    // whose values are refused says why instead (one rule for value reads).
     private static string Worded(SnapshotCapabilities missing, ISnapshot snapshot) =>
         (missing & DumpSnapshot.ReaderCapabilities) != SnapshotCapabilities.None && snapshot.TryGetService<ValueReadsRefused>(out var refused)
             ? refused.Reason

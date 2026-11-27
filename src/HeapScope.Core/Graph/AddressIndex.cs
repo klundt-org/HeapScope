@@ -65,8 +65,7 @@ internal sealed class AddressIndex
         var max = sortedAddresses[^1];
         var span = max - min;
         var desiredBuckets = (ulong)Math.Clamp(sortedAddresses.Length / TargetObjectsPerBucket, 1, MaxBuckets);
-        // The smallest shift that fits the span into the buckets. Written without "+ 1" and bounded (sprint 3.7, peer review
-        // P13): a crafted file with few objects spanning 2^63 or more made the shift reach 64, which a ulong shift wraps
+        // The smallest shift that fits the span into the buckets. Written without "+ 1" and bounded: a crafted file with few objects spanning 2^63 or more made the shift reach 64, which a ulong shift wraps
         // to 0, so the loop never ended; a span of the whole range overflowed "+ 1" to 0.
         var shift = 0;
         while (shift < 63 && span >> shift >= desiredBuckets)

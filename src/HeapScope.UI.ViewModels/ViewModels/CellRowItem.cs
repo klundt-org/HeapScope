@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// A grid row of any result set (sprint 1.6 for inspections; shared since sprint 2.4, 2.3.7 review M13): the row keeps its
+/// A grid row of any result set (inspections and the other grids alike): the row keeps its
 /// cells, raw (for what the row opens) and formatted for display (numbers grouped in the current culture), so one row type
 /// serves every grid whose columns come from the worker.
 /// </summary>

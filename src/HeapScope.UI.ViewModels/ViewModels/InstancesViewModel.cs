@@ -50,7 +50,7 @@ public sealed class InstanceRowItem(int index) : ObservableObject, IIndexedRow, 
 
     public string Value { get; private set; } = string.Empty;
 
-    /// <summary>The object's retained bytes (sprint 2.3); null when not asked for or when no root reaches it.</summary>
+    /// <summary>The object's retained bytes; null when not asked for or when no root reaches it.</summary>
     public long? Retained { get; private set; }
 
     public bool IsLoaded { get; private set; }
@@ -90,7 +90,7 @@ public sealed class InstanceRowItem(int index) : ObservableObject, IIndexedRow, 
 }
 
 /// <summary>
-/// The objects of a type (sprint 1.5, dotMemory's instances view): sortable by any column, filtered by address prefix
+/// The objects of a type (dotMemory's instances view): sortable by any column, filtered by address prefix
 /// (<c>0x...</c>), regular expression (<c>/.../</c>) or text in the value; opened from a type or compare row.
 /// </summary>
 public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowItem>, INavigationSubject
@@ -100,7 +100,7 @@ public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowI
     [ObservableProperty]
     private string? _valuesExplanation;
 
-    /// <summary>Whether the user asked for retained bytes (sprint 2.3); the navigator copies the types grid's choice.</summary>
+    /// <summary>Whether the user asked for retained bytes; the navigator copies the types grid's choice.</summary>
     [ObservableProperty]
     private bool _showRetained;
 
@@ -109,7 +109,7 @@ public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowI
     [NotifyPropertyChangedFor(nameof(VisibleColumnGroups))]
     private bool _retainedColumnShown;
 
-    /// <summary>The optional column groups shown (2.3.7 review M13).</summary>
+    /// <summary>The optional column groups shown.</summary>
     public IReadOnlyList<string> VisibleColumnGroups => ColumnGroups.Of((ColumnGroups.Retained, RetainedColumnShown));
 
     /// <summary>How the retained sizes were obtained and what they mean; null without them.</summary>
@@ -124,14 +124,14 @@ public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowI
     {
     }
 
-    /// <summary>The objects of a type within a scope (sprint 1.6: what an inspection row opens).</summary>
+    /// <summary>The objects of a type within a scope (what an inspection row opens).</summary>
     public InstancesViewModel(SnapshotSession session, SnapshotHandle snapshot, string typeName, string? module, InstanceScope scope, ulong sameValueAs, IUiDispatcher dispatcher, ILogger? logger = null, INavigator? navigator = null)
         : this(session, snapshot, typeName, module, scope, sameValueAs, null, null, dispatcher, logger, navigator)
     {
     }
 
     /// <summary>
-    /// The members of an object set (sprint 3.1): all of them when <paramref name="typeName"/> is empty, else those of that
+    /// The members of an object set: all of them when <paramref name="typeName"/> is empty, else those of that
     /// type; <paramref name="setTitle"/> names the set in the title.
     /// </summary>
     public InstancesViewModel(SnapshotSession session, SnapshotHandle snapshot, ObjectSetQuery set, string setTitle, string typeName, string? module, IUiDispatcher dispatcher, ILogger? logger = null, INavigator? navigator = null)
@@ -151,7 +151,7 @@ public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowI
         Scope = scope;
         SameValueAs = sameValueAs;
 
-        // The links of this subject (2.3.7 review M8: built here from the navigator, not set from outside).
+        // The links of this subject (built here from the navigator, not set from outside).
         OpenRowCommand = new RelayCommand<InstanceRowItem?>(row =>
         {
             if (row is { IsLoaded: true, Address: not 0 })
@@ -161,15 +161,15 @@ public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowI
         });
         ReferencedByCommand = new RelayCommand(() => navigator?.Navigate(NavigationTarget.TypeReferrers(Snapshot, TypeName, Module)), () => Set is null);
 
-        // Why alive and the retained set explain all objects of a type, so a scoped list (review L12: equal strings, LOH)
-        // does not offer them; nor does part of a set. A whole set's members retain what the set retains (sprint 3.1).
+        // Why alive and the retained set explain all objects of a type, so a scoped list (equal strings, LOH)
+        // does not offer them; nor does part of a set. A whole set's members retain what the set retains.
         WhyAliveCommand = new RelayCommand(() => navigator?.Navigate(NavigationTarget.TypePaths(Snapshot, TypeName, Module)), () => Scope == InstanceScope.All && Set is null);
         RetainedBySetCommand = new RelayCommand(
             () => navigator?.Navigate(Set is { } members ? NavigationTarget.RetainedBySet(Snapshot, members, SetTitle!) : NavigationTarget.RetainedBySet(Snapshot, TypeName, Module)),
             () => Scope == InstanceScope.All && (Set is null || string.IsNullOrEmpty(TypeName)));
     }
 
-    /// <summary>The object set whose members are listed (sprint 3.1); null for a type's objects.</summary>
+    /// <summary>The object set whose members are listed; null for a type's objects.</summary>
     public ObjectSetQuery? Set { get; }
 
     /// <summary>What the info icon says: this view shows a type's objects or a set's.</summary>
@@ -207,13 +207,13 @@ public sealed partial class InstancesViewModel : GridQueryViewModel<InstanceRowI
 
     protected override string EmptyText => string.IsNullOrWhiteSpace(Filter) ? "No objects of this type." : "No object matches the filter.";
 
-    /// <summary>Opens who references this type's objects (sprint 2.1).</summary>
+    /// <summary>Opens who references this type's objects.</summary>
     public System.Windows.Input.ICommand ReferencedByCommand { get; }
 
-    /// <summary>Opens why this type's objects are alive (sprint 2.2).</summary>
+    /// <summary>Opens why this type's objects are alive.</summary>
     public System.Windows.Input.ICommand WhyAliveCommand { get; }
 
-    /// <summary>Opens what this type's objects retain together, exactly (sprint 2.4).</summary>
+    /// <summary>Opens what this type's objects retain together, exactly.</summary>
     public System.Windows.Input.ICommand RetainedBySetCommand { get; }
 
     /// <summary>Runs the first query (after the navigator wires the drill-down command).</summary>

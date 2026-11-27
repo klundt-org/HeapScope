@@ -50,12 +50,11 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         DataContext = viewModel;
 
-        // The mouse's back and forward buttons move along the analysis path (sprint 1.5); the keyboard shortcuts (sprint
-        // 2.7) are seen before any control handles them.
+        // The mouse's back and forward buttons move along the analysis path; the keyboard shortcuts are seen before any control handles them.
         AddHandler(PointerPressedEvent, OnPreviewPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
 
-        // Every grid's "Export to CSV..." (sprint 2.7) reaches the shell's export service here.
+        // Every grid's "Export to CSV..." reaches the shell's export service here.
         AddHandler(GridExports.ExportRequestedEvent, OnExportRequested);
     }
 
@@ -87,7 +86,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>The action of the shortcut <paramref name="e"/> matches (the one table, <see cref="Shortcuts"/>; sprint 2.7).</summary>
+    /// <summary>The action of the shortcut <paramref name="e"/> matches (the one table, <see cref="Shortcuts"/>).</summary>
     private Func<bool>? Shortcut(KeyEventArgs e)
     {
         var shell = _viewModel!;
@@ -186,7 +185,7 @@ public partial class MainWindow : Window
         return true;
     }
 
-    // The focused grid's rows as one set (sprint 3.1): several rows where the grid takes several, else the selected one.
+    // The focused grid's rows as one set: several rows where the grid takes several, else the selected one.
     private bool OpenAsSet()
     {
         if ((FocusManager?.GetFocusedElement() as Visual)?.FindAncestorOfType<DataGrid>(includeSelf: true) is not { } grid)

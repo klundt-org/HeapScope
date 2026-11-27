@@ -26,8 +26,7 @@ using System.Globalization;
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// The .NET versions whose dumps HeapScope checks against its known answers on every change (sprint 4.7, peer review 4.5 H1;
-/// ADR-002): the fixtures run on each in CI. A dump of another version opens, with a note that its answers are not checked.
+/// The .NET versions whose dumps HeapScope checks against its known answers on every change (ADR-002): the fixtures run on each in CI. A dump of another version opens, with a note that its answers are not checked.
 /// </summary>
 internal static class TestedRuntimes
 {

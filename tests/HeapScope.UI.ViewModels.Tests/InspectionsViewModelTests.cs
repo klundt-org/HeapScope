@@ -304,8 +304,12 @@ public sealed class InspectionsViewModelTests : IDisposable
         var kept = Inspections.Tiles.Where(t => t.Run is not null).Select(t => t.Run!.Rows.Info.Id).ToList();
         kept.ShouldAllBe(id => _worker.Service.LiveSets.Contains(id));
 
+        // Each snapshot keeps its workspace (peer review 4.5 H13): nothing shown, b's results stay; closing b releases them.
+        var b = _snapshots.Selected!;
         _snapshots.Selected = null;
         Inspections.Tiles.ShouldBeEmpty();
+        kept.ShouldAllBe(id => _worker.Service.LiveSets.Contains(id));
+        await _snapshots.CloseCommand.ExecuteAsync(b);
         await WaitUntilAsync(() => kept.All(id => !_worker.Service.LiveSets.Contains(id)));
     }
 
@@ -328,12 +332,15 @@ public sealed class InspectionsViewModelTests : IDisposable
         await Inspections.RunTask;
         Inspections.BaselineChoices.Count.ShouldBe(2);
         Inspections.Baseline!.Snapshot!.Path.ShouldEndWith("a.dmp", Case.Sensitive);
-        _worker.Service.InspectionRequests.Last(r => r.Name == "growing-static-collections").BaselineSnapshotId.ShouldBe(Inspections.Baseline.Snapshot.Descriptor.SnapshotId);
+        // b's workspace ran its growth detector again with a while a was shown (each snapshot keeps its workspace, H13).
+        var mine = current.Handle.Descriptor.SnapshotId;
+        await WaitUntilAsync(() => _worker.Service.InspectionRequests.Any(r => r.Name == "growing-static-collections" && r.SnapshotId == mine && r.BaselineSnapshotId is not null));
+        _worker.Service.InspectionRequests.Last(r => r.Name == "growing-static-collections" && r.SnapshotId == mine).BaselineSnapshotId.ShouldBe(Inspections.Baseline.Snapshot.Descriptor.SnapshotId);
 
         // A baseline the person chose (None) stays while other snapshots close; a chosen snapshot that closes gives way.
         await _snapshots.OpenPathAsync(Dump("c.dmp"));
         _snapshots.Selected = current;
-        Inspections.Baseline!.Snapshot!.Path.ShouldEndWith("a.dmp", Case.Sensitive, "selecting a snapshot chooses its default again");
+        Inspections.Baseline!.Snapshot!.Path.ShouldEndWith("a.dmp", Case.Sensitive, "b's workspace kept its default");
         Inspections.Baseline = Inspections.BaselineChoices[0];
         await Inspections.RunTask;
         await _snapshots.CloseCommand.ExecuteAsync(_snapshots.Snapshots.Single(s => s.Handle.Path.EndsWith("c.dmp", StringComparison.Ordinal)));

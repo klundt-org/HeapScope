@@ -31,7 +31,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The views of an object set (sprint 3.1), in the order the set's view switcher lists them.</summary>
+/// <summary>The views of an object set, in the order the set's view switcher lists them.</summary>
 public enum SetViews
 {
     Types = 0,
@@ -39,16 +39,16 @@ public enum SetViews
     Generations = 2,
     Dominators = 3,
 
-    /// <summary>The members' key retention paths, as a list or a diagram (sprint 3.2).</summary>
+    /// <summary>The members' key retention paths, as a list or a diagram.</summary>
     Paths = 4,
 
-    /// <summary>The members grouped by how they are retained (sprint 3.2).</summary>
+    /// <summary>The members grouped by how they are retained.</summary>
     SimilarRetention = 5,
 }
 
 /// <summary>
-/// An object set as a subject of the Snapshot tab (sprint 3.1, ADR-030; dotMemory's object set): its Types, Instances,
-/// Generations and Dominators views, and since 3.2 its Paths and Similar Retention views, each queried the first time it is
+/// An object set as a subject of the Snapshot tab (ADR-030, dotMemory's object set): its Types, Instances,
+/// Generations and Dominators views, and its Paths and Similar Retention views, each queried the first time it is
 /// shown, and "objects retained by this set" on the
 /// Retainers tab. The set is kept as its spec, so the views re-run it after an eviction or a worker restart.
 /// </summary>
@@ -132,7 +132,7 @@ public sealed partial class SetViewModel : ObservableObject, INavigationSubject
 
         _started = true;
 
-        // The view's query starts inside this activity, so the worker's lines for it share its trace id (the 3.1 review).
+        // The view's query starts inside this activity, so the worker's lines for it share its trace id.
         using var activity = Act("opened");
         Types.Show(Snapshot);
     }
@@ -151,7 +151,7 @@ public sealed partial class SetViewModel : ObservableObject, INavigationSubject
     {
         if (_closed)
         {
-            // A step closed by the path keeps no new views (and their result sets) alive (the 3.1 review).
+            // A step closed by the path keeps no new views (and their result sets) alive.
             return;
         }
 

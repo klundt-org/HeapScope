@@ -25,11 +25,11 @@ namespace HeapScope.Application.Sessions;
 
 /// <summary>
 /// The words for a process HeapScope needs more rights to reach on this system, for the front ends, which reach Core
-/// only through this layer (sprint 4.1; the texts themselves are in <see cref="HeapScope.Core.ElevationTexts"/>).
+/// only through this layer (the texts themselves are in <see cref="HeapScope.Core.ElevationTexts"/>).
 /// </summary>
 public static class RightsTexts
 {
-    /// <summary>Whether this system can capture a running process at all (the capture layer's answer, sprint 4.2).</summary>
+    /// <summary>Whether this system can capture a running process at all (the capture layer's answer).</summary>
     public static bool CanCapture => HeapScope.Capture.CapturePlatform.IsSupported;
 
     /// <summary>The Learn page's note on who can capture whom on this system, or null.</summary>
@@ -50,7 +50,7 @@ public static class RightsTexts
     /// <summary>The command line's note under its process list when a process is marked elevated.</summary>
     public static string CliNote => HeapScope.Core.ElevationTexts.CliNote;
 
-    /// <summary>The label of the check box that lists the processes hidden because they need more rights (sprint 4.1.1).</summary>
+    /// <summary>The label of the check box that lists the processes hidden because they need more rights.</summary>
     public static string ShowHidden => HeapScope.Core.ElevationTexts.ShowHidden;
 
     /// <summary>The tooltip of <see cref="ShowHidden"/>.</summary>

@@ -26,16 +26,16 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// Retained sizes of groups of objects: a type, a namespace or an assembly (sprint 2.3, decision 6). A group's retained
+/// Retained sizes of groups of objects: a type, a namespace or an assembly. A group's retained
 /// size here is a lower bound: the sum of the retained sizes of its objects that no other object of the same group
 /// dominates, so nothing is counted twice. Objects held only by several of the group's objects together are not counted;
-/// the exact retention of a set is 2.4's.
+/// the exact retention of a set is <see cref="SetRetention"/>'s.
 /// </summary>
 public static class GroupRetention
 {
     /// <summary>
-    /// Bytes per object of working arrays: a cursor per vertex. The tree's children are the dominators' own since sprint 2.4
-    /// (they were built here, 12 bytes per object, on every run).
+    /// Bytes per object of working arrays: a cursor per vertex. The tree's children are the dominators' own
+    /// (building them here cost 12 bytes per object on every run).
     /// </summary>
     public const int WorkingBytesPerObject = 4;
 
@@ -65,7 +65,7 @@ public static class GroupRetention
             throw new ArgumentException("The dominators or the groups do not match the graph.");
         }
 
-        // The dominator tree's children, kept with the dominators (sprint 2.4); the virtual root is vertex n.
+        // The dominator tree's children, kept with the dominators; the virtual root is vertex n.
         var idom = dominators.ImmediateDominators.Span;
         var starts = dominators.ChildStarts.Span;
         var children = dominators.Children.Span;

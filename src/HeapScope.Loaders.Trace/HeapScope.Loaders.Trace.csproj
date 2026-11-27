@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- EventStackReader reads the event record TraceEvent keeps (ADR-037, amended in 4.3). -->
+    <!-- EventStackReader reads the event record TraceEvent keeps (ADR-037, as amended). -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>

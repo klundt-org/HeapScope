@@ -28,7 +28,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Application.Exports;
 
 /// <summary>
-/// A grid written as CSV (sprint 2.7, the first form of ADR-026's shared analysis export). Every row is written, fetched
+/// A grid written as CSV (the first form of ADR-026's shared analysis export). Every row is written, fetched
 /// page by page from the worker, not only the rows a grid has loaded. Hidden link columns are left out; columns that
 /// carry values (string text, field values) are left out unless the person exporting opted in, and the file then says
 /// so on its first line. A text cell a spreadsheet would read as a formula gets a leading apostrophe.
@@ -46,7 +46,7 @@ public static class CsvExport
 
     /// <summary>
     /// Creates the file an export writes into: new (never a file someone made beforehand) and readable by the user only
-    /// (sprint 3.7, peer review P15), for front ends, which use no Core types.
+    /// for front ends, which use no Core types.
     /// </summary>
     public static FileStream CreatePrivate(string path) =>
         HeapScope.Core.PrivateFiles.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.Asynchronous);
@@ -151,7 +151,7 @@ public static class CsvExport
 
     /// <summary>
     /// A column's header: its name, and what its numbers are when not exact (a lower bound, an estimate), so a shared file
-    /// is not read as exact figures (2.7 review).
+    /// is not read as exact figures.
     /// </summary>
     public static string Header(ResultColumn column)
     {

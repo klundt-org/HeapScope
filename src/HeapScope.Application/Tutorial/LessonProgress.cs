@@ -29,10 +29,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.Application.Tutorial;
 
 /// <summary>
-/// The lessons a user finished (sprint 3.13): their ids in <c>learn-progress.json</c> in the data folder, written owner-only and
+/// The lessons a user finished: their ids in <c>learn-progress.json</c> in the data folder, written owner-only and
 /// whole, under a lock (<see cref="PrivateJsonFile"/>). A damaged file counts as no progress, is logged and kept beside as
-/// <c>.bak</c> before it is replaced (review M7); one that cannot be read now (held by another process) is never written over, so
-/// no progress is lost (peer review 4.5 M6). Nothing in it comes from a dump.
+/// <c>.bak</c> before it is replaced; one that cannot be read now (held by another process) is never written over, so
+/// no progress is lost. Nothing in it comes from a dump.
 /// </summary>
 public sealed class LessonProgress
 {

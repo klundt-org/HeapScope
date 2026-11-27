@@ -27,7 +27,7 @@ using Microsoft.Win32.SafeHandles;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// A trace file that still grows, as TraceEvent reads it (sprint 4.3, ADR-037): only whole objects that <see cref="TraceFileCheck"/>
+/// A trace file that still grows, as TraceEvent reads it (ADR-037): only whole objects that <see cref="TraceFileCheck"/>
 /// has walked are handed out, waiting at the end of them for more, until the recording ends. What the file ends inside then, or a
 /// tag that is not the format's, is replaced by the format's end tag: what came before is read.
 /// </summary>

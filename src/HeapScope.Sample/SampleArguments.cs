@@ -26,7 +26,7 @@ using System.Globalization;
 namespace HeapScope.Sample;
 
 /// <summary>
-/// The sample's command line (sprint 3.13): <c>--list</c>, or <c>--scenarios a,b [--count N] [--payload BYTES]
+/// The sample's command line: <c>--list</c>, or <c>--scenarios a,b [--count N] [--payload BYTES]
 /// [--grow-every MS] [--parent-pid PID]</c>. Parsed apart from running it, so the rules are tested without a process.
 /// </summary>
 internal sealed record SampleArguments(
@@ -36,16 +36,16 @@ internal sealed record SampleArguments(
     TimeSpan? GrowEvery,
     int? ParentPid)
 {
-    /// <summary>Items each scenario plants unless told (review M13: twice the detectors' threshold of 1,000).</summary>
+    /// <summary>Items each scenario plants unless told (twice the detectors' threshold of 1,000).</summary>
     public const int DefaultCount = 2_000;
 
-    /// <summary>The most a scenario's items may hold together (review M5).</summary>
+    /// <summary>The most a scenario's items may hold together.</summary>
     public const long MaxPlantedBytes = 256L * 1024 * 1024;
 
-    /// <summary>The heap at which a growing sample stops growing (review M5).</summary>
+    /// <summary>The heap at which a growing sample stops growing.</summary>
     public const long GrowthLimitBytes = 512L * 1024 * 1024;
 
-    /// <summary>The shortest growth interval (review M5).</summary>
+    /// <summary>The shortest growth interval.</summary>
     public const int MinGrowEveryMs = 100;
 
     /// <summary>The usage line.</summary>
@@ -87,7 +87,7 @@ internal sealed record SampleArguments(
             }
         }
 
-        // Review M13: 2,000 items, twice the 1,000 the detectors report from. Review M5: what a scenario plants is bounded.
+        // 2,000 items, twice the 1,000 the detectors report from. What a scenario plants is bounded.
         var count = Number(args, "--count", DefaultCount, 1, 100_000);
         var payload = Number(args, "--payload", 64, 0, 65_536);
         var grow = Number(args, "--grow-every", 0, 0, 3_600_000);

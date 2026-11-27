@@ -25,7 +25,7 @@ using System.Globalization;
 
 namespace HeapScope.Capture;
 
-/// <summary>An estimated dump size and what it rests on, for the log (sprint 4.2 review).</summary>
+/// <summary>An estimated dump size and what it rests on, for the log.</summary>
 /// <param name="Bytes">The estimate.</param>
 /// <param name="Walked">The readable bytes a walk of the process's memory gave; null when it could not be walked.</param>
 /// <param name="Private">The process's private bytes; null when not readable.</param>

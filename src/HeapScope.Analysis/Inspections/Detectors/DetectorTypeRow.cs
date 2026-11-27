@@ -29,7 +29,7 @@ namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
 /// A row naming a type's objects: what it shows, and the hidden columns that open them. Rows open the type's reachable
-/// objects (review H5), a part of the type, so the whole-type actions stay off; an empty <see cref="TypeName"/> opens nothing.
+/// objects, a part of the type, so the whole-type actions stay off; an empty <see cref="TypeName"/> opens nothing.
 /// </summary>
-/// <param name="Members">The objects the row counted (sprint 3.1): what the row opens as a set.</param>
+/// <param name="Members">The objects the row counted: what the row opens as a set.</param>
 internal sealed record DetectorTypeRow(string Key, string Detail, long Objects, long Bytes, string TypeName, string Module, int[]? Members = null);

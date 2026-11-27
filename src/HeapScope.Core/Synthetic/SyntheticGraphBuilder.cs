@@ -71,7 +71,7 @@ public sealed class SyntheticGraphBuilder
     }
 
     /// <summary>
-    /// Creates an array of <paramref name="length"/> elements of <paramref name="componentSize"/> bytes (sprint 1.6): a
+    /// Creates an array of <paramref name="length"/> elements of <paramref name="componentSize"/> bytes: a
     /// 24-byte base, like x64 arrays; <paramref name="references"/> marks an array of references.
     /// </summary>
     public SyntheticObject Array(string typeName, long length, uint componentSize, bool references = false, HeapKind heapKind = HeapKind.Gen0) =>

@@ -29,11 +29,11 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Types that grow (sprint 3.5, dotMemory's "types growth"): with a baseline full dump, the application's types whose
+/// Types that grow (dotMemory's "types growth"): with a baseline full dump, the application's types whose
 /// reachable objects grew by at least <see cref="MinGrowth"/> and by at least <see cref="MinGrowthShare"/> of the
 /// baseline's. Types are matched by name and module (ADR-018); the framework's own types (by namespace or module) are left
 /// out, so a steady service's pools and caches stay quiet (the growing static collections detector covers those). Full
-/// dumps with their complete graph only: a gcdump names nested types differently and may be sampled (review of 3.5). A
+/// dumps with their complete graph only: a gcdump names nested types differently and may be sampled. A
 /// baseline captured after this snapshot is not compared.
 /// </summary>
 internal sealed class TypeGrowthDetector : IInspection
@@ -61,7 +61,7 @@ internal sealed class TypeGrowthDetector : IInspection
 
     public string Fix => "Open the type's objects and their retention paths or Similar Retention: find what holds the new ones, then remove them when their work is done or bound what keeps them.";
 
-    // Root details: a gcdump has none, even a complete one (the re-review), so the worker refuses one on either side.
+    // Root details: a gcdump has none, even a complete one, so the worker refuses one on either side.
     public SnapshotCapabilities Requires => SnapshotCapabilities.ObjectGraph | SnapshotCapabilities.CompleteGraph | SnapshotCapabilities.ExactCounts | SnapshotCapabilities.RootDetails;
 
     public InspectionKind Kind => InspectionKind.Leak;
@@ -119,7 +119,7 @@ internal sealed class TypeGrowthDetector : IInspection
 
         var ordered = rows.OrderByDescending(r => r.Growth).ThenBy(r => r.Name, StringComparer.Ordinal).ToArray();
 
-        // The reported types' objects only, each in an array of its census count, filled in one pass (the re-review): a
+        // The reported types' objects only, each in an array of its census count, filled in one pass: a
         // row opens what it counted, with nothing allocated for the types that did not grow.
         if (ordered.Length > 0)
         {
@@ -207,8 +207,7 @@ internal sealed class TypeGrowthDetector : IInspection
     }
 
     /// <summary>
-    /// Reachable objects and bytes per type key: counted per type index in one pass (no hashing per object, review of
-    /// 3.5), then folded by key (several type entries can share one).
+    /// Reachable objects and bytes per type key: counted per type index in one pass (no hashing per object), then folded by key (several type entries can share one).
     /// </summary>
     private static (Dictionary<(string Name, string Module), (long Objects, long Bytes)> Counts, long Objects, long Bytes) Census(HeapGraph graph, Reachability reachable, InspectionContext context, string phase)
     {

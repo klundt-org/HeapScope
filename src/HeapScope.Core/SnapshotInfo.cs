@@ -33,9 +33,9 @@ namespace HeapScope.Core;
 /// <param name="CapturedAtUtc">When the snapshot was captured, when known.</param>
 /// <param name="FreeBytes">
 /// Free space (the GC's free objects) per heap kind, indexed by <see cref="Graph.HeapKind"/>, for the fragmentation
-/// summary (sprint 1.6); null when unknown (index caches written before 1.6, snapshots without segments).
+/// summary; null when unknown (older index caches, snapshots without segments).
 /// </param>
-/// <param name="Facts">What the loader recorded beyond the graph (sprint 1.6 review); none for older index caches.</param>
+/// <param name="Facts">What the loader recorded beyond the graph; none for older index caches.</param>
 public sealed record SnapshotInfo(
     SnapshotKind Kind,
     string SourcePath,
@@ -48,7 +48,7 @@ public sealed record SnapshotInfo(
     SnapshotFacts Facts = SnapshotFacts.None);
 
 /// <summary>
-/// Facts a loader records beyond the graph (sprint 1.6): an inspection that needs one is unavailable without it (ADR-020),
+/// Facts a loader records beyond the graph: an inspection that needs one is unavailable without it (ADR-020),
 /// for example on an index cache written before the loader recorded it.
 /// </summary>
 [Flags]
@@ -63,19 +63,18 @@ public enum SnapshotFacts
     ReferenceArrayMarks = 1 << 1,
 
     /// <summary>
-    /// Objects registered for finalization carry <see cref="Graph.ObjectFlags.HasFinalizer"/> (sprint 1.8 review H5). A
+    /// Objects registered for finalization carry <see cref="Graph.ObjectFlags.HasFinalizer"/>. A
     /// gcdump does not record registrations, so a finalizable count there would silently be zero.
     /// </summary>
     FinalizerRegistrations = 1 << 2,
 
     /// <summary>
-    /// <see cref="SnapshotInfo.CapturedAtUtc"/> is the file's write time, not a time the dump recorded (sprint 2.3.5 review:
-    /// a Linux or macOS core file records none), so a copy of the file can change it.
+    /// <see cref="SnapshotInfo.CapturedAtUtc"/> is the file's write time, not a time the dump recorded (a Linux or macOS core file records none), so a copy of the file can change it.
     /// </summary>
     CaptureTimeFromFile = 1 << 3,
 
     /// <summary>
-    /// A full dump's GC handles are all there (peer review 4.5). Without it, as in a cache from before loader version 5, an object held
+    /// A full dump's GC handles are all there. Without it, as in a cache from before loader version 5, an object held
     /// only by a handle can look unreachable. A gcdump does not need it.
     /// </summary>
     HandlesChecked = 1 << 5,

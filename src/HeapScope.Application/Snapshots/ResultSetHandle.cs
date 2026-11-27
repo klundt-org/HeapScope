@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Application.Snapshots;
 
 /// <summary>
-/// A worker result set together with the query that produced it (from the 0.3 review): when paging fails with
+/// A worker result set together with the query that produced it: when paging fails with
 /// <see cref="HeapScopeErrorCode.ResultSetNotFound"/> (evicted, or the worker restarted) the query runs again once and
 /// paging continues on the new set. Front ends page through this instead of raw result set ids. After
 /// <see cref="ReleaseAsync"/> the handle is finished: paging throws <see cref="ObjectDisposedException"/> and never
@@ -108,7 +108,7 @@ public sealed class ResultSetHandle
     }
 
     /// <summary>
-    /// Releases the set without waiting, for a view that moved on (sprint 2.3.7 review M12): a failure only means the set
+    /// Releases the set without waiting, for a view that moved on: a failure only means the set
     /// is already gone with its worker, so it is logged at Debug and nothing else happens.
     /// </summary>
     public void ReleaseInBackground(ILogger? logger) =>
@@ -132,7 +132,7 @@ public sealed class ResultSetHandle
                 Info = await _query(cancellationToken).ConfigureAwait(false);
                 Requeries++;
 
-                // The rows shown from here on come from a new run (sprint 2.3.7 review M20); the worker logged its answer.
+                // The rows shown from here on come from a new run; the worker logged its answer.
                 _logger?.LogInformation(
                     "Result set {OldId} was gone (evicted, or the worker restarted); the query ran again as {NewId} with {Rows} rows (re-run {Count}, worker generation {Generation})",
                     failedId,
@@ -155,12 +155,12 @@ public sealed class ResultSetHandle
 /// </summary>
 public sealed record TypeSummary(ResultSetHandle Rows, TypeSummaryResult Result);
 
-/// <summary>The objects of a type: their pageable rows and the totals of the first run (sprint 1.5).</summary>
+/// <summary>The objects of a type: their pageable rows and the totals of the first run.</summary>
 public sealed record InstanceList(ResultSetHandle Rows, InstancesResult Result);
 
 /// <summary>
-/// An instances query: a type key, a filter and sort, the scope within the type (sprint 1.6), and whether to add retained
-/// bytes (sprint 2.3).
+/// An instances query: a type key, a filter and sort, the scope within the type, and whether to add retained
+/// bytes.
 /// </summary>
 public sealed record InstancesQuery(
     string TypeName,
@@ -173,32 +173,32 @@ public sealed record InstancesQuery(
     bool IncludeRetained = false,
     ObjectSetQuery? Set = null);
 
-/// <summary>An inspection that ran: its rows and its summary (sprint 1.6).</summary>
+/// <summary>An inspection that ran: its rows and its summary.</summary>
 public sealed record InspectionRun(ResultSetHandle Rows, InspectionResultDto Result);
 
-/// <summary>A snapshot comparison: its pageable rows and the totals of the first run (sprint 1.4).</summary>
+/// <summary>A snapshot comparison: its pageable rows and the totals of the first run.</summary>
 public sealed record SnapshotDiff(ResultSetHandle Rows, TypeDiffResult Result);
 
-/// <summary>A trend across several snapshots: its pageable rows and the totals of the first run (sprint 3.3).</summary>
+/// <summary>A trend across several snapshots: its pageable rows and the totals of the first run.</summary>
 public sealed record SnapshotTrend(ResultSetHandle Rows, TypeTrendResult Result);
 
-/// <summary>The objects referencing one object: their pageable rows and the totals of the first run (sprint 2.1).</summary>
+/// <summary>The objects referencing one object: their pageable rows and the totals of the first run.</summary>
 public sealed record ReferrerList(ResultSetHandle Rows, ReferrersResult Result);
 
-/// <summary>The objects referencing a type's objects, by their type: pageable rows and the first run's totals (sprint 2.1).</summary>
+/// <summary>The objects referencing a type's objects, by their type: pageable rows and the first run's totals.</summary>
 public sealed record TypeReferrerList(ResultSetHandle Rows, TypeReferrersResult Result);
 
-/// <summary>The dominator tree's rows and the answer of their first run (sprint 2.4).</summary>
+/// <summary>The dominator tree's rows and the answer of their first run.</summary>
 public sealed record DominatorTreeAnswer(ResultSetHandle Rows, DominatorTreeResult Result);
 
-/// <summary>What a set retains, by type, and the answer of the first run (sprint 2.4).</summary>
+/// <summary>What a set retains, by type, and the answer of the first run.</summary>
 public sealed record RetainedBySetAnswer(ResultSetHandle Rows, RetainedBySetResult Result);
 
-/// <summary>A set's top members and the answer of the first run (sprint 3.1).</summary>
+/// <summary>A set's top members and the answer of the first run.</summary>
 public sealed record SetDominatorsAnswer(ResultSetHandle Rows, SetDominatorsResult Result);
 
 /// <summary>
-/// An object set as the client keeps it (sprint 3.1, ADR-030): the spec, and the snapshot an inspection row's baseline is,
+/// An object set as the client keeps it (ADR-030): the spec, and the snapshot an inspection row's baseline is,
 /// held as a handle because the worker's snapshot ids change when it restarts. The session puts the baseline's current
 /// id into the spec at each call.
 /// </summary>

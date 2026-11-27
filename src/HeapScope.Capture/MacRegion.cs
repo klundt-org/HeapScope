@@ -23,7 +23,7 @@
 
 namespace HeapScope.Capture;
 
-/// <summary>A range of a process's memory on macOS (sprint 4.2).</summary>
+/// <summary>A range of a process's memory on macOS.</summary>
 /// <param name="Address">Where it starts.</param>
 /// <param name="Size">Its bytes.</param>
 /// <param name="Readable">Whether a dump holds it: it can be read and is not an empty reservation.</param>

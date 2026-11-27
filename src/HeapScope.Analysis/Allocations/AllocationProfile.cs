@@ -45,7 +45,7 @@ public readonly record struct AllocationTypeTotal(long Bytes, long LargeBytes, l
 public readonly record struct AllocationStackTotal(long Bytes, int Node, int Samples);
 
 /// <summary>
-/// Questions over a trace's sampled allocations (sprint 2.5): the timeline, the types and the call stacks of an
+/// Questions over a trace's sampled allocations: the timeline, the types and the call stacks of an
 /// interval. Sizes are what the samples stand for (about 100 KB each per heap and kind), so they are estimates. The
 /// loops over samples check the cancellation token every 64K samples (ARCHITECTURE.md 4.5).
 /// </summary>

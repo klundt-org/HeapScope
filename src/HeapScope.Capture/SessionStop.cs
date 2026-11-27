@@ -28,7 +28,7 @@ namespace HeapScope.Capture;
 
 /// <summary>
 /// Stops an EventPipe session without hanging on a target that does not answer (frozen in a debugger, suspended): it waits
-/// <see cref="Wait"/> at most, then disposes the session, which ends its stream (peer review 4.5 H9; the counters had this since 1.7).
+/// <see cref="Wait"/> at most, then disposes the session, which ends its stream (as the counters do).
 /// </summary>
 internal static class SessionStop
 {

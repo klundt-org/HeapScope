@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- Comparison of two open snapshots (sprint 1.4, ADR-018): per-type deltas; since 3.3 new and dead objects by address
+<!-- Comparison of two open snapshots (ADR-018): per-type deltas; new and dead objects by address
      (ADR-032), retained bytes and per-generation deltas, and a trend across several snapshots. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -184,7 +184,7 @@
     </DataGrid>
     </DockPanel>
 
-    <!-- Trend across several snapshots (sprint 3.3). -->
+    <!-- Trend across several snapshots. -->
     <Panel IsVisible="{Binding IsTrendShown}">
     <DockPanel DataContext="{Binding Trend}" x:DataType="vm:TrendViewModel">
       <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Choices}" Margin="0,0,8,6">

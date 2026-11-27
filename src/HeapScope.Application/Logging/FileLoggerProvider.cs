@@ -35,7 +35,7 @@ namespace HeapScope.Application.Logging;
 /// <c>~/Library/Application Support/HeapScope/logs</c> on macOS). Thread safe; never throws into callers.
 /// </summary>
 /// <remarks>
-/// Sprint 2.3.7 (review H1, M17): one file per process and day, <c>heapscope-yyyyMMdd-&lt;app&gt;-&lt;pid&gt;.log</c>, so
+/// One file per process and day, <c>heapscope-yyyyMMdd-&lt;app&gt;-&lt;pid&gt;.log</c>, so
 /// two HeapScope processes never write over each other's lines; each file starts with a header naming the build, the
 /// system and the process; lines carry an ISO 8601 time with offset and the active scopes (the trace id ties the UI or
 /// CLI lines to the worker lines they caused); a file rolls at <see cref="DefaultMaxFileBytes"/> and files older than
@@ -95,10 +95,10 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
 
     public static string DefaultDirectory => HeapScope.Core.HeapScopeFolders.Default.Logs;
 
-    /// <summary>The folder this provider writes to (messages that point users to the log name it, review M16).</summary>
+    /// <summary>The folder this provider writes to (messages that point users to the log name it).</summary>
     public string Directory => _directory;
 
-    /// <summary>The file this process writes now, or null before its first line (sprint 3.12: Purge logs keeps it).</summary>
+    /// <summary>The file this process writes now, or null before its first line (Purge logs keeps it).</summary>
     public string? CurrentPath
     {
         get
@@ -115,7 +115,7 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
 
     /// <summary>
     /// Reads <c>Logging:File:MinimumLevel</c> (Trace, Debug, Information, Warning, Error, Critical); Information when unset
-    /// or not a level. Support raises it to Debug for one run (review M17).
+    /// or not a level. Support raises it to Debug for one run.
     /// </summary>
     public static LogLevel ParseLevel(string? value) =>
         Enum.TryParse<LogLevel>(value, ignoreCase: true, out var level) && level is >= LogLevel.Trace and <= LogLevel.Critical
@@ -123,7 +123,7 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
             : LogLevel.Information;
 
     /// <summary>
-    /// Closes the part being written and goes on in the next one (sprint 3.13.2 review H1): after Include dump values in logs is
+    /// Closes the part being written and goes on in the next one: after Include dump values in logs is
     /// turned off, Purge logs can delete this process's earlier parts, which hold the values, and keeps only the new part.
     /// Returns the new part's path, or null when nothing was written yet (the first line opens a part without values).
     /// </summary>
@@ -154,7 +154,7 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
 
     public ILogger CreateLogger(string categoryName) => new FileLogger(this, categoryName);
 
-    /// <summary>What to tell the user once this process's log could not be written (sprint 4.8, peer review 4.5 M13); null while it can.</summary>
+    /// <summary>What to tell the user once this process's log could not be written; null while it can.</summary>
     public string? Unavailable { get; private set; }
 
     /// <summary>
@@ -219,7 +219,7 @@ public sealed class FileLoggerProvider : ILoggerProvider, ISupportExternalScope
                 System.Diagnostics.Debug.WriteLine($"HeapScope file log unavailable: {ex.Message}");
                 if (Unavailable is null)
                 {
-                    // Said once (M13), off this lock: a handler may log.
+                    // Said once, off this lock: a handler may log.
                     var said = Unavailable = $"HeapScope cannot write its log in {_directory}: {ex.Message} It goes on without a log, so a problem now cannot be traced. Free space on that drive or check that the folder is yours, then start it again.";
                     ThreadPool.QueueUserWorkItem(_ => BecameUnavailable?.Invoke(said));
                 }

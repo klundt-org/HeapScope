@@ -26,7 +26,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// One key retention path of a set of objects (sprint 2.2, dotMemory's Key Retention Paths): the objects whose shortest path
+/// One key retention path of a set of objects (dotMemory's Key Retention Paths): the objects whose shortest path
 /// from a root has the same type sequence (<see cref="Steps"/>, root first, the objects themselves excluded; repeats of one
 /// type folded) and the same kind of root (and field, for statics).
 /// </summary>
@@ -39,7 +39,7 @@ public sealed record KeyPath(PathRoot Root, IReadOnlyList<int> Steps, long Objec
 /// <summary>A set's key paths, largest first, and what they do not cover.</summary>
 /// <param name="Objects">Objects in the set.</param>
 /// <param name="Unreachable">Objects no root reaches: in a full dump garbage not yet collected or held only weakly, in a
-/// gcdump objects whose root was not recorded (review M3).</param>
+/// gcdump objects whose root was not recorded.</param>
 /// <param name="OtherPaths">Key paths beyond the ones returned; <see cref="OtherObjects"/> and <see cref="OtherBytes"/> sum them.</param>
 public sealed record KeyPathSet(
     IReadOnlyList<KeyPath> Paths,
@@ -50,10 +50,10 @@ public sealed record KeyPathSet(
     long OtherObjects,
     ulong OtherBytes);
 
-/// <summary>Groups a set of objects by their shortest path from a root (sprint 2.2).</summary>
+/// <summary>Groups a set of objects by their shortest path from a root.</summary>
 public static class KeyPaths
 {
-    /// <summary>Key paths returned by default (decision 3).</summary>
+    /// <summary>Key paths returned by default.</summary>
     public const int DefaultMaxPaths = 20;
 
     /// <summary>
@@ -83,7 +83,7 @@ public static class KeyPaths
         return groups.Result(maxPaths);
     }
 
-    /// <summary>The key paths of the objects <paramref name="members"/> (sprint 3.2: a set's members).</summary>
+    /// <summary>The key paths of the objects <paramref name="members"/> (a set's members).</summary>
     public static KeyPathSet ForMembers(HeapGraph graph, RootPathTree tree, ReadOnlySpan<int> members, int maxPaths = DefaultMaxPaths, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(graph);

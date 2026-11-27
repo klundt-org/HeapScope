@@ -30,7 +30,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// Output shared by the commands (sprint 1.9): fetching a result set's rows, CSV, JSON (rows keyed by column name with
+/// Output shared by the commands: fetching a result set's rows, CSV, JSON (rows keyed by column name with
 /// typed numbers), and the small text helpers. Each command keeps its own table layout.
 /// </summary>
 internal static partial class CliCommands
@@ -38,7 +38,7 @@ internal static partial class CliCommands
     private static async Task WriteCsvAsync(TextWriter output, IReadOnlyList<ResultColumn> columns, List<IReadOnlyList<string?>> rows)
     {
         // A local view for the person running the command (ADR-026): every column. Text read from a dump that a
-        // spreadsheet would run as a formula is shown as text, as in the app's exports (2.7 review).
+        // spreadsheet would run as a formula is shown as text, as in the app's exports.
         await output.WriteLineAsync(string.Join(",", columns.Select(c => CsvExport.Quote(c.Name)))).ConfigureAwait(false);
         foreach (var row in rows)
         {
@@ -48,7 +48,7 @@ internal static partial class CliCommands
 
     /// <summary>
     /// Rows as objects keyed by column name, with numbers typed by the column kind; a null cell is JSON null in any column
-    /// (sprint 2.3: an object no root reaches has no retained bytes, review H2).
+    /// (an object no root reaches has no retained bytes).
     /// </summary>
     private static IEnumerable<Dictionary<string, object?>> JsonRows(IReadOnlyList<ResultColumn> columns, List<IReadOnlyList<string?>> rows) =>
         rows.Select(row => columns.Select((c, i) => (c, i)).ToDictionary(
@@ -95,7 +95,7 @@ internal static partial class CliCommands
         (bytes / (1024.0 * 1024.0)).ToString("N1", CultureInfo.InvariantCulture) + " MB";
 
     /// <summary>
-    /// The version of the JSON every command writes (sprint 4.8, peer review 4.5 M4; docs/cli-output.md): its first member,
+    /// The version of the JSON every command writes (docs/cli-output.md): its first member,
     /// <c>"Format"</c>. Within a format, members are only added; removing, renaming or retyping one, or changing what it means,
     /// is a new format.
     /// </summary>

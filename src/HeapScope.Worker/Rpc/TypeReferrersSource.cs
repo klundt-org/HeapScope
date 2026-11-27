@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// The objects referencing a type's objects, one row per referrer type (name and module, ADR-018), sprint 2.1. Rows are
+/// The objects referencing a type's objects, one row per referrer type (name and module, ADR-018). Rows are
 /// computed when the set is created; names are formatted per page. Sorting takes any column by name.
 /// </summary>
 internal sealed class TypeReferrersSource : IResultSource
@@ -72,7 +72,7 @@ internal sealed class TypeReferrersSource : IResultSource
     public long ReferenceCount => _rows.Sum(r => r.References);
 
     /// <summary>
-    /// Checks the request and matches its type before any index is needed (review M8): an unknown sort column throws; no
+    /// Checks the request and matches its type before any index is needed: an unknown sort column throws; no
     /// matching type gives an empty source.
     /// </summary>
     /// <exception cref="ArgumentException">The sort column is unknown.</exception>

@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// What a detector left out, by reason, with the most common keys for each (sprint 2.6 re-review): a disputed absence
+/// What a detector left out, by reason, with the most common keys for each: a disputed absence
 /// ("why was my event not reported?") is answered from the log by name, not only by a count.
 /// </summary>
 internal sealed class Exclusions

@@ -50,7 +50,7 @@ public sealed record DiagramNode(int Id, DiagramNodeKind Kind, string Label, lon
 public sealed record DiagramEdge(int From, int To, long Objects, int Folded, bool IsBack);
 
 /// <summary>
-/// Key retention paths merged into one graph (sprint 3.2, decision 5; dotMemory's Key Retention Paths diagram): a node
+/// Key retention paths merged into one graph (dotMemory's Key Retention Paths diagram): a node
 /// per root and per type, the target at the bottom, and an edge per consecutive pair carrying the objects of the paths
 /// through it. A node's layer is its first depth on any path, and columns follow the paths' order (the largest first),
 /// so the biggest path runs down the left. Independent of the UI toolkit.
@@ -108,7 +108,7 @@ public sealed class KeyPathDiagram
     /// <summary>
     /// The diagram of <paramref name="paths"/>; framework steps between others are folded into the edges unless shown.
     /// <paramref name="overlapping"/>: every object has every path (a Similar Retention group), so a node or an edge
-    /// holds the most objects of any path through it, never their sum (the 3.2 review). <paramref name="target"/> names the
+    /// holds the most objects of any path through it, never their sum. <paramref name="target"/> names the
     /// bottom node (a set's title) instead of each path's example type.
     /// </summary>
     public static KeyPathDiagram Build(IReadOnlyList<KeyPathDto> paths, bool showFramework, bool overlapping = false, string? target = null)
@@ -133,7 +133,7 @@ public sealed class KeyPathDiagram
                     continue;
                 }
 
-                // The middle of a long path is one gap step; it belongs to its own path only (the 3.2 review).
+                // The middle of a long path is one gap step; it belongs to its own path only.
                 var gap = step.TypeName.StartsWith('(') && step.TypeName.EndsWith(" not shown)", StringComparison.Ordinal);
                 sequence.Add((Node(DiagramNodeKind.Type, step.TypeName, gap ? string.Create(CultureInfo.InvariantCulture, $"gap {p}|{step.TypeName}") : step.TypeName), folded));
                 folded = 0;

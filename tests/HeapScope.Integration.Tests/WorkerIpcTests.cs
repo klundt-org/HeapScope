@@ -313,10 +313,19 @@ public sealed class WorkerIpcTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task The_shown_snapshot_is_told_over_the_pipe_and_an_unknown_one_is_not_an_error()
+    {
+        // ADR-044: the store only orders eviction by it, so any id, or none, is accepted.
+        await _operations.Worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(Guid.NewGuid(), ct), Ct);
+        await _operations.Worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(null, ct), Ct);
+    }
+
+    [Fact]
     public async Task Least_recently_used_result_sets_are_evicted()
     {
         var first = (await _operations.StartSyntheticJob(new SyntheticJobRequest(100, TypeCount: 5)).Result).TypeSummary.Id;
-        for (var i = 0; i < 32; i++)
+        // The store keeps 128 sets (ResultSetStore.DefaultCapacity, ADR-044); one more evicts the first.
+        for (var i = 0; i < 128; i++)
         {
             await _operations.StartSyntheticJob(new SyntheticJobRequest(100, TypeCount: 5)).Result;
         }

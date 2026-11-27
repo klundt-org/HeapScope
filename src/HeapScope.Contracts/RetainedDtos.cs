@@ -24,16 +24,16 @@
 namespace HeapScope.Contracts;
 
 // DTOs are records of primitives, strings, arrays and Contracts enums only (ARCHITECTURE.md 4.4, ADR-016).
-// Retained sizes (sprint 2.3): dominators of a snapshot, computed once and kept in a sidecar.
+// Retained sizes: dominators of a snapshot, computed once and kept in a sidecar.
 
-/// <summary>How a snapshot's dominators were obtained (sprint 2.3).</summary>
+/// <summary>How a snapshot's dominators were obtained.</summary>
 /// <param name="FromSidecar">Opened from the sidecar next to the index cache rather than computed.</param>
 /// <param name="Seconds">Time to open or compute them (including the reverse references index when it was built first).</param>
 /// <param name="Bytes">The kept columns: 12 bytes per object.</param>
 /// <param name="Saved">Saved in the sidecar, so the next open reuses them.</param>
 /// <param name="ReachableObjects">Objects a root reaches; the others have no dominator and retain nothing.</param>
 /// <param name="CompleteGraph">False for an incomplete snapshot (a sampled gcdump, a truncated dump): references are missing,
-/// so retained sizes may be overstated (review M6).</param>
+/// so retained sizes may be overstated.</param>
 /// <param name="Note">What to say beside retained sizes, in plain language: an incomplete snapshot, or a gcdump's objects
 /// whose root it did not record (they retain nothing here); null when there is nothing to say.</param>
 public sealed record DominatorIndexInfo(
@@ -46,7 +46,7 @@ public sealed record DominatorIndexInfo(
     bool CompleteGraph = true,
     string? Note = null);
 
-/// <summary>One object's retained size and immediate dominator (sprint 2.3).</summary>
+/// <summary>One object's retained size and immediate dominator.</summary>
 public sealed record RetainedRequest(Guid SnapshotId, ulong Address);
 
 /// <summary>

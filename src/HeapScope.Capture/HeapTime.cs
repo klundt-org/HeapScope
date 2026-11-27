@@ -24,5 +24,5 @@
 
 namespace HeapScope.Capture;
 
-/// <summary>When the heap was as a capture holds it (sprint 4.4), and what that was taken from, for the log.</summary>
+/// <summary>When the heap was as a capture holds it, and what that was taken from, for the log.</summary>
 public sealed record HeapTime(DateTimeOffset Utc, string Source);

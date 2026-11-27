@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The back traces or call tree of an allocation trace's interval (sprint 2.5): served flattened by the worker from the
+/// The back traces or call tree of an allocation trace's interval: served flattened by the worker from the
 /// open rows like the dominator tree (ADR-027); expanding or collapsing a row queries again and keeps that row selected.
 /// </summary>
 public sealed partial class AllocationTreeViewModel : GridQueryViewModel<AllocationRowItem>

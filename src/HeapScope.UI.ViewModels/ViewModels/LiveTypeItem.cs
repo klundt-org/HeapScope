@@ -25,7 +25,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A type a watched process allocates (sprint 4.3): one row whose figures change as samples arrive.</summary>
+/// <summary>A type a watched process allocates: one row whose figures change as samples arrive.</summary>
 public sealed partial class LiveTypeItem(string name) : ObservableObject
 {
     [ObservableProperty]

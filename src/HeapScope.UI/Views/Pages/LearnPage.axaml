@@ -28,7 +28,7 @@
              xmlns:vm="using:HeapScope.UI.ViewModels"
              x:Class="HeapScope.UI.Views.Pages.LearnPage"
              x:DataType="vm:LearnViewModel">
-  <!-- Sprint 3.13 (ADR-042): lessons on the tutorial's sample, each checked against what the sample planted. -->
+  <!-- Lessons on the tutorial's sample, each checked against what the sample planted (ADR-042). -->
   <DockPanel Margin="4">
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
       <TextBlock Classes="pageTitle" Text="Learn" VerticalAlignment="Center" />
@@ -39,7 +39,7 @@
             IsVisible="{Binding Unavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <SelectableTextBlock TextWrapping="Wrap" Text="{Binding Unavailable}" />
     </Border>
-    <!-- Sprint 4.1: who can capture whom on Linux (the rules the lessons meet there); shown on Linux and macOS. -->
+    <!-- Who can capture whom on Linux (the rules the lessons meet there); shown on Linux and macOS. -->
     <Border DockPanel.Dock="Top" Classes="info" Margin="0,0,0,8"
             IsVisible="{x:Static vm:PlatformHints.HasLearnNote}">
       <SelectableTextBlock TextWrapping="Wrap" Text="{x:Static vm:PlatformHints.LearnNote}" />

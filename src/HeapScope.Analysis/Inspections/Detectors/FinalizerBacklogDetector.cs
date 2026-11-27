@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// A finalizer backlog (sprint 3.5): at least <see cref="MinReady"/> objects dead and waiting on the finalizer queue. The
+/// A finalizer backlog: at least <see cref="MinReady"/> objects dead and waiting on the finalizer queue. The
 /// finalizer thread runs them one at a time; when one blocks or they arrive faster than it runs them, they and everything
 /// they reference stay alive. Types with at least <see cref="MinTypeObjects"/> queued objects are rows.
 /// </summary>
@@ -86,7 +86,7 @@ internal sealed class FinalizerBacklogDetector : IInspection
         var rows = reported.Select(t => new DetectorTypeRow(t.Name, string.Empty, t.Members.Count, t.Bytes, t.Name, DetectorGraph.Module(graph, t.Type), [.. t.Members])).ToList();
         if (rest.Count > 0)
         {
-            // The threshold is met as a whole: types with fewer objects each are one row, never left unreported (the re-review).
+            // The threshold is met as a whole: types with fewer objects each are one row, never left unreported.
             rows.Add(new DetectorTypeRow(string.Create(CultureInfo.InvariantCulture, $"(other types: {rest.Count})"), string.Empty, rest.Sum(t => (long)t.Members.Count), rest.Sum(t => t.Bytes), string.Empty, string.Empty, [.. rest.SelectMany(t => t.Members)]));
         }
 

@@ -27,7 +27,7 @@ using System.Text.Json.Serialization;
 
 namespace HeapScope.Application.Bookmarks;
 
-/// <summary>The colors a bookmark can have (sprint 2.7); the UI maps each to a theme brush.</summary>
+/// <summary>The colors a bookmark can have; the UI maps each to a theme brush.</summary>
 public enum BookmarkColor
 {
     Red = 0,
@@ -66,7 +66,7 @@ public sealed record SnapshotKey(string Path, long Length, DateTime WriteTimeUtc
 /// <summary>One marked object: where, which, and how it is shown. No field values or string text (ADR-026).</summary>
 public sealed record Bookmark(SnapshotKey Snapshot, ulong Address, string TypeName, BookmarkColor Color, DateTimeOffset CreatedUtc);
 
-/// <summary>What reading the bookmarks file found (2.7 review: problems are told, not silent).</summary>
+/// <summary>What reading the bookmarks file found (problems are told, not silent).</summary>
 public enum BookmarkFileProblem
 {
     None = 0,
@@ -82,10 +82,9 @@ public enum BookmarkFileProblem
 }
 
 /// <summary>
-/// Object bookmarks kept across runs (sprint 2.7) in <c>bookmarks.json</c> in the app's data folder (beside the session
+/// Object bookmarks kept across runs in <c>bookmarks.json</c> in the app's data folder (beside the session
 /// library; tests pass their own folder). Every read reads the file; every change re-reads it, changes it and writes it
-/// whole through a temporary file under a lock file, so two HeapScope windows never overwrite each other's marks (review
-/// H3). Thread-safe; callers keep file access off the dispatcher.
+/// whole through a temporary file under a lock file, so two HeapScope windows never overwrite each other's marks. Thread-safe; callers keep file access off the dispatcher.
 /// </summary>
 public sealed class BookmarkStore
 {
@@ -184,7 +183,7 @@ public sealed class BookmarkStore
         }
     }
 
-    // Through the one helper (review of 4.6): a file held for a moment is read again, one that cannot be read is never taken as empty.
+    // Through the one helper: a file held for a moment is read again, one that cannot be read is never taken as empty.
     private List<Bookmark> Read()
     {
         Problem = BookmarkFileProblem.None;
@@ -219,7 +218,7 @@ public sealed class BookmarkStore
     }
 
     // Owner-only off Windows, like HeapScope's other files (it names dump paths); the old file or the new one, never a short one, and no
-    // temporary file left behind (peer review 4.5 M6).
+    // temporary file left behind.
     private void Save(List<Bookmark> all) => HeapScope.Core.PrivateJsonFile.Write(Path, new Document(FormatVersion, all), s_json);
 
     private sealed record Document(int FormatVersion, List<Bookmark> Bookmarks);

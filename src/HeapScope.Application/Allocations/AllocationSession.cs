@@ -33,7 +33,7 @@ using HeapScope.Application.Events;
 
 namespace HeapScope.Application.Allocations;
 
-/// <summary>An allocation trace open in this session (sprint 2.5).</summary>
+/// <summary>An allocation trace open in this session.</summary>
 public sealed class TraceHandle : IWorkerResource
 {
     internal TraceHandle(TraceDescriptor descriptor, int generation, LiveTraceSource? live = null)
@@ -43,7 +43,7 @@ public sealed class TraceHandle : IWorkerResource
         _read = new Read(descriptor, generation);
     }
 
-    // The descriptor and the generation it belongs to change together: one reference, swapped whole (the 2.5 re-review).
+    // The descriptor and the generation it belongs to change together: one reference, swapped whole.
     private volatile Read _read;
 
     /// <summary>Stable id of this handle in the session.</summary>
@@ -56,7 +56,7 @@ public sealed class TraceHandle : IWorkerResource
 
     public bool IsClosed { get; internal set; }
 
-    /// <summary>Set for a trace that is followed while it is recorded (sprint 4.3).</summary>
+    /// <summary>Set for a trace that is followed while it is recorded.</summary>
     internal LiveTraceSource? Live { get; }
 
     internal int Generation => _read.Generation;
@@ -86,7 +86,7 @@ public sealed class TraceHandle : IWorkerResource
 }
 
 /// <summary>
-/// A recording was written but could not be read (sprint 2.5 review): the trace is kept at <see cref="Path"/> and can be
+/// A recording was written but could not be read: the trace is kept at <see cref="Path"/> and can be
 /// opened later from the Allocations page.
 /// </summary>
 public sealed class TraceRecordedButNotReadException(string path, Exception innerException)
@@ -109,7 +109,7 @@ public sealed record AllocationScope(double FromSeconds = 0, double? ToSeconds =
 }
 
 /// <summary>
-/// The allocation traces open in this session (sprint 2.5, ADR-028): reading them in the worker, recording new ones into
+/// The allocation traces open in this session (ADR-028): reading them in the worker, recording new ones into
 /// the session folder, and the queries over an interval. A trace is read again after a worker restart (seconds, from the
 /// trace file; nothing is cached).
 /// </summary>
@@ -124,7 +124,7 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
     private readonly object _gate = new();
     private readonly List<TraceHandle> _traces = [];
 
-    // Reads in progress by full path (review H2 of 4.4): a question asked again meanwhile waits for the same one.
+    // Reads in progress by full path: a question asked again meanwhile waits for the same one.
     private readonly Dictionary<string, Lazy<TrackedJob<TraceHandle>>> _opening = new(PathIdentity.Comparer());
 
     /// <summary>Raised on any thread when a trace is opened or closed.</summary>
@@ -161,11 +161,10 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         var title = string.Create(CultureInfo.InvariantCulture, $"Record allocations of {processName} ({processId})");
         return jobs.Start(title, async (progress, ct) =>
         {
-            // The current session takes the library's lock, which an open or a deletion can hold for seconds: not on the UI thread (peer
-            // review 4.5 H10, as LiveViewModel does since 3.4).
+            // The current session takes the library's lock, which an open or a deletion can hold for seconds: not on the UI thread (as LiveViewModel does).
             var folder = await Task.Run(() => library.Current.Folder, ct).ConfigureAwait(false);
 
-            // Marked in use while it records, as captures and runs are, so the session is not deleted under it (peer review 4.5 M8).
+            // Marked in use while it records, as captures and runs are, so the session is not deleted under it.
             using var inUse = library.MarkInUse(folder, "a recording of allocations");
             var path = UniquePath(folder, processName, processId);
             progress.Report(new JobProgress("Recording allocations", 0, null, string.Create(CultureInfo.InvariantCulture, $"Up to {duration.TotalSeconds:N0} s; Stop keeps what was recorded")));
@@ -193,7 +192,7 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Canceled while reading: the recording is not kept either (the 2.5 re-review).
+                // Canceled while reading: the recording is not kept either.
                 LogDelete(trace.Path, "the job was canceled while reading it");
                 throw;
             }
@@ -283,12 +282,12 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         return Resources.UseAsync([handle], (service, ids, ct) => call(service, ids[0], ct), cancellationToken);
     }
 
-    /// <summary>Runs <paramref name="call"/> with the trace's worker id, for a question that is about snapshots too (sprint 4.4).</summary>
+    /// <summary>Runs <paramref name="call"/> with the trace's worker id, for a question that is about snapshots too.</summary>
     internal Task<T> UseIdAsync<T>(TraceHandle handle, Func<Guid, CancellationToken, Task<T>> call, CancellationToken cancellationToken) =>
         Resources.UseIdAsync(handle, call, ex => new AllocationsUnavailableException(ex.Message, ex), cancellationToken);
 
     /// <summary>
-    /// The open trace of a file as the file is now, or it is opened as a tracked job (sprint 4.4). Callers that ask while it is being
+    /// The open trace of a file as the file is now, or it is opened as a tracked job. Callers that ask while it is being
     /// read wait for the same read; one that stops waiting does not cancel it (the Jobs page does).
     /// </summary>
     public async Task<TraceHandle> OpenOnceAsync(string path, CancellationToken cancellationToken)
@@ -405,7 +404,7 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         handle.Update(descriptor, generation);
         if (handle.IsClosed)
         {
-            // Closed while this read ran: CloseAsync saw the old generation and closed nothing (the 2.5 re-review).
+            // Closed while this read ran: CloseAsync saw the old generation and closed nothing.
             await worker.InvokeAsync((service, ct) => service.CloseTraceAsync(descriptor.TraceId, ct), CancellationToken.None).ConfigureAwait(false);
             ThrowIfClosed(handle);
         }
@@ -418,7 +417,7 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
         $"{System.IO.Path.GetFileName(handle.Path)} changed since it was opened, so its rows would no longer match. Close this trace and open it again.",
         null);
 
-    // Deletes a canceled recording and logs what happened to it (the 2.5 re-review: a failed delete is not "deleted").
+    // Deletes a canceled recording and logs what happened to it (a failed delete is not "deleted").
     private void LogDelete(string path, string why)
     {
         try

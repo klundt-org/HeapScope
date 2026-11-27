@@ -30,7 +30,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Snapshot diff rows (sprint 1.4, ADR-018), grouped, filtered and sorted once per query and formatted only for the
+/// Snapshot diff rows (ADR-018), grouped, filtered and sorted once per query and formatted only for the
 /// requested page (ARCHITECTURE.md 4.6). Sorting takes any column by name; ties keep name order.
 /// </summary>
 internal sealed class TypeDiffSource : IResultSource
@@ -49,7 +49,7 @@ internal sealed class TypeDiffSource : IResultSource
         new(TypeDiffColumns.CurrentTypes, ResultColumnKind.Integer),
     ];
 
-    // Sprint 3.3: the optional columns, each with how it reads a row.
+    // The optional columns, each with how it reads a row.
     private static readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] s_matchColumns =
     [
         (new(TypeDiffColumns.NewObjects, ResultColumnKind.Integer), r => r.NewObjects ?? 0),
@@ -60,7 +60,7 @@ internal sealed class TypeDiffSource : IResultSource
     [
         (new(TypeDiffColumns.BaselineRetained, ResultColumnKind.Bytes, Bound: ValueBound.LowerBound), r => (long)(r.BaselineRetained ?? 0)),
         (new(TypeDiffColumns.CurrentRetained, ResultColumnKind.Bytes, Bound: ValueBound.LowerBound), r => (long)(r.CurrentRetained ?? 0)),
-        // A difference of two lower bounds bounds nothing (the 3.3 review): an estimate.
+        // A difference of two lower bounds bounds nothing: an estimate.
         (new(TypeDiffColumns.RetainedDelta, ResultColumnKind.SignedInteger, Bound: ValueBound.Estimate), r => r.RetainedDelta ?? 0),
     ];
 
@@ -73,7 +73,7 @@ internal sealed class TypeDiffSource : IResultSource
         (new(TypeDiffColumns.PohDelta, ResultColumnKind.SignedInteger), r => r.KindDelta(HeapKind.PinnedObjectHeap)),
     ];
 
-    // Sprint 4.4: empty for a row without a sample, which is not the same as nothing allocated.
+    // Empty for a row without a sample, which is not the same as nothing allocated.
     private static readonly (ResultColumn Column, Func<DiffRow, long?> Value)[] s_allocatedColumns =
     [
         (new(TypeDiffColumns.AllocatedBytes, ResultColumnKind.Bytes, Bound: ValueBound.Estimate), r => r.AllocatedBytes),
@@ -129,7 +129,7 @@ internal sealed class TypeDiffSource : IResultSource
     public long MatchingBytesDelta => _rows.Sum(r => r.BytesDelta);
 
     /// <param name="baselineKind">The baseline's snapshot kind: across kinds, each side's names are mapped as its kind's
-    /// handler says (sprint 1.8: a full dump's names in their gcdump form).</param>
+    /// handler says (a full dump's names in their gcdump form).</param>
     /// <param name="currentKind">The current snapshot's kind.</param>
     public static TypeDiffSource Create(
         HeapGraph baselineGraph,

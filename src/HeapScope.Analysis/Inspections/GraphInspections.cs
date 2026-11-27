@@ -277,7 +277,7 @@ internal sealed class SparseArraysInspection : IInspection
 }
 
 /// <summary>
-/// Objects with a finalizer, by type (review H1 of 1.6): those registered and still reachable (their finalizer runs
+/// Objects with a finalizer, by type: those registered and still reachable (their finalizer runs
 /// after they die) and those already dead and queued for the finalizer thread ("ready"), which a slow or blocked
 /// finalizer thread lets pile up.
 /// </summary>
@@ -442,7 +442,7 @@ internal sealed class FragmentationInspection : IInspection
 
     /// <summary>
     /// Objects a root pins, in one walk of the root table: pinned and async pinned handles, and pinned stack roots
-    /// (<c>fixed</c> and pinned locals, review of 1.6).
+    /// (<c>fixed</c> and pinned locals).
     /// </summary>
     private static HashSet<int> PinnedByRoot(HeapGraph graph)
     {

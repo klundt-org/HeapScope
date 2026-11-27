@@ -29,7 +29,7 @@ using Microsoft.Diagnostics.Tracing;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// Reads an event's call stack from the record TraceEvent keeps internally (ADR-037, amended in 4.3): its live source exposes
+/// Reads an event's call stack from the record TraceEvent keeps internally (ADR-037, as amended): its live source exposes
 /// none. The record is the one Windows defines (EVENT_RECORD, evntcons.h); its offsets are checked against the library's own
 /// struct, once, before anything is read, so another TraceEvent gives no stacks rather than wrong ones.
 /// </summary>

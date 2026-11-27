@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Snapshots;
 
-/// <summary>The reverse references index of each snapshot (sprint 2.1, ARCHITECTURE.md 6.4 and 7).</summary>
+/// <summary>The reverse references index of each snapshot (ARCHITECTURE.md 6.4 and 7).</summary>
 internal sealed partial class SnapshotStore
 {
     /// <summary>File name part of the reverse references sidecar (<c>app.dmp.rev.hsidx</c>).</summary>
@@ -78,8 +78,7 @@ internal sealed partial class SnapshotStore
             sidecar is not null,
             MemoryBudget.Current(),
             committed);
-        // Without a cache it is built in memory: inside a reservation, refused with a next step rather than run out of memory (peer
-        // review 4.5 M11, sprint 4.7).
+        // Without a cache it is built in memory: inside a reservation, refused with a next step rather than run out of memory.
         using var reservation = sidecar is null
             ? _reservations.Reserve(ReverseIndexBuilder.IndexBytes(graph), "Building the incoming references index", entry.Index.Mode, hasCache: false)
             : null;

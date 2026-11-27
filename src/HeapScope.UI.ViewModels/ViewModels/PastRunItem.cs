@@ -26,7 +26,7 @@ using HeapScope.Application.Sessions;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A monitoring run of the current session, listed to reopen (sprint 3.4).</summary>
+/// <summary>A monitoring run of the current session, listed to reopen.</summary>
 public sealed record PastRunItem(SessionRun Run, string Folder)
 {
     public string Title => string.Create(CultureInfo.CurrentCulture, $"{Run.StartedUtc.ToLocalTime():g}: {Run.ProcessName ?? "process"} {Run.ProcessId}, {Run.SnapshotIds.Count} snapshots{(Run.EndedUtc is { } end ? $", {(end - Run.StartedUtc).TotalMinutes:N0} min" : ", not ended")}{(Run.Trace is null ? string.Empty : ", allocations")}");

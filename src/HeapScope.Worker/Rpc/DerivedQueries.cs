@@ -59,7 +59,7 @@ internal sealed class DerivedQueries(SnapshotStore snapshots)
     }
 
     /// <summary>
-    /// How the dominators were obtained, with the caveats a reader of retained sizes needs (review M6): an incomplete graph
+    /// How the dominators were obtained, with the caveats a reader of retained sizes needs: an incomplete graph
     /// misses references, and a gcdump's survivors whose root it did not record retain nothing, so in both cases the
     /// retained sizes of the objects that share with them may be overstated.
     /// </summary>
@@ -72,7 +72,7 @@ internal sealed class DerivedQueries(SnapshotStore snapshots)
             notes.Add("This snapshot is incomplete, so some references are missing and retained sizes may be overstated.");
         }
 
-        // Said wherever retained sizes are shown, Compare's two sides included (peer review 4.5): a side without them all counts less.
+        // Said wherever retained sizes are shown, Compare's two sides included: a side without them all counts less.
         if (roots is not null)
         {
             notes.Add($"{roots.Sentence} (see its notes), so what only {roots.HeldBy} holds retains nothing here.");
@@ -125,7 +125,7 @@ internal sealed class DerivedQueries(SnapshotStore snapshots)
     }
 
     /// <summary>
-    /// The interfaces of each type of a snapshot (decision 6), read once and kept with the snapshot. gcdumps and snapshots
+    /// The interfaces of each type of a snapshot, read once and kept with the snapshot. gcdumps and snapshots
     /// without a dump reader refuse; <paramref name="side"/> names the snapshot in a comparison's message.
     /// </summary>
     public async Task<TypeInterfaces> GetInterfacesAsync(Guid snapshotId, ISnapshot snapshot, IProgress<JobProgress>? progress, CancellationToken cancellationToken, string? side = null)

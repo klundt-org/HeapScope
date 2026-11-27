@@ -23,7 +23,7 @@
 
 namespace HeapScope.Loaders.Trace;
 
-/// <summary>Where a live trace stands (sprint 4.3).</summary>
+/// <summary>Where a live trace stands.</summary>
 /// <param name="Version">Grows with each sample.</param>
 /// <param name="DurationMs">The time of the last event read, since the recording started.</param>
 /// <param name="BucketMs">How long one stretch of time is; it doubles as a run gets long.</param>

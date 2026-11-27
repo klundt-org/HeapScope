@@ -52,7 +52,7 @@ public static class IndexCacheWriter
     }
 
     /// <summary>
-    /// Writes <paramref name="graph"/> to <paramref name="path"/> and returns the cache's identity (sprint 2.1: sidecars
+    /// Writes <paramref name="graph"/> to <paramref name="path"/> and returns the cache's identity (sidecars
     /// record it to name the base cache they extend). Progress reports bytes written. Throws
     /// <see cref="IndexCacheInUseException"/> when the existing cache is open (for example mapped); the previous cache
     /// is then kept and no temporary file remains.

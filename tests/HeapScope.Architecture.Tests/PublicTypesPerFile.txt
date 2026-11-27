@@ -78,11 +78,9 @@ src/HeapScope.UI.ViewModels/ViewModels/AllocationRowItem.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/AllocationTimelineGeometry.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/AllocationTraceViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/BookmarksViewModel.cs 2
-src/HeapScope.UI.ViewModels/ViewModels/CompareViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/Exports/GridExport.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/GridQueryViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/IcicleGeometry.cs 2
-src/HeapScope.UI.ViewModels/ViewModels/InspectionsViewModel.cs 5
 src/HeapScope.UI.ViewModels/ViewModels/InstancesViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/KeyPathDiagram.cs 4
 src/HeapScope.UI.ViewModels/ViewModels/Navigation/AnalysisPath.cs 2
@@ -95,7 +93,6 @@ src/HeapScope.UI.ViewModels/ViewModels/SetViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/ShellViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/Shortcuts.cs 3
 src/HeapScope.UI.ViewModels/ViewModels/SimilarRetentionViewModel.cs 2
-src/HeapScope.UI.ViewModels/ViewModels/SnapshotsViewModel.cs 3
 src/HeapScope.UI.ViewModels/ViewModels/TrendViewModel.cs 2
 src/HeapScope.UI.ViewModels/ViewModels/TypeSummaryViewModel.cs 4
 src/HeapScope.UI.ViewModels/ViewModels/VirtualRowList.cs 3

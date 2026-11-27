@@ -23,7 +23,7 @@
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>What a <see cref="NavigationTarget"/> opens (sprint 2.4, 2.3.7 review M8).</summary>
+/// <summary>What a <see cref="NavigationTarget"/> opens.</summary>
 public enum NavigationKind
 {
     /// <summary>One object, on the Snapshot tab.</summary>
@@ -44,6 +44,6 @@ public enum NavigationKind
     /// <summary>The objects a type's objects (or any set's members) retain together (exact set retention), on the Retainers tab.</summary>
     RetainedBySet = 5,
 
-    /// <summary>An object set with its views (sprint 3.1, ADR-030), on the Snapshot tab.</summary>
+    /// <summary>An object set with its views (ADR-030), on the Snapshot tab.</summary>
     Set = 6,
 }

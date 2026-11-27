@@ -42,7 +42,7 @@
               ToolTip.Tip="Closes the snapshot and deletes its dump and index caches, after asking. It works only for a dump in a HeapScope session; any other dump you delete yourself." />
       <TextBlock Margin="16,0,0,0" VerticalAlignment="Center" Text="{Binding Status}" TextWrapping="Wrap" MaxWidth="600" />
     </StackPanel>
-    <!-- The open snapshots, the selected one's analysis path (sprint 2.7) and the bookmarks of every open snapshot. -->
+    <!-- The open snapshots, the selected one's analysis path and the bookmarks of every open snapshot. -->
     <Grid DockPanel.Dock="Left" Width="224" Margin="0,0,16,0" RowDefinitions="Auto,0,Auto,3*,Auto,*">
       <ListBox Grid.Row="0" x:Name="SnapshotList" MaxHeight="220" ItemsSource="{Binding Snapshots}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                AutomationProperties.Name="Open snapshots">
@@ -116,16 +116,16 @@
       <TabItem Header="Snapshot">
         <pages:SnapshotTab />
       </TabItem>
-      <!-- Comparison of two open snapshots (sprint 1.4, ADR-018): per-type deltas, no object identity. -->
+      <!-- Comparison of two open snapshots (ADR-018): per-type deltas, no object identity. -->
       <TabItem Header="Compare">
         <pages:CompareTab />
       </TabItem>
-      <!-- Inspections of the selected snapshot (sprint 1.6, ADR-020): tiles with finding, cause and fix, fragmentation
+      <!-- Inspections of the selected snapshot (ADR-020): tiles with finding, cause and fix, fragmentation
            bars, and the selected inspection's rows; double-click opens a row's objects on the Snapshot tab. -->
       <TabItem Header="Inspections">
         <pages:InspectionsTab />
       </TabItem>
-      <!-- The dominator tree of the selected snapshot (sprint 2.4, ADR-027): the biggest retainers, the icicle and what a
+      <!-- The dominator tree of the selected snapshot (ADR-027): the biggest retainers, the icicle and what a
            type's objects retain together. -->
       <TabItem Header="Retainers">
         <pages:RetainersTab />

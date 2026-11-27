@@ -28,7 +28,7 @@ using HeapScope.Analysis.Sets;
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// Resolved object sets and the leak detector tables their rows come from (sprint 3.1, ADR-030), kept per snapshot so the
+/// Resolved object sets and the leak detector tables their rows come from (ADR-030), kept per snapshot so the
 /// views of one set (types, instances, generations, dominators, retained) resolve it once. Least recently used entries
 /// go first beyond <see cref="MaxSets"/> sets or <see cref="MaxBytes"/> of them, and beyond <see cref="MaxTableBytes"/> of
 /// tables; a set larger than half the budget is not kept. The snapshot store owns it: closing a snapshot forgets its

@@ -27,7 +27,7 @@ using Avalonia.Styling;
 namespace HeapScope.UI.Services;
 
 /// <summary>
-/// The light or dark theme (sprint 1.3): the system's choice by default (Avalonia follows Windows, macOS and the Linux
+/// The light or dark theme: the system's choice by default (Avalonia follows Windows, macOS and the Linux
 /// desktop's setting), or <c>Ui:Theme</c> = Light or Dark from configuration.
 /// </summary>
 public static class ThemeChooser

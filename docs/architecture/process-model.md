@@ -234,7 +234,11 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   machine's clock), the diff's `AllocatedBytes` and `AllocatedSamples` columns with the hidden key column `AllocatedType` (the trace's
   name of a type row; empty without a sample and when the row joins several names), and `TypeDiffResult.Allocations`
   (`DiffAllocationInfo`: what was counted and what no row holds). A live trace is refused.
-- When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
+  Version 25 (sprint 4.9, ADR-044): `IResultSetService.ShowSnapshotAsync`: the client says which snapshot its window shows
+  (null: none), and the result set store evicts the sets of the other snapshots first, least recently used among them; then
+  the rest, least recently used. Sets of no snapshot (traces, a synthetic graph) and Compare's diff and trend sets are never
+  preferred for eviction. Before the client says anything, eviction is least recently used, as before.
+- When to bump `WorkerProtocol.Version`: for a method added, removed or renamed, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id
   the worker does not list is unavailable.
@@ -264,8 +268,13 @@ Large results are never sent whole. A query creates a result set in the worker a
 `count` capped at 10,000, and `ReleaseResultSetAsync(id)` when done. Sorting and filtering happen in the
 worker, producing a new result set. The grids use data virtualization and fetch pages on scroll. Result
 sets are typed sources (`IResultSource`: compact arrays such as indices, counts and sizes) formatted to strings only
-for the requested page, never stored as one string per cell. The store evicts least recently used sets beyond 32
-sets or an estimated 256 MB, whichever comes first (the newest set is always kept). A set can carry an owner, for
+for the requested page, never stored as one string per cell. The store evicts least recently used sets beyond 128
+sets or an estimated 256 MB, whichever comes first (the newest set is always kept). Each set names the snapshot it
+came from, and once the client has said which snapshot its window shows (`ShowSnapshotAsync`, ADR-044), the sets of
+the other snapshots are evicted first, least recently used among them, then the rest; sets of no snapshot (traces, a
+synthetic graph) and Compare's diff and trend sets are never preferred. Closing a snapshot drops its sets, so a page of one
+fails with `ResultSetNotFound` and its handle runs the query again on the reopened snapshot (a set a query adds just
+after the close stays until released or evicted). Evictions log as logging.md says. A set can carry an owner, for
 example a snapshot lease, disposed on release or eviction. Producers must stay compact (indices, counts, sizes),
 because the newest set is kept even when it alone exceeds the byte budget. Sources that read the graph or the dump
 while formatting (instances, references) are safe against a release or eviction during a page: the store counts the

@@ -28,14 +28,14 @@ using HeapScope.Application.Monitoring;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Live page chart's geometry (sprint 1.7), independent of the UI toolkit that draws it (sprint 2.3.6): the GC heap
+/// The Live page chart's geometry, independent of the UI toolkit that draws it: the GC heap
 /// stacked by heap kind as of the last GC, and on top what was allocated since, over the samples' time span.
 /// </summary>
 public static class TimelineLayout
 {
     /// <summary>
     /// Theme brush keys of the layers, bottom to top: the heap kinds as of the last GC, then what was allocated since
-    /// (gray), so the top edge is the heap now (review of 1.7).
+    /// (gray), so the top edge is the heap now.
     /// </summary>
     public static readonly string[] LayerKeys = ["HeapKind.Gen0", "HeapKind.Gen1", "HeapKind.Gen2", "HeapKind.LargeObjectHeap", "HeapKind.PinnedObjectHeap", "HeapKind.Unknown"];
 

@@ -29,7 +29,7 @@ using HeapScope.Core;
 namespace HeapScope.Storage;
 
 /// <summary>
-/// Writes one index file (a base cache or a sidecar, ARCHITECTURE.md 7) section by section (sprint 2.1). Sections go to a
+/// Writes one index file (a base cache or a sidecar, ARCHITECTURE.md 7) section by section. Sections go to a
 /// temporary file in the target folder, each page aligned with an XxHash3 checksum; <see cref="Commit"/> writes the header
 /// last, flushes to disk and renames the file over the target. Disposing a writer that was not committed deletes the
 /// temporary file, so a canceled or failed write leaves the previous file and nothing else.
@@ -205,7 +205,7 @@ public sealed class IndexCacheFileWriter : IDisposable
         header.HeaderChecksum = XxHash3.HashToUInt64(region.AsSpan(0, headerSize + directory.Length));
         MemoryMarshal.Write(region, in header);
 
-        // Signed with this user's key (sprint 3.7, peer review P14): the region's last bytes, past the largest directory.
+        // Signed with this user's key: the region's last bytes, past the largest directory.
         signer.Sign(region);
 
         stream.Position = 0;

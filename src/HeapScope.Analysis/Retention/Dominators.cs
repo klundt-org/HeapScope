@@ -26,7 +26,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// A snapshot's computed dominators (sprint 2.3): each object's immediate dominator and retained size
+/// A snapshot's computed dominators: each object's immediate dominator and retained size
 /// (<see cref="DominatorTree"/>). Like the reverse references, the columns are managed arrays or views of a sidecar file;
 /// <see cref="Dispose"/> releases what owns them.
 /// </summary>
@@ -50,7 +50,7 @@ public sealed class Dominators : IDisposable
     /// <summary>Per object: the retained size in bytes (0 for an object no root reaches).</summary>
     public Column<ulong> RetainedSizes { get; }
 
-    /// <summary>The tree's row offsets (sprint 2.4): n + 2 elements, vertex n is the virtual root (<see cref="DominatorTree.BuildChildren"/>).</summary>
+    /// <summary>The tree's row offsets: n + 2 elements, vertex n is the virtual root (<see cref="DominatorTree.BuildChildren"/>).</summary>
     public Column<int> ChildStarts { get; }
 
     /// <summary>The tree's children, each vertex's slice in object index order (<see cref="RetainedOrder"/> orders them by size).</summary>
@@ -95,7 +95,7 @@ public sealed class Dominators : IDisposable
 
     /// <summary>
     /// The children of <paramref name="vertex"/> in the dominator tree (an object index, or <see cref="Root"/> for the
-    /// top-level dominators), in object index order. Sprint 2.4.
+    /// top-level dominators), in object index order.
     /// </summary>
     public ReadOnlySpan<int> ChildrenOf(int vertex)
     {
@@ -110,7 +110,7 @@ public sealed class Dominators : IDisposable
         return starts[vertex + 1] - starts[vertex];
     }
 
-    /// <summary>The bytes of every object a root reaches: the retained sizes of the top-level dominators. Sprint 2.4.</summary>
+    /// <summary>The bytes of every object a root reaches: the retained sizes of the top-level dominators.</summary>
     public ulong ReachableBytes()
     {
         ulong total = 0;

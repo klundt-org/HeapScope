@@ -23,11 +23,11 @@
 
 namespace HeapScope.Core.Graph;
 
-/// <summary>Converts type names between the forms snapshot kinds record (sprint 1.8).</summary>
+/// <summary>Converts type names between the forms snapshot kinds record.</summary>
 public static class TypeNameForms
 {
     /// <summary>
-    /// A type name as the runtime's events spell it, in the snapshots' spelling (sprint 4.4):
+    /// A type name as the runtime's events spell it, in the snapshots' spelling:
     /// <c>System.Collections.Generic.Dictionary`2[System.Int32,X]</c> becomes
     /// <c>System.Collections.Generic.Dictionary&lt;System.Int32, X&gt;</c>. The runtime names a nested type by its innermost name
     /// only, with the declaring types' arguments, as a gcdump does: compare it with <see cref="AsGcDumpName"/>. A name whose

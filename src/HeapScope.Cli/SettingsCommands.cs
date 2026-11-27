@@ -29,9 +29,9 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>settings</c> and <c>purge</c> commands (sprint 3.12 review M4, ADR-008: every feature in the UI and on the command
-/// line): the Settings page's Include filter text in logs, Purge logs and Purge all, for a user without the app (CI). Since
-/// sprint 3.13.2, Include dump values in logs too, which turns on only with --yes (the app asks instead). Since sprint 4.8 (H15),
+/// The <c>settings</c> and <c>purge</c> commands (ADR-008: every feature in the UI and on the command
+/// line): the Settings page's Include filter text in logs, Purge logs and Purge all, for a user without the app (CI). Also
+/// Include dump values in logs, which turns on only with --yes (the app asks instead), and
 /// the DAC folder (<c>--saved-dac-folder</c>, since the run's own <c>--dac-folder</c> is taken) and Download missing DACs from
 /// Microsoft (<c>--symbol-server</c>, on only with --yes).
 /// </summary>
@@ -71,7 +71,7 @@ internal static partial class CliCommands
             if (parseResult.GetValue(dumpValues) == "on" && !parseResult.GetValue(yes))
             {
                 // Turned on only when the user confirms, as the app asks first (owner, 2026-11-19); then nothing else changes
-                // either, so "Nothing was changed" holds (review M6).
+                // either, so "Nothing was changed" holds.
                 context.Logger.LogInformation("Settings not changed: --dump-values-in-logs on needs --yes");
                 await context.Output.WriteLineAsync(DumpValuesQuestion).ConfigureAwait(false);
                 await WriteSettingsAsync(context, settings).ConfigureAwait(false);
@@ -143,11 +143,11 @@ internal static partial class CliCommands
         await context.Output.WriteLineAsync($"Log folder: {settings.LogFolder}").ConfigureAwait(false);
     }
 
-    /// <summary>What --dump-values-in-logs on without --yes says (sprint 3.13.2; approved by the owner on 2026-11-19).</summary>
+    /// <summary>What --dump-values-in-logs on without --yes says (approved by the owner on 2026-11-19).</summary>
     internal const string DumpValuesQuestion =
         "Turning this on writes the values HeapScope reads from your dumps (field values and string text) into its logs, and they can include passwords, tokens and personal data. The logs stay on this machine and are never sent anywhere, but anyone you give a log to can read them. Nothing was changed: run it again with --yes to turn it on.";
 
-    /// <summary>What --symbol-server on without --yes says (sprint 4.8, a draft in docs/design/info-text.md).</summary>
+    /// <summary>What --symbol-server on without --yes says (a draft in docs/design/info-text.md).</summary>
     internal const string SymbolServerQuestion =
         "Turning this on lets HeapScope download a missing DAC from Microsoft's symbol server when no DAC on this computer matches a dump's runtime. Each download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents. The app and the command line on this computer follow it. Nothing was changed: run it again with --yes to turn it on.";
 

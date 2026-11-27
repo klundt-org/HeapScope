@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The types allocated in an interval (sprint 2.5), most sampled bytes first; selecting one narrows the trees and stacks.</summary>
+/// <summary>The types allocated in an interval, most sampled bytes first; selecting one narrows the trees and stacks.</summary>
 public sealed partial class AllocationTypesViewModel : GridQueryViewModel<CellRowItem>
 {
     private readonly AllocationSession _session;

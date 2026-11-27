@@ -32,18 +32,18 @@ using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// Reads the sampled allocations of an EventPipe trace (sprint 2.5, ADR-028): the runtime's allocation ticks with their
+/// Reads the sampled allocations of an EventPipe trace (ADR-028): the runtime's allocation ticks with their
 /// types, kinds, bytes and call stacks. TraceEvent resolves stacks through an <c>.etlx</c> file, which is written to a
 /// private temporary folder and deleted after reading; nothing is written next to the trace. Methods are named from the
 /// trace's own events (JIT, loader and the rundown), never from a symbol server (ADR-017). EventPipe walks managed frames
-/// only, so a frame without a name is a managed method the trace does not name, labeled so and counted (the 2.5 review);
+/// only, so a frame without a name is a managed method the trace does not name, labeled so and counted;
 /// whether the rundown arrived and what TraceEvent reported while converting are part of the result.
 /// </summary>
 public static class AllocationTraceReader
 {
     /// <summary>
     /// Changes when how stacks, frames or samples are built changes (the worker's versions line, ARCHITECTURE.md 11), so a
-    /// log line can be matched to the rules that produced it. 1: sprint 2.5. 2: 4.2.1 (amounts no process
+    /// log line can be matched to the rules that produced it. 1: the first rules. 2: amounts no process
     /// allocates are refused, and running out of memory is). 3: 4.4 (a sample keeps its method table).
     /// </summary>
     public const int Version = 3;
@@ -54,7 +54,7 @@ public static class AllocationTraceReader
     /// <summary>
     /// The folder the <c>.etlx</c> files (method names, the trace's contents) are written to: the user's own temporary
     /// folder on Windows; on Linux and macOS HeapScope's data folder, since the temporary folder there is shared by every
-    /// user and a folder another user created first would hold the trace (sprint 3.7, peer review P15).
+    /// user and a folder another user created first would hold the trace.
     /// </summary>
     public static string DefaultTemporaryFolder => HeapScopeFolders.Default.Etlx;
 
@@ -102,7 +102,7 @@ public static class AllocationTraceReader
             conversion.EndLine();
             if (conversion.RanOutOfMemory)
             {
-                // TraceEvent takes any failure as the trace's end: too little memory must not pass for a short trace (4.2.1 review).
+                // TraceEvent takes any failure as the trace's end: too little memory must not pass for a short trace.
                 throw WithDetail(new InsufficientMemoryException(MemoryMessage(fullPath)), $"TraceEvent's conversion ran out of memory; {check}", conversion);
             }
 
@@ -115,7 +115,7 @@ public static class AllocationTraceReader
             }
             catch (Exception ex) when (TraceReads.IsFileError(ex))
             {
-                // TraceEvent accepted the file and failed on its events: refused with a reason (4.2.1).
+                // TraceEvent accepted the file and failed on its events: refused with a reason.
                 throw Refuse(fullPath, ex, check, conversion);
             }
         }
@@ -131,7 +131,7 @@ public static class AllocationTraceReader
     }
 
     /// <summary>
-    /// Deletes <c>.etlx</c> files a read left behind (a worker killed mid-read, the 2.5 review): those not written to for
+    /// Deletes <c>.etlx</c> files a read left behind (a worker killed mid-read): those not written to for
     /// <paramref name="minimumAge"/> and not open elsewhere. Returns the files and bytes removed.
     /// </summary>
     public static (int Files, long Bytes) SweepTemporaryFiles(TimeSpan minimumAge, string? temporaryFolder = null)
@@ -173,7 +173,7 @@ public static class AllocationTraceReader
 
     /// <summary>
     /// TraceEvent's conversion log, keeping only what reports a problem: how many lines, and the first few (its own words;
-    /// it writes no event payloads). Nothing else is held, however long a damaged trace's log grows (the 2.5 re-review).
+    /// it writes no event payloads). Nothing else is held, however long a damaged trace's log grows.
     /// </summary>
     internal sealed class IssueWriter(int kept) : TextWriter
     {
@@ -263,7 +263,7 @@ public static class AllocationTraceReader
     private static string MemoryMessage(string path) =>
         $"Reading {path} needs more memory than there is. Close other traces, snapshots or applications and try again; if the file is small, it may be damaged.";
 
-    /// <summary>What the file states must fit in it before TraceEvent allocates for it (4.2.1).</summary>
+    /// <summary>What the file states must fit in it before TraceEvent allocates for it.</summary>
     private static TraceCheckResult CheckStatedSizes(string path, CancellationToken cancellationToken)
     {
         try
@@ -345,7 +345,7 @@ public static class AllocationTraceReader
 
         public AllocationTrace Build()
         {
-            // Exact arrays from the trace's event counts: no list doubling over millions of samples (the 2.5 review).
+            // Exact arrays from the trace's event counts: no list doubling over millions of samples.
             Allocate((int)Math.Min(TraceReads.Count(log, AllocationTickEventId), Array.MaxLength));
             var source = TraceReads.Source(log);
             var canceled = false;

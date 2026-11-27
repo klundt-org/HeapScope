@@ -74,7 +74,7 @@ public enum ObjectValueKind
 public readonly record struct EnumMember(string Name, ulong Value);
 
 /// <summary>
-/// A value read from a dump, typed (sprint 1.6, from the 1.5 review): the reader reports what is there and the worker
+/// A value read from a dump, typed: the reader reports what is there and the worker
 /// formats it for display, so analyses can use the numbers and the formatting is testable without a dump.
 /// </summary>
 public sealed record ObjectValue(ObjectValueKind Kind)
@@ -122,14 +122,14 @@ public sealed record ObjectValue(ObjectValueKind Kind)
 }
 
 /// <summary>
-/// One field of an inspected object, or one array element (sprint 1.5, typed since 1.6). Compiler backing fields are
+/// One field of an inspected object, or one array element (typed). Compiler backing fields are
 /// named by their property; array elements by their index (<c>[3]</c>, <c>[1,2]</c>).
 /// </summary>
 /// <param name="DeclaredType">The field's declared type (the element type for array elements).</param>
 public sealed record ObjectField(string Name, string DeclaredType, ObjectValue Value, IReadOnlyList<ObjectField> Children);
 
 /// <summary>
-/// Receives a string's text piece by piece (sprint 1.6 review H2): <paramref name="length"/> is the string's full length
+/// Receives a string's text piece by piece: <paramref name="length"/> is the string's full length
 /// in characters, or -1 when the address is not a readable string (then once, with an empty piece).
 /// </summary>
 public delegate void StringPieceHandler(int index, int length, ReadOnlySpan<char> piece, bool last);
@@ -181,7 +181,7 @@ public interface IObjectReader
 
     /// <summary>
     /// The full names of the interfaces the type of the object at <paramref name="address"/> implements, inherited ones
-    /// included, in ordinal order (sprint 3.2, interface grouping); null when the reader cannot tell.
+    /// included, in ordinal order (interface grouping); null when the reader cannot tell.
     /// </summary>
     IReadOnlyList<string>? ReadInterfaces(ulong address) => null;
 }

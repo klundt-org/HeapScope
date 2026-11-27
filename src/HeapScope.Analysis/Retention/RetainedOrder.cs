@@ -24,10 +24,10 @@
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// The order the retention explorer shows objects in (sprint 2.4): largest retained size first, then by object index, so
+/// The order the retention explorer shows objects in: largest retained size first, then by object index, so
 /// it never varies between runs. Only the rows a query shows are ordered: the largest k of a node's children are found in
 /// one pass with a heap of k (O(m log k)), so a node with millions of children answers in milliseconds. A filter picks
-/// the members of one group without a delegate per member (the 2.4 review; DEVELOPER 4).
+/// the members of one group without a delegate per member (DEVELOPER 4).
 /// </summary>
 public static class RetainedOrder
 {

@@ -60,6 +60,9 @@ notes who can capture whom.
 - **Analysis path.** Each open snapshot keeps your last 30 steps (types, a type's objects, an object, referrers,
   retention, links into the Retainers tab) in the Snapshots page's left column. Opening something from an earlier step
   starts a branch; the later steps stay. Back and Forward (Alt+Left, Alt+Right, the mouse buttons) move along it.
+- **Switching snapshots.** Each open snapshot keeps its own types grid (filter, sort, grouping), path, inspections and
+  Retainers tab as you left them: selecting it again shows them without running anything again. A link into a snapshot
+  you closed says so; open the dump again to look there.
 - **Bookmarks.** Ctrl+D (Cmd+D on macOS) marks the shown object, or the selected row's object, with a color. Bookmarks
   of every open snapshot are listed together and come back when the same dump is opened again.
 - **Object sets.** Select several types (Ctrl or Shift and click, or Shift+Down) and press Ctrl+Shift+O (Cmd+Shift+O), or

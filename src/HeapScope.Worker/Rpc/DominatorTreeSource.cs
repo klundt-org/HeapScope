@@ -28,7 +28,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// A flattened dominator tree as a result set (sprint 2.4): one row per tree row, already in display order, with each object
+/// A flattened dominator tree as a result set: one row per tree row, already in display order, with each object
 /// row's address (0 for the other rows), so the set holds nothing per object of the snapshot.
 /// </summary>
 internal sealed class DominatorTreeSource(DominatorTreeView view, ulong[] rowAddresses) : IResultSource

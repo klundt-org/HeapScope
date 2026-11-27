@@ -49,15 +49,15 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     private readonly ClrMdLoaderOptions _options = options ?? new ClrMdLoaderOptions();
 
     /// <summary>
-    /// 2 since sprint 1.8: truncated dumps lose CompleteGraph and ExactCounts, finalizer registrations are a fact. 3 since
-    /// sprint 2.3.5: core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
-    /// runtime's folder. 4 since sprint 3.10: the process name is the executable's, not the first module the reader lists. 5
-    /// since peer review 4.5: the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
-    /// LoaderAllocator references of 3.12 for caches written before them. 6 since sprint 4.6: struct statics with references are named by
-    /// their field (peer review 4.5 H3), not only as the runtime's static storage.
-    /// 7 since sprint 4.7: the static storage of .NET 8, which it reports only as strong handles, is named as such (peer review 4.5 H1),
-    /// and thread statics are named by their field, "(thread static)" (M11). 8 since its review: the statics are checked
-    /// (SnapshotFacts.StaticsChecked), whose bit builds of 7 used with the other meaning.
+    /// 2: truncated dumps lose CompleteGraph and ExactCounts, finalizer registrations are a fact. 3:
+    /// core files get their own truncation check and the runtime version ClrMD reads as 0.0 is named by the
+    /// runtime's folder. 4: the process name is the executable's, not the first module the reader lists. 5:
+    /// the GC handles of a Server GC process whose heap count changed (<see cref="HandleTables"/>), and the
+    /// LoaderAllocator references for caches written before them. 6: struct statics with references are named by
+    /// their field, not only as the runtime's static storage.
+    /// 7: the static storage of .NET 8, which it reports only as strong handles, is named as such,
+    /// and thread statics are named by their field, "(thread static)". 8: the statics are checked
+    /// (SnapshotFacts.StaticsChecked); builds of 7 used that bit with another meaning, so their caches are rebuilt.
     /// Caches written before are rebuilt. On a bump, an older cache may still open in place of a rebuild that cannot reach the
     /// DAC (ADR-041): reword <c>SnapshotOpener.OlderCacheNote</c> and its process name step for what the new version changed,
     /// or raise the full dump kind's <c>OldestFallbackLoaderVersion</c> (a test stops the build until one is done).
@@ -65,7 +65,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     public const int CurrentVersion = 8;
 
     /// <summary>
-    /// Checks, without loading it, that the DAC the dump needs may be loaded (sprint 3.6 review H1), for a dump opened from
+    /// Checks, without loading it, that the DAC the dump needs may be loaded, for a dump opened from
     /// its index cache: its field reader loads the DAC later, where nobody can be asked.
     /// </summary>
     /// <exception cref="UntrustedDacException">The only matching DAC lies next to the dump and is not trusted.</exception>
@@ -75,7 +75,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     public static Exception? CheckDac(string dumpPath, ClrMdLoaderOptions options) => ClrMdDump.CheckDac(dumpPath, options);
 
     /// <summary>
-    /// The process name this loader records for the dump and where it came from (sprint 3.12): an older index cache opened in
+    /// The process name this loader records for the dump and where it came from: an older index cache opened in
     /// place of a rebuild takes the current name, the one thing loader version 4 reads differently. Reads no DAC.
     /// </summary>
     /// <exception cref="SnapshotFormatException">The file is not a readable memory dump.</exception>
@@ -86,7 +86,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return (choice.Name, choice.Source);
     }
 
-    /// <summary>The ClrMD library's version, for the worker's versions line (sprint 2.3.7).</summary>
+    /// <summary>The ClrMD library's version, for the worker's versions line.</summary>
     public static string LibraryVersion { get; } =
         System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(Microsoft.Diagnostics.Runtime.ClrRuntime).Assembly)?.InformationalVersion
         ?? typeof(Microsoft.Diagnostics.Runtime.ClrRuntime).Assembly.GetName().Version?.ToString()
@@ -110,7 +110,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         var meter = new LoadMeter();
         progress?.Report(new LoadProgress("Opening dump", 0, null));
-        // A Linux or macOS core file (sprint 2.3.5) has no minidump header: its capture time is the file's write time (a
+        // A Linux or macOS core file has no minidump header: its capture time is the file's write time (a
         // load note says so), and its truncation check reads its own headers (CoreFileHeader).
         var minidump = IsMinidump(fullPath);
         MinidumpHeader? header = minidump ? MinidumpHeader.Read(fullPath) : null;
@@ -125,7 +125,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         catch (InvalidDataException ex)
         {
             // ClrMD cannot create the heap when the runtime's GC data is missing from the file, for example a dump cut
-            // short while it was written or copied (sprint 1.8).
+            // short while it was written or copied.
             throw new SnapshotFormatException("The managed heap could not be read from this dump: the file looks truncated or damaged. Capture another dump.", ex);
         }
 
@@ -149,9 +149,10 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         builder.FreezeObjects(cancellationToken);
 
-        // Freezing copied the chunked object buffers into the final columns; about 20 bytes per object of chunks are
-        // garbage now. Without an aggressive collection the GC keeps that memory committed through the reference pass,
-        // which is where the load peaks (measured in 1.2: about 1.2 GB on the Medium dump). A phase of its own since 3.12 (R5).
+        // Freezing copied the chunked object buffers into the final columns and dropped the chunks (about 18 bytes per
+        // object, about 1 GB on the Medium dump), collecting them. This aggressive, compacting collection returns that memory
+        // to the system before the reference pass, where the load peaks. When it was added, before FreezeObjects collected,
+        // it took the Medium dump from 3.2 GB to 1.7 GB at the start of the reference pass. A phase of its own.
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
         var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath, cancellationToken) : null, !_options.SecondHandleWalk, progress, cancellationToken);
@@ -167,7 +168,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         progress?.Report(new LoadProgress("Reading roots", 0, null));
         // .NET 8 reports its static storage only as strong handles: a handle's array that holds a static field's slot is that
-        // storage (sprint 4.7), so a static ClrMD cannot name (a generic type's) is "static storage", not a handle's.
+        // storage, so a static ClrMD cannot name (a generic type's) is "static storage", not a handle's.
         var staticSlots = StaticSlots(runtime, cancellationToken);
         AddGcRoots(heap, target.DataReader, builder, staticSlots.Slots, [.. handles.LeftOut.Where(static h => h.Kind == ClrHandleKind.Strong && h.Object != 0).Select(static h => h.Object)], cancellationToken);
         foreach (var address in weakHandles)
@@ -231,16 +232,16 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     internal const ulong IncompleteSegmentBytes = 1024 * 1024;
 
     /// <summary>
-    /// The objects (sprint 1.2; its hot loop reworked in sprint 3.12, R4 and the owner's item 1 of task 8): each object's
+    /// The objects: each object's
     /// method table is read from the dump and mapped through a table filled once per type, so ClrMD's type factory runs once
     /// per type rather than once per object (8.6 s of a 54 s Medium load), and its size is computed once from the type's base
     /// and component sizes, as ClrMD computes it. Segments are walked in address order, so objects arrive sorted and the
     /// finalizable list is merged rather than looked up. An object this walk cannot read (no type for its method table) hands
-    /// the rest of its segment to ClrMD's own walk, which counts unreadable objects as before (sprint 1.8).
+    /// the rest of its segment to ClrMD's own walk, which counts unreadable objects as before.
     /// </summary>
     private static (long Unreadable, int IncompleteSegments, long[] FreeBytes, ClrType?[] ClrTypes) AddObjects(ClrHeap heap, HeapGraphBuilder builder, (long? FallBackAt, long? OverrunAt) forTests, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
-        // Free objects are the gaps the GC left between live ones (fragmentation, sprint 1.6), per heap kind.
+        // Free objects are the gaps the GC left between live ones (fragmentation), per heap kind.
         var free = new long[Enum.GetValues<HeapKind>().Length];
         var finalizable = FinalizableObjects(heap, cancellationToken);
         var reader = heap.Runtime.DataTarget.DataReader;
@@ -300,7 +301,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
             }
 
             // The finalizable objects in address order, merged with the walk: segments are walked in address order and objects
-            // within each in order, ClrMD's fallback included, so one cursor serves the whole walk (review M6).
+            // within each in order, ClrMD's fallback included, so one cursor serves the whole walk.
             while (nextFinalizable < finalizable.Length && finalizable[nextFinalizable] < address)
             {
                 nextFinalizable++;
@@ -350,7 +351,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
                 if (size > end - address)
                 {
-                    // A length that runs past the segment (review M8): a damaged object, not one this big. Counted as unreadable,
+                    // A length that runs past the segment: a damaged object, not one this big. Counted as unreadable,
                     // and the segment as incomplete, since nothing after it can be found.
                     unreadable++;
                     overran = true;
@@ -377,9 +378,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     }
 
     /// <summary>
-    /// ClrMD's own walk of a segment from <paramref name="from"/> (the sprint 1.2 loop): for what the method table walk cannot
-    /// read. An object without a readable type has no size either, so it is counted as unreadable (sprint 1.8); one whose size
-    /// runs past the segment ends the walk as unreadable (review M8). Objects before <paramref name="from"/>, which the method
+    /// ClrMD's own walk of a segment from <paramref name="from"/> (the first loop): for what the method table walk cannot
+    /// read. An object without a readable type has no size either, so it is counted as unreadable; one whose size
+    /// runs past the segment ends the walk as unreadable. Objects before <paramref name="from"/>, which the method
     /// table walk added, are not added again.
     /// </summary>
     private static (long Count, ulong Walked, long Unreadable, bool Overran) WalkWithClrMd(
@@ -426,7 +427,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     private sealed record WalkedType(ClrType Clr, int TypeIndex, ulong BaseSize, ulong ComponentSize, bool IsFree, bool IsString);
 
     /// <summary>
-    /// Reading objects from the dump by their method tables (sprint 3.12): the header word, the component count of arrays and
+    /// Reading objects from the dump by their method tables: the header word, the component count of arrays and
     /// strings, the allocation contexts to skip and the alignment, as the runtime lays objects out and ClrMD reads them.
     /// </summary>
     private sealed class ObjectWalk
@@ -495,7 +496,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
     /// <summary>
     /// True when the dump holds the memory of <paramref name="range"/>, probed one byte every
-    /// <see cref="ProbeStride"/> and at its last byte (sprint 1.8). A truncated dump loses whole memory ranges: the walk
+    /// <see cref="ProbeStride"/> and at its last byte. A truncated dump loses whole memory ranges: the walk
     /// can then stop early by less than the incomplete-segment margin, or find no objects at all, and still look complete.
     /// </summary>
     private static bool IsInDump(IDataReader reader, MemoryRange range)
@@ -517,7 +518,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return reader.Read(range.End - 1, probe) == 1;
     }
 
-    /// <summary>The objects registered for finalization, ascending (merged with the object walk, sprint 3.12 R4).</summary>
+    /// <summary>The objects registered for finalization, ascending (merged with the object walk).</summary>
     private static ulong[] FinalizableObjects(ClrHeap heap, CancellationToken cancellationToken)
     {
         var result = new List<ulong>();
@@ -608,9 +609,9 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     }
 
     /// <summary>
-    /// Each object's references (sprint 1.2), read with its type known from the object pass, and none read for a type that
-    /// holds no references (strings, arrays of numbers: sprint 3.12, R4). An object of a collectible type also references its
-    /// type's LoaderAllocator, as the GC marks it: ClrMD yields no such reference, so the loader adds it (sprint 3.12 review H3).
+    /// Each object's references, read with its type known from the object pass, and none read for a type that
+    /// holds no references (strings, arrays of numbers). An object of a collectible type also references its
+    /// type's LoaderAllocator, as the GC marks it: ClrMD yields no such reference, so the loader adds it.
     /// </summary>
     private static void AddReferences(ClrHeap heap, HeapGraphBuilder builder, ClrType?[] clrTypes, IProgress<LoadProgress>? progress, CancellationToken cancellationToken)
     {
@@ -661,7 +662,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                     }
                 }
 
-                // The LoaderAllocator that keeps an unloadable context's types and statics alive (review H3).
+                // The LoaderAllocator that keeps an unloadable context's types and statics alive.
                 if (type is { IsCollectible: true } && LoaderAllocatorOf(type, typeIndices[i]) is not 0 and var allocator
                     && !buffer.AsSpan(0, used).Contains(allocator))
                 {
@@ -698,7 +699,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
     private static void AddGcRoots(ClrHeap heap, IDataReader reader, HeapGraphBuilder builder, ulong[] staticSlots, IReadOnlyList<ulong> leftOut, CancellationToken cancellationToken)
     {
         // The static storage bucket is reported both as a strong handle and (on .NET 9 and 10) as a StaticVar root;
-        // it is kept once (decision 3).
+        // it is kept once.
         var strongHandles = new List<(ulong Address, RootFlags Flags)>(leftOut.Select(static a => (a, RootFlags.Retaining)));
         var staticStorage = new HashSet<ulong>();
         var count = 0;
@@ -870,7 +871,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         return new StaticSlotsFound([.. slots], coreFields, coreInitialized, coreLibrary != 0);
     }
 
-    // What the statics' check found, for the load's log line (the support review of 4.7): the verdict rests on these counts.
+    // What the statics' check found, for the load's log line: the verdict rests on these counts.
     private sealed record StaticSlotsFound(ulong[] Slots, int CoreFields, int CoreInitialized, bool CoreFound)
     {
         public string Describe() => CoreFound
@@ -925,7 +926,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                             continue;
                         }
 
-                        // A struct with references is boxed in the runtime's static storage (peer review 4.5 H3): its box is the root.
+                        // A struct with references is boxed in the runtime's static storage: its box is the root.
                         var value = field.IsObjectReference ? field.ReadObject(domain)
                             : field.IsValueType && field.Type is { ContainsPointers: true } structType ? BoxOf(runtime.Heap, field.GetAddress(domain), structType)
                             : default;
@@ -942,7 +943,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
                         }
                     }
 
-                    // A thread static is named by its field too, once per live thread that set it (peer review 4.5 M11): .NET 8, and
+                    // A thread static is named by its field too, once per live thread that set it: .NET 8, and
                     // .NET 10 on Linux, report no thread static root, and .NET 9 and 10 on Windows only the runtime's arrays. A struct
                     // with references is boxed per thread, as a struct static is; a dead thread's statics are freed, never read.
                     foreach (var field in type.ThreadStaticFields)
@@ -1082,7 +1083,7 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
         }
     }
 
-    /// <summary>A dump's process name and which rule chose it, for the log (sprint 3.10 review H2).</summary>
+    /// <summary>A dump's process name and which rule chose it, for the log.</summary>
     internal readonly record struct ProcessNameChoice(string? Name, string Source);
 
     /// <summary>

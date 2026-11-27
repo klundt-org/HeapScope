@@ -29,9 +29,9 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Many HttpClient instances (sprint 2.6): reachable <c>HttpClient</c>s that own their handler, over at least
+/// Many HttpClient instances: reachable <c>HttpClient</c>s that own their handler, over at least
 /// <see cref="MinInstances"/> distinct handlers, and so as many connection pools. Clients sharing a handler (IHttpClientFactory, or a handler passed in
-/// with disposeHandler false) are the recommended pattern and are not counted (review M11).
+/// with disposeHandler false) are the recommended pattern and are not counted.
 /// </summary>
 internal sealed class HttpClientInstancesDetector : IInspection
 {
@@ -71,7 +71,7 @@ internal sealed class HttpClientInstancesDetector : IInspection
             switch (Fields.Boolean(reader, address, RuntimeLayouts.HttpClients.DisposeHandler))
             {
                 case true:
-                    // new HttpClient(shared) owns a handler it shares: distinct handlers are the pools (re-review N2).
+                    // new HttpClient(shared) owns a handler it shares: distinct handlers are the pools.
                     owning++;
                     clients.Add(obj);
                     bytes += (long)graph.GetSize(obj);

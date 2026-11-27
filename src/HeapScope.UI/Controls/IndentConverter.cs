@@ -27,7 +27,7 @@ using Avalonia.Data.Converters;
 
 namespace HeapScope.UI.Controls;
 
-/// <summary>A tree depth as a left margin (the analysis path's steps, sprint 2.7).</summary>
+/// <summary>A tree depth as a left margin (the analysis path's steps).</summary>
 public sealed class IndentConverter : IValueConverter
 {
     /// <summary>Pixels per level.</summary>

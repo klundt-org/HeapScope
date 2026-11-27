@@ -34,22 +34,22 @@ namespace HeapScope.Application.Monitoring;
 
 /// <summary>
 /// How to monitor: the sample interval, the snapshot rules, whether to write the timeline file, and what rules capture
-/// (sprint 1.8: full dumps, or gcdumps, which are smaller but force a full GC in the target that shows in its counters).
+/// (full dumps, or gcdumps, which are smaller but force a full GC in the target that shows in its counters).
 /// </summary>
-/// <param name="RecordAllocations">Records an allocation trace for the whole run (sprint 3.4, decision 4).</param>
+/// <param name="RecordAllocations">Records an allocation trace for the whole run.</param>
 /// <param name="ProcessName">The target's name, for the run's record.</param>
 /// <param name="RecordRun">
 /// Whether the run uses a session at all (its record, its timeline, its trace): off for smoke runs, which leave nothing in
-/// the session library (sprint 3.4 re-review).
+/// the session library.
 /// </param>
 /// <param name="TraceLimitBytes">
-/// The allocation trace stops at this size (review H7 of 3.4): 512 MB by default since sprint 4.7 (peer review 4.5 H8), whose read
+/// The allocation trace stops at this size: 512 MB by default, whose read
 /// (1.6 GB) fits beside two snapshots of the process on a 16 GB laptop, as "allocated between" needs; a recording lowers it on a
 /// machine where even that would not fit (<see cref="HeapScope.Core.TraceReadCost.Fit"/>). The run goes on without it.
 /// </param>
 public sealed record MonitorOptions(TimeSpan Interval, MonitorRules Rules, bool WriteTimeline = true, SnapshotKindDto CaptureKind = SnapshotKindDto.FullDump, bool RecordAllocations = false, string? ProcessName = null, long TraceLimitBytes = MonitorOptions.DefaultTraceLimitBytes, bool RecordRun = true)
 {
-    /// <summary>The default allocation trace limit, 512 MB (1 GB before sprint 4.7).</summary>
+    /// <summary>The default allocation trace limit, 512 MB.</summary>
     public const long DefaultTraceLimitBytes = 512L << 20;
 
     public static MonitorOptions Default { get; } = new(TimeSpan.FromSeconds(1), MonitorRules.None);

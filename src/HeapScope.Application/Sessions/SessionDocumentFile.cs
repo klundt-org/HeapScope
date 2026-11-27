@@ -45,7 +45,7 @@ public enum SessionReadStatus
 
 /// <summary>
 /// The result of reading a session folder; <see cref="Reason"/> says why it is unreadable and <see cref="NextStep"/> what
-/// to do about it (sprint 3.6 review: held, damaged and newer documents need different steps).
+/// to do about it (held, damaged and newer documents need different steps).
 /// </summary>
 public readonly record struct SessionRead(SessionReadStatus Status, Session? Session, string? Reason, string? NextStep = null);
 
@@ -53,7 +53,7 @@ public readonly record struct SessionRead(SessionReadStatus Status, Session? Ses
 public sealed class SessionUnreadableException(string message, Exception? inner = null) : IOException(message, inner);
 
 /// <summary>
-/// The file protocol of <c>session.json</c>, shared by every reader and writer (peer review P1). Writers hold
+/// The file protocol of <c>session.json</c>, shared by every reader and writer. Writers hold
 /// <c>session.lock</c> and replace the document atomically; readers take no lock, so they open the document sharing read,
 /// write and delete (a reader never makes a writer's replace fail) and retry briefly when another program holds it. The
 /// replace itself retries for a bounded time, for readers of older builds, virus scanners and indexers.
@@ -115,7 +115,7 @@ internal static class SessionDocumentFile
             }
             catch (FileNotFoundException) when (++missing <= MissingRetries)
             {
-                // A save on Windows replaces the file in two steps, and a read between them finds no file (sprint 4.8, M14: the
+                // A save on Windows replaces the file in two steps, and a read between them finds no file (the
                 // readers test failed one run in five): read again shortly before calling it missing.
                 Thread.Sleep(s_retryDelay);
             }
@@ -141,7 +141,7 @@ internal static class SessionDocumentFile
 
     /// <summary>
     /// Writes a new document; fails with an <see cref="IOException"/> when <paramref name="folder"/> has one already
-    /// (claiming a new folder). Written whole beside it and moved into place without overwriting (sprint 3.6 review), so a
+    /// (claiming a new folder). Written whole beside it and moved into place without overwriting, so a
     /// reader never sees a half-written or empty document.
     /// </summary>
     public static void CreateNew(string folder, SessionDocument document)
@@ -217,7 +217,7 @@ internal static class SessionDocumentFile
 
     /// <summary>
     /// The document, with the snapshot and run entries that hold a value this build does not know set aside as they were
-    /// written (sprint 3.12, B4). Only an unknown enum value is set aside: an entry damaged any other way still makes the
+    /// written. Only an unknown enum value is set aside: an entry damaged any other way still makes the
     /// document unreadable, as before.
     /// </summary>
     private static SessionDocument? Parse(byte[] bytes)
@@ -255,8 +255,7 @@ internal static class SessionDocumentFile
     }
 
     /// <summary>
-    /// The values this build does not know in a document's set-aside entries, as "Snapshots: Kind=Future" (sprint 3.12 review
-    /// M18: the log says why an entry is not shown).
+    /// The values this build does not know in a document's set-aside entries, as "Snapshots: Kind=Future" (the log says why an entry is not shown).
     /// </summary>
     internal static IEnumerable<string> UnknownValues(SessionDocument document)
     {

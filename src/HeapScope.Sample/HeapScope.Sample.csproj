@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- The tutorial's sample process (sprint 3.13, ADR-042), shipped in sample/ beside worker/. -->
+    <!-- The tutorial's sample process (ADR-042), shipped in sample/ beside worker/. -->
     <AssemblyName>heapscope-sample</AssemblyName>
     <RootNamespace>HeapScope.Sample</RootNamespace>
     <!-- It plants problems on purpose and stands in for an application, so it is always optimized (fixtures/Directory.Build.props). -->

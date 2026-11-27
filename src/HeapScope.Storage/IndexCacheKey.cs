@@ -27,8 +27,7 @@ using HeapScope.Core;
 namespace HeapScope.Storage;
 
 /// <summary>
-/// The per-user key file that <see cref="IndexCacheSigner.ForThisUser"/> signs index caches with (sprint 3.7, peer review
-/// P14): 32 random bytes in HeapScope's data folder, readable by the user only, created on first use under a lock file so
+/// The per-user key file that <see cref="IndexCacheSigner.ForThisUser"/> signs index caches with: 32 random bytes in HeapScope's data folder, readable by the user only, created on first use under a lock file so
 /// processes starting together share one key.
 /// </summary>
 public static class IndexCacheKey
@@ -120,7 +119,7 @@ public static class IndexCacheKey
     }
 }
 
-/// <summary>Where the process's index cache key came from (3.7 review H4).</summary>
+/// <summary>Where the process's index cache key came from.</summary>
 public enum IndexCacheKeySource
 {
     /// <summary>Read from the key file.</summary>

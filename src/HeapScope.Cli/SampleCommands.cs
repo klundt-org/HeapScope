@@ -28,10 +28,10 @@ using HeapScope.Application.Tutorial;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>sample</c> commands (sprint 3.13, ADR-042): the tutorial's sample without the app, for a demo or a script.
+/// The <c>sample</c> commands (ADR-042): the tutorial's sample without the app, for a demo or a script.
 /// <c>start</c> runs in the foreground until Ctrl+C or <c>sample stop</c>; the sample exits with it, so none is left behind.
 /// <c>stop</c> stops only a running sample a HeapScope process started (its record in the data folder, with its start time),
-/// on any system (review H4).
+/// on any system.
 /// </summary>
 internal static partial class CliCommands
 {
@@ -110,7 +110,7 @@ internal static partial class CliCommands
                 return Success;
             }
 
-            // Review M9: a stop from 'sample stop' succeeds; a crash, or Task Manager, is a failure with the sample's own words.
+            // A stop from 'sample stop' succeeds; a crash, or Task Manager, is a failure with the sample's own words.
             if (exit.Reason == SampleExitReason.OnItsOwn)
             {
                 await context.Error.WriteLineAsync(string.Create(

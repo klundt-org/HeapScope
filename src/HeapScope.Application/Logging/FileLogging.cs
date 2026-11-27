@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Application.Logging;
 
-/// <summary>The file log of a front end, set up the same way by the UI and the CLI (ARCHITECTURE.md 11, sprint 2.3.7).</summary>
+/// <summary>The file log of a front end, set up the same way by the UI and the CLI (ARCHITECTURE.md 11).</summary>
 public static class FileLogging
 {
     /// <summary>Configuration key of the log folder.</summary>

@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A bookmark of an open snapshot, as the Bookmarks list shows it (sprint 2.7).</summary>
+/// <summary>A bookmark of an open snapshot, as the Bookmarks list shows it.</summary>
 public sealed partial class BookmarkItem(SnapshotHandle snapshot, Bookmark bookmark) : ObservableObject
 {
     [ObservableProperty]
@@ -62,7 +62,7 @@ public sealed partial class BookmarkItem(SnapshotHandle snapshot, Bookmark bookm
 }
 
 /// <summary>
-/// Object bookmarks (sprint 2.7): marks on objects of any open snapshot, each with one of five colors, listed together
+/// Object bookmarks: marks on objects of any open snapshot, each with one of five colors, listed together
 /// and opened with one click. They are kept in a <see cref="BookmarkStore"/> by the snapshot file's identity, so they come
 /// back when the file is opened again; without a store (tests) they last for the run. The log counts bookmarks, never
 /// addresses or type names.
@@ -95,7 +95,7 @@ public sealed partial class BookmarksViewModel : ObservableObject
     private Task<SnapshotKey?> KeyAsync(SnapshotHandle snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        // A load that failed is tried again rather than failing every later toggle (review).
+        // A load that failed is tried again rather than failing every later toggle.
         if (!_loads.TryGetValue(snapshot, out var load) || load.IsFaulted)
         {
             _loads[snapshot] = load = ReadAsync(snapshot);
@@ -120,7 +120,7 @@ public sealed partial class BookmarksViewModel : ObservableObject
 
         if (problem != BookmarkFileProblem.None)
         {
-            // Said when it is found, with the next step, not at the next save (review).
+            // Said when it is found, with the next step, not at the next save.
             _logger.LogWarning("Bookmarks: the bookmarks file {Problem}", problem);
             Status = problem switch
             {
@@ -157,7 +157,7 @@ public sealed partial class BookmarksViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Empties the list after Purge all deleted the bookmarks file (sprint 4.8, M13): every open snapshot's bookmarks are read
+    /// Empties the list after Purge all deleted the bookmarks file: every open snapshot's bookmarks are read
     /// again on its next toggle, from the file that is now gone.
     /// </summary>
     public void ForgetAll()
@@ -180,7 +180,7 @@ public sealed partial class BookmarksViewModel : ObservableObject
             return false;
         }
 
-        // One toggle per object at a time: a held Command+D repeats while the first save runs (review).
+        // One toggle per object at a time: a held Command+D repeats while the first save runs.
         if (!_pending.Add((snapshot, address)))
         {
             return Find(snapshot, address) is not null;
@@ -229,7 +229,7 @@ public sealed partial class BookmarksViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Opens the bookmarks of a snapshot as one object set (sprint 3.1): those of <paramref name="item"/>'s snapshot, or
+    /// Opens the bookmarks of a snapshot as one object set: those of <paramref name="item"/>'s snapshot, or
     /// of the only snapshot with bookmarks.
     /// </summary>
     [RelayCommand]

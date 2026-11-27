@@ -30,13 +30,13 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// The objects referencing one object (sprint 2.1), each once, in address order. With an object reader, each referrer's
+/// The objects referencing one object, each once, in address order. With an object reader, each referrer's
 /// field or array index holding the object is named, for objects with up to <see cref="MaxNamedReferrers"/> referrers.
 /// The rows are copied out of the reverse index when the set is created, so pages read only the graph.
 /// </summary>
 internal sealed class ReferrersSource : IResultSource
 {
-    /// <summary>The Field cell of a referrer that holds the object through a dependent handle (sprint 2.2).</summary>
+    /// <summary>The Field cell of a referrer that holds the object through a dependent handle.</summary>
     public const string DependentHandleLabel = "(dependent handle)";
 
     /// <summary>Referrers whose fields are named; an object with more gets an explanation instead.</summary>
@@ -46,7 +46,7 @@ internal sealed class ReferrersSource : IResultSource
     public const int MaxNamedElements = 100_000;
 
     /// <summary>
-    /// Array elements walked per query (review M5): an object held by many large arrays (a shared string, a singleton)
+    /// Array elements walked per query: an object held by many large arrays (a shared string, a singleton)
     /// would otherwise cost 10^8 element reads under the reader's lock. Naming stops when it is spent.
     /// </summary>
     public const long MaxNamedElementsPerQuery = 2_000_000;
@@ -162,7 +162,7 @@ internal sealed class ReferrersSource : IResultSource
     public void FormatRow(int index, string?[] cells)
     {
         var referrer = _referrers[index].ObjectIndex;
-        // A dependent handle keeps the object alive while the referrer is reachable, without a field (sprint 2.2, 6.1).
+        // A dependent handle keeps the object alive while the referrer is reachable, without a field.
         var field = _fields?[index];
         cells[0] = !string.IsNullOrEmpty(field) ? field
             : _graph.IsDependentHandleEdge(referrer, _target) ? DependentHandleLabel

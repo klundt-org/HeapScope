@@ -25,7 +25,7 @@ namespace HeapScope.Application.Workers;
 
 /// <summary>
 /// How the worker starts: <paramref name="FileName"/> runs, with <paramref name="Assembly"/> as its first argument when the
-/// worker's assembly runs through the dotnet host (sprint 3.9, ADR-039).
+/// worker's assembly runs through the dotnet host (ADR-039).
 /// </summary>
 public sealed record WorkerLaunch(string FileName, string? Assembly)
 {

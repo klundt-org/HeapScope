@@ -27,7 +27,7 @@ using System.Text;
 
 namespace HeapScope.Capture;
 
-/// <summary>What macOS says about a process that was asked for by pid and not found (sprint 4.2), with how each read ended.</summary>
+/// <summary>What macOS says about a process that was asked for by pid and not found, with how each read ended.</summary>
 /// <param name="Running">Whether a process has the id, whatever could be read about it.</param>
 /// <param name="UserId">Its effective user id, which anyone may read; null when the read failed.</param>
 /// <param name="UserOutcome">Why <paramref name="UserId"/> is null.</param>
@@ -48,9 +48,9 @@ internal sealed record MacTarget(
     string OwnTempFolder);
 
 /// <summary>
-/// Why macOS refuses a capture, and what to do (sprint 4.2, untested). HeapScope never signs a target or changes its
+/// Why macOS refuses a capture, and what to do (untested). HeapScope never signs a target or changes its
 /// entitlements; it says what the runtime reported. The rules take what was read, so they are tested on every system. No
-/// rule says that a process is not .NET: a region walk that ended early cannot be told from a whole one (4.2 review).
+/// rule says that a process is not .NET: a region walk that ended early cannot be told from a whole one.
 /// </summary>
 internal sealed class MacCaptureRules : ICaptureRules
 {

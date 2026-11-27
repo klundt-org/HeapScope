@@ -26,7 +26,7 @@ using Avalonia.Threading;
 
 namespace HeapScope.UI.Services;
 
-/// <summary>The Avalonia UI thread's dispatcher (sprint 2.3.6).</summary>
+/// <summary>The Avalonia UI thread's dispatcher.</summary>
 public sealed class AvaloniaUiDispatcher(Dispatcher dispatcher) : IUiDispatcher
 {
     public void Post(Action action)
@@ -42,7 +42,7 @@ public sealed class AvaloniaUiDispatcher(Dispatcher dispatcher) : IUiDispatcher
         }
     }
 
-    // Background priority runs after layout, render and input (sprint 1.5); off the UI thread there is nothing to yield to.
+    // Background priority runs after layout, render and input; off the UI thread there is nothing to yield to.
     public Task YieldToRenderAsync() =>
         dispatcher.CheckAccess() ? dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Background).GetTask() : Task.CompletedTask;
 }

@@ -31,13 +31,13 @@ namespace HeapScope.UI.ViewModels;
 
 
 /// <summary>
-/// The Snapshot tab's subjects and the analysis path (sprint 1.5, dotMemory's drill-down; a branching path per snapshot
-/// since 2.7): the types grid is the root; links open instances, objects, a type's referrers (sprint 2.1) or its retention
-/// paths (sprint 2.2) as new steps through <see cref="Navigate"/>, and links into the Retainers tab are recorded as steps
+/// The Snapshot tab's subjects and the analysis path (dotMemory's drill-down; a branching
+/// path): the types grid is the root; links open instances, objects, a type's referrers or its retention
+/// paths as new steps through <see cref="Navigate"/>, and links into the Retainers tab are recorded as steps
 /// (<see cref="Record"/>). Each open snapshot keeps its own <see cref="AnalysisPath"/> while it is open, so switching
 /// snapshots, tabs or pages never loses it. Back and Forward move along the path; choosing a step in the sidebar shows it;
 /// <see cref="StepShown"/> tells the page which tab a step needs. The subjects follow their links through the
-/// <see cref="INavigator"/> they were built with (2.3.7 review M8).
+/// <see cref="INavigator"/> they were built with.
 /// </summary>
 public sealed partial class NavigatorViewModel : ObservableObject
 {
@@ -85,7 +85,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
     public AnalysisPath Path => _path;
 
     // The view keeps one grid per kind of subject, built at window load, and only swaps their data: building a DataGrid
-    // on every navigation took 136 to 332 ms on the dispatcher (sprint 1.5 smoke runs).
+    // on every navigation took 136 to 332 ms on the dispatcher.
 
     /// <summary>Whether the types grid is the current subject.</summary>
     public bool IsTypesShown => Current is TypeSummaryViewModel;
@@ -96,13 +96,13 @@ public sealed partial class NavigatorViewModel : ObservableObject
     /// <summary>Whether an object is the current subject.</summary>
     public bool IsObjectShown => Current is ObjectViewModel;
 
-    /// <summary>Whether a type's referrers are the current subject (sprint 2.1).</summary>
+    /// <summary>Whether a type's referrers are the current subject.</summary>
     public bool IsTypeReferrersShown => Current is TypeReferrersViewModel;
 
-    /// <summary>Whether a type's retention paths are the current subject (sprint 2.2).</summary>
+    /// <summary>Whether a type's retention paths are the current subject.</summary>
     public bool IsTypePathsShown => Current is TypePathsViewModel;
 
-    /// <summary>Whether an object set is the current subject (sprint 3.1).</summary>
+    /// <summary>Whether an object set is the current subject.</summary>
     public bool IsSetShown => Current is SetViewModel;
 
     /// <summary>The set shown last (the set view's data; kept while another subject is shown).</summary>
@@ -190,7 +190,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         };
     }
 
-    /// <summary>Records a link into the Retainers tab as a step, replayed when it is chosen again (sprint 2.7).</summary>
+    /// <summary>Records a link into the Retainers tab as a step, replayed when it is chosen again.</summary>
     public AnalysisStep Record(NavigationTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -200,7 +200,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         return step;
     }
 
-    /// <summary>Shows the objects of a type in <paramref name="snapshot"/>, all of them or those in a scope (sprint 1.6).</summary>
+    /// <summary>Shows the objects of a type in <paramref name="snapshot"/>, all of them or those in a scope.</summary>
     public InstancesViewModel OpenInstances(SnapshotHandle snapshot, string typeName, string? module, InstanceScope scope = InstanceScope.All, ulong sameValueAs = 0)
     {
         var instances = new InstancesViewModel(_session, snapshot, typeName, module, scope, sameValueAs, Types.UiDispatcher, _loggers?.CreateLogger<InstancesViewModel>(), _navigator)
@@ -212,7 +212,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         return instances;
     }
 
-    /// <summary>Shows an object set with its views (sprint 3.1).</summary>
+    /// <summary>Shows an object set with its views.</summary>
     public SetViewModel OpenSet(SnapshotHandle snapshot, ObjectSetQuery set, string title, SetViews view = SetViews.Types)
     {
         var subject = new SetViewModel(_session, snapshot, set, title, Types.UiDispatcher, _loggers, _navigator);
@@ -222,7 +222,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         return subject;
     }
 
-    /// <summary>Shows a set's members, all of them or those of one type, as instances (sprint 3.1).</summary>
+    /// <summary>Shows a set's members, all of them or those of one type, as instances.</summary>
     public InstancesViewModel OpenSetInstances(SnapshotHandle snapshot, ObjectSetQuery set, string setTitle, string typeName, string? module)
     {
         var instances = new InstancesViewModel(_session, snapshot, set, setTitle, typeName, module, Types.UiDispatcher, _loggers?.CreateLogger<InstancesViewModel>(), _navigator)
@@ -244,7 +244,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         return obj;
     }
 
-    /// <summary>Shows who references the objects of a type in <paramref name="snapshot"/> (sprint 2.1).</summary>
+    /// <summary>Shows who references the objects of a type in <paramref name="snapshot"/>.</summary>
     public TypeReferrersViewModel OpenTypeReferrers(SnapshotHandle snapshot, string typeName, string? module)
     {
         var referrers = new TypeReferrersViewModel(_session, snapshot, typeName, module, Types.UiDispatcher, _loggers?.CreateLogger<TypeReferrersViewModel>(), _navigator);
@@ -253,7 +253,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         return referrers;
     }
 
-    /// <summary>Shows why the objects of a type in <paramref name="snapshot"/> are alive (sprint 2.2).</summary>
+    /// <summary>Shows why the objects of a type in <paramref name="snapshot"/> are alive.</summary>
     public TypePathsViewModel OpenTypePaths(SnapshotHandle snapshot, string typeName, string? module)
     {
         var paths = new TypePathsViewModel(_session, snapshot, typeName, module, _loggers?.CreateLogger<TypePathsViewModel>(), _navigator);
@@ -314,7 +314,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
         Move();
     }
 
-    // The step's id, its parent's and the snapshot's tie a step to the subject's own query lines that follow (review).
+    // The step's id, its parent's and the snapshot's tie a step to the subject's own query lines that follow.
     private void Log(string action, AnalysisStep step) =>
         _logger.LogInformation(
             "Analysis path: {Action} {Kind} step {Step} (from step {Parent}, depth {Depth}) in snapshot {Snapshot} ({Steps} steps)",

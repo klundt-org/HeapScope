@@ -68,27 +68,26 @@ public enum ResultColumnKind
     /// <summary>An object address, as 0x-prefixed hexadecimal.</summary>
     Address = 4,
 
-    /// <summary>A signed integer such as a delta (diffs, sprint 1.4).</summary>
+    /// <summary>A signed integer such as a delta (diffs).</summary>
     SignedInteger = 5,
 }
 
 /// <summary>One column of a result set. <see cref="IsKey"/> marks the column that names a row (for example the type).</summary>
 /// <param name="Bound">
-/// Whether the column's values are exact or lower bounds (sprint 2.4, 2.3.7 review M7): the retained bytes of a type,
+/// Whether the column's values are exact or lower bounds: the retained bytes of a type,
 /// namespace or assembly row are a lower bound (ADR-024); an object's, a dominator tree row's and a set's exact.
 /// Front ends render from this one flag (<see cref="ValueBoundTexts"/>).
 /// </param>
 /// <param name="IsHidden">
-/// A column that links a row to what it opens (a raw type name, a module, a tree key) and is not shown (sprint 2.7,
-/// replacing the naming convention of 1.5 and 1.6); exports leave it out.
+/// A column that links a row to what it opens (a raw type name, a module, a tree key) and is not shown; exports leave it out.
 /// </param>
 /// <param name="HasValues">
-/// A column that carries the target's data: string text or field values (sprint 2.7, ADR-026). A shared export leaves it
+/// A column that carries the target's data: string text or field values (ADR-026). A shared export leaves it
 /// out unless the person exporting opts in.
 /// </param>
 public sealed record ResultColumn(string Name, ResultColumnKind Kind, bool IsKey = false, ValueBound Bound = ValueBound.Exact, bool IsHidden = false, bool HasValues = false);
 
-/// <summary>Whether a column's values are exact (sprint 2.4).</summary>
+/// <summary>Whether a column's values are exact.</summary>
 public enum ValueBound
 {
     Exact = 0,
@@ -96,14 +95,14 @@ public enum ValueBound
     /// <summary>The true value is at least this.</summary>
     LowerBound = 1,
 
-    /// <summary>Estimated from samples, such as an allocation trace's bytes (sprint 2.5).</summary>
+    /// <summary>Estimated from samples, such as an allocation trace's bytes.</summary>
     Estimate = 2,
 }
 
-/// <summary>What a value bound means, said the same way by every front end (sprint 2.4, 2.3.7 review M7).</summary>
+/// <summary>What a value bound means, said the same way by every front end.</summary>
 public static class ValueBoundTexts
 {
-    /// <summary>The one name of the action that computes what a set retains exactly (the 2.4 review: it had four).</summary>
+    /// <summary>The one name of the action that computes what a set retains exactly (it had four).</summary>
     public const string SetAction = "Objects retained by this set";
 
     /// <summary>The note for a column of lower bounds, such as a group's retained bytes.</summary>

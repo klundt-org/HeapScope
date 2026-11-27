@@ -35,7 +35,7 @@ namespace HeapScope.Worker.Rpc;
 
 /// <summary>
 /// Heap queries (<see cref="IHeapQueryService"/>): type summaries, diffs (with objects matched by address, retained bytes
-/// and heap kinds, sprint 3.3, ADR-032) and trends, instances, single objects, their references and their referrers.
+/// and heap kinds, ADR-032) and trends, instances, single objects, their references and their referrers.
 /// </summary>
 internal sealed class HeapQueryHandler(
     SnapshotStore snapshots,
@@ -82,7 +82,7 @@ internal sealed class HeapQueryHandler(
             Analysis.TypeAggregation aggregation;
             if (request.Set is { } spec)
             {
-                // A set's Types and Generations views (sprint 3.1): its members only, aggregated per query.
+                // A set's Types and Generations views: its members only, aggregated per query.
                 if (request.IncludeRetained)
                 {
                     throw new RequestRefusedException("A set's types have no retained column; its Retained view gives the exact figure.");
@@ -103,7 +103,7 @@ internal sealed class HeapQueryHandler(
             Analysis.TypeInterfaces? interfaces = null;
             if (request.GroupBy == TypeGrouping.Interface)
             {
-                // Interface groups overlap, so they have no retained lower bound (decision 6); a gcdump is refused first.
+                // Interface groups overlap, so they have no retained lower bound; a gcdump is refused first.
                 interfaces = await derived.GetInterfacesAsync(request.SnapshotId, snapshot, progress, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeRetained)
                 {
@@ -117,7 +117,7 @@ internal sealed class HeapQueryHandler(
             {
                 TypeSummarySource.Validate(request, generations);
 
-                // Sprint 2.3: the dominators (computed or opened once), then the grouping's lower bounds (once per grouping).
+                // The dominators (computed or opened once), then the grouping's lower bounds (once per grouping).
                 dominators = (await derived.GetDominatorsAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false)).Info;
                 retained = await snapshots.GetGroupRetentionAsync(request.SnapshotId, request.GroupBy.ToGroupKey(), progress, cancellationToken).ConfigureAwait(false)
                     ?? throw SnapshotAccess.NotLoaded(request.SnapshotId);
@@ -125,7 +125,7 @@ internal sealed class HeapQueryHandler(
 
             var source = await Task.Run(() => TypeSummarySource.Create(snapshot.Graph, aggregation, request, generations, retained, interfaces), cancellationToken).ConfigureAwait(false);
             throttled.Flush();
-            var rows = resultSets.Add(source);
+            var rows = resultSets.Add(request.SnapshotId, source);
             // Unknown (generation not determined) is listed only when present, so the bar always adds up to the total.
             var kinds = generations
                 ? TypeSummarySource.KindColumns.Prepend(Core.Graph.HeapKind.Unknown)
@@ -180,7 +180,7 @@ internal sealed class HeapQueryHandler(
                 () => TypeDiffSource.Create(baseline.Graph, baselineAggregation, current.Graph, currentAggregation, request, baseline.Info.Kind, current.Info.Kind, baselineInterfaces, currentInterfaces, extras),
                 cancellationToken).ConfigureAwait(false);
             throttled.Flush();
-            var rows = resultSets.Add(source);
+            var rows = resultSets.Add(null, source);
             LogDiff(request, comparison, source);
             return new TypeDiffResult(
                 rows,
@@ -241,7 +241,7 @@ internal sealed class HeapQueryHandler(
                     exact &= snapshot.Capabilities.HasFlag(SnapshotCapabilities.ExactCounts);
                     if (i > 0 && snapshot.Info.Kind != kind)
                     {
-                        // Full dumps hold garbage and name nested types apart; gcdumps hold survivors only (the 3.3 review).
+                        // Full dumps hold garbage and name nested types apart; gcdumps hold survivors only.
                         throw new RequestRefusedException("A trend takes snapshots of one kind: full dumps and gcdumps count different objects and name nested types differently. Compare a full dump with a gcdump in a two-snapshot comparison instead.");
                     }
 
@@ -250,9 +250,9 @@ internal sealed class HeapQueryHandler(
                 }
 
                 var source = await Task.Run(() => TypeTrendSource.Create(inputs, request), cancellationToken).ConfigureAwait(false);
-                var rows = resultSets.Add(source);
+                var rows = resultSets.Add(null, source);
 
-                // What the trend rests on (decision 7): its snapshots in order, the grouping and the rows.
+                // What the trend rests on: its snapshots in order, the grouping and the rows.
                 Logger.LogInformation(
                     "Trend of {Count} snapshots ({Ids}; heap bytes {Totals}) by {Grouping}: {Rows} of {Unfiltered} rows (the request's filter is logged by its shape), sort {Sort}; first rows {Largest}",
                     ids.Count,
@@ -290,19 +290,19 @@ internal sealed class HeapQueryHandler(
 
                 DominatorIndex? dominators = null;
                 DominatorIndexInfo? info = null;
-                // Sprint 2.3 review M7: a bad request is refused, and a type with no objects answered, before any dominators.
+                // A bad request is refused, and a type with no objects answered, before any dominators.
                 var valid = InstancesSource.Validate(snapshot.Graph, request);
                 var set = request.Set is { } spec ? await resolver.ResolveAsync(request.SnapshotId, snapshot, spec, progress, cancellationToken).ConfigureAwait(false) : null;
                 if (valid && request.IncludeRetained)
                 {
-                    // Sprint 2.3: attached to the graph, so the set's lease keeps them while its pages are read.
+                    // Attached to the graph, so the set's lease keeps them while its pages are read.
                     (dominators, info) = await derived.GetDominatorsAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
                 }
 
                 var reachable = request.Scope == InstanceScope.Reachable ? await derived.GetReachableAsync(request.SnapshotId, cancellationToken).ConfigureAwait(false) : null;
                 var throttled = new ThrottledProgress<JobProgress>(progress);
                 var source = await Task.Run(() => InstancesSource.Create(snapshot.Graph, reader, request, cancellationToken, throttled, dominators?.Dominators, set, reachable), cancellationToken).ConfigureAwait(false);
-                var rows = resultSets.Add(source, lease);
+                var rows = resultSets.Add(request.SnapshotId, source, lease);
                 return new InstancesResult(rows, source.TotalObjects, source.TotalBytes, source.MatchedTypes, reader is not null, stopwatch.Elapsed.TotalSeconds, info, source.Note);
             }
             catch (CapabilityNotSupportedException ex) when (ex.Missing != SnapshotCapabilities.None)
@@ -376,7 +376,7 @@ internal sealed class HeapQueryHandler(
 
             // The source formats pages from the graph, so the set keeps a lease of its own.
             var owner = snapshot.AcquireLease();
-            return resultSets.Add(source, owner);
+            return resultSets.Add(request.SnapshotId, source, owner);
         });
 
     public Task<ReferrersResult> QueryReferrersAsync(ReferrersRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
@@ -402,7 +402,7 @@ internal sealed class HeapQueryHandler(
                     () => ReferrersSource.Create(snapshot.Graph, reverse.References, reader, index, noReader, throttled, cancellationToken),
                     cancellationToken).ConfigureAwait(false);
                 throttled.Flush();
-                return new ReferrersResult(resultSets.Add(source, lease), source.ReferenceCount, source.FieldsNote, info, SnapshotAccess.IsComplete(snapshot));
+                return new ReferrersResult(resultSets.Add(request.SnapshotId, source, lease), source.ReferenceCount, source.FieldsNote, info, SnapshotAccess.IsComplete(snapshot));
             }
             catch
             {
@@ -423,16 +423,16 @@ internal sealed class HeapQueryHandler(
             var (snapshot, lease) = access.Lease(request.SnapshotId);
             try
             {
-                // An unknown sort column or type is answered before the index is built for nothing (review M8).
+                // An unknown sort column or type is answered before the index is built for nothing.
                 if (TypeReferrersSource.EmptyUnlessMatched(snapshot.Graph, request) is { } none)
                 {
-                    return new TypeReferrersResult(resultSets.Add(none, lease), 0, 0, 0, null, SnapshotAccess.IsComplete(snapshot));
+                    return new TypeReferrersResult(resultSets.Add(request.SnapshotId, none, lease), 0, 0, 0, null, SnapshotAccess.IsComplete(snapshot));
                 }
 
                 var (reverse, info) = await derived.GetReverseAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
                 progress?.Report(new JobProgress("Grouping referrers by type", 0, null));
                 var source = await Task.Run(() => TypeReferrersSource.Create(snapshot.Graph, reverse.References, request, cancellationToken), cancellationToken).ConfigureAwait(false);
-                return new TypeReferrersResult(resultSets.Add(source, lease), source.MatchedTypes, source.TargetObjects, source.ReferenceCount, info, SnapshotAccess.IsComplete(snapshot));
+                return new TypeReferrersResult(resultSets.Add(request.SnapshotId, source, lease), source.MatchedTypes, source.TargetObjects, source.ReferenceCount, info, SnapshotAccess.IsComplete(snapshot));
             }
             catch
             {
@@ -454,7 +454,7 @@ internal sealed class HeapQueryHandler(
         IProgress<JobProgress>? progress,
         CancellationToken cancellationToken)
     {
-        // Refused before any work (the 3.3 review).
+        // Refused before any work.
         if (request.IncludeRetained && request.GroupBy == TypeGrouping.Interface)
         {
             throw new RequestRefusedException("Interface rows have no retained bytes: a type counts under each interface it implements, so the rows overlap. Group by type, namespace or assembly.");
@@ -485,7 +485,7 @@ internal sealed class HeapQueryHandler(
                     comparison.DeadObjects = deadPerType.Sum();
                     comparison.Survivors = identity.Survivors;
 
-                    // Matched, with a caution when few objects kept their address (the 3.3 review): a collection that
+                    // Matched, with a caution when few objects kept their address: a collection that
                     // compacted between the dumps, such as a forced one.
                     var smaller = Math.Min(baseline.Graph.ObjectCount, current.Graph.ObjectCount);
                     if (smaller > 0 && identity.Survivors * 10 < smaller)
@@ -495,7 +495,7 @@ internal sealed class HeapQueryHandler(
                 }
             }
 
-            // Who was compared and which rule decided (the 3.3 review), so a contested match can be backed up.
+            // Who was compared and which rule decided, so a contested match can be backed up.
             Logger.LogInformation(
                 "Object matching of {Baseline} ({BaselineKind}, process {BaselineName} {BaselinePid}, captured {BaselineCaptured:O}) and {Current} ({CurrentKind}, process {CurrentName} {CurrentPid}, captured {CurrentCaptured:O}): {Outcome}; {Survivors} survivors ({PinnedYounger} of them pinned and in a younger generation), {YoungerUnpinned} addresses whose objects differ only in a younger generation, unpinned, {Reused} addresses holding another type, size, area or method table, {FrozenSurvivors} of {Frozen} frozen objects at their address",
                 request.BaselineId,
@@ -529,7 +529,7 @@ internal sealed class HeapQueryHandler(
     }
 
     /// <summary>
-    /// The sampled allocations of the interval between the heaps, joined to the two snapshots' types (sprint 4.4). The trace must be
+    /// The sampled allocations of the interval between the heaps, joined to the two snapshots' types. The trace must be
     /// of the snapshots' process where both say which that is; the front end vouches for the rest (one monitoring run).
     /// </summary>
     private async Task<(AllocationJoin Join, DiffAllocationInfo Info)> AllocatedAsync(

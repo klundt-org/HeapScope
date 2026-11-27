@@ -30,7 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HeapScope.Cli;
 
-/// <summary>The <c>trend</c> command (sprint 3.3): each type's objects and bytes across several dumps, oldest first.</summary>
+/// <summary>The <c>trend</c> command: each type's objects and bytes across several dumps, oldest first.</summary>
 internal static partial class CliCommands
 {
     private static Command BuildTrendCommand(Func<IServiceProvider> services)

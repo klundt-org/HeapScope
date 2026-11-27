@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The type grids' layer over the query core (sprint 1.5 split): grouping by type, namespace or assembly.</summary>
+/// <summary>The type grids' layer over the query core: grouping by type, namespace or assembly.</summary>
 public abstract partial class TypeGridViewModel<TRow> : GridQueryViewModel<TRow>
     where TRow : class, IIndexedRow
 {
@@ -41,7 +41,7 @@ public abstract partial class TypeGridViewModel<TRow> : GridQueryViewModel<TRow>
     {
     }
 
-    /// <summary>The groupings the selector offers: Interface only where the snapshots are full dumps (the 3.2 review).</summary>
+    /// <summary>The groupings the selector offers: Interface only where the snapshots are full dumps.</summary>
     [ObservableProperty]
     private IReadOnlyList<TypeGrouping> _groupings = Enum.GetValues<TypeGrouping>();
 
@@ -58,7 +58,7 @@ public abstract partial class TypeGridViewModel<TRow> : GridQueryViewModel<TRow>
         }
     }
 
-    /// <summary>What the grouping means for the totals (sprint 3.2: interface rows overlap).</summary>
+    /// <summary>What the grouping means for the totals (interface rows overlap).</summary>
     public string? GroupNote => GroupBy == TypeGrouping.Interface
         ? "A type counts under each interface it implements, so rows overlap and add up to more than the total. Full dumps only."
         : null;

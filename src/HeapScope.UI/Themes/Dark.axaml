@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- HeapScope dark theme (sprint 1.3, Avalonia since 2.3.6). Both themes define the same keys; a test checks it. -->
+<!-- HeapScope dark theme (Avalonia). Both themes define the same keys; a test checks it. -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <SolidColorBrush x:Key="Brush.Window" Color="#FF14171B" />
@@ -43,21 +43,21 @@
   <SolidColorBrush x:Key="Brush.BorderStrong" Color="#FF6B7480" />
   <SolidColorBrush x:Key="Brush.Accent" Color="#FFA5B4FC" />
   <SolidColorBrush x:Key="Brush.OnAccent" Color="#FF14171B" />
-  <!-- Bookmark marks (sprint 2.7). -->
+  <!-- Bookmark marks. -->
   <SolidColorBrush x:Key="Brush.Mark.Red" Color="#FFF85149" />
   <SolidColorBrush x:Key="Brush.Mark.Orange" Color="#FFF0883E" />
   <SolidColorBrush x:Key="Brush.Mark.Green" Color="#FF3FB950" />
   <SolidColorBrush x:Key="Brush.Mark.Blue" Color="#FF58A6FF" />
   <SolidColorBrush x:Key="Brush.Mark.Purple" Color="#FFBC8CFF" />
-  <!-- Diff deltas (sprint 1.4): growth and shrinkage. -->
+  <!-- Diff deltas: growth and shrinkage. -->
   <SolidColorBrush x:Key="Brush.Growth" Color="#FFFF7B72" />
   <SolidColorBrush x:Key="Brush.Shrink" Color="#FF3FB950" />
-  <!-- The icicle chart (sprint 2.4): alternate levels, and the path to the selected bar. -->
+  <!-- The icicle chart: alternate levels, and the path to the selected bar. -->
   <SolidColorBrush x:Key="Icicle.Bar1" Color="#FF3B3F80" />
   <SolidColorBrush x:Key="Icicle.Bar2" Color="#FF343A43" />
   <SolidColorBrush x:Key="Icicle.Path" Color="#FFE0B15A" />
   <SolidColorBrush x:Key="Icicle.PathText" Color="#FF14171B" />
-  <!-- Allocations timeline (sprint 2.5): the bars and the selected interval. -->
+  <!-- Allocations timeline: the bars and the selected interval. -->
   <SolidColorBrush x:Key="Allocation.Bar" Color="#FF7C86E8" />
   <SolidColorBrush x:Key="Allocation.Interval" Color="#55A5B4FC" />
   <!-- The heap kinds; Unknown is also the Live chart's "allocated since the last GC" layer. -->

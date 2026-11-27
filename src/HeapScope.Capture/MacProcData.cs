@@ -27,7 +27,7 @@ using System.Text;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// Parsers of what macOS returns about a process (sprint 4.2): the structs of XNU's <c>bsd/sys/proc_info.h</c> (from
+/// Parsers of what macOS returns about a process: the structs of XNU's <c>bsd/sys/proc_info.h</c> (from
 /// <c>proc_pidinfo</c>) and the buffer of <c>sysctl KERN_PROCARGS2</c>. They take the bytes, not the process, so they run and
 /// are tested on every system; <see cref="MacProcessFacts"/> makes the calls. Nobody has run them on a Mac, so each whose size
 /// the system returns checks it and gives nothing when it is not the one expected (<c>proc_pid_rusage</c> returns none).
@@ -207,7 +207,7 @@ internal static class MacProcData
 
         // The padding cannot be told from an empty first argument, which would move an environment entry in as the last
         // argument. No environment value may reach the process list, so trailing arguments with an entry's shape are left
-        // out; they can be real ones (a setting such as Urls=...), so they never decide anything either (4.2 review M10).
+        // out; they can be real ones (a setting such as Urls=...), so they never decide anything either.
         var kept = arguments.Count;
         while (kept > 0 && IsEntry(arguments[kept - 1]))
         {

@@ -28,12 +28,12 @@ using System.Runtime.InteropServices;
 namespace HeapScope.Core;
 
 /// <summary>
-/// The memory this process holds, for the worker's budget (peer review 4.5 H7, sprint 4.7): its private bytes, and on macOS, where
+/// The memory this process holds, for the worker's budget: its private bytes, and on macOS, where
 /// .NET's <c>PrivateMemorySize64</c> is always 0, its physical footprint (untested, like the rest of macOS).
 /// </summary>
 public static partial class ProcessMemory
 {
-    // rusage_info_v0: the footprint after a 16-byte uuid and seven 8-byte counts (sprint 4.2, HeapScope.Capture's MacProcData).
+    // rusage_info_v0: the footprint after a 16-byte uuid and seven 8-byte counts (HeapScope.Capture's MacProcData).
     private const int UsageSize = 96;
     private const int FootprintOffset = 72;
 

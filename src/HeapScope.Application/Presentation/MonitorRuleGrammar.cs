@@ -77,7 +77,7 @@ public sealed class MonitorRuleGrammar
         "--max must be 1 or more.");
 
     /// <summary>
-    /// The app's grammar: an interval in bare minutes (5, 0.5) of at least a second, in <paramref name="provider"/>'s
+    /// The app's grammar: an interval in bare minutes (5) of at least a second, in <paramref name="provider"/>'s
     /// format (the current culture), as typed in the monitor form; messages name the form's field.
     /// </summary>
     public static MonitorRuleGrammar Minutes(IFormatProvider provider) => new(

@@ -30,7 +30,7 @@ namespace HeapScope.Analysis.Inspections;
 /// <summary>Reads the few runtime fields the detectors need, tolerating missing ones (another runtime version).</summary>
 internal static class Fields
 {
-    /// <summary>An integer field; native ints (<c>IntPtr</c>) arrive as pointers (re-review N1).</summary>
+    /// <summary>An integer field; native ints (<c>IntPtr</c>) arrive as pointers.</summary>
     public static long? Integer(IObjectReader reader, ulong address, string path) =>
         reader.ReadField(address, path) is { } value
             ? value.Kind switch
@@ -44,7 +44,7 @@ internal static class Fields
     public static bool? Boolean(IObjectReader reader, ulong address, string path) =>
         reader.ReadField(address, path) is { Kind: ObjectValueKind.Boolean } value ? value.Boolean : null;
 
-    /// <summary>A flag stored as a bool, or as an integer set with Interlocked (non-zero is set; review M10); null when missing.</summary>
+    /// <summary>A flag stored as a bool, or as an integer set with Interlocked (non-zero is set); null when missing.</summary>
     public static bool? Flag(IObjectReader reader, ulong address, string path) =>
         reader.ReadField(address, path) is { } value
             ? value.Kind switch
@@ -67,7 +67,7 @@ internal static class Fields
         Reference(reader, address, RuntimeLayouts.Delegates.InvocationList) is { Type: var list } && list.EndsWith("[]", StringComparison.Ordinal);
 
     /// <summary>
-    /// The object a single delegate calls its method on; null for a static method (review M4): the runtime stores the
+    /// The object a single delegate calls its method on; null for a static method: the runtime stores the
     /// delegate itself in <c>_target</c> for a static or open delegate, and marks it in <c>_methodPtrAux</c>.
     /// </summary>
     public static (ulong Address, string Type)? DelegateTarget(IObjectReader reader, ulong address) =>

@@ -93,12 +93,12 @@ internal static class IndexFileDirectory
             return null;
         }
 
-        // The checksums anyone can recompute; the signature only this user's HeapScope can (sprint 3.7, peer review P14).
+        // The checksums anyone can recompute; the signature only this user's HeapScope can.
         MemoryMarshal.Write(region, in header);
         if (!signer.Verify(region))
         {
-            // Unsigned (all zero) is what every cache written before 3.7 is; a signature that does not match is another
-            // user's, another machine's, or a forgery (3.7 review, support).
+            // Unsigned (all zero) is what every cache an older HeapScope wrote is; a signature that does not match is another
+            // user's, another machine's, or a forgery (support).
             failure = IndexCacheOpenResult.Invalid(
                 IndexCacheInvalidReason.Untrusted,
                 region[^IndexCacheSigner.SignatureLength..].IndexOfAnyExcept((byte)0) < 0

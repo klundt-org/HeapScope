@@ -26,7 +26,7 @@ using System.Text.RegularExpressions;
 namespace HeapScope.Application.Workers;
 
 /// <summary>
-/// The id of the last unexpected worker failure this process was told (sprint 4.8, peer review 4.5 M13): the worker's message
+/// The id of the last unexpected worker failure this process was told: the worker's message
 /// gives it ("... with this id: <c>id</c>."), and the About page's Copy details carries it, so an issue names the log lines.
 /// </summary>
 public static partial class ErrorIds

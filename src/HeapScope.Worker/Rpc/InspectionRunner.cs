@@ -38,7 +38,7 @@ namespace HeapScope.Worker.Rpc;
 internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess access, DerivedQueries derived, ILogger<InspectionRunner> logger)
 {
     /// <summary>
-    /// Runs an inspection and logs its answer; the caller owns the returned lease (a set's row resolution, sprint 3.1,
+    /// Runs an inspection and logs its answer; the caller owns the returned lease (a set's row resolution,
     /// disposes it at once; the RPC keeps it with the rows).
     /// </summary>
     public async Task<(InspectionResult Result, string Name, Guid? BaselineId, SnapshotLease Lease, double Seconds)> RunAsync(
@@ -62,7 +62,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             snapshot.TryGetService<IObjectReader>(out var reader);
             var throttled = new ThrottledProgress<JobProgress>(progress);
 
-            // A baseline only for the inspections that use one (sprint 2.6), held for the run only.
+            // A baseline only for the inspections that use one, held for the run only.
             InspectionBaseline? baseline = null;
             string? baselineName = null;
             var baselineId = inspection.UsesBaseline ? request.BaselineSnapshotId : null;
@@ -76,13 +76,13 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 var (earlier, held) = access.Lease(id);
                 baselineLease = held;
 
-                // A baseline the detector cannot read (a gcdump) is refused, never silently ignored (review H8).
+                // A baseline the detector cannot read (a gcdump) is refused, never silently ignored.
                 if (InspectionAvailability.Explain(inspection, earlier) is { } unusable)
                 {
                     throw new RequestRefusedException($"The baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)} cannot be used: {unusable} Choose a full dump of the same process, captured earlier.");
                 }
 
-                // What a dump lacks depends on its heap count at that moment, so two that lack some differ too (peer review 4.5).
+                // What a dump lacks depends on its heap count at that moment, so two that lack some differ too.
                 if (inspection.UsesReachable && (Unchecked(snapshot) ?? Unchecked(earlier)) is { } roots)
                 {
                     var (side, step) = Unchecked(snapshot) is null ? ($"the baseline {System.IO.Path.GetFileName(earlier.Info.SourcePath)}", "Choose another baseline, or none.") : ("this snapshot", "Choose no baseline.");
@@ -95,7 +95,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 baselineName = $"{id} ({System.IO.Path.GetFileName(earlier.Info.SourcePath)}, captured {earlier.Info.CapturedAtUtc?.ToString("u", System.Globalization.CultureInfo.InvariantCulture) ?? "at an unknown time"})";
             }
 
-            // The incoming references for the inspections that follow references back (sprint 2.6).
+            // The incoming references for the inspections that follow references back.
             HeapScope.Core.Graph.ReverseReferences? referrers = null;
             if (inspection.UsesReferrers)
             {
@@ -117,7 +117,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
             InspectionResult result;
             try
             {
-                // Inside a reservation of what it may hold (peer review 4.5 H6, sprint 4.7): refused with a next step rather than run
+                // Inside a reservation of what it may hold: refused with a next step rather than run
                 // into the worker's memory limit.
                 var working = inspection.WorkingBytes(snapshot.Graph);
                 IDisposable? reservation;
@@ -145,10 +145,10 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
 
             throttled.Flush();
 
-            // What could not be read was not checked (peer review 4.5 H2): a clean answer means checked.
+            // What could not be read was not checked: a clean answer means checked.
             if (result.Unread is { Count: > 0 } unread)
             {
-                // With the rule and its basis, which names what was probed: a refusal below is backed up by this line (review of 4.6).
+                // With the rule and its basis, which names what was probed: a refusal below is backed up by this line.
                 logger.LogInformation(
                     "Inspection {Inspection} v{Version} ({Parameters}) on snapshot {Id} could not read {Count} of {Of} {What}; basis: {Basis}",
                     inspection.Name,
@@ -168,7 +168,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 result = result with { Note = result.Note is null ? note : result.Note + " " + note };
             }
 
-            // The rule and what the answer rests on (sprint 2.3.7 review H3, M5); the guard logs the totals too.
+            // The rule and what the answer rests on; the guard logs the totals too.
             logger.LogInformation(
                 "Inspection {Inspection} v{Version} ({Parameters}) on snapshot {Id} with baseline {Baseline}: {Count} findings, {Bytes} bytes, {Wasted} wasted, {Rows} rows in {Seconds:F2} s; basis: {Basis}; note: {Note}",
                 inspection.Name,
@@ -183,7 +183,7 @@ internal sealed class InspectionRunner(SnapshotStore snapshots, SnapshotAccess a
                 stopwatch.Elapsed.TotalSeconds,
                 (result.Counts is { } counts ? counts + "; " : string.Empty) + (result.Basis ?? "not recorded"),
                 result.Note ?? "none");
-            // Kept so a detector's row opens as a set (sprint 3.1) without running the inspection again.
+            // Kept so a detector's row opens as a set without running the inspection again.
             if (result.Rows.HasMembers)
             {
                 snapshots.Sets.AddTable(request.SnapshotId, inspection.Name, baselineId, result.Rows);

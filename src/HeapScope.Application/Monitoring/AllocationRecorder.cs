@@ -26,5 +26,5 @@ using HeapScope.Application.Sessions;
 
 namespace HeapScope.Application.Monitoring;
 
-/// <summary>Records an allocation trace of a process into a file until canceled (sprint 3.4; the trace service by default).</summary>
+/// <summary>Records an allocation trace of a process into a file until canceled (the trace service by default).</summary>
 public delegate Task<TraceResult> AllocationRecorder(AllocationRecordingRequest request, CancellationToken cancellationToken);

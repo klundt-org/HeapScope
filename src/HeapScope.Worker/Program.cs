@@ -53,8 +53,7 @@ if (options is not null && hideInstalledDacs)
     options = options with { HideInstalledDacs = true };
 }
 
-// The user's settings live in the client's own data folder, which it names apart from the worker's data folder (sprint
-// 3.12, B1: filter text in the logs; review H4: a worker given another data folder read another settings file).
+// The user's settings live in the client's own data folder, which it names apart from the worker's data folder (filter text in the logs; a worker given another data folder read another settings file).
 if (options is not null && (options.SettingsFolder ?? options.DataFolder) is not null)
 {
     HeapScope.Core.LogPrivacy.Use(options.SettingsFolders);
@@ -62,7 +61,7 @@ if (options is not null && (options.SettingsFolder ?? options.DataFolder) is not
 
 // The worker logs single-line records to stderr only; the client forwards each line into its own log
 // (ARCHITECTURE.md 4.3 and 11). Scopes carry the client's trace id, which StreamJsonRpc sends with each request, so a
-// worker line can be joined to the UI or CLI action that caused it (sprint 2.3.7 review M1).
+// worker line can be joined to the UI or CLI action that caused it.
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(o =>
 {
@@ -85,7 +84,7 @@ using (var self = System.Diagnostics.Process.GetCurrentProcess())
 if (options is not null)
 {
     builder.Services.AddSingleton(options);
-    builder.Services.AddSingleton(new ResultSetStore());
+    builder.Services.AddSingleton(services => new ResultSetStore(logger: services.GetRequiredService<ILoggerFactory>().CreateLogger<ResultSetStore>()));
     builder.Services.AddSingleton(new HeapScope.Storage.IndexCacheLocator(options.Folders.Cache));
 
     // Index caches are signed with this user's key and a cache without its signature is never used (ADR-036): a cache
@@ -101,7 +100,7 @@ if (options is not null)
 using var host = builder.Build();
 var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("HeapScope.Worker");
 
-// A crash leaves one structured line before the process dies, with the memory it had reached (sprint 2.3.7 review M19):
+// A crash leaves one structured line before the process dies, with the memory it had reached:
 // the client sees only the exit code.
 AppDomain.CurrentDomain.UnhandledException += (_, e) =>
 {
@@ -119,9 +118,9 @@ if (!optionsValid || options is null)
     return UsageError;
 }
 
-// The GC's own view of its settings (sprint 2.3.6 review): whether dynamic adaptation (DATAS) is on next to the heap count
+// The GC's own view of its settings: whether dynamic adaptation (DATAS) is on next to the heap count
 // the client sets (ARCHITECTURE.md 9). The build, system, architecture and runtime: an architecture mismatch or a
-// self-contained worker's own DAC depend on them (sprint 2.3.7 review H4).
+// self-contained worker's own DAC depend on them.
 var gc = GC.GetConfigurationVariables();
 logger.LogInformation(
     "{Product} worker {Version} started: pid {Pid}, pipe {Pipe}, parent {ParentPid}, protocol {Protocol}; {Environment}; path {Path}; server GC {ServerGc}, GC heaps {GcHeaps}, GC dynamic adaptation {Datas}; DAC folder {DacFolder}; data folder {DataFolder} ({DataFolderSource}); settings {SettingsFile}, logs hold {LogPrivacy}; log level {LogLevel}; test hooks {TestHooks}{HiddenDacs}",
@@ -144,18 +143,18 @@ logger.LogInformation(
     options.LogLevel,
     options.EnableTestHooks,
     options.HideInstalledDacs ? "; installed runtimes' DACs hidden (test hook): every full dump opens as on a machine without its runtime" : string.Empty);
-// The privacy this worker applies, from now on whenever the user changes it (sprint 3.12 review M19).
+// The privacy this worker applies, from now on whenever the user changes it.
 HeapScope.Worker.PrivacyLog.Attach(HeapScope.Core.LogPrivacy.Current, logger);
 if (!enableTestHooks && args.Contains(WorkerOptions.HideInstalledDacsSwitch, StringComparer.Ordinal))
 {
     logger.LogWarning("{Switch} was ignored: it is honored only with {TestHooks}", WorkerOptions.HideInstalledDacsSwitch, WorkerOptions.EnableTestHooksSwitch);
 }
 
-// The versions of every rule and format a result depends on (sprint 2.3.7 review M5): a result disputed after an
+// The versions of every rule and format a result depends on: a result disputed after an
 // upgrade is traced to the rules that produced it.
 logger.LogInformation("Worker versions: {Versions}", WorkerVersions.Describe());
 
-// The index cache signer is loaded now, once the log exists, so its outcome and a failure are on record (3.7 review H4).
+// The index cache signer is loaded now, once the log exists, so its outcome and a failure are on record.
 host.Services.GetRequiredService<HeapScope.Storage.IndexCacheSigner>();
 
 if (!options.SecondHandleWalk)

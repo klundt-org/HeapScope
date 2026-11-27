@@ -29,10 +29,10 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Async methods that never complete (sprint 3.5): at least <see cref="MinPending"/> reachable state machines of one
+/// Async methods that never complete: at least <see cref="MinPending"/> reachable state machines of one
 /// application async method whose task has not ended. An await on a task nothing completes (a TaskCompletionSource never
 /// set, a channel never written) keeps the method's state machine, and everything its locals hold, alive. The
-/// framework's own methods (a server's connection loops, readers) wait by design and are left out (review of 3.5).
+/// framework's own methods (a server's connection loops, readers) wait by design and are left out.
 /// </summary>
 internal sealed class PendingAsyncMethodsDetector : IInspection
 {

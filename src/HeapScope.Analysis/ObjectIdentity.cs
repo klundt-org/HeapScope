@@ -27,12 +27,12 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis;
 
 /// <summary>
-/// Objects of two snapshots of one process matched by address (sprint 3.3, ADR-032): an object of the later snapshot
+/// Objects of two snapshots of one process matched by address (ADR-032): an object of the later snapshot
 /// survived when the earlier one has, at its address, an object of the same method table and type key (name and module
 /// file), the same size and the same heap area (small object heap, LOH, POH or frozen): an object never changes any of
-/// these (the 3.3 review). It must also be in no younger generation, which an object usually is not: the GC can demote
-/// objects around pinned ones, and with regions (.NET 7 and later) a region of few pinned survivors can go back to Gen0
-/// (M13 of the 3.11 review). A pinned object never moves, so the generation is not tested for an object a root pins in
+/// these. It must also be in no younger generation, which an object usually is not: the GC can demote
+/// objects around pinned ones, and with regions (.NET 7 and later) a region of few pinned survivors can go back to Gen0.
+/// A pinned object never moves, so the generation is not tested for an object a root pins in
 /// either snapshot; an unpinned object demoted beside one still counts as dead and new. A new object of the same type and
 /// size allocated where a dead one was, in the same or an older generation, still passes: the counts say "by address". A
 /// collection that moves objects makes a moved survivor dead in the earlier snapshot and new in the later. One merge over
@@ -70,12 +70,12 @@ public sealed class ObjectIdentity
     /// <summary>Frozen objects of the baseline found at their address in the current snapshot.</summary>
     public long FrozenSurvivors { get; }
 
-    /// <summary>Survivors in a younger generation than before, matched only because a root pins them (M13 of the 3.11 review).</summary>
+    /// <summary>Survivors in a younger generation than before, matched only because a root pins them.</summary>
     public long PinnedYoungerSurvivors { get; }
 
     /// <summary>
     /// Addresses whose objects match in all but the generation: younger now and pinned by no root, so counted as dead and new.
-    /// A new object at a reused address and an unpinned object the GC demoted look the same here (M14 of the 3.11 review).
+    /// A new object at a reused address and an unpinned object the GC demoted look the same here.
     /// </summary>
     public long YoungerUnpinned { get; }
 

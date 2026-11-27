@@ -38,7 +38,7 @@ using InspectionColumns = HeapScope.Analysis.Inspections.InspectionColumns;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Object sets (sprint 3.1, ADR-030): resolving a spec of any kind into its members, kept in the snapshot store's
+/// Object sets (ADR-030): resolving a spec of any kind into its members, kept in the snapshot store's
 /// <see cref="ObjectSetCache"/>. The resolver depends on the matcher, the inspection runner and the derived queries; none
 /// of them depends on it, so nested specs (compared, retention group, retained by) recurse here only.
 /// </summary>
@@ -50,12 +50,12 @@ internal sealed class ObjectSetResolver(
     InspectionRunner inspections,
     ILogger<ObjectSetResolver> logger)
 {
-    // One resolution per set at a time (the 3.1 review): views asking for the same set together share it.
+    // One resolution per set at a time: views asking for the same set together share it.
     private readonly ConcurrentDictionary<(Guid Snapshot, string Key), Lazy<Task<ObjectSet>>> _resolving = new();
 
     /// <summary>
     /// The members of <paramref name="spec"/> in a snapshot: from the cache, from a resolution already running, or resolved
-    /// now. Every query logs the set it used (the 3.1 review), so a disputed view traces to what the set held. The caller
+    /// now. Every query logs the set it used, so a disputed view traces to what the set held. The caller
     /// holds the snapshot's lease.
     /// </summary>
     public async Task<ObjectSet> ResolveAsync(Guid snapshotId, ISnapshot snapshot, ObjectSetSpec spec, IProgress<JobProgress>? progress, CancellationToken cancellationToken, int depth = 0)
@@ -213,7 +213,7 @@ internal sealed class ObjectSetResolver(
     }
 
     /// <summary>
-    /// The objects of the type keys, matched in one pass over the type table (the 3.1 review), with how many type entries
+    /// The objects of the type keys, matched in one pass over the type table, with how many type entries
     /// each key matched for the log (the keys that matched nothing named, up to 20).
     /// </summary>
     private (ObjectSet Set, string Detail) OfTypeKeys(Guid snapshotId, HeapGraph graph, IReadOnlyList<TypeKeyDto> keys, CancellationToken cancellationToken)
@@ -256,14 +256,14 @@ internal sealed class ObjectSetResolver(
     }
 
     /// <summary>
-    /// The unreachable set's log detail (sprint 3.5 review): what is alive and its bytes, and how much only the finalizer
+    /// The unreachable set's log detail: what is alive and its bytes, and how much only the finalizer
     /// queue holds (alive for the retention views, dead for the leak detectors), so a contested size is backed up.
     /// </summary>
     private static string UnreachableDetail(HeapGraph graph, Reachability alive, Reachability rooted, bool complete, CancellationToken cancellationToken)
     {
         long aliveBytes = 0, queuedObjects = 0, queuedBytes = 0, deadBytes = 0;
 
-        // By heap kind (peer review 4.5 M9): much unreachable gen2 just after a full collection is a warning sign, not garbage.
+        // By heap kind: much unreachable gen2 just after a full collection is a warning sign, not garbage.
         var deadByKind = new (long Objects, long Bytes)[Enum.GetValues<HeapKind>().Max(static k => (int)k) + 1];
         for (var i = 0; i < graph.ObjectCount; i++)
         {
@@ -294,7 +294,7 @@ internal sealed class ObjectSetResolver(
             $"{alive.Count} objects of {aliveBytes} bytes reachable from the path roots, of {graph.ObjectCount}; {queuedObjects} of them ({queuedBytes} bytes) held only through the finalizer queue (waiting for finalization, not in the set); {deadBytes} bytes unreachable ({string.Join(", ", deadByKind.Select(static (k, i) => (Kind: (HeapKind)i, k.Objects, k.Bytes)).Where(static k => k.Objects > 0).Select(static k => $"{k.Kind} {k.Objects} objects, {k.Bytes} bytes"))}); graph complete {complete}");
     }
 
-    /// <summary>Builds a set inside a reservation of what one set can take (a bit and an index per object; the 3.1 review).</summary>
+    /// <summary>Builds a set inside a reservation of what one set can take (a bit and an index per object).</summary>
     private ObjectSet Reserved(Guid snapshotId, HeapGraph graph, Func<ObjectSet> build)
     {
         using var reservation = snapshots.Reserve(snapshotId, ObjectSet.WorkingBytes(graph), "Resolving an object set") ?? throw SnapshotAccess.NotLoaded(snapshotId);
@@ -310,7 +310,7 @@ internal sealed class ObjectSetResolver(
 
     /// <summary>
     /// The members of a <see cref="ObjectSetKind.Compared"/> set: the inner set in the snapshot queried, matched against the
-    /// other snapshot (decision 2). New and survived sets are queried in the later snapshot, dead ones in the earlier.
+    /// other snapshot. New and survived sets are queried in the later snapshot, dead ones in the earlier.
     /// </summary>
     private async Task<(ObjectSet Set, string Detail)> ResolveComparedAsync(Guid snapshotId, ISnapshot snapshot, ObjectSetSpec spec, IProgress<JobProgress>? progress, CancellationToken cancellationToken, int depth)
     {
@@ -462,7 +462,7 @@ internal sealed class ObjectSetResolver(
         }
         catch (CapabilityNotSupportedException ex) when (ex.Missing != SnapshotCapabilities.None)
         {
-            // A row of equal strings needs string text: the snapshot's own reason, as every other refusal (3.12 re-review).
+            // A row of equal strings needs string text: the snapshot's own reason, as every other refusal.
             throw new CapabilityNotSupportedException(ex.Missing, FeatureRules.ExplainMissing(ex.Missing, snapshot));
         }
 

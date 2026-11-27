@@ -31,7 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>monitor</c> command (sprint 1.7, ADR-021): a process's runtime counters every interval, and snapshots taken by
+/// The <c>monitor</c> command (ADR-021): a process's runtime counters every interval, and snapshots taken by
 /// rules into the current session. Ctrl+C stops (a capture already running finishes first).
 /// </summary>
 internal static partial class CliCommands

@@ -25,7 +25,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A lesson in the Learn page's list, with whether the user finished it (sprint 3.13).</summary>
+/// <summary>A lesson in the Learn page's list, with whether the user finished it.</summary>
 public sealed partial class LessonItem(Lesson lesson, bool isDone) : ObservableObject
 {
     [ObservableProperty]

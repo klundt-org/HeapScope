@@ -37,7 +37,7 @@ public interface IDiskSpace
 
 /// <summary>
 /// Reads free space with <c>GetDiskFreeSpaceEx</c> on the folder itself, so UNC paths and volumes mounted into folders
-/// report the right volume (sprint 1.1 review). Elsewhere (sprint 4.1) through <see cref="DriveInfo"/> on the folder, which
+/// report the right volume. Elsewhere through <see cref="DriveInfo"/> on the folder, which
 /// asks the file system holding it (statfs), so a folder on another mount reports that mount.
 /// </summary>
 public sealed partial class VolumeDiskSpace : IDiskSpace
@@ -105,7 +105,7 @@ public interface IDumpWriter
 {
     /// <summary>
     /// Asks the runtime to write a full dump and waits until it has. It is never abandoned halfway: the runtime's
-    /// createdump keeps writing whatever the caller does (sprint 1.1 review).
+    /// createdump keeps writing whatever the caller does.
     /// </summary>
     Task WriteAsync(int processId, string path);
 }
@@ -123,7 +123,7 @@ public sealed class DiagnosticsDumpWriter : IDumpWriter
 public sealed record CaptureProgress(string Phase, long? EstimatedBytes = null, string? Message = null);
 
 /// <summary>
-/// Captures a full dump of a .NET process (sprint 1.1): checks elevation (ADR-014) and free disk space before asking
+/// Captures a full dump of a .NET process: checks elevation (ADR-014) and free disk space before asking
 /// the runtime to write the dump, writes to a temporary name and renames it only on success, and removes the file
 /// when the capture fails or is canceled. A canceled capture waits for the runtime to finish writing (the target's
 /// createdump cannot be stopped safely) and then deletes the file, so no dump is left behind.
@@ -139,7 +139,7 @@ public sealed class DumpCapturer(
     public const long ReserveBytes = 1L * 1024 * 1024 * 1024;
 
     /// <summary>
-    /// The index caches a dump's analysis writes beside it, per byte of the dump (peer review 4.5 M11, sprint 4.7): the graph, the
+    /// The index caches a dump's analysis writes beside it, per byte of the dump: the graph, the
     /// incoming references and the dominators measured 0.75 to 0.85 of the dump (LeakyApi Medium, DenseHeap); this leaves a margin.
     /// </summary>
     public const double CacheBytesPerDumpByte = 0.9;
@@ -162,7 +162,7 @@ public sealed class DumpCapturer(
     public long Estimate(DotNetProcess process) => _estimate(process).Bytes;
 
     /// <summary>
-    /// Why a full dump of <paramref name="process"/> cannot go into HeapScope's own folders (review H1 of sprint 4.1): on
+    /// Why a full dump of <paramref name="process"/> cannot go into HeapScope's own folders: on
     /// Linux and macOS, while HeapScope runs as root, the runtime writes another user's dump as that user, who cannot write to
     /// root's folders. Null when it can. A folder the user names (--out) is not judged: the write's own failure says.
     /// </summary>
@@ -190,7 +190,7 @@ public sealed class DumpCapturer(
         var free = _disk.AvailableBytes(directory);
         estimated?.Invoke(estimate, free);
 
-        // Not needed + reserve, which a huge estimate would wrap (4.2 review).
+        // Not needed + reserve, which a huge estimate would wrap.
         var reserve = ReserveFor(needed);
         if (free is { } available && available - reserve < needed)
         {
@@ -205,7 +205,7 @@ public sealed class DumpCapturer(
     /// <see cref="ElevationRequiredException"/>, <see cref="InsufficientDiskSpaceException"/>,
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
     /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the dump was last
-    /// written to, which is while the target is paused (sprint 4.4).
+    /// written to, which is while the target is paused.
     /// </summary>
     public async Task<HeapTime> CaptureAsync(
         DotNetProcess process,
@@ -228,7 +228,7 @@ public sealed class DumpCapturer(
             $"{process.Name} is paused while about {estimate / (1024.0 * 1024):N0} MB are written"));
 
         // Cancellation cannot stop the runtime's createdump; it is honored once the runtime has finished, by deleting
-        // the file (sprint 1.1 review H1).
+        // the file.
         using var canceling = cancellationToken.Register(() => progress?.Report(new CaptureProgress(
             "Canceling",
             estimate,
@@ -282,7 +282,7 @@ public sealed class DumpCapturer(
 
         if (ex is ServerNotAvailableException)
         {
-            // It was found by its socket a moment ago, so a not-found reason would contradict that: only its evidence is kept (4.2 review).
+            // It was found by its socket a moment ago, so a not-found reason would contradict that: only its evidence is kept.
             return new TargetUnavailableException($"{process.Name} (pid {process.ProcessId}) did not answer on its diagnostics port; it may have exited.", ex)
             {
                 Evidence = CapturePlatform.Rules().WhyNotFound(process.ProcessId).Evidence,

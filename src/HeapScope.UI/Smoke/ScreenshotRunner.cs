@@ -71,7 +71,7 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
         _logger.LogInformation("Screenshot written: {Path}", path);
     }
 
-    // Sprint 4.1 task 1: the popups DEVELOPER.md 5 checked by hand. A headless window draws its popups into its own frame, so
+    // The popups DEVELOPER.md 5 checked by hand. A headless window draws its popups into its own frame, so
     // the picture shows the popup over the page; a popup that does not open fails the run.
 
     /// <summary>Opens the text of the first info icon shown that <paramref name="which"/> picks, captures it, and closes it.</summary>
@@ -190,7 +190,7 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             processes.Processes.Add(new ProcessRow(20112, "OrdersWorker", ".NET 8.0.21", "No", 1_260_000_000, "dotnet OrdersWorker.dll", false));
             processes.Processes.Add(new ProcessRow(9320, "ReportingService", ".NET 9.0.10", "Yes", 788_000_000, "ReportingService.exe", true));
             await CaptureAsync("02-processes");
-            // Sprint 4.1 task 1: an info icon's open text, by the title and beside a turned-off button (Capture dump, with no
+            // An info icon's open text, by the title and beside a turned-off button (Capture dump, with no
             // process selected).
             await CaptureInfoAsync("02-processes-info", static icon => icon.Text == InfoTexts.Processes);
             await CaptureInfoAsync("02-processes-info-beside-off", static icon =>
@@ -253,7 +253,7 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             await snapshots.Retainers.IcicleTask;
             await TouchAsync(snapshots.Retainers.Rows);
             await CaptureAsync("10-retainers");
-            // Sprint 4.1 task 1: the chart's hover text on a bar, and on a "+N smaller" bar when the chart has one.
+            // The chart's hover text on a bar, and on a "+N smaller" bar when the chart has one.
             await CaptureChartTipAsync("10-retainers-bar", static bar => bar.Count == 1 && bar.Y > 0);
             await CaptureChartTipAsync("10-retainers-smaller", static bar => bar.Count > 1);
 
@@ -286,7 +286,7 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             live.SelectedProcess = live.Processes.FirstOrDefault(p => p.ProcessId == pid)
                 ?? throw new InvalidOperationException($"The process {pid} is not among the .NET processes the Live page lists.");
             live.WriteTimeline = false;
-            // Under a data folder that was moved, the run records its allocations, and a picture shows them (sprint 4.3).
+            // Under a data folder that was moved, the run records its allocations, and a picture shows them.
             var records = HeapScope.Application.Sessions.MovedDataFolder.IsMoved;
             live.RecordRuns = records;
             live.RecordAllocations = records;
@@ -312,7 +312,7 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
         Show(shell.NavigationItems.Single(i => i.Title == "About").Page);
         await CaptureAsync("15-about");
 
-        // Sprint 4.1 task 1: Settings, and Purge all's question. Never through its command: a smoke run answers every question
+        // Settings, and Purge all's question. Never through its command: a smoke run answers every question
         // yes (AutomaticUserInteraction), so the command would delete. The question is shown in the real question window and
         // answered Cancel here.
         if (shell.NavigationItems.SingleOrDefault(i => i.Title == "Settings")?.Page is SettingsViewModel settings)
@@ -330,8 +330,8 @@ internal sealed class ScreenshotRunner(IServiceProvider services, Window window,
             }
         }
 
-        // Sprint 3.13: the first lesson started on the real sample. The page it opens, with the lesson's steps in the panel beside
-        // it, then the Learn page with its question (review M15: a lesson that does not start fails the run).
+        // The first lesson started on the real sample. The page it opens, with the lesson's steps in the panel beside
+        // it, then the Learn page with its question (a lesson that does not start fails the run).
         if (services.GetService<LearnViewModel>() is { } learn)
         {
             Show(learn);

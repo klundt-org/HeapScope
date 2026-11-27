@@ -24,7 +24,7 @@
 namespace HeapScope.Sample;
 
 /// <summary>
-/// The large objects scenario (sprint 3.13 review H1): three arrays of readings, each 160 KB and so on the large object heap,
+/// The large objects scenario: three arrays of readings, each 160 KB and so on the large object heap,
 /// beside 500 small arrays of tags that are not; a static list holds them all. The Large arrays and Large object heap
 /// inspections list the readings' arrays, not the tags'.
 /// </summary>

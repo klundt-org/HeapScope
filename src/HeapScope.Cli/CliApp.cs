@@ -73,7 +73,7 @@ internal static class CliApp
         }
 
         // The worker attach pipe must be known before the host is built. Building and starting it reads appsettings.json: a mistake there
-        // is said with the file and the line, and logged, not a stack trace for every command (peer review 4.5 H16).
+        // is said with the file and the line, and logged, not a stack trace for every command.
         try
         {
             host = hostFactory(
@@ -82,7 +82,7 @@ internal static class CliApp
                 parseResult.GetValue(CliCommands.AllowSymbolServerOption));
 
             // The CLI never asks: graph-only commands open a cached dump whatever its DAC, and reads that need an untrusted
-            // DAC refuse with the --trust-dac option to add (sprint 3.6 re-review).
+            // DAC refuse with the --trust-dac option to add.
             host.Services.GetRequiredService<SnapshotSession>().CheckDacOnCacheOpen = false;
             var trustedDacs = host.Services.GetRequiredService<TrustedDacs>();
             foreach (var sha256 in parseResult.GetValue(CliCommands.TrustDacOption) ?? [])
@@ -167,7 +167,7 @@ internal static class CliApp
     /// <summary>
     /// A failure in the file log: through the host's logger once it started, else (a failed start) a writer of its own in the folder of
     /// <c>Logging__File__Directory</c>, else the default, which it returns. The arguments are described as every command's are, a filter's
-    /// text only when the setting allows it (review of 4.6: never the raw command line).
+    /// text only when the setting allows it (never the raw command line).
     /// </summary>
     internal static string? LogFatal(string what, Exception exception, bool critical = true)
     {

@@ -96,7 +96,7 @@ internal sealed partial class SnapshotStore
         var graph = entry.Snapshot.Graph;
         var stopwatch = Stopwatch.StartNew();
 
-        // Reserved like every other walk (3.8 review): its stack is bounded by the object count, not by anything smaller.
+        // Reserved like every other walk: its stack is bounded by the object count, not by anything smaller.
         Reachability reachable;
         using (_reservations.Reserve((long)(Reachability.WalkBytesPerObject * graph.ObjectCount), what, entry.Index.Mode, entry.Index.Identity != 0))
         {

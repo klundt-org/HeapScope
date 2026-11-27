@@ -33,24 +33,24 @@ public enum GroupKey
     Namespace = 1,
     Assembly = 2,
 
-    /// <summary>Per interface a type implements (sprint 3.2): a type counts under each, so groups overlap.</summary>
+    /// <summary>Per interface a type implements: a type counts under each, so groups overlap.</summary>
     Interface = 3,
 }
 
 /// <summary>
 /// One summary row: a type, namespace or assembly with its totals. Type rows also carry their raw type name and module
-/// file name (empty when none), the key that opens the row's instances (sprint 1.5).
+/// file name (empty when none), the key that opens the row's instances.
 /// </summary>
-/// <param name="Retained">The row's retained bytes (sprint 2.3, a lower bound: <see cref="Retention.GroupRetention"/>), when asked for.</param>
+/// <param name="Retained">The row's retained bytes (a lower bound: <see cref="Retention.GroupRetention"/>), when asked for.</param>
 public sealed record SummaryRow(string Name, long Count, ulong Bytes, ulong[] BytesByKind, string? TypeName = null, string? Module = null, ulong? Retained = null);
 
-/// <summary>Builds summary rows from a <see cref="TypeAggregation"/> (sprint 1.3).</summary>
+/// <summary>Builds summary rows from a <see cref="TypeAggregation"/>.</summary>
 public static class TypeGroups
 {
-    /// <summary>The row of the types that implement no interface (sprint 3.2; Contracts' <c>TypeSummaryColumns.NoInterface</c>).</summary>
+    /// <summary>The row of the types that implement no interface (Contracts' <c>TypeSummaryColumns.NoInterface</c>).</summary>
     public const string NoInterface = "(no interface)";
 
-    /// <summary>The row of the types whose interfaces could not be read (the 3.2 review; Contracts' <c>TypeSummaryColumns.UnreadInterfaces</c>).</summary>
+    /// <summary>The row of the types whose interfaces could not be read (Contracts' <c>TypeSummaryColumns.UnreadInterfaces</c>).</summary>
     public const string Unread = "(interfaces not read)";
 
     /// <summary>
@@ -106,7 +106,7 @@ public static class TypeGroups
     }
 
     /// <summary>
-    /// The group of every type table entry in a grouping (sprint 2.3), numbered from 0, with the groups' names: for
+    /// The group of every type table entry in a grouping, numbered from 0, with the groups' names: for
     /// <see cref="GroupKey.Type"/> each type is its own group (its type index); for namespaces and assemblies the names are
     /// the rows' names.
     /// </summary>
@@ -153,7 +153,7 @@ public static class TypeGroups
         return groups;
     }
 
-    // Assemblies are keyed as the "open instances" link matches them: the file name, in any case (2.3.5 review L2).
+    // Assemblies are keyed as the "open instances" link matches them: the file name, in any case.
     private static StringComparer Comparer(GroupKey groupBy) =>
         groupBy == GroupKey.Assembly ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
@@ -256,7 +256,7 @@ public static class TypeGroups
         return [.. rows.Select(r => new SummaryRow(r.Key, r.Value.Count, r.Value.Bytes, r.Value.Kinds))];
     }
 
-    /// <summary>The types that count under the interface row <paramref name="name"/> (sprint 3.2, an interface opened as a set).</summary>
+    /// <summary>The types that count under the interface row <paramref name="name"/> (an interface opened as a set).</summary>
     public static bool[] MatchInterface(HeapGraph graph, TypeInterfaces interfaces, string name, out int matched)
     {
         ArgumentNullException.ThrowIfNull(graph);
@@ -298,7 +298,7 @@ public static class TypeGroups
     /// <summary>
     /// The types named <paramref name="typeName"/> in the module whose file name is <paramref name="module"/> (null or
     /// empty for types without one): a type of the summary and diff rows (ADR-018) can be several method tables. A module
-    /// given as a path matches by its file name, as type sets match (peer review S5). Sets <paramref name="matched"/> to
+    /// given as a path matches by its file name, as type sets match. Sets <paramref name="matched"/> to
     /// how many types match.
     /// </summary>
     public static bool[] MatchTypes(HeapGraph graph, string typeName, string? module, out int matched)
@@ -320,7 +320,7 @@ public static class TypeGroups
     }
 
     /// <summary>
-    /// The types of the namespace or assembly row named <paramref name="name"/> (sprint 3.1, a group opened as a set), matched
+    /// The types of the namespace or assembly row named <paramref name="name"/> (a group opened as a set), matched
     /// as the rows name them. Sets <paramref name="matched"/> to how many types match.
     /// </summary>
     public static bool[] MatchGroup(HeapGraph graph, GroupKey groupBy, string name, out int matched)

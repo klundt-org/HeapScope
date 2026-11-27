@@ -24,7 +24,7 @@
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>Column headers for grids built from a result set's column list (sprint 1.6).</summary>
+/// <summary>Column headers for grids built from a result set's column list.</summary>
 public static class ColumnHeaders
 {
     /// <summary>

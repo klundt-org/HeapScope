@@ -23,7 +23,7 @@
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The commands with a keyboard shortcut (sprint 2.7).</summary>
+/// <summary>The commands with a keyboard shortcut.</summary>
 public enum ShortcutKeys
 {
     Back,
@@ -36,7 +36,7 @@ public enum ShortcutKeys
     Refresh,
     Help,
 
-    /// <summary>Opens the selected rows as one object set (sprint 3.1).</summary>
+    /// <summary>Opens the selected rows as one object set.</summary>
     OpenAsSet,
 }
 
@@ -44,8 +44,8 @@ public enum ShortcutKeys
 public sealed record Shortcut(string Gesture, string Description);
 
 /// <summary>
-/// HeapScope's keyboard shortcuts in one table (sprint 2.7): the window matches keys against these gestures and the
-/// shortcuts list (F1, the About page) shows them, so the two never differ. The command key is Ctrl on Windows and Linux
+/// HeapScope's keyboard shortcuts in one table: the window matches keys against these gestures and the
+/// shortcuts list (the About page) shows them, so the two never differ. The command key is Ctrl on Windows and Linux
 /// and Cmd on macOS; gestures use Avalonia's syntax.
 /// </summary>
 public static class Shortcuts

@@ -34,72 +34,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>One inspection on the overview: its finding, cause, fix and first rows, or why it cannot run.</summary>
-public sealed partial class InspectionTileViewModel(InspectionInfo info) : ObservableObject
-{
-    public InspectionInfo Info { get; } = info ?? throw new ArgumentNullException(nameof(info));
-
-    public string Title => Info.Title;
-
-    public string Cause => Info.Cause;
-
-    public string Fix => Info.Fix;
-
-    public bool IsAvailable => Info.Unavailable is null;
-
-    /// <summary>A leak detector (sprint 2.6), shown in its own group above the waste inspections.</summary>
-    public bool IsDetector => Info.Kind == InspectionKinds.Leak;
-
-    /// <summary>The group's heading on the first tile of each group ("Leak detectors", "Memory waste"); null on the others.</summary>
-    public string? GroupHeader { get; internal set; }
-
-    public bool HasGroupHeader => GroupHeader is not null;
-
-    /// <summary>"Waiting", "Running...", an error, or null when the finding is shown.</summary>
-    [ObservableProperty]
-    private string? _status;
-
-    [ObservableProperty]
-    private string? _summary;
-
-    [ObservableProperty]
-    private string? _note;
-
-    /// <summary>The first rows, one line each, for the tile.</summary>
-    [ObservableProperty]
-    private IReadOnlyList<string> _firstRows = [];
-
-    /// <summary>Whether the inspection found anything (tiles with findings stand out).</summary>
-    [ObservableProperty]
-    private bool _hasFindings;
-
-    public InspectionRun? Run { get; internal set; }
-
-    /// <summary>The baseline <see cref="Run"/> used (sprint 2.6 review H6): a tile run with another one is run again.</summary>
-    internal SnapshotHandle? RanWith { get; set; }
-}
-
-/// <summary>A heap kind in the fragmentation bars: live and free bytes, and what is pinned there.</summary>
-public sealed record FragmentItem(string Heap, long Live, long? Free, long PinnedObjects, long PinnedBytes)
-{
-    /// <summary>The free share of the heap (0 when unknown), for the bar's width.</summary>
-    public double FreeFraction => Free is { } free && free + Live > 0 ? (double)free / (free + Live) : 0;
-
-    public string Text => string.Create(CultureInfo.CurrentCulture,
-        $"{Heap}: {Format.Bytes(Live)} live, {(Free is { } free ? Format.Bytes(free) + $" free ({FreeFraction:P0})" : "free unknown")}{(PinnedObjects > 0 ? $", {PinnedObjects:N0} pinned ({Format.Bytes(PinnedBytes)})" : string.Empty)}");
-}
-
-/// <summary>A choice of baseline for the detectors that measure growth (sprint 2.6): another open snapshot, or none.</summary>
-public sealed record BaselineChoice(string Text, SnapshotHandle? Snapshot)
-{
-    public override string ToString() => Text;
-}
-
-/// <summary>What an inspection row opens: the objects of a type in a scope, or one object.</summary>
-public sealed record InspectionTarget(string? TypeName, string? Module, InstanceScope Scope, ulong Address);
-
 /// <summary>
-/// The Inspections tab (sprint 1.6, dotMemory's inspections overview): a tile per inspection with its finding, cause and
+/// The Inspections tab (dotMemory's inspections overview): a tile per inspection with its finding, cause and
 /// fix, fragmentation bars, and the selected inspection's rows. The inspections of a snapshot run once, one at a time,
 /// the first time the tab is shown for it; double-clicking a row opens its objects on the Snapshot tab.
 /// </summary>
@@ -114,7 +50,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
     private Task _runAll = Task.CompletedTask;
     private bool _started;
 
-    /// <summary>Whether the run or one of its inspections failed, so Try again is offered (peer review 4.5 M7).</summary>
+    /// <summary>Whether the run or one of its inspections failed, so Try again is offered.</summary>
     [ObservableProperty]
     private bool _canTryAgain;
 
@@ -134,13 +70,13 @@ public sealed partial class InspectionsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    /// <summary>The baseline the growth detectors compare with (sprint 2.6); "None" by default unless an earlier snapshot of the same process is open.</summary>
+    /// <summary>The baseline the growth detectors compare with; "None" by default unless an earlier snapshot of the same process is open.</summary>
     [ObservableProperty]
     private BaselineChoice? _baseline;
 
     private bool _choosingBaseline;
 
-    // The person chose the baseline (None included), so a refresh keeps it while it stays open (2.6 review M12).
+    // The person chose the baseline (None included), so a refresh keeps it while it stays open.
     private bool _baselineChosen;
 
     public InspectionsViewModel(SnapshotSession session, ILogger? logger = null, INavigator? navigator = null)
@@ -168,14 +104,15 @@ public sealed partial class InspectionsViewModel : ObservableObject
     /// <summary>The run in progress (tests and smoke runs await it).</summary>
     public Task RunTask { get; private set; } = Task.CompletedTask;
 
-    // Where a row leads: the Snapshots page, which picks the tab (2.3.7 review M8).
+    // Where a row leads: the Snapshots page, which picks the tab.
     private readonly INavigator? _navigator;
 
     /// <summary>Shows <paramref name="snapshot"/>'s inspections (null clears); they run when the tab is active.</summary>
     public void Show(SnapshotHandle? snapshot) => Show(snapshot, keepBaseline: false);
 
     /// <param name="keepBaseline">Whether a chosen baseline that is still open stays chosen (Try again).</param>
-    private void Show(SnapshotHandle? snapshot, bool keepBaseline)
+    /// <param name="keepAnyBaseline">Whether the baseline in place stays, chosen or the default (a suspended run).</param>
+    private void Show(SnapshotHandle? snapshot, bool keepBaseline, bool keepAnyBaseline = false)
     {
         var (kept, wasChosen) = (Baseline?.Snapshot, _baselineChosen);
         _running?.Cancel();
@@ -199,13 +136,13 @@ public sealed partial class InspectionsViewModel : ObservableObject
         _started = false;
         _baselineChosen = false;
         ChooseBaselines(snapshot);
-        if (keepBaseline && wasChosen && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
+        if (keepBaseline && (wasChosen || keepAnyBaseline) && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
         {
-            // Before the run starts, so its growth tiles run with it (the second review).
+            // Before the run starts, so its growth tiles run with it.
             _choosingBaseline = true;
             Baseline = same;
             _choosingBaseline = false;
-            _baselineChosen = true;
+            _baselineChosen = wasChosen;
         }
 
         if (IsActive)
@@ -214,13 +151,42 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Stops what has not finished, for a workspace that is no longer shown, so the worker's time goes to the snapshot
+    /// shown. A first run that has not finished runs again when shown, with the baseline it had; a rerun of the growth
+    /// tiles stops alone, and the tiles it had not done run when shown. Finished results are kept as they are.
+    /// </summary>
+    public void Suspend()
+    {
+        if (!_started || RunTask.IsCompleted)
+        {
+            return;
+        }
+
+        if (_runAll.IsCompleted)
+        {
+            _rerun?.Cancel();
+            _logger.LogInformation("Inspections: the growth tiles' rerun of {Snapshot} stopped, its workspace no longer shown; {Stale} run when shown", Snapshot?.Path, StaleTiles().Count);
+            return;
+        }
+
+        var done = Tiles.Count(t => t.Run is not null);
+        _logger.LogInformation(
+            "Inspections: the run of {Snapshot} stopped after {Done} of {Total} inspections (their results dropped), its workspace no longer shown; it runs again when shown, baseline {Baseline} kept",
+            Snapshot?.Path,
+            done,
+            Tiles.Count,
+            Baseline?.Snapshot?.Path ?? "none");
+        Show(Snapshot, keepBaseline: true, keepAnyBaseline: true);
+    }
+
     /// <summary>Runs every inspection of the snapshot again, after a failure.</summary>
     [RelayCommand]
     private void TryAgain()
     {
         _logger.LogInformation("Inspections: tried again for {Snapshot}, baseline {Baseline}", Snapshot?.Path, Baseline?.Snapshot?.Path ?? "none");
 
-        // The baseline chosen stays chosen (review of 4.6).
+        // The baseline chosen stays chosen.
         Show(Snapshot, keepBaseline: true);
     }
 
@@ -229,6 +195,25 @@ public sealed partial class InspectionsViewModel : ObservableObject
         if (value && !_started)
         {
             Start();
+        }
+        else if (value && _runAll.IsCompleted && RunTask.IsCompleted && StaleTiles().Count > 0)
+        {
+            Rerun(Baseline, "left for when shown");
+        }
+        else if (value && _runAll.IsCompleted && !RunTask.IsCompleted)
+        {
+            // A rerun stopped when hidden may still be ending (the worker answers the cancel): the stale tiles run after it.
+            // Not awaited: RerunAsync catches everything, so the task never faults.
+            _ = RerunWhenEndedAsync(RunTask);
+        }
+    }
+
+    private async Task RerunWhenEndedAsync(Task stopping)
+    {
+        await stopping;
+        if (IsActive && _runAll.IsCompleted && RunTask.IsCompleted && StaleTiles().Count > 0)
+        {
+            Rerun(Baseline, "left for when shown, after the stopped rerun ended");
         }
     }
 
@@ -256,9 +241,9 @@ public sealed partial class InspectionsViewModel : ObservableObject
             return;
         }
 
-        // A leak detector's row of a type opens the objects behind it, as a set (sprint 3.1, 2.6 review M24), and so does one
-        // with no type or address (a timer's static method, the finalizer backlog's other types: 3.10 review M26). A row that
-        // names one object (a growing collection) still opens that object (the 3.1 review).
+        // A leak detector's row of a type opens the objects behind it, as a set, and so does one
+        // with no type or address (a timer's static method, the finalizer backlog's other types). A row that
+        // names one object (a growing collection) still opens that object.
         if (Selected is { IsDetector: true } && TargetOf(row) is null or { TypeName: not null } && SetOf(row) is { } set)
         {
             _navigator?.Navigate(NavigationTarget.ObjectSet(snapshot, set.Query, set.Title));
@@ -276,7 +261,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
             : NavigationTarget.Object(snapshot, target.Address));
     }
 
-    /// <summary>Opens a row's objects as a set with all its views (sprint 3.1): what it counted, or what it opens.</summary>
+    /// <summary>Opens a row's objects as a set with all its views: what it counted, or what it opens.</summary>
     [RelayCommand]
     private void OpenAsSet(CellRowItem? row)
     {
@@ -287,7 +272,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A row of the selected inspection as a set (sprint 3.1): its inspection, its number and the baseline it ran with,
+    /// A row of the selected inspection as a set: its inspection, its number and the baseline it ran with,
     /// titled by the inspection and the row's key.
     /// </summary>
     public (ObjectSetQuery Query, string Title)? SetOf(CellRowItem row)
@@ -303,7 +288,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         return (new ObjectSetQuery(spec, tile.RanWith), $"{tile.Title}: {key}");
     }
 
-    /// <summary>A row's object (when it names one), or its type's group, in the dominator tree (sprint 2.4).</summary>
+    /// <summary>A row's object (when it names one), or its type's group, in the dominator tree.</summary>
     [RelayCommand]
     private void ShowInRetainers(CellRowItem? row)
     {
@@ -316,9 +301,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// What a row's objects retain together (sprint 2.4): a whole type's row as that type; any other row (some of a type's
-    /// objects, such as the empty collections, or a detector's counted objects) through its own set (sprint 3.1, the 2.4
-    /// review M14), so it never gets the whole type's answer.
+    /// What a row's objects retain together: a whole type's row as that type; any other row (some of a type's
+    /// objects, such as the empty collections, or a detector's counted objects) through its own set, so it never gets the whole type's answer.
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasObjects))]
     private void RetainedBySet(CellRowItem? row)
@@ -338,7 +322,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
     }
 
-    // A detector's row with no type or address still has members, as opening it does (3.10 review M26, M32).
+    // A detector's row with no type or address still has members, as opening it does.
     private bool HasObjects(CellRowItem? row) => row is { IsLoaded: true } && (TargetOf(row) is not null || Selected is { IsDetector: true });
 
     /// <summary>What a row opens: its hidden type, module and scope, or its address alone (ADR-020).</summary>
@@ -377,7 +361,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
                 return;
             }
 
-            // Detectors first, each group under its heading (sprint 2.6).
+            // Detectors first, each group under its heading.
             string? group = null;
             foreach (var info in inspections.OrderBy(i => i.Kind == InspectionKinds.Leak ? 0 : 1))
             {
@@ -407,7 +391,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
 
             Selected ??= Tiles.FirstOrDefault(t => t.Run is not null);
 
-            // A baseline chosen while the tiles ran (review H6): the growth tiles run with an older one run again, until
+            // A baseline chosen while the tiles ran: the growth tiles run with an older one run again, until
             // no other was chosen meanwhile.
             BaselineChoice? chosen;
             do
@@ -423,14 +407,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
-            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            // What the user was shown, beside the worker's line with its id.
             _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
             CanTryAgain = true;
         }
         catch (Exception ex)
         {
-            // The run is not awaited by anyone: its failure must be logged and shown, never lost (review of 1.6).
+            // The run is not awaited by anyone: its failure must be logged and shown, never lost.
             _logger.LogError(ex, "Running the inspections failed");
             Status = "The inspections could not be run. Details are in the log; press Try again.";
             CanTryAgain = true;
@@ -492,7 +476,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
-            // Not left "Running..." (review H6): a rerun or another snapshot replaces it.
+            // Not left "Running...": a rerun or another snapshot replaces it.
             tile.Status = tile.Run is null ? "Waiting" : null;
             throw;
         }
@@ -501,168 +485,15 @@ public sealed partial class InspectionsViewModel : ObservableObject
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
 
-            // A refusal is the same answer again (review of 4.6): only a failure is offered another try.
+            // A refusal is the same answer again: only a failure is offered another try.
             CanTryAgain |= ex is WorkerCrashedException || (ex is WorkerOperationException { ErrorCode: var code } && code is not (HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.CapabilityNotSupported));
         }
         catch (InvalidOperationException ex)
         {
-            // A result this build cannot show (a column missing) fails its own tile only (sprint 3.12, B6): it used to end
-            // the whole run, and every inspection after it reported as failed.
+            // A result this build cannot show (a column missing) fails its own tile only, not
+            // the whole run: the inspections after it still run.
             _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
             tile.Status = "This result could not be shown: " + ex.Message;
-            CanTryAgain = true;
-        }
-    }
-
-    /// <summary>
-    /// The baseline choices for <paramref name="snapshot"/>: none, and the other open snapshots, latest first. The latest
-    /// one of the same process captured earlier is chosen (a growth detector needs the earlier dump; ADR-018). With
-    /// <paramref name="keep"/>, a chosen baseline that is still open stays chosen (snapshots opened or closed, 2.7).
-    /// </summary>
-    private void ChooseBaselines(SnapshotHandle? snapshot, bool keep = false)
-    {
-        var keepChoice = keep && _baselineChosen;
-        var kept = Baseline?.Snapshot;
-        _choosingBaseline = true;
-        try
-        {
-            BaselineChoices.Clear();
-            BaselineChoices.Add(new BaselineChoice("None", null));
-            if (snapshot is null)
-            {
-                Baseline = BaselineChoices[0];
-                return;
-            }
-
-            var others = _session.Snapshots.Where(s => s != snapshot && !s.IsClosed)
-                .OrderByDescending(s => s.Descriptor.CapturedAtUtc ?? DateTimeOffset.MinValue)
-                .ToList();
-            foreach (var other in others)
-            {
-                BaselineChoices.Add(new BaselineChoice(
-                    string.Create(CultureInfo.CurrentCulture, $"{Path.GetFileName(other.Path)}{(other.Descriptor.CapturedAtUtc is { } at ? $" ({at.ToLocalTime():g})" : string.Empty)}"),
-                    other));
-            }
-
-            var same = keepChoice ? BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) : null;
-            _baselineChosen = same is not null;
-            Baseline = same
-                ?? BaselineChoices.Skip(1).FirstOrDefault(c => IsEarlierOfSameProcess(c.Snapshot!.Descriptor, snapshot.Descriptor))
-                ?? BaselineChoices[0];
-        }
-        finally
-        {
-            _choosingBaseline = false;
-        }
-    }
-
-    /// <summary>
-    /// Rebuilds the baseline choices after snapshots opened or closed (2.6 review M12): a baseline the person chose stays
-    /// chosen while it is open; otherwise the default is chosen again (an earlier capture of the process may have opened),
-    /// and the growth detectors run again when it changed.
-    /// </summary>
-    public void RefreshBaselines()
-    {
-        if (Snapshot is not { } snapshot)
-        {
-            return;
-        }
-
-        var before = Baseline?.Snapshot;
-        ChooseBaselines(snapshot, keep: true);
-        if (Baseline?.Snapshot != before)
-        {
-            Rerun(Baseline, "changed as snapshots opened or closed");
-        }
-    }
-
-    /// <summary>
-    /// Whether <paramref name="candidate"/> is an earlier capture of the process of <paramref name="mine"/>: the same
-    /// process id when both dumps record one, else the same process name (2.6 review M12; dumps record no start time, and
-    /// an earlier capture time rules out most reused ids). A time that is only a file's time (a copied dump) orders
-    /// nothing, as on the Compare tab, so no default is chosen then (2.7 review).
-    /// </summary>
-    internal static bool IsEarlierOfSameProcess(SnapshotDescriptor candidate, SnapshotDescriptor mine) =>
-        !candidate.CaptureTimeFromFile && !mine.CaptureTimeFromFile
-        && candidate.CapturedAtUtc is { } then && mine.CapturedAtUtc is { } now && then < now
-        && (candidate.ProcessId is { } id && mine.ProcessId is { } myId
-            ? id == myId && (candidate.ProcessName is null || mine.ProcessName is null || candidate.ProcessName == mine.ProcessName)
-            : candidate.ProcessName is not null && candidate.ProcessName == mine.ProcessName);
-
-    partial void OnBaselineChanged(BaselineChoice? value)
-    {
-        if (_choosingBaseline)
-        {
-            return;
-        }
-
-        _baselineChosen = true;
-        Rerun(value, "chosen");
-    }
-
-    // Another baseline runs the growth detectors again (only those use it).
-    private void Rerun(BaselineChoice? value, string how)
-    {
-        if (!_started || Snapshot is not { } snapshot)
-        {
-            return;
-        }
-
-        _logger.LogInformation("Inspections: baseline {Baseline} {How} for {Snapshot}", value?.Snapshot?.Path ?? "none", how, snapshot.Path);
-
-        // While the first run goes on, it reruns the stale growth tiles when it ends (review H6): it is not cancelled.
-        if (!_runAll.IsCompleted || _running is not { } running)
-        {
-            return;
-        }
-
-        // A rerun has its own token, linked to the snapshot's: another baseline cancels only the rerun.
-        _rerun?.Cancel();
-        _rerun?.Dispose();
-        _rerun = CancellationTokenSource.CreateLinkedTokenSource(running.Token);
-        RunTask = RerunAsync(snapshot, StaleTiles(), _rerun.Token);
-    }
-
-    /// <summary>The growth tiles whose last run used another baseline than the chosen one.</summary>
-    private List<InspectionTileViewModel> StaleTiles() =>
-        [.. Tiles.Where(t => t.Info.UsesBaseline && t.IsAvailable && (t.Run is null || !ReferenceEquals(t.RanWith, Baseline?.Snapshot)))];
-
-    private async Task RerunAsync(SnapshotHandle snapshot, List<InspectionTileViewModel> tiles, CancellationToken cancellationToken)
-    {
-        try
-        {
-            foreach (var tile in tiles)
-            {
-                var previous = tile.Run;
-                try
-                {
-                    await RunOneAsync(snapshot, tile, cancellationToken);
-                }
-                finally
-                {
-                    // The worker keeps a replaced result set and its lease until released (review M5).
-                    if (!ReferenceEquals(previous, tile.Run))
-                    {
-                        Release(previous);
-                    }
-                }
-            }
-        }
-        catch (Exception) when (cancellationToken.IsCancellationRequested)
-        {
-            // Another baseline or snapshot replaced this run.
-        }
-        catch (Exception ex) when (ex is WorkerException)
-        {
-            _logger.LogInformation("{Section} shown as: {Message}", "Inspections against a baseline", ex.Message);
-            Status = ex.Message;
-            CanTryAgain = true;
-        }
-        catch (Exception ex)
-        {
-            // Not awaited by anyone (review M5): logged and shown, never lost.
-            _logger.LogError(ex, "Running the growth detectors again failed");
-            Status = "The growth detectors could not be run again. Details are in the log; press Try again.";
             CanTryAgain = true;
         }
     }

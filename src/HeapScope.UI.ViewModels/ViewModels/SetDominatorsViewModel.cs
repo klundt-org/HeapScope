@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// A set's Dominators view (sprint 3.1): the members no other member dominates, most retained first, with the other
+/// A set's Dominators view: the members no other member dominates, most retained first, with the other
 /// members below each. Their retained sizes never overlap, so they add up. A row opens its object.
 /// </summary>
 public sealed partial class SetDominatorsViewModel : GridQueryViewModel<CellRowItem>

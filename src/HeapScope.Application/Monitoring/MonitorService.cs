@@ -33,7 +33,7 @@ using HeapScope.Application.Events;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>
-/// Starts monitoring runs (sprint 1.7): counters every interval, snapshot rules turned into captures in the current
+/// Starts monitoring runs: counters every interval, snapshot rules turned into captures in the current
 /// session (<see cref="SnapshotSource.Timed"/>, labeled with the rule), and a timeline file in the session folder.
 /// </summary>
 public sealed class MonitorService(ICaptureService capture, ICounterSource? counters = null, ILogger<MonitorService>? logger = null, AllocationRecorder? allocations = null, TimeProvider? timeProvider = null)
@@ -53,7 +53,7 @@ public sealed class MonitorService(ICaptureService capture, ICounterSource? coun
         ArgumentNullException.ThrowIfNull(options);
         var run = new MonitorRun(processId, options, _capture, _logger, _allocations, _time);
 
-        // What the run will do, so a later automatic capture can be traced to its rule (sprint 2.3.7 review M4).
+        // What the run will do, so a later automatic capture can be traced to its rule.
         _logger.LogInformation(
             "Monitoring pid {Pid} started (run {RunId}): every {IntervalSeconds:N1} s, rules {Rules}, at most {Max} snapshots, capture {Kind}, timeline {Timeline}, allocations {Allocations}",
             processId,

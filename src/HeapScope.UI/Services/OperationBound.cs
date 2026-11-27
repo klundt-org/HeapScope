@@ -24,8 +24,7 @@
 namespace HeapScope.UI.Services;
 
 /// <summary>
-/// The longest UI operation as the highest-priority probes see it (sprint 2.3.6 review M2; extracted for tests in 2.3.7,
-/// review M11). A probe waits only for the operation already running: its wait is a lower bound of that operation. The
+/// The longest UI operation as the highest-priority probes see it (on its own, for tests). A probe waits only for the operation already running: its wait is a lower bound of that operation. The
 /// operation started after the previous probe ran (that probe ran first), so the time from the previous probe's run to
 /// this one's is an upper bound. Times are <see cref="System.Diagnostics.Stopwatch"/> ticks; thread safe.
 /// </summary>

@@ -24,7 +24,7 @@
 namespace HeapScope.Capture;
 
 /// <summary>
-/// Why this system refuses or fails a capture, and what to do (sprint 4.2; per system, ADR-025): one implementation per
+/// Why this system refuses or fails a capture, and what to do (per system, ADR-025): one implementation per
 /// system, chosen by <see cref="CapturePlatform.Rules()"/>. Each answer carries the evidence it rests on, for the log.
 /// </summary>
 internal interface ICaptureRules
@@ -40,7 +40,7 @@ internal interface ICaptureRules
 
     /// <summary>
     /// Why a full dump of another user's process cannot go into HeapScope's own folders while HeapScope has the rights to
-    /// reach it (4.1 review H1). Null when it can.
+    /// reach it. Null when it can.
     /// </summary>
     string? LibraryRefusal(string name, int processId);
 }
@@ -51,7 +51,7 @@ internal sealed record WriteFailureExplanation(string? Reason, string? Evidence)
 internal static class CaptureRulesExtensions
 {
     /// <summary>
-    /// The failure for a process that did not answer on its diagnostics port (Live and recording, 4.1 review M2 and H6): the
+    /// The failure for a process that did not answer on its diagnostics port (Live and recording): the
     /// reason a capture of a pid that is not found gives, with its evidence for the log; <paramref name="otherwise"/> when none applies.
     /// </summary>
     public static TargetUnavailableException NotAnswering(this ICaptureRules rules, int processId, string otherwise, Exception inner)

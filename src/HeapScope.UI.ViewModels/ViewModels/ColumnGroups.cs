@@ -24,21 +24,21 @@
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Optional column groups of a grid (sprint 2.4, 2.3.7 review M13): a view tags each optional column with its group's
+/// Optional column groups of a grid: a view tags each optional column with its group's
 /// name, and the view model says which groups are shown, so a new optional column needs no new grid behavior.
 /// </summary>
 public static class ColumnGroups
 {
-    /// <summary>Retained bytes (sprint 2.3).</summary>
+    /// <summary>Retained bytes.</summary>
     public const string Retained = "Retained";
 
-    /// <summary>Bytes per generation (sprint 1.3).</summary>
+    /// <summary>Bytes per generation.</summary>
     public const string Generations = "Generations";
 
-    /// <summary>New and dead objects by address (sprint 3.3).</summary>
+    /// <summary>New and dead objects by address.</summary>
     public const string Identity = "Identity";
 
-    /// <summary>Sampled allocations between two snapshots (sprint 4.4).</summary>
+    /// <summary>Sampled allocations between two snapshots.</summary>
     public const string Allocated = "Allocated";
 
     /// <summary>The groups whose flag is set, in a list a view binds.</summary>

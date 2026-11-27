@@ -26,7 +26,7 @@ using System.Runtime.InteropServices;
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// What a HeapScope process runs on, for the first line of every log (sprint 2.3.7): a contested result is first traced
+/// What a HeapScope process runs on, for the first line of every log: a contested result is first traced
 /// to the build and the system that produced it.
 /// </summary>
 public static class RuntimeEnvironment
@@ -45,7 +45,7 @@ public static class RuntimeEnvironment
 
     /// <summary>
     /// One line: version with revision, system, architecture, runtime, self-contained, the build form and the folder it
-    /// runs from (3.9 review M12: support tells a release archive from the dotnet tool or a source build, and finds it).
+    /// runs from (support tells a release archive from the dotnet tool or a source build, and finds it).
     /// </summary>
     public static string Summary =>
         $"{ProductInfo.Name} {ProductInfo.InformationalVersion}; {System}; {Architecture}; {Framework}; self-contained {SelfContained}; {DescribeBuild(SelfContained, AppContext.BaseDirectory)}; folder {AppContext.BaseDirectory}";

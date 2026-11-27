@@ -38,9 +38,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Live page (sprint 1.7, ADR-021): monitor a process's GC heap per heap kind every interval, take snapshots by
+/// The Live page (ADR-021): monitor a process's GC heap per heap kind every interval, take snapshots by
 /// rules, see the run as a stacked chart with snapshot markers and cards, and a badge when GC pressure is high. Samples
-/// arrive on a background thread and are marshaled here. Since sprint 4.3 this is monitoring alone: what the page shows is in
+/// arrive on a background thread and are marshaled here. This is monitoring alone: what the page shows is in
 /// <see cref="Shown"/>, the run's files in <see cref="Files"/> and the past runs in <see cref="PastRuns"/>.
 /// </summary>
 public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
@@ -52,7 +52,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     private readonly ILogger _logger;
     private MonitorRun? _run;
 
-    /// <summary>Records an allocation trace for the whole run (sprint 3.4).</summary>
+    /// <summary>Records an allocation trace for the whole run.</summary>
     [ObservableProperty]
     private bool _recordAllocations;
 
@@ -83,7 +83,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private string? _maxSnapshots;
 
-    /// <summary>Rules capture gcdumps instead of full dumps (sprint 1.8). Each forces a full GC, which the chart shows.</summary>
+    /// <summary>Rules capture gcdumps instead of full dumps. Each forces a full GC, which the chart shows.</summary>
     [ObservableProperty]
     private bool _captureGcDumps;
 
@@ -141,7 +141,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<ProcessRow> Processes { get; } = [];
 
-    // Sprint 4.1.1: the same rule as the Processes page for the processes HeapScope cannot watch as it runs now.
+    // The same rule as the Processes page for the processes HeapScope cannot watch as it runs now.
     private readonly ProcessListFilter _filter = new();
 
     /// <summary>The check box: list the processes hidden because they need more rights (off at each start).</summary>
@@ -176,7 +176,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     public bool RecordRuns { get; set; } = true;
 
-    /// <summary>Why monitoring a process is not available on this system (sprint 2.3.6), or null.</summary>
+    /// <summary>Why monitoring a process is not available on this system, or null.</summary>
     public string? Unavailable => _capture.UnavailableReason;
 
     [RelayCommand]
@@ -197,7 +197,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Live process list", ex.Message);
             Shown.Status = "The process list could not be read: " + ex.Message;
         }
@@ -210,7 +210,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         _filter.Log(_logger, "Live", toggled: true);
     }
 
-    /// <summary>Shows the rows the filter lets through and keeps the choice while its row is shown (sprint 4.1.1).</summary>
+    /// <summary>Shows the rows the filter lets through and keeps the choice while its row is shown.</summary>
     private void ShowRows()
     {
         var selected = SelectedProcess?.ProcessId;
@@ -229,7 +229,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>
     /// Starts monitoring. The run's start reads and records its session on disk under the session's lock, which can wait,
-    /// so it runs off the UI thread (review H3 of 3.4).
+    /// so it runs off the UI thread.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanStart))]
     private async Task StartAsync()
@@ -328,7 +328,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         });
     }
 
-    /// <summary>What a forced collection does to the target, asked before each one (review of 3.4; the ask-first rule).</summary>
+    /// <summary>What a forced collection does to the target, asked before each one (the ask-first rule).</summary>
     public const string ForceGcQuestion =
         "Force a full, blocking garbage collection in {0}? Every managed thread in it pauses while the collection runs, for "
         + "seconds on a large heap. Finalizers do not run, so objects waiting for finalization, and what they hold, stay "
@@ -337,7 +337,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     private bool CanAct() => IsRunning && !Acting;
 
-    /// <summary>Takes a snapshot of the monitored process now (sprint 3.4), as the run's card.</summary>
+    /// <summary>Takes a snapshot of the monitored process now, as the run's card.</summary>
     [RelayCommand(CanExecute = nameof(CanAct))]
     private async Task GetSnapshotAsync()
     {
@@ -359,7 +359,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    /// <summary>Forces a full garbage collection in the monitored process (sprint 3.4), marked on the chart.</summary>
+    /// <summary>Forces a full garbage collection in the monitored process, marked on the chart.</summary>
     [RelayCommand(CanExecute = nameof(CanAct))]
     private async Task ForceGcAsync()
     {
@@ -399,7 +399,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand(CanExecute = nameof(CanStop))]
     private void Stop()
     {
-        // Pressed while the run is still starting: it stops as soon as it has started (3.4 re-review).
+        // Pressed while the run is still starting: it stops as soon as it has started.
         _stopAsked = true;
         _run?.Stop();
     }
@@ -409,7 +409,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
     partial void OnIsRunningChanged(bool value) => PastRuns.IsRunning = value;
 
     /// <summary>
-    /// Disposes a run a new one replaces (peer review P11): it has ended (Start waits for that), but holds its stop and its
+    /// Disposes a run a new one replaces: it has ended (Start waits for that), but holds its stop and its
     /// trace's recording until then.
     /// </summary>
     private async Task DisposeReplacedAsync(MonitorRun run)
@@ -473,7 +473,7 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
 
     private void OnGcForced(MonitorRun run, MonitorForcedGc forced)
     {
-        // Only a collection whose end was seen is marked (review of 3.4).
+        // Only a collection whose end was seen is marked.
         if (!ReferenceEquals(run, _run) || forced.Result is not { Completed: true })
         {
             return;

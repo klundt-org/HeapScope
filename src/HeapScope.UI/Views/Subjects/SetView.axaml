@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- An object set (sprint 3.1, ADR-030): its views (Types, Instances, Generations, Dominators; Paths and Similar Retention since 3.2) and what it retains. -->
+<!-- An object set (ADR-030): its views (Types, Instances, Generations, Dominators; Paths and Similar Retention) and what it retains. -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HeapScope.UI.ViewModels"
@@ -100,12 +100,12 @@
         </DockPanel>
       </Panel>
 
-      <!-- Paths: the members' key retention paths, as a list or a diagram (sprint 3.2). -->
+      <!-- Paths: the members' key retention paths, as a list or a diagram. -->
       <Panel IsVisible="{Binding IsPathsShown}">
         <subjects:TypePathsView DataContext="{Binding Paths}" />
       </Panel>
 
-      <!-- Similar Retention: the members grouped by how they are retained (sprint 3.2). -->
+      <!-- Similar Retention: the members grouped by how they are retained. -->
       <Panel IsVisible="{Binding IsSimilarRetentionShown}">
         <DockPanel DataContext="{Binding SimilarRetention}" x:DataType="vm:SimilarRetentionViewModel">
           <DockPanel DockPanel.Dock="Top" Margin="0,0,8,6">

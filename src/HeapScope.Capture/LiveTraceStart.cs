@@ -23,7 +23,7 @@
 
 namespace HeapScope.Capture;
 
-/// <summary>A live recording that has started (sprint 4.3, ADR-037): the file grows from here on.</summary>
+/// <summary>A live recording that has started (ADR-037): the file grows from here on.</summary>
 /// <param name="Path">The trace, under its final name.</param>
 /// <param name="NamesPath">A short trace that names the methods compiled before, deleted when the recording ends; null without one.</param>
 /// <param name="NamesProblem">Why there is none, in words for the log.</param>

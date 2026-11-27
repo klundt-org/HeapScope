@@ -27,7 +27,7 @@ using HeapScope.Application.Workers;
 namespace HeapScope.Application.Allocations;
 
 /// <summary>
-/// The allocation trace of a question about snapshots cannot be used (sprint 4.4): it was closed, its file changed, or reading it
+/// The allocation trace of a question about snapshots cannot be used: it was closed, its file changed, or reading it
 /// again after a worker restart failed. The question can be asked without it.
 /// </summary>
 public sealed class AllocationsUnavailableException(string message, Exception innerException) : WorkerException(message, innerException);

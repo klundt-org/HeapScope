@@ -26,7 +26,7 @@ using HeapScope.Core;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// A snapshot file being written (sprint 1.9, shared by full dump and gcdump capture): written under a temporary name
+/// A snapshot file being written (shared by full dump and gcdump capture): written under a temporary name
 /// (<see cref="DumpCapturer.PartialSuffix"/>), renamed to its final name only when complete, never overwriting an existing
 /// file, and removed when the capture fails or is canceled, retrying while a writer still holds it.
 /// </summary>

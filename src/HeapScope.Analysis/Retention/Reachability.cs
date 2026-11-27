@@ -28,10 +28,10 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// Which objects a root reaches (sprint 2.6, for the leak detectors): a walk from the retaining roots and the frozen
+/// Which objects a root reaches (for the leak detectors): a walk from the retaining roots and the frozen
 /// objects over references and dependent handles, a bit per object. Objects no root reaches are garbage the GC has not
 /// collected yet; a leak detector counts reachable objects only. Unlike <see cref="PathRoots.Sources"/>, the finalizer
-/// queue does not count (review M7): the GC already found its objects dead, and they only wait for their finalizers.
+/// queue does not count: the GC already found its objects dead, and they only wait for their finalizers.
 /// </summary>
 public sealed class Reachability
 {
@@ -62,7 +62,7 @@ public sealed class Reachability
     public bool IsReachable(int objectIndex) => (_bits[objectIndex >> 6] & (1UL << (objectIndex & 63))) != 0;
 
     /// <summary>
-    /// What the retention views count as alive (sprint 3.5): a walk from <see cref="PathRoots.Sources"/>, the finalizer
+    /// What the retention views count as alive: a walk from <see cref="PathRoots.Sources"/>, the finalizer
     /// queue included, so an object this leaves out has no retention path and retains nothing (ADR-024).
     /// </summary>
     public static Reachability ComputeFromPathRoots(HeapGraph graph, CancellationToken cancellationToken)

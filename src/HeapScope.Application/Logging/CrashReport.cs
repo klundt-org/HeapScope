@@ -28,7 +28,7 @@ using HeapScope.Core;
 namespace HeapScope.Application.Logging;
 
 /// <summary>
-/// A report of a crash of the app, written where it ends and offered at its next start (sprint 4.8, peer review 4.5 M13): the
+/// A report of a crash of the app, written where it ends and offered at its next start: the
 /// versions, the system, where it failed and the error with its stack, so it can be attached to an issue. It is a log file of its
 /// own in the log folder (<c>heapscope-&lt;date&gt;-&lt;app&gt;-&lt;pid&gt;-crash-&lt;time&gt;.log</c>), so it holds what a log may
 /// hold, is kept 14 days like the logs, and Purge logs deletes it. Nothing is sent anywhere.

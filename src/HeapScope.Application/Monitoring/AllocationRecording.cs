@@ -29,7 +29,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>
-/// A monitoring run's allocation trace (sprint 3.4, split from the run in 3.8, peer review P11): recorded into the run's
+/// A monitoring run's allocation trace (a part of the run): recorded into the run's
 /// session folder, watched so it stops at its size limit or when the disk runs low, and stopped after the run's
 /// captures. Its watch is awaited before anything it uses is disposed. A refusal or failure is reported through
 /// <c>problem</c> once and the run goes on.
@@ -206,7 +206,7 @@ internal sealed class AllocationRecording : IAsyncDisposable
 
     /// <summary>
     /// Stops the trace at its size limit or when the disk has less than <see cref="MonitorRun.TraceMinimumFreeBytes"/> free: the disk of
-    /// the trace's own folder, on every system (peer review 4.5 H11). A check that fails is tried again; after
+    /// the trace's own folder, on every system. A check that fails is tried again; after
     /// <see cref="MostFailedChecks"/> in a row the trace stops, since nothing would stop it at its limit any more.
     /// </summary>
     private async Task WatchAsync(string path)
@@ -221,7 +221,7 @@ internal sealed class AllocationRecording : IAsyncDisposable
                 string? why;
                 try
                 {
-                    // The recorder writes the file under its final name (4.3), once its session starts.
+                    // The recorder writes the file under its final name, once its session starts.
                     var file = new FileInfo(path);
                     var size = file.Exists ? file.Length : 0;
                     var free = _disk.AvailableBytes(folder) ?? throw new IOException($"the free space of {folder} could not be read");

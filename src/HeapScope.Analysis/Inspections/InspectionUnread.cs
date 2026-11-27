@@ -25,7 +25,7 @@
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// What an inspection could not read and so did not check (peer review 4.5 H2): <paramref name="Count"/> of <paramref name="Of"/>
+/// What an inspection could not read and so did not check: <paramref name="Count"/> of <paramref name="Of"/>
 /// <paramref name="What"/> (plural, in words: "timers"). The worker says it in the answer's note, and refuses an answer that read none.
 /// </summary>
 public sealed record InspectionUnread(long Count, long Of, string What);

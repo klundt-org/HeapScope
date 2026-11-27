@@ -39,7 +39,7 @@ namespace HeapScope.Application.Sessions;
 /// <param name="Process">The captured process.</param>
 /// <param name="Session">The session it was recorded in, or null when recording failed (the dump is kept).</param>
 /// <param name="Warning">A problem after the dump was written (for example the session could not be updated).</param>
-/// <param name="Kind">What was captured: a full dump or a gcdump (sprint 1.8).</param>
+/// <param name="Kind">What was captured: a full dump or a gcdump.</param>
 public sealed record CaptureResult(string Path, long SizeBytes, ProcessEntry Process, Session? Session, string? Warning = null, SnapshotKindDto Kind = SnapshotKindDto.FullDump, Guid? SnapshotId = null)
 {
     /// <summary>Shown once per capture (ARCHITECTURE.md 12).</summary>
@@ -55,10 +55,10 @@ public sealed record CaptureResult(string Path, long SizeBytes, ProcessEntry Pro
 /// </summary>
 public sealed class CaptureService : ICaptureService
 {
-    // The DAC's name on this system (sprint 4.1: Linux captures too); the loader picks the same name for a dump of this system.
+    // The DAC's name on this system (Linux captures too); the loader picks the same name for a dump of this system.
     private static readonly string s_dacFileName = DacFileName(HostSystems.Current);
 
-    // Sprint 4.1 review H4: off Windows the loader can match a DAC by its runtime library, so that library is copied too. It
+    // Off Windows the loader can match a DAC by its runtime library, so that library is copied too. It
     // is read for its identity, never loaded.
     private static readonly string? s_runtimeFileName = RuntimeFileName(HostSystems.Current);
 
@@ -73,7 +73,7 @@ public sealed class CaptureService : ICaptureService
     // Whether the self-check was logged (macOS).
     private int _selfChecked;
 
-    // One capture or forced collection per process at a time, across every page and rule (sprint 3.4, decision 3).
+    // One capture or forced collection per process at a time, across every page and rule.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, string> _busy = new();
 
     public CaptureService(
@@ -136,7 +136,7 @@ public sealed class CaptureService : ICaptureService
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            // Sprint 3.13 review H5: why a process the user expects is not listed (HeapScope's own, or gone while listing).
+            // Why a process the user expects is not listed (HeapScope's own, or gone while listing).
             var omitted = _discovery.LastOmitted;
             _logger.LogInformation(
                 "Listed {Count} .NET processes ({Pids}); left out as HeapScope's own: {Own}; not readable or exited: {NotDescribed}{Where}",
@@ -144,9 +144,9 @@ public sealed class CaptureService : ICaptureService
                 string.Join(", ", processes.Take(200).Select(p => p.ProcessId)) + (processes.Count > 200 ? $" and {processes.Count - 200} more" : string.Empty),
                 omitted.Own.Count == 0 ? "none" : string.Join(", ", omitted.Own),
                 omitted.NotDescribed.Count == 0 ? "none" : string.Join(", ", omitted.NotDescribed),
-                // Sprint 4.1: off Windows a process is found by its socket in this temp folder; one using another is not seen.
-                // Off Windows the ids behind each "needs more rights" mark too (review H6).
-                // On Windows whether HeapScope runs elevated, which decides the marks (sprint 4.1.1 review M1).
+                // Off Windows a process is found by its socket in this temp folder; one using another is not seen.
+                // Off Windows the ids behind each "needs more rights" mark too.
+                // On Windows whether HeapScope runs elevated, which decides the marks.
                 !HostSystems.RightsGoByUser(HostSystems.Current)
                     ? $"; HeapScope elevated: {(IsHeapScopeElevated ? "yes" : "no")}"
                     : $"; diagnostics sockets looked for in {Path.GetTempPath()} only{UserIds(processes)}");
@@ -162,7 +162,7 @@ public sealed class CaptureService : ICaptureService
     /// Captures a full dump (or, with <paramref name="kind"/>, a gcdump) of <paramref name="processId"/> as a tracked job:
     /// into <paramref name="outputPath"/> when given, otherwise into the current session folder. The session is created
     /// only once the checks have passed, so a refused capture leaves no empty session. The target's DAC is copied next to
-    /// a full dump, so the dump stays readable after the runtime on this machine is updated (sprint 1.1 review); a gcdump
+    /// a full dump, so the dump stays readable after the runtime on this machine is updated; a gcdump
     /// needs none.
     /// </summary>
     public TrackedJob<CaptureResult> StartCapture(
@@ -186,7 +186,7 @@ public sealed class CaptureService : ICaptureService
             }
             catch (PlatformNotSupportedException ex)
             {
-                // Sprint 2.3.5 review: the refusal off Windows is a capture failure like any other.
+                // The refusal off Windows is a capture failure like any other.
                 throw Failure(CaptureFailure.NotSupportedOnThisSystem, ex.Message, ex);
             }
 
@@ -199,13 +199,13 @@ public sealed class CaptureService : ICaptureService
             HeapTime? heap = null;
             var reports = new CaptureProgressAdapter(progress);
 
-            // The session is written into until the capture is recorded: it cannot be deleted meanwhile (review H1 of 3.4).
+            // The session is written into until the capture is recorded: it cannot be deleted meanwhile.
             using var inUse = new Claim();
             try
             {
                 if (outputPath is null)
                 {
-                    // Sprint 4.1 review H1: as root, another user's full dump cannot go into root's own folders (a full
+                    // As root, another user's full dump cannot go into root's own folders (a full
                     // dump is the profile that copies the DAC).
                     if (profile.CopiesDac && DumpCapturer.LibraryRefusal(process, _elevation.IsCurrentProcessElevated) is { } refusal)
                     {
@@ -230,7 +230,7 @@ public sealed class CaptureService : ICaptureService
                 }
                 else
                 {
-                    // The user's folder is not swept (sprint 3.7, peer review S4): its partial files may be someone else's.
+                    // The user's folder is not swept: its partial files may be someone else's.
                     path = Path.GetFullPath(Directory.Exists(outputPath) ? UniquePath(outputPath, process, profile.Extension) : outputPath);
                 }
 
@@ -253,7 +253,7 @@ public sealed class CaptureService : ICaptureService
 
                 if (ex is ElevationRequiredException && CapturePlatform.UserIdsOf(processId) is { } ids)
                 {
-                    // Sprint 4.1 review H6: the ids the refusal rests on, also where no process list was logged (the CLI).
+                    // The ids the refusal rests on, also where no process list was logged (the CLI).
                     _logger.LogInformation("Pid {Pid} was refused as another user's: {Ids}", processId, ids);
                 }
 
@@ -287,7 +287,7 @@ public sealed class CaptureService : ICaptureService
 
             // Assigned in both branches of the try above, which returned or threw otherwise.
             var size = new FileInfo(path!).Length;
-            // Sprint 4.1: the estimate beside the size, so a log (and CI's) shows the preflight's margin on each system.
+            // The estimate beside the size, so a log (and CI's) shows the preflight's margin on each system.
             _logger.LogInformation(
                 "Captured {Name} (pid {Pid}): {Bytes} bytes in {Seconds:N1} s; estimated {Estimate}",
                 process.Name,
@@ -326,9 +326,9 @@ public sealed class CaptureService : ICaptureService
 
     /// <summary>
     /// Makes a finished snapshot readable by this user only: the runtime wrote it with the folder's permissions, a folder the
-    /// user picked may let others read it, and a dump holds every secret of the process (sprint 3.7, peer review P15). When
+    /// user picked may let others read it, and a dump holds every secret of the process. When
     /// that fails (an elevated capture of another user's process, whose account owns the file), the file keeps its
-    /// permissions and the log and the result say so (3.7 review H6). Returns that warning, or null.
+    /// permissions and the log and the result say so. Returns that warning, or null.
     /// </summary>
     private string? MakePrivate(string path)
     {
@@ -344,7 +344,7 @@ public sealed class CaptureService : ICaptureService
         }
     }
 
-    /// <summary>Removes the session a failed capture created, never hiding the capture's own failure (re-review).</summary>
+    /// <summary>Removes the session a failed capture created, never hiding the capture's own failure.</summary>
     private void RemoveIfEmpty(string folder)
     {
         try
@@ -388,7 +388,7 @@ public sealed class CaptureService : ICaptureService
         }
     }
 
-    /// <summary>A forced collection's failure in its own words, not a dump's (review of 3.4).</summary>
+    /// <summary>A forced collection's failure in its own words, not a dump's.</summary>
     private static CaptureFailedException? TranslateForcedGc(Exception ex) => ex switch
     {
         ElevationRequiredException => Failure(CaptureFailure.NeedsAdministrator, ex.Message, ex),
@@ -399,7 +399,7 @@ public sealed class CaptureService : ICaptureService
     };
 
     /// <summary>
-    /// Takes the process's gate, or fails with <see cref="CaptureFailure.Busy"/> naming what holds it (decision 3); the
+    /// Takes the process's gate, or fails with <see cref="CaptureFailure.Busy"/> naming what holds it; the
     /// refusal is logged, so a skipped rule or a refused button can be backed up.
     /// </summary>
     private IDisposable EnterGate(int processId, string what, string why)
@@ -436,7 +436,7 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
-    /// On Linux and macOS, HeapScope's effective user id and each marked process's (sprint 4.1 review H6): the mark "Needs root or its
+    /// On Linux and macOS, HeapScope's effective user id and each marked process's: the mark "Needs root or its
     /// user" (on macOS "Needs its user") rests on the two differing. Empty elsewhere.
     /// </summary>
     private static string UserIds(IReadOnlyList<DotNetProcess> processes)
@@ -463,8 +463,8 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
-    /// The failure for a pid that is not found: why, where the system can tell (sprint 4.1), and what that rests on in the
-    /// log (review H6), so support can back the reason up.
+    /// The failure for a pid that is not found: why, where the system can tell, and what that rests on in the
+    /// log, so support can back the reason up.
     /// </summary>
     private CaptureFailedException NotFound(int processId)
     {
@@ -482,7 +482,7 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
-    /// What differs per kind of capture (sprint 1.9): a full dump is checked against the disk (its size is about the
+    /// What differs per kind of capture: a full dump is checked against the disk (its size is about the
     /// process's memory) and gets the target's DAC beside it; a gcdump is a fraction of the heap and needs no DAC.
     /// </summary>
     private CaptureProfile ProfileOf(SnapshotKindDto kind) => kind switch
@@ -533,7 +533,7 @@ public sealed class CaptureService : ICaptureService
         Func<DotNetProcess, string, IProgress<CaptureProgress>, CancellationToken, Task<HeapTime?>> Capture);
 
     /// <summary>
-    /// Copies the target's DAC (and off Windows its runtime library, 4.1 review H4) next to the dump, so the 1.2 loader finds the matching DAC in the dump's
+    /// Copies the target's DAC (and off Windows its runtime library) next to the dump, so the 1.2 loader finds the matching DAC in the dump's
     /// folder even after the runtime on this machine is updated or for self-contained apps. A failed copy is logged; the
     /// dump stays readable while the runtime stays installed.
     /// </summary>
@@ -550,7 +550,7 @@ public sealed class CaptureService : ICaptureService
         var target = Path.Combine(folder, "dac", process.RuntimeVersion ?? "unknown", s_dacFileName);
         try
         {
-            // Review H5: the runtime folder comes from the target; only a regular file of a sane size is copied.
+            // The runtime folder comes from the target; only a regular file of a sane size is copied.
             if (!TargetFiles.IsReadable(source))
             {
                 _logger.LogInformation("The target's runtime folder {Runtime} has no {Dac} HeapScope copies (a regular file of at most 64 MB); none is copied next to the dump", runtime, s_dacFileName);
@@ -587,9 +587,8 @@ public sealed class CaptureService : ICaptureService
     }
 
     /// <summary>
-    /// Trusts the DAC a capture copied from the target's runtime, so opening the dump later does not ask (sprint 3.6,
-    /// ADR-035), when the copy's content equals the runtime's file (a copy made by an earlier capture too). Not when
-    /// HeapScope runs elevated (sprint 3.6 review): the target may belong to another, less privileged user who can write
+    /// Trusts the DAC a capture copied from the target's runtime, so opening the dump later does not ask (ADR-035), when the copy's content equals the runtime's file (a copy made by an earlier capture too). Not when
+    /// HeapScope runs elevated: the target may belong to another, less privileged user who can write
     /// its runtime folder, and the worker would run that user's file elevated. The open asks then.
     /// </summary>
     private void TrustCopiedDac(string source, string target)

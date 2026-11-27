@@ -55,7 +55,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _workerStatus = "Worker not started";
 
-    /// <summary>The Learn page (sprint 3.13), whose running lesson the shell shows beside every page; null without it.</summary>
+    /// <summary>The Learn page, whose running lesson the shell shows beside every page; null without it.</summary>
     public LearnViewModel? Learn { get; }
 
     /// <summary>
@@ -95,7 +95,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>True while the app builds its pages in the background after start (sprint 3.12, task 4); the status bar shows it.</summary>
+    /// <summary>True while the app builds its pages in the background after start; the status bar shows it.</summary>
     [ObservableProperty]
     private bool _isPreparingViews;
 
@@ -105,12 +105,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _crashMessage;
 
-    /// <summary>Whether the status bar offers Restart worker: while a worker runs or starts (sprint 4.8, M5).</summary>
+    /// <summary>Whether the status bar offers Restart worker: while a worker runs or starts.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RestartRunningWorkerCommand))]
     private bool _canRestartWorker;
 
-    // While the user's own restart runs: the worker coming back then ends the crash banner (sprint 4.8, M5).
+    // While the user's own restart runs: the worker coming back then ends the crash banner.
     private bool _restarting;
     private readonly IUserInteraction? _interaction;
     private readonly ILogger _logger;
@@ -147,7 +147,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Learn = learn;
         if (learn is not null)
         {
-            // A lesson started shows the page it starts on (sprint 3.13).
+            // A lesson started shows the page it starts on.
             learn.NavigateRequested += (_, page) => ShowLessonPage(page, processes, live, allocations);
             learn.PropertyChanged += (_, e) =>
             {
@@ -193,16 +193,16 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     public JobsPageViewModel JobsPage { get; }
 
-    /// <summary>The Live page (sprint 1.7), when the host provides monitoring.</summary>
+    /// <summary>The Live page, when the host provides monitoring.</summary>
     public LiveViewModel? Live { get; }
 
-    /// <summary>The Allocations page (sprint 2.5), when the host has one.</summary>
+    /// <summary>The Allocations page, when the host has one.</summary>
     public AllocationsViewModel? Allocations { get; }
 
-    /// <summary>Exports grids to CSV (sprint 2.7); the window hands it every grid's export request.</summary>
+    /// <summary>Exports grids to CSV; the window hands it every grid's export request.</summary>
     public GridExportService Exports { get; }
 
-    /// <summary>The About page, which lists the keyboard shortcuts (F1, sprint 2.7).</summary>
+    /// <summary>The About page, which lists the keyboard shortcuts.</summary>
     public AboutViewModel About { get; }
 
     /// <summary>Shows the page at <paramref name="index"/> of the sidebar (Command+1 and on); false when there is none.</summary>
@@ -224,13 +224,13 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         Snapshots.Tab = tab;
     }
 
-    /// <summary>Shows the keyboard shortcuts (F1): the About page lists them.</summary>
+    /// <summary>Shows the keyboard shortcuts: the About page lists them.</summary>
     public void ShowHelp() => SelectedItem = NavigationItems.First(i => i.Page == About);
 
-    /// <summary>Refreshes the shown page (F5): the processes, the sessions or the live counters.</summary>
+    /// <summary>Refreshes the shown page: the processes, the sessions or the live counters.</summary>
     public void RefreshPage() => Refresh(SelectedItem?.Page);
 
-    /// <summary>The keyboard shortcuts, for the shortcuts list (sprint 2.7).</summary>
+    /// <summary>The keyboard shortcuts, for the shortcuts list.</summary>
     public IReadOnlyList<Shortcut> ShortcutList => Shortcuts.List([.. NavigationItems.Select(i => i.Title)]);
 
     /// <summary>
@@ -294,7 +294,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// The status bar's Restart worker, for a worker that stops answering (sprint 4.8, peer review 4.5 M5): it asks first, since
+    /// The status bar's Restart worker, for a worker that stops answering: it asks first, since
     /// it ends what the worker does now (opens, queries, recordings, live sessions), then stops the worker and starts a new one.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanRestartWorker))]
@@ -311,7 +311,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Offers the report of an earlier run that closed unexpectedly (sprint 4.8, peer review 4.5 M13), once: the newest, with a
+    /// Offers the report of an earlier run that closed unexpectedly, once: the newest, with a
     /// way to show it in its folder; every report found is marked offered. Returns the report offered, or null.
     /// </summary>
     public async Task<string?> OfferCrashReportsAsync(string logFolder)
@@ -445,7 +445,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
         else if (state == WorkerState.Running && IsCrashBannerVisible && CrashMessage?.EndsWith(InfoTexts.WorkerBackOnItsOwn, StringComparison.Ordinal) != true)
         {
-            // The next request started a new worker (sprint 4.8, M5: the banner went at once before): it stays until dismissed,
+            // The next request started a new worker (the banner went at once before): it stays until dismissed,
             // so the crash is seen, and says what came back.
             CrashMessage = $"{CrashMessage} {InfoTexts.WorkerBackOnItsOwn}";
         }

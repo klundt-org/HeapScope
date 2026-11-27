@@ -30,6 +30,7 @@ namespace HeapScope.Worker.Rpc;
 /// <summary>Opening and closing snapshots (<see cref="ISnapshotService"/>).</summary>
 internal sealed class SnapshotHandler(
     SnapshotStore snapshots,
+    ResultSetStore resultSets,
     ILogger<SnapshotHandler> logger) : RpcHandler(logger), ISnapshotService
 {
     public Task<SnapshotProbe> ProbeSnapshotAsync(string path, CancellationToken cancellationToken) =>
@@ -43,14 +44,20 @@ internal sealed class SnapshotHandler(
             return snapshots.OpenAsync(request, progress, cancellationToken);
         });
 
-    /// <summary>Closes the snapshot; the store drops its derived data and its object sets with it.</summary>
-    /// <remarks>Through the guard like every method (sprint 3.12 review M17): a failure is logged with its id, as B5 shows it.</remarks>
+    /// <summary>Closes the snapshot; the store drops its derived data and its object sets with it, and its result sets go too.</summary>
+    /// <remarks>Through the guard like every method: a failure is logged with its id.</remarks>
     public Task CloseSnapshotAsync(Guid snapshotId, CancellationToken cancellationToken) =>
         GuardAsync(
             snapshotId,
             () =>
             {
                 snapshots.Close(snapshotId);
+                var dropped = resultSets.ReleaseSnapshot(snapshotId);
+                if (dropped > 0)
+                {
+                    Logger.LogInformation("Snapshot {SnapshotId} closed: {Count} of its result sets dropped", snapshotId, dropped);
+                }
+
                 return Task.FromResult(true);
             },
             LogLevel.Debug);

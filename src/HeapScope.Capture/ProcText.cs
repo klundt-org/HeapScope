@@ -27,7 +27,7 @@ using System.Text;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// Parsers of the text Linux publishes under <c>/proc/&lt;pid&gt;</c> (sprint 4.1). They take the text, not the files, so they
+/// Parsers of the text Linux publishes under <c>/proc/&lt;pid&gt;</c>. They take the text, not the files, so they
 /// run and are tested on every system; <see cref="LinuxProcessFacts"/> reads the files. Paths are Linux paths, so they are
 /// split on '/' here, never with <see cref="Path"/>, which on Windows also splits on '\'.
 /// </summary>

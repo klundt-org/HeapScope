@@ -49,12 +49,12 @@ public enum IndexCacheInvalidReason
     ChecksumMismatch,
     IoError,
 
-    /// <summary>A sidecar extends another base cache than the one open (sprint 2.1), or a sidecar was opened as a base cache.</summary>
+    /// <summary>A sidecar extends another base cache than the one open, or a sidecar was opened as a base cache.</summary>
     BaseMismatch,
 
     /// <summary>
-    /// The cache is not signed with this user's key (sprint 3.7, peer review P14): written by another user or machine,
-    /// shipped next to a dump, written before 3.7, or forged. It is never used; the dump is read again.
+    /// The cache is not signed with this user's key: written by another user or machine,
+    /// shipped next to a dump, written by an older HeapScope, or forged. It is never used; the dump is read again.
     /// </summary>
     Untrusted,
 }
@@ -85,7 +85,7 @@ public sealed class IndexCacheOpenResult
 
     /// <summary>
     /// Identity of the opened cache file (its header checksum, which covers every section checksum). Optional index
-    /// files (reverse references, dominators; sprint 2.1 and later) record it to name the base cache they extend.
+    /// files (reverse references, dominators) record it to name the base cache they extend.
     /// </summary>
     public ulong Identity { get; }
 

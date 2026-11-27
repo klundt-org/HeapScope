@@ -29,12 +29,12 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Snapshots;
 
-/// <summary>The root path tree of each snapshot (sprint 2.2, ARCHITECTURE.md 6.4).</summary>
+/// <summary>The root path tree of each snapshot (ARCHITECTURE.md 6.4).</summary>
 internal sealed partial class SnapshotStore
 {
     /// <summary>
     /// Every object's shortest path from a root (<see cref="RootPathTree"/>), built on first use and kept in memory with the
-    /// snapshot (decision 5: 4 bytes per object, not cached on disk). Shared like the other derived data: one build, its
+    /// snapshot (4 bytes per object, not cached on disk). Shared like the other derived data: one build, its
     /// progress to every waiter, its own lease. Returns null when the snapshot is not loaded or closes meanwhile.
     /// </summary>
     public async Task<RootPathTree?> GetRootPathTreeAsync(Guid snapshotId, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
@@ -55,8 +55,8 @@ internal sealed partial class SnapshotStore
                 const string phase = "Finding every object's shortest path from a root";
                 RootPathTree tree;
 
-                // 8 bytes per object reserved first (2.2 review M1, 2.3 review M2); the breadth-first queue (4 bytes per
-                // object) is returned without compacting however the build ends, so no graph array is copied (2.3 review M3).
+                // 8 bytes per object reserved first; the breadth-first queue (4 bytes per
+                // object) is returned without compacting however the build ends, so no graph array is copied.
                 using (_reservations.Reserve((long)RootPathTree.BuildBytesPerObject * graph.ObjectCount, "Finding every object's path from a root", entry.Index.Mode, entry.Index.Identity != 0))
                 {
                     try

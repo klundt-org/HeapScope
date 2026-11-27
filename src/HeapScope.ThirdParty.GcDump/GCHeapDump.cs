@@ -32,7 +32,7 @@ public class GCHeapDump : IFastSerializable, IFastSerializableVersion
         t_streamBytes = -1;
     }
 
-    // HeapScope change 5 (sprint 3.7, peer review P13): a crafted file states counts the reader allocates up front (a
+    // HeapScope change 5: a crafted file states counts the reader allocates up front (a
     // float per type, lists per COM object, a growable array per type and node). No item takes less than one byte, so a
     // count larger than the stream is refused before anything is allocated for it. Thread-static: the whole read runs on
     // the thread that constructs the dump.

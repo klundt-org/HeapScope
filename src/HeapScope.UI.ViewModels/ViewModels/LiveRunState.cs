@@ -28,7 +28,7 @@ using HeapScope.Application.Monitoring;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// What the Live page shows of one run, the one being watched or a past one (sprint 4.3): the chart's samples and markers, the
+/// What the Live page shows of one run, the one being watched or a past one: the chart's samples and markers, the
 /// snapshot cards, and what is said about it. Live monitoring, the past runs and the run's files write it, on the UI thread.
 /// </summary>
 public sealed partial class LiveRunState : ObservableObject
@@ -45,13 +45,13 @@ public sealed partial class LiveRunState : ObservableObject
 
     /// <summary>
     /// What the user must not miss about the run: why it was refused, or that no samples are arriving. Shown as a banner: a refused
-    /// run lasts milliseconds, and its Start and Stop buttons only flash (3.10, the owner's own test).
+    /// run lasts milliseconds, and its Start and Stop buttons only flash (the owner's own test).
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     private string? _runWarning;
 
-    /// <summary>What the chart shows when it is a past run's (sprint 3.4), read only.</summary>
+    /// <summary>What the chart shows when it is a past run's, read only.</summary>
     [ObservableProperty]
     private string? _pastRunShown;
 
@@ -74,7 +74,7 @@ public sealed partial class LiveRunState : ObservableObject
     /// <summary>When rules took snapshots, for the chart's markers.</summary>
     public IReadOnlyList<DateTimeOffset> Markers => _markers;
 
-    /// <summary>When the run forced a collection (sprint 3.4).</summary>
+    /// <summary>When the run forced a collection.</summary>
     public IReadOnlyList<DateTimeOffset> GcMarkers => _gcMarkers;
 
     /// <summary>Whether the chart has anything to show (raised with <see cref="ChartVersion"/>: the list itself does not notify).</summary>

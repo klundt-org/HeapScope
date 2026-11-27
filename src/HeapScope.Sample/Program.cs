@@ -25,7 +25,7 @@ using System.Text.Json;
 using Fixtures.Leaks;
 using HeapScope.Sample;
 
-// The tutorial's sample process (sprint 3.13, ADR-042): plants the chosen scenarios, prints "READY pid=<pid>", keeps
+// The tutorial's sample process (ADR-042): plants the chosen scenarios, prints "READY pid=<pid>", keeps
 // growing them when asked, and exits when the process that started it exits.
 var (arguments, error) = SampleArguments.Parse(args);
 if (arguments is null)
@@ -36,7 +36,7 @@ if (arguments is null)
 
 if (arguments.List)
 {
-    // The catalog the app reads, so it never offers a scenario this sample lacks; versioned (review M4).
+    // The catalog the app reads, so it never offers a scenario this sample lacks; versioned.
     var catalog = new
     {
         ScenarioCatalog.Version,
@@ -79,7 +79,7 @@ if (arguments.GrowEvery is { } every)
     using var timer = new PeriodicTimer(every);
     while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
     {
-        // Review M5: growth stops at a ceiling, so a sample left running cannot use up the machine.
+        // Growth stops at a ceiling, so a sample left running cannot use up the machine.
         if (GC.GetTotalMemory(forceFullCollection: false) > SampleArguments.GrowthLimitBytes)
         {
             await Console.Error.WriteLineAsync($"Growth stopped: the sample's heap reached {SampleArguments.GrowthLimitBytes / (1024 * 1024)} MB. It keeps running as it is; stop it when you are done.").ConfigureAwait(false);

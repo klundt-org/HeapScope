@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A row of an allocation tree grid (sprint 2.5): a call tree or back-trace frame, filled from the worker's columns by name.</summary>
+/// <summary>A row of an allocation tree grid: a call tree or back-trace frame, filled from the worker's columns by name.</summary>
 public sealed class AllocationRowItem(int index) : ObservableObject, IIndexedRow
 {
     public int Index { get; } = index;
@@ -104,7 +104,7 @@ public sealed class AllocationRowItem(int index) : ObservableObject, IIndexedRow
     }
 }
 
-/// <summary>One of the top call stacks (sprint 2.5): its rank, sampled bytes and share, and its frames, the allocating method first.</summary>
+/// <summary>One of the top call stacks: its rank, sampled bytes and share, and its frames, the allocating method first.</summary>
 public sealed record AllocationStackItem(int Rank, long Bytes, double Percent, long Samples, IReadOnlyList<string> Frames)
 {
     /// <summary>The allocating method.</summary>

@@ -36,7 +36,7 @@ internal sealed class ResultSetHandler(ResultSetStore resultSets, ILogger<Result
             throw WorkerErrors.Create(HeapScopeErrorCode.InvalidArgument, "Offset and count must not be negative.");
         }
 
-        // Pages of instances read string values from the dump (sprint 1.5), so paging gets the error contract (codes,
+        // Pages of instances read string values from the dump, so paging gets the error contract (codes,
         // the worker log). It stays on the request's thread: a further thread pool hop cost latency under load.
         return GuardAsync(() => Task.FromResult(
             resultSets.TryGetPage(resultSetId, offset, count)
@@ -46,7 +46,17 @@ internal sealed class ResultSetHandler(ResultSetStore resultSets, ILogger<Result
             LogLevel.Debug);
     }
 
-    /// <remarks>Through the guard like every method (sprint 3.12 review M17).</remarks>
+    public Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken) =>
+        GuardAsync(
+            snapshotId,
+            () =>
+            {
+                resultSets.Show(snapshotId);
+                return Task.FromResult(true);
+            },
+            LogLevel.Debug);
+
+    /// <remarks>Through the guard like every method.</remarks>
     public Task ReleaseResultSetAsync(Guid resultSetId, CancellationToken cancellationToken) =>
         GuardAsync(
             resultSetId,

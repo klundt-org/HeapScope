@@ -28,7 +28,7 @@ using HeapScope.Core;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Display text for values read from a dump (sprint 1.6; the reader returns typed values). Invariant culture throughout:
+/// Display text for values read from a dump (the reader returns typed values). Invariant culture throughout:
 /// strings quoted and cut with "..." when longer than the reader's cut, <c>null</c>, chars in single quotes, booleans
 /// lower case, enums as <c>Name (value)</c> and flag combinations as <c>Read, Write (3)</c>, boxed primitives as
 /// <c>12345 (boxed int)</c>, arrays as <c>int[5]</c> or <c>int[2,3]</c>, C# aliases for primitive type names.

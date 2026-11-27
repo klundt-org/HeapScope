@@ -24,10 +24,10 @@
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// The type-to-filter rules (sprint 1.3, terms in 2.7), shared by the worker (which filters) and the UI (which highlights
+/// The type-to-filter rules (with terms), shared by the worker (which filters) and the UI (which highlights
 /// the matched characters), so both always agree. A filter is terms separated by spaces, all of which must match:
 /// <c>-term</c> leaves out names that match it; <c>module:text</c> (or <c>m:text</c>) matches the row's module instead of
-/// its name, and a row without a module does not match it. Each term is matched as in 1.3: not anchored; smart case (an
+/// its name, and a row without a module does not match it. Each term is matched as one filter is: not anchored; smart case (an
 /// all lower-case term ignores case, one with capitals is matched as typed); <c>*</c> matches any run of characters (its
 /// parts appear in order, case-insensitive); a plain term is a substring, and a term with capitals that is not found is
 /// also tried as CamelHumps: <c>SCE</c> or <c>StaCaEn</c> match <c>StaticCacheEntry</c> (each capital starts a word).
@@ -91,7 +91,7 @@ public static class NameFilter
         }
 
         // Terms may cover the same characters ("cache ach"): merge overlapping and touching ranges, so a highlighter that
-        // draws each range once shows the name as it is (2.7 review H2).
+        // draws each range once shows the name as it is.
         ranges.Sort();
         var merged = new List<(int Start, int Length)>(ranges.Count);
         foreach (var (start, length) in ranges)

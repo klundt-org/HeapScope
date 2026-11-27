@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Core's vocabulary on the wire (ADR-016, sprint 1.9): Contracts mirrors Core's enums value for value (checked by the
+/// Core's vocabulary on the wire (ADR-016): Contracts mirrors Core's enums value for value (checked by the
 /// architecture test's mirror tests), and this is the one place that converts between them.
 /// </summary>
 internal static class ContractMapping

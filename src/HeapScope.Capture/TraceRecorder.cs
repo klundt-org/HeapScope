@@ -38,7 +38,7 @@ public enum TraceProfile
     Gc = 1,
 
     /// <summary>
-    /// Sampled allocations with call stacks (sprint 2.5): allocation ticks, one about every 100 KB allocated, plus the
+    /// Sampled allocations with call stacks: allocation ticks, one about every 100 KB allocated, plus the
     /// loader and JIT events and the rundown that name the methods on the stacks.
     /// </summary>
     Allocations = 2,
@@ -50,7 +50,7 @@ public enum TraceProfile
 public sealed record TraceRecording(string Path, long Bytes, TimeSpan Duration, bool StoppedEarly, string? Problem = null);
 
 /// <summary>
-/// Records an EventPipe trace of a .NET process through its diagnostics port (sprint 1.5): the same session dotnet-trace
+/// Records an EventPipe trace of a .NET process through its diagnostics port: the same session dotnet-trace
 /// starts, so nobody installs dotnet-trace. The file is a <c>.nettrace</c> that PerfView, Visual Studio or TraceEvent
 /// read. It is written to a partial file of its own (<see cref="PartialName"/>) and renamed when complete; an existing file
 /// is never overwritten. A live recording (<see cref="RecordLiveAsync"/>) is written under its final name, for a reader beside it.
@@ -59,7 +59,7 @@ public sealed record TraceRecording(string Path, long Bytes, TimeSpan Duration, 
 public static class TraceRecorder
 {
     // dotnet-trace's defaults without the type keyword (0x80000): while a session has it, the runtime never describes a type again, so
-    // every gcdump but the first had types without a name (sprint 4.4; see CHANGES.md of HeapScope.ThirdParty.GcDump).
+    // every gcdump but the first had types without a name (see CHANGES.md of HeapScope.ThirdParty.GcDump).
     private const long RuntimeDefaultKeywords = 0x14C14FCCBD & ~TypeKeyword;
     private const long TypeKeyword = 0x80000;
     private const long GcKeyword = 0x1;
@@ -101,11 +101,11 @@ public static class TraceRecorder
         }
 
         PrivateFiles.CreateUserDirectory(Path.GetDirectoryName(fullPath)!);
-        // Created new under a name of its own before the session starts (sprint 3.7, peer review P15; 3.7 review): a file made
+        // Created new under a name of its own before the session starts: a file made
         // beforehand by someone else is never written into or deleted, and a recording into the same folder never meets it.
         var partial = PartialName(fullPath);
         var stopwatch = Stopwatch.StartNew();
-        // Unbuffered, as a live recording's (sprint 4.7): the session's small chunks went into a 64 KB buffer, so an idle target's trace
+        // Unbuffered, as a live recording's: the session's small chunks went into a 64 KB buffer, so an idle target's trace
         // stayed 0 bytes on disk for minutes. That was the "start that took over 60 s" of CI and the gate since 2026-11-20: the session
         // had started; its bytes had not been written.
         var file = PrivateFiles.Open(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
@@ -129,7 +129,7 @@ public static class TraceRecorder
     }
 
     /// <summary>
-    /// Records the allocations profile for a reader beside it (sprint 4.3, ADR-037): into <paramref name="path"/> itself, each chunk
+    /// Records the allocations profile for a reader beside it (ADR-037): into <paramref name="path"/> itself, each chunk
     /// of the stream written as it arrives, the file shared for reading and deleting. A System.Runtime counter every
     /// <paramref name="counterInterval"/> makes the runtime send a thread's last samples when it goes idle (the process has one timer
     /// for all who ask, and the shortest interval wins: it is that of the run's own counters). Before it, a session with the rundown alone names the methods
@@ -238,7 +238,7 @@ public static class TraceRecorder
 
     private static async Task<EventPipeSession> StartAsync(int processId, IReadOnlyList<EventPipeProvider> providers, CancellationToken cancellationToken)
     {
-        // Bounded (review of 4.6): a process that does not answer the start (frozen) ends the recording with a reason, not a wait.
+        // Bounded: a process that does not answer the start (frozen) ends the recording with a reason, not a wait.
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         limit.CancelAfter(s_startWait);
         try
@@ -266,13 +266,13 @@ public static class TraceRecorder
         var elapsed = Task.Delay(duration, cancellationToken);
         var first = await Task.WhenAny(copy, elapsed).ConfigureAwait(false);
         var stoppedEarly = first == copy || cancellationToken.IsCancellationRequested;
-        // A target that does not answer the stop (frozen in a debugger) has its session let go, which ends the copy (peer review 4.5 H9).
+        // A target that does not answer the stop (frozen in a debugger) has its session let go, which ends the copy.
         // The stop writes the rundown that names methods, which takes seconds in a large process: the trace waits longer than a counter.
         var letGo = first != copy && !await SessionStop.StopAsync(session, s_stopWait).ConfigureAwait(false);
         stoppedEarly |= letGo;
 
         // A stopped session ends its stream after the rundown; one that never ends (the target hung) must not
-        // hang the caller: give up after a while and keep what arrived (sprint 1.5 review).
+        // hang the caller: give up after a while and keep what arrived.
         if (await Task.WhenAny(copy, Task.Delay(s_streamEndTimeout, CancellationToken.None)).ConfigureAwait(false) == copy)
         {
             try
@@ -317,7 +317,7 @@ public static class TraceRecorder
     /// <summary>How long a recording's start waits for the target.</summary>
     private static readonly TimeSpan s_startWait = TimeSpan.FromSeconds(30);
 
-    /// <summary>How long a recording's stop waits for the target, its rundown included (peer review 4.5 H9).</summary>
+    /// <summary>How long a recording's stop waits for the target, its rundown included.</summary>
     private static readonly TimeSpan s_stopWait = TimeSpan.FromSeconds(30);
 
     private static void TryDelete(string path)
@@ -345,7 +345,7 @@ public static class TraceRecorder
             return new TargetUnavailableException($"No running process has id {processId}.", ex);
         }
 
-        // Sprint 4.1 review M2: the same reasons as a capture's (another user's, diagnostics off, another /tmp).
+        // The same reasons as a capture's (another user's, diagnostics off, another /tmp).
         return ex is UnauthorizedAccessException
             ? ElevationRequiredException.ForTrace(processId, name, ex)
             : CapturePlatform.Rules().NotAnswering(processId, $"{name} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);

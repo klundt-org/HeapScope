@@ -145,7 +145,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 - **Worker.** `Program` and `ParentProcessWatcher` (the worker exits with its front end) [0.3]; `WorkerOptions`'
   `--settings-folder` (the client's settings file) and `Symbols()` (the DAC lookup a load uses, read from it at each load, `WorkerSymbols`) [4.8], and `WorkerErrors`' fixed message with an id for an unexpected failure
   [3.12]; `Rpc/`:
-  `WorkerRpcServer`, `ResultSetStore`, `ThrottledProgress` [0.3]. Since 3.8 (peer review P5) one handler per contract,
+  `WorkerRpcServer`, `ResultSetStore` (evicting the sets of snapshots not shown first, ADR-044 [4.9]), `ThrottledProgress` [0.3]. Since 3.8 (peer review P5) one handler per contract,
   registered by `WorkerRpcTargets` (`RpcTarget.For<TContract, THandler>`): `ControlHandler`, `TestHooksHandler`,
   `SnapshotHandler`, `ResultSetHandler`, `HeapQueryHandler`, `RetentionHandler`, `InspectionHandler`,
   `AllocationTraceHandler`, each an `RpcHandler` (the logged guard), over shared services: `SnapshotAccess` (leases), `DerivedQueries` (reverse
@@ -243,7 +243,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   other snapshot [3.3].
 - **UI.ViewModels** (sprint 2.3.6, moved from the WPF app; no UI toolkit). Since 3.8 every query runs through
   `QueryRunner` (its activity, progress, and a refusal logged as shown; grids through `GridQueryViewModel`) [P8]. `SettingsViewModel` (the Settings page above About) [3.12]. `Services/`: `IUiDispatcher` (post to the UI
-  thread, `YieldToRenderAsync`) with `ImmediateUiDispatcher` for tests, `IUserInteraction` (asynchronous dialogs; opening a file or showing it in its folder since the timeline row) with
+  thread, `YieldToRenderAsync`) with `ImmediateUiDispatcher` for tests (and the tests' own `SingleThreadUiDispatcher`), `IUserInteraction` (asynchronous dialogs; opening a file or showing it in its folder since the timeline row) with
   `AutomaticUserInteraction` for smoke runs. `ViewModels/`: the shell, pages and jobs [0.3]; `GridQueryViewModel<TRow>`
   (the query lifecycle shared by the grids: debounced filter, latest query wins, column-name sort, first page preloaded
   before the grid binds, release) and `TypeGridViewModel<TRow>` (grouping) over the generic `VirtualRowList<TRow>` (data
@@ -292,6 +292,13 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   Sprint 3.11: opening a dump again refreshes its row in place (`SnapshotItemViewModel.Reload`, `SnapshotsViewModel.ShowOpened`)
   and runs Compare and Trend again when they use it (`CompareViewModel.Reopened`, `TrendViewModel.Reopened`); `InfoTexts` and
   `IcicleGeometry`'s "+N smaller" groups are under UI below.
+  Sprint 4.9 (ADR-044): `SnapshotWorkspaceViewModel` (a snapshot's types grid, navigator, inspections and retainers;
+  `Show`, `Hide`, `SetActiveTab`), one per open snapshot behind `SnapshotsViewModel.Current` (`ShowWorkspace`,
+  `CloseWorkspace`), and `InspectionsViewModel.Suspend` for a hidden workspace's unfinished run. The large view models
+  split along their parts: `SnapshotItemViewModel`, `Format`, `SnapshotsViewModel.Dac.cs` (DAC trust);
+  `DiffRowItem`, `CompareViewModel.Allocated.cs`, `CompareViewModel.Links.cs`; `InspectionTileViewModel`,
+  `FragmentItem`, `BaselineChoice`, `InspectionTarget`, `InspectionsViewModel.Baselines.cs`;
+  `LiveAllocationsViewModel.Follow.cs` (following a live trace).
 - **UI** (Avalonia, sprint 2.3.6, ADR-025). `Program` (the desktop app, or `--headless` on Avalonia's headless platform
   for CI smoke runs), `App` (host start and bounded stop, last-chance handlers, power throttling off on Windows, theme)
   and `UiHost` (DI, `UiOptions`). `Views/`: `MainWindow` (the shell, the attribution strip as `AttributionText`,

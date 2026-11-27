@@ -27,7 +27,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis;
 
 /// <summary>
-/// Per-type totals of a graph (sprint 1.3): object count, shallow bytes, and bytes and counts per heap kind. Computed once
+/// Per-type totals of a graph: object count, shallow bytes, and bytes and counts per heap kind. Computed once
 /// per snapshot in one parallel pass over the objects; every grouping, filter and sort works on these small arrays.
 /// </summary>
 public sealed class TypeAggregation
@@ -140,7 +140,7 @@ public sealed class TypeAggregation
     }
 
     /// <summary>
-    /// Aggregates the members of <paramref name="set"/> only (sprint 3.1): a set's Types and Generations views. One pass over
+    /// Aggregates the members of <paramref name="set"/> only: a set's Types and Generations views. One pass over
     /// the members; the totals are the set's.
     /// </summary>
     public static TypeAggregation Compute(HeapGraph graph, ObjectSet set, CancellationToken cancellationToken = default)

@@ -31,7 +31,7 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// Key retention paths merged into a graph (sprint 3.2): roots at the top, the paths' types below, the objects they explain
+/// Key retention paths merged into a graph: roots at the top, the paths' types below, the objects they explain
 /// at the bottom; an edge is as thick as its share of the busiest edge and says how many objects take it. The layout is
 /// <see cref="KeyPathDiagram"/>'s; this control only draws it. Placed in a scroll viewer.
 /// </summary>

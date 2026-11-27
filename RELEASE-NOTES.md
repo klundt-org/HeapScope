@@ -22,6 +22,17 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.9.0: Workspaces (sprint 4.9)
+
+- **Each open snapshot keeps its own work**: switching between open snapshots shows each one's types grid (filter, sort,
+  grouping), analysis path, inspections and Retainers tab as you left them, without running anything again. Inspections
+  still running when you switch away stop, and run again when you come back.
+- **A link into a snapshot you closed** (a bookmark, a Compare row, an inspection row) says so instead of opening in another
+  snapshot; open the dump again to look there.
+- **Fewer re-runs**: the worker keeps the results of the snapshot on screen first, and more of them (128 result sets), and lets
+  go of a closed snapshot's at once.
+- Limited: several analyses of one snapshot side by side (analysis tabs) come in 4.10.
+
 ## 4.8.0: Ready to release (sprint 4.8)
 
 - **Getting help** has one place: HeapScope's issues on GitHub, with forms for a bug, a wrong result and a question, and SUPPORT.md

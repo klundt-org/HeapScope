@@ -28,10 +28,10 @@ namespace HeapScope.Application.Monitoring;
 /// <summary>An event of a recorded timeline: a snapshot taken, or a collection forced (the CSV's event column).</summary>
 public sealed record TimelineEvent(DateTimeOffset At, string Text);
 
-/// <summary>A recorded monitoring timeline read back (sprint 3.4, a past run reopened): its samples and events.</summary>
+/// <summary>A recorded monitoring timeline read back (a past run reopened): its samples and events.</summary>
 public sealed record Timeline(IReadOnlyList<HeapSample> Samples, IReadOnlyList<TimelineEvent> Events, int SkippedLines);
 
-/// <summary>Reads the counters CSV a monitoring run writes (its header is fixed since 1.7).</summary>
+/// <summary>Reads the counters CSV a monitoring run writes (its header is fixed).</summary>
 public static class TimelineFile
 {
     public static async Task<Timeline> ReadAsync(string path, CancellationToken cancellationToken)

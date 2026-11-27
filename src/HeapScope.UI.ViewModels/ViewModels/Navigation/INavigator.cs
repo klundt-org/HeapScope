@@ -24,7 +24,7 @@
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Follows a link (sprint 2.4, 2.3.7 review M8). Passed to the view models that have links by their constructor, so a
+/// Follows a link. Passed to the view models that have links by their constructor, so a
 /// new link is a target, not another settable command.
 /// </summary>
 public interface INavigator

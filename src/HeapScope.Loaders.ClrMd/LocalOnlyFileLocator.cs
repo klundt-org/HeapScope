@@ -40,7 +40,7 @@ internal sealed class LocalOnlyFileLocator : IFileLocator
         DacLocator.IsReadableImage(fileName) && DacLocator.Matches(fileName, buildTimeStamp, imageSize) ? fileName : null;
 
     /// <summary>
-    /// A Linux or macOS image at its recorded local path whose own build id or UUID matches (sprint 2.3.5). An image
+    /// A Linux or macOS image at its recorded local path whose own build id or UUID matches. An image
     /// archived under another binary's identity (<see cref="SymbolProperties.Coreclr"/>) is not looked for here: the DAC is
     /// found by <see cref="DacLocator"/>, which checks the pair.
     /// </summary>

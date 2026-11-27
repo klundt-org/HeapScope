@@ -26,8 +26,8 @@ using HeapScope.Contracts;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// A crumb of the Retainers tab's trail (sprint 2.4): a dominator of the focus, which focuses on it, or the count of the
-/// ones a long trail leaves out (no <see cref="Ancestor"/>; the 2.4 review).
+/// A crumb of the Retainers tab's trail: a dominator of the focus, which focuses on it, or the count of the
+/// ones a long trail leaves out (no <see cref="Ancestor"/>).
 /// </summary>
 public sealed record TrailItem(string Text, DominatorAncestorDto? Ancestor)
 {

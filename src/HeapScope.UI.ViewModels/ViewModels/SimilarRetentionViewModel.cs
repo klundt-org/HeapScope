@@ -58,7 +58,7 @@ public sealed class RetentionGroupItem(RetentionGroupDto group, bool showFramewo
 }
 
 /// <summary>
-/// Similar Retention of a set (sprint 3.2, ADR-031; dotMemory's Similar Retention): the members grouped by how they are
+/// Similar Retention of a set (ADR-031, dotMemory's Similar Retention): the members grouped by how they are
 /// retained, each group with its most different paths; a group opens as a set of its own, and its paths as a diagram.
 /// </summary>
 public sealed partial class SimilarRetentionViewModel : ObservableObject

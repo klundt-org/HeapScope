@@ -24,7 +24,7 @@
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// Where a user gets help (peer review 4.5 H14): one place, the project's issues, with SUPPORT.md saying what to include and what
+/// Where a user gets help: one place, the project's issues, with SUPPORT.md saying what to include and what
 /// the log holds. Every message that sends the user for help names these, never a "support" that does not exist.
 /// </summary>
 public static class HelpLinks

@@ -51,7 +51,7 @@ internal static class WorkerErrors
         SnapshotChangedException => HeapScopeErrorCode.SnapshotChanged,
         IndexCacheInUseException or IOException or UnauthorizedAccessException => HeapScopeErrorCode.SnapshotUnavailable,
         OutOfMemoryException or InsufficientExecutionStackException => HeapScopeErrorCode.InsufficientMemory,
-        // Only a refusal the worker means (sprint 3.12, B5); any other ArgumentException is a bug, handled as unexpected.
+        // Only a refusal the worker means; any other ArgumentException is a bug, handled as unexpected.
         RequestRefusedException => HeapScopeErrorCode.InvalidArgument,
         _ => null,
     };
@@ -70,14 +70,14 @@ internal static class WorkerErrors
 
     /// <summary>
     /// Expected refusals: the request was understood and answered "no" for a reason the user can act on. They are logged
-    /// at Information without a stack trace; other coded failures keep their stack (sprint 2.3.7 review M2).
+    /// at Information without a stack trace; other coded failures keep their stack.
     /// </summary>
     public static bool IsRefusal(HeapScopeErrorCode code) => code is HeapScopeErrorCode.CapabilityNotSupported
         or HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.SnapshotChanged or HeapScopeErrorCode.SnapshotNotLoaded
         or HeapScopeErrorCode.ResultSetNotFound or HeapScopeErrorCode.RuntimeComponentMissing or HeapScopeErrorCode.InsufficientMemory
         or HeapScopeErrorCode.TraceNotLoaded or HeapScopeErrorCode.SnapshotFormat or HeapScopeErrorCode.DacNotTrusted;
 
-    /// <summary>The error data a front end needs to act on a refusal (sprint 3.6: the DAC to trust), or null.</summary>
+    /// <summary>The error data a front end needs to act on a refusal (the DAC to trust), or null.</summary>
     public static object? DataOf(Exception exception) => exception switch
     {
         UntrustedDacException { Path: { } path, Sha256: { } sha256 } untrusted => new DacTrustDetails(path, sha256, untrusted.RuntimeVersion ?? ""),
@@ -87,7 +87,7 @@ internal static class WorkerErrors
     /// <summary>
     /// Runs an RPC method body, translating domain exceptions into coded errors. Every outcome except cancellation is
     /// logged once with the operation and the request (<see cref="Provenance"/>): an answer at <paramref name="resultLevel"/>
-    /// with what was answered (sprint 2.3.7 review H3), a refusal at Information, a coded failure as a warning with its
+    /// with what was answered, a refusal at Information, a coded failure as a warning with its
     /// stack, an unexpected one as an error (the client only sees the message).
     /// </summary>
     public static async Task<T> GuardAsync<T>(
@@ -117,8 +117,8 @@ internal static class WorkerErrors
         }
         catch (LocalRpcException ex)
         {
-            // Errors the worker creates as codes (an unknown snapshot or result set, a rejected argument) were logged
-            // nowhere before sprint 2.3.7.
+            // Errors the worker creates as codes (an unknown snapshot or result set, a rejected argument) are logged here, and
+            // nowhere else.
             logger?.LogInformation("{Operation} refused ({Code}): {Message}; request {Request}", operation, (HeapScopeErrorCode)ex.ErrorCode, ex.Message, Provenance.Describe(request));
             throw;
         }
@@ -130,7 +130,7 @@ internal static class WorkerErrors
                 if (ex.InnerException is { } inner)
                 {
                     // A refusal that wraps another exception (a gcdump the reader found inconsistent): where it was thrown, so
-                    // a contested refusal can be told from a HeapScope bug (3.7 review H5). At Debug only: the inner exception's
+                    // a contested refusal can be told from a HeapScope bug. At Debug only: the inner exception's
                     // text is the library's.
                     logger?.LogDebug(inner, "{Operation} refusal ({Code}) came from {Inner}", operation, code, inner.GetType().Name);
                 }
@@ -144,7 +144,7 @@ internal static class WorkerErrors
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // A bug, not a refusal (sprint 3.12, B5): its stack in the log, and for the user the owner's fixed words with the id
+            // A bug, not a refusal: its stack in the log, and for the user the owner's fixed words with the id
             // that finds this line, never the exception's own text (ClrMD's, TraceEvent's or a NullReferenceException's).
             var id = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N")[..16];
             logger?.LogError(ex, "{Operation} failed unexpectedly (id {Id}); request {Request}", operation, id, Provenance.Describe(request));

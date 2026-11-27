@@ -28,7 +28,7 @@ namespace HeapScope.Capture;
 
 /// <summary>
 /// A process's facts on Windows, asked of the kernel with limited query rights, so an elevated process's image path and
-/// command line still read (moved from <see cref="ProcessDiscovery"/> in sprint 4.1).
+/// command line still read (once part of <see cref="ProcessDiscovery"/>).
 /// </summary>
 internal sealed partial class WindowsProcessFacts : IProcessFacts
 {

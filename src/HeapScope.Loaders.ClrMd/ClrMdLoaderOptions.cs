@@ -28,7 +28,7 @@ namespace HeapScope.Loaders.ClrMd;
 /// <summary>Options of the full dump loader (ARCHITECTURE.md 6.5, ADR-017).</summary>
 public sealed record ClrMdLoaderOptions
 {
-    /// <summary>Default cap of ClrMD's dump data cache, measured in sprint 0.4 (same speed, half the memory).</summary>
+    /// <summary>Default cap of ClrMD's dump data cache, measured (same speed, half the memory).</summary>
     public const long DefaultMaxDumpCacheBytes = 512L * 1024 * 1024;
 
     /// <summary>Upper bound of ClrMD's dump data cache in bytes.</summary>
@@ -44,7 +44,7 @@ public sealed record ClrMdLoaderOptions
     public bool AllowMicrosoftSymbolServer { get; init; }
 
     /// <summary>
-    /// Whether the user still allows downloads now (sprint 4.8 review M5): a snapshot's field reader opens its dump later, perhaps
+    /// Whether the user still allows downloads now: a snapshot's field reader opens its dump later, perhaps
     /// hours after the load, and a download the user turned off since must not happen. Null: <see cref="AllowMicrosoftSymbolServer"/> alone.
     /// </summary>
     public Func<bool>? AllowMicrosoftSymbolServerNow { get; init; }
@@ -60,13 +60,12 @@ public sealed record ClrMdLoaderOptions
 
     /// <summary>
     /// Hands the walk to ClrMD's own at the object with this number (counted over the whole walk, from 1) as though its method
-    /// table could not be read (sprint 3.12 review M1): tests prove the fallback builds the same graph.
+    /// table could not be read: tests prove the fallback builds the same graph.
     /// </summary>
     internal long? FallBackAtObjectForTests { get; init; }
 
     /// <summary>
-    /// Gives the object with this number a length that runs past its segment, as a damaged array or string would (sprint 3.12
-    /// review M8): tests prove it is counted as unreadable and its segment as incomplete.
+    /// Gives the object with this number a length that runs past its segment, as a damaged array or string would: tests prove it is counted as unreadable and its segment as incomplete.
     /// </summary>
     internal long? OverrunAtObjectForTests { get; init; }
 
@@ -83,19 +82,19 @@ public sealed record ClrMdLoaderOptions
     public bool SearchDumpedRuntimeDirectory { get; init; } = true;
 
     /// <summary>
-    /// The folder of the runtime HeapScope carries when it runs self-contained (sprint 2.3.6), searched last; null when it
+    /// The folder of the runtime HeapScope carries when it runs self-contained, searched last; null when it
     /// runs on a shared runtime, which is an installed runtime already. Tests pass their own.
     /// </summary>
     public string? OwnRuntimeDirectory { get; init; } = DacLocator.RunningSharedFolder() is null ? AppContext.BaseDirectory : null;
 
     /// <summary>
     /// Told which DAC each runtime was created with, by the loader and by the field reader, which opens the dump again
-    /// later (sprint 2.3.7 review M3). The worker logs it; the loaders stay free of logging.
+    /// later. The worker logs it; the loaders stay free of logging.
     /// </summary>
     public Action<DacChoice>? DacChosen { get; init; }
 
     /// <summary>
-    /// Whether the DAC with this SHA-256 (lower-case hex) may be loaded from next to the dump (peer review P2). A DAC there
+    /// Whether the DAC with this SHA-256 (lower-case hex) may be loaded from next to the dump. A DAC there
     /// came with the dump, so it is native code from whoever made the dump: it is loaded only when the user trusted it or
     /// HeapScope's own capture copied it. Null trusts none.
     /// </summary>
@@ -108,8 +107,7 @@ public sealed record ClrMdLoaderOptions
     public string? TrustedDacCopyFolder { get; init; }
 
     /// <summary>
-    /// Whether the GC handles of a Server GC process are walked a second time (configuration <c>Worker:SecondHandleWalk</c>, default on;
-    /// peer review 4.5). Off, they count as not checked: for a dump the walk cannot get through.
+    /// Whether the GC handles of a Server GC process are walked a second time (configuration <c>Worker:SecondHandleWalk</c>, default on). Off, they count as not checked: for a dump the walk cannot get through.
     /// </summary>
     public bool SecondHandleWalk { get; init; } = true;
 

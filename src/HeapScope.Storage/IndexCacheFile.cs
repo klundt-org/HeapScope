@@ -37,10 +37,10 @@ public sealed record IndexFileOpenResult(IndexCacheFile? File, IndexCacheInvalid
 }
 
 /// <summary>
-/// An opened index file of any <see cref="IndexFileLayout"/> (sprint 2.1; the optional indices' sidecars), validated like
+/// An opened index file of any <see cref="IndexFileLayout"/> (the optional indices' sidecars), validated like
 /// the base cache before it is returned: header, directory, fingerprint, base identity and every section checksum. In
 /// memory, each section is read once into an array of its element size (so a section holds up to 2^31 - 1 elements, like
-/// the graph's columns, review M1) and verified in the same pass; mapped, the sections are verified with sequential reads
+/// the graph's columns) and verified in the same pass; mapped, the sections are verified with sequential reads
 /// and then handed out as views of a read-only mapping. Disposing releases the mapping, so columns
 /// must not be used after it (the owner disposes it with the graph, after the last lease: <see cref="HeapGraph.Attach"/>).
 /// </summary>

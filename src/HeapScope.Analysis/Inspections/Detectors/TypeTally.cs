@@ -25,8 +25,7 @@
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Objects, bytes and members per type, counted the same way by every detector that reports by type (sprint 3.8, peer
-/// review P19). Members keep the order they were added in; each detector orders its rows itself.
+/// Objects, bytes and members per type, counted the same way by every detector that reports by type. Members keep the order they were added in; each detector orders its rows itself.
 /// </summary>
 internal sealed class TypeTally
 {

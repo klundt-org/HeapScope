@@ -66,8 +66,8 @@ public enum TypeKind : ushort
     Exception = 1 << 4,
 
     /// <summary>
-    /// An array whose elements are references (sprint 1.6): its non-null slots are its outgoing references. Index caches
-    /// written before 1.6 lack the flag.
+    /// An array whose elements are references: its non-null slots are its outgoing references. Older index
+    /// caches lack the flag.
     /// </summary>
     ReferenceArray = 1 << 5,
 }
@@ -104,7 +104,7 @@ public enum RootFlags : byte
 
 /// <summary>
 /// A dependent handle the loader merged into the CSR as the edge <see cref="Primary"/> -> <see cref="Secondary"/>
-/// (sprint 2.2, ARCHITECTURE.md 6.1): the secondary is kept alive by the handle table while the primary is reachable, not by
+/// (ARCHITECTURE.md 6.1): the secondary is kept alive by the handle table while the primary is reachable, not by
 /// a field of the primary. 8 bytes, persisted.
 /// </summary>
 public readonly record struct DependentHandle(int Primary, int Secondary);

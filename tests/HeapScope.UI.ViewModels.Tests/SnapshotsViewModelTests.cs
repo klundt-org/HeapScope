@@ -39,6 +39,7 @@ public sealed class SnapshotsViewModelTests : IDisposable
     private readonly FakeWorkerClient _worker = new();
     private readonly FakeUserInteraction _interaction = new();
     private readonly WorkerOperations _operations;
+    private readonly SingleThreadUiDispatcher _ui = new();
     private readonly SnapshotsViewModel _snapshots;
     private PhysicalMemory _memory = new(32 * Gb, 20 * Gb);
 
@@ -46,14 +47,16 @@ public sealed class SnapshotsViewModelTests : IDisposable
     {
         Directory.CreateDirectory(_folder);
         _operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory), _operations, new ImmediateUiDispatcher(), _interaction);
+        // The page runs on a UI thread of its own: every change of it and its workspaces must be raised there.
+        _snapshots = _ui.Invoke(() => new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory), _operations, _ui, _interaction));
+        _ui.WatchPage(_snapshots);
         _worker.Service.Rows.Add(["System.String", "600", "36000"]);
         _worker.Service.Rows.Add(["System.Byte[]", "400", "12000"]);
     }
 
     /// <summary>The only way back from a refused reopen is opening the dump again, so that has to work on the page (3.10 review M40).</summary>
     [Fact]
-    public async Task Opening_a_dump_again_after_a_refused_reopen_shows_it_afresh()
+    public Task Opening_a_dump_again_after_a_refused_reopen_shows_it_afresh() => _ui.RunCheckedAsync(async () =>
     {
         var dump = Dump("app.dmp", 1024);
         _worker.Service.CacheIdentity = 0x8000_0000_0000_0001;
@@ -79,14 +82,14 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _snapshots.Snapshots.ShouldHaveSingleItem().ShouldBeSameAs(before);
         _snapshots.Types.Status.ShouldBeNull();
         _snapshots.Types.Rows.Count.ShouldBe(2);
-    }
+    });
 
     /// <summary>
     /// A new row for a dump opened again read as a close and an open: Compare fell back to the automatic pair and Trend ticked an
     /// unticked snapshot again and moved it last, while the steps that asked the earlier snapshot stayed on screen (3.11 review M1).
     /// </summary>
     [Fact]
-    public async Task Opening_a_dump_again_keeps_the_choices_made_with_it_and_starts_its_path_again()
+    public Task Opening_a_dump_again_keeps_the_choices_made_with_it_and_starts_its_path_again() => _ui.RunCheckedAsync(async () =>
     {
         var first = Dump("first.dmp", 10);
         _worker.Service.CacheIdentity = 0x8000_0000_0000_0001;
@@ -133,11 +136,11 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _snapshots.Compare.Trend.Choices.Select(static c => (c.Snapshot, c.IsIncluded)).ShouldBe(ticks);
         _snapshots.Navigator.Current.ShouldBeOfType<TypeSummaryViewModel>("every step asked the earlier snapshot");
         _snapshots.Navigator.Steps.Count.ShouldBe(1);
-    }
+    });
 
     /// <summary>After a worker restart a snapshot reopens by itself; opening it again then changes nothing (3.11 review M12).</summary>
     [Fact]
-    public async Task After_a_silent_reopen_opening_the_dump_again_keeps_its_path()
+    public Task After_a_silent_reopen_opening_the_dump_again_keeps_its_path() => _ui.RunCheckedAsync(async () =>
     {
         var dump = Dump("app.dmp", 1024);
         await _snapshots.OpenPathAsync(dump);
@@ -156,10 +159,10 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
         _snapshots.Selected.ShouldBeSameAs(item);
         _snapshots.Navigator.Current.ShouldBeSameAs(shown);
-    }
+    });
 
     [Fact]
-    public async Task Opening_a_dump_that_is_already_open_changes_nothing()
+    public Task Opening_a_dump_that_is_already_open_changes_nothing() => _ui.RunCheckedAsync(async () =>
     {
         var dump = Dump("app.dmp", 1024);
         await _snapshots.OpenPathAsync(dump);
@@ -170,10 +173,10 @@ public sealed class SnapshotsViewModelTests : IDisposable
         await _snapshots.OpenPathAsync(dump);
 
         _snapshots.Selected.ShouldBeSameAs(before);
-    }
+    });
 
     [Fact]
-    public async Task Opening_a_dump_lists_and_selects_it_and_loads_its_largest_types()
+    public Task Opening_a_dump_lists_and_selects_it_and_loads_its_largest_types() => _ui.RunCheckedAsync(async () =>
     {
         var dump = Dump("app.dmp", 1024);
 
@@ -193,10 +196,10 @@ public sealed class SnapshotsViewModelTests : IDisposable
         (rows.GetRow(0).Name, rows.GetRow(0).Objects, rows.GetRow(0).Bytes).ShouldBe(("System.String", 600L, 36000L));
         (rows.GetRow(1).Name, rows.GetRow(1).Bytes).ShouldBe(("System.Byte[]", 12000L));
         _interaction.Questions.ShouldBeEmpty();
-    }
+    });
 
     [Fact]
-    public async Task A_load_that_may_not_fit_asks_first_and_declining_opens_nothing()
+    public Task A_load_that_may_not_fit_asks_first_and_declining_opens_nothing() => _ui.RunCheckedAsync(async () =>
     {
         _memory = new PhysicalMemory(16 * Gb, Gb / 2);
         _interaction.Answer = false;
@@ -206,10 +209,10 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _interaction.Questions.ShouldHaveSingleItem().ShouldContain("only 0.5 GB of 16.0 GB");
         _worker.Service.Opened.ShouldBeEmpty();
         _snapshots.Status.ShouldBe("Open canceled.");
-    }
+    });
 
     [Fact]
-    public async Task No_memory_question_when_an_index_cache_exists()
+    public Task No_memory_question_when_an_index_cache_exists() => _ui.RunCheckedAsync(async () =>
     {
         _memory = new PhysicalMemory(16 * Gb, 1 * Gb);
         var dump = Dump("cached.dmp", 1024);
@@ -219,10 +222,10 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
         _interaction.Questions.ShouldBeEmpty();
         _worker.Service.Opened.ShouldHaveSingleItem();
-    }
+    });
 
     [Fact]
-    public async Task Open_dump_command_uses_the_file_dialog_and_does_nothing_when_canceled()
+    public Task Open_dump_command_uses_the_file_dialog_and_does_nothing_when_canceled() => _ui.RunCheckedAsync(async () =>
     {
         _interaction.NextFile = null;
         await _snapshots.OpenDumpCommand.ExecuteAsync(null);
@@ -231,10 +234,10 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _interaction.NextFile = Dump("picked.dmp", 10);
         await _snapshots.OpenDumpCommand.ExecuteAsync(null);
         _worker.Service.Opened.ShouldHaveSingleItem().Path.ShouldBe(_interaction.NextFile);
-    }
+    });
 
     [Fact]
-    public async Task Closing_removes_the_snapshot_and_closes_it_in_the_worker()
+    public Task Closing_removes_the_snapshot_and_closes_it_in_the_worker() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp", 10));
         var item = _snapshots.Selected!;
@@ -244,20 +247,20 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _snapshots.Snapshots.ShouldBeEmpty();
         _snapshots.Selected.ShouldBeNull();
         _worker.Service.Closed.ShouldBe([item.Handle.Descriptor.SnapshotId]);
-    }
+    });
 
     [Fact]
-    public async Task Missing_file_is_reported_and_nothing_is_opened()
+    public Task Missing_file_is_reported_and_nothing_is_opened() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Path.Combine(_folder, "missing.dmp"));
 
         _snapshots.Status!.ShouldContain("does not exist");
         _snapshots.IsOpening.ShouldBeFalse();
         _worker.Service.Opened.ShouldBeEmpty();
-    }
+    });
 
     [Fact]
-    public async Task A_worker_error_while_opening_is_shown_as_the_status()
+    public Task A_worker_error_while_opening_is_shown_as_the_status() => _ui.RunCheckedAsync(async () =>
     {
         _worker.Service.OpenFailure = new HeapScope.Application.Workers.WorkerOperationException(
             Contracts.HeapScopeErrorCode.SnapshotFormat, "Not a dump.", null);
@@ -266,14 +269,15 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
         _snapshots.Status.ShouldBe("Not a dump.");
         _snapshots.Snapshots.ShouldBeEmpty();
-    }
+    });
 
     [Fact]
-    public async Task A_DAC_found_next_to_the_dump_is_loaded_only_after_the_user_trusts_it()
+    public Task A_DAC_found_next_to_the_dump_is_loaded_only_after_the_user_trusts_it() => _ui.RunCheckedAsync(async () =>
     {
         // Sprint 3.6, peer review P2: the app asks, naming the file and its hash, and remembers a yes by the hash.
         var trusted = new TrustedDacs(_folder);
-        var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('a', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         var dump = Dump("received.dmp", 10);
@@ -297,15 +301,16 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
         // Kept across runs: a new session sends it with every open without asking.
         new TrustedDacs(_folder).All().ShouldBe([dac.Sha256]);
-    }
+    });
 
     // Sprint 3.12 (owner, 2026-11-13): after a "no" the snapshot opens from its cache without value reads, and the page offers
     // Trust this DAC and reopen, which asks the same question, trusts, closes the snapshot and opens the dump again.
     [Fact]
-    public async Task A_declined_DAC_can_be_trusted_later_from_the_snapshot_and_the_dump_opens_again()
+    public Task A_declined_DAC_can_be_trusted_later_from_the_snapshot_and_the_dump_opens_again() => _ui.RunCheckedAsync(async () =>
     {
         var trusted = new TrustedDacs(_folder);
-        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('b', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         _worker.Service.CachedWithoutDac = true;
@@ -343,14 +348,15 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _worker.Service.Opened[^1].TrustedDacs.ShouldBe([dac.Sha256]);
         snapshots.CanTrustDac.ShouldBeFalse();
         snapshots.Status.ShouldNotBeNull().ShouldEndWith("the Compare, Inspections and Retainers tabs analyze it further.", customMessage: "opened with everything (sprint 3.13.2)");
-    }
+    });
 
     // The 3.12 re-review: a reopen that loads the dump asks about memory first, and a "no" leaves the snapshot as it was.
     [Fact]
-    public async Task Trust_this_DAC_and_reopen_asks_about_memory_before_it_closes_anything()
+    public Task Trust_this_DAC_and_reopen_asks_about_memory_before_it_closes_anything() => _ui.RunCheckedAsync(async () =>
     {
         var trusted = new TrustedDacs(_folder);
-        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, new ImmediateUiDispatcher(), _interaction);
+        using var snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted), _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         _worker.Service.RequiredDac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('c', 64), "10.0.13");
         _worker.Service.CachedWithoutDac = true;
         var dump = Dump("big.dmp", 1024);
@@ -371,14 +377,15 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _worker.Service.Closed.ShouldBeEmpty();
         snapshots.Selected.ShouldBeSameAs(item);
         snapshots.Status.ShouldBe("Open canceled.");
-    }
+    });
 
     [Fact]
-    public async Task Trust_this_DAC_and_reopen_keeps_the_memory_mode_the_snapshot_was_opened_with()
+    public Task Trust_this_DAC_and_reopen_keeps_the_memory_mode_the_snapshot_was_opened_with() => _ui.RunCheckedAsync(async () =>
     {
         var trusted = new TrustedDacs(_folder);
         var session = TestSessions.Create(_worker, _operations.Jobs, () => _memory, trustedDacs: trusted);
-        using var snapshots = new SnapshotsViewModel(session, _operations, new ImmediateUiDispatcher(), _interaction);
+        using var snapshots = new SnapshotsViewModel(session, _operations, _ui, _interaction);
+        _ui.WatchPage(snapshots);
         var dac = new DacTrustDetails(Path.Combine(_folder, "mscordaccore.dll"), new string('d', 64), "10.0.13");
         _worker.Service.RequiredDac = dac;
         _worker.Service.CachedWithoutDac = true;
@@ -391,11 +398,11 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
         _worker.Service.Opened[^1].Mode.ShouldBe(SnapshotMemoryMode.Mapped);
         _worker.Service.Opened[^1].TrustedDacs.ShouldBe([dac.Sha256]);
-    }
+    });
 
     // Sprint 3.12 (review of task 9): a full dump whose DAC cannot be used opens without value reads, and the status says so.
     [Fact]
-    public async Task A_full_dump_opened_without_its_DAC_says_so_in_the_status_and_offers_no_trust()
+    public Task A_full_dump_opened_without_its_DAC_says_so_in_the_status_and_offers_no_trust() => _ui.RunCheckedAsync(async () =>
     {
         _worker.Service.Unavailable[SnapshotFeatureIds.FieldValues] = "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.13 runtime was not found.";
 
@@ -407,19 +414,19 @@ public sealed class SnapshotsViewModelTests : IDisposable
         _worker.Service.Unavailable.Clear();
         await _snapshots.OpenPathAsync(Dump("fine.dmp", 10));
         _snapshots.Status.ShouldBe(string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.OpenedStatus, "fine.dmp"), "sprint 3.13.2: an open says it worked");
-    }
+    });
 
     [Fact]
-    public async Task Shell_shows_the_snapshots_page_when_a_snapshot_opens()
+    public Task Shell_shows_the_snapshots_page_when_a_snapshot_opens() => _ui.RunCheckedAsync(async () =>
     {
         var processes = new ProcessesViewModel(new FakeCaptureService(Path.Combine(_folder, "sessions"), _operations.Jobs), _snapshots, _interaction);
-        using var shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, _snapshots), _snapshots, processes, new AboutViewModel(_operations));
+        using var shell = new ShellViewModel(_operations, _ui, new HomeViewModel(_operations, _snapshots), _snapshots, processes, new AboutViewModel(_operations));
 
         await _snapshots.OpenPathAsync(Dump("b.dmp", 10));
 
         shell.SelectedItem.Page.ShouldBeSameAs(_snapshots);
         shell.Home.OpenDumpCommand.ShouldBeSameAs(_snapshots.OpenDumpCommand);
-    }
+    });
 
     [Theory]
     [InlineData(512L, "512 bytes")]
@@ -435,7 +442,20 @@ public sealed class SnapshotsViewModelTests : IDisposable
 
     public void Dispose()
     {
-        _snapshots.Dispose();
+        try
+        {
+            // Work that ended after the test body is checked too.
+            _ui.Check();
+        }
+        finally
+        {
+            _ui.Invoke(() =>
+            {
+                _snapshots.Dispose();
+                return true;
+            });
+            _ui.Dispose();
+        }
         try
         {
             Directory.Delete(_folder, recursive: true);

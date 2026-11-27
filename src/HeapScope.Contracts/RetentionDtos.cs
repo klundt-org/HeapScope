@@ -24,7 +24,7 @@
 namespace HeapScope.Contracts;
 
 // DTOs are records of primitives, strings, arrays and Contracts enums only (ARCHITECTURE.md 4.4, ADR-016).
-// Retention paths (sprint 2.2): why an object or the objects of a type are alive.
+// Retention paths: why an object or the objects of a type are alive.
 
 /// <summary>A GC root's kind on the wire (mirrors Core's <c>RootKind</c>).</summary>
 public enum RootKindDto
@@ -47,12 +47,12 @@ public enum RootKindDto
 public sealed record PathRootDto(RootKindDto Kind, bool Frozen, string Description);
 
 /// <summary>
-/// One object of an object's retention tree (sprint 2.2). Node 0 is the inspected object; every other node references
+/// One object of an object's retention tree. Node 0 is the inspected object; every other node references
 /// the node <see cref="ChildId"/> on its shortest way there, through <see cref="Field"/> (full dumps) or a dependent handle
 /// (<see cref="ViaDependentHandle"/>). <see cref="Root"/> is set on the nodes where paths start; <see cref="RootsBelow"/>
 /// counts the roots found whose paths pass through the node. <see cref="IsFramework"/> marks a step of a framework type
 /// (a <c>System.</c> or <c>Microsoft.</c> namespace) between other steps, which front ends may fold. <see cref="Folded"/>
-/// counts the objects of the same type behind this one on the path (a list folded into one node, review H1); a gap node,
+/// counts the objects of the same type behind this one on the path (a list folded into one node); a gap node,
 /// which stands for the middle of a long path, has <see cref="Address"/> 0 and <see cref="Folded"/> objects.
 /// </summary>
 public sealed record RetentionNodeDto(
@@ -85,7 +85,7 @@ public sealed record ObjectPathsRequest(Guid SnapshotId, ulong Address, int MaxR
 /// The answer to an object paths query. <see cref="Reachable"/> is false when no root holds the object (garbage not yet
 /// collected, or held only weakly). <see cref="StoppedEarly"/>: the search hit its limits, so more roots may exist.
 /// <see cref="Truncated"/>: roots were found whose paths would pass the tree's node limit and were left out.
-/// <see cref="UnreachableNote"/> says what an unreachable object means for this kind of snapshot (review M3): garbage not
+/// <see cref="UnreachableNote"/> says what an unreachable object means for this kind of snapshot: garbage not
 /// yet collected in a full dump, a root the gcdump did not record in a gcdump, which holds only survivors.
 /// </summary>
 public sealed record ObjectPathsResult(
@@ -103,7 +103,7 @@ public sealed record ObjectPathsResult(
 
 /// <summary>
 /// Why the objects of a type are alive: their key paths, the largest <paramref name="MaxPaths"/> (1 to 100). With a
-/// <paramref name="Set"/> (sprint 3.2) the key paths of the set's members; <paramref name="TypeName"/> is then empty.
+/// <paramref name="Set"/> the key paths of the set's members; <paramref name="TypeName"/> is then empty.
 /// </summary>
 public sealed record TypePathsRequest(Guid SnapshotId, string TypeName, string? Module, int MaxPaths = 20, ObjectSetSpec? Set = null);
 
@@ -126,7 +126,7 @@ public sealed record TypePathsResult(
     string UnreachableNote);
 
 /// <summary>
-/// Similar Retention of a set (sprint 3.2, ADR-031): its members grouped by retention pattern, the largest
+/// Similar Retention of a set (ADR-031): its members grouped by retention pattern, the largest
 /// <paramref name="MaxGroups"/> groups (1 to 500).
 /// </summary>
 public sealed record SimilarRetentionRequest(Guid SnapshotId, ObjectSetSpec Set, int MaxGroups = SimilarRetentionLimits.DefaultGroups);

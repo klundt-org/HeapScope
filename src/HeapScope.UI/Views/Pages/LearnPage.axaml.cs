@@ -25,7 +25,7 @@ using Avalonia.Controls;
 
 namespace HeapScope.UI.Views.Pages;
 
-/// <summary>The Learn page (sprint 3.13): lessons on the tutorial's sample.</summary>
+/// <summary>The Learn page: lessons on the tutorial's sample.</summary>
 public sealed partial class LearnPage : UserControl
 {
     public LearnPage()

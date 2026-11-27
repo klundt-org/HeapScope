@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 
 namespace HeapScope.Worker.Rpc;
 
-/// <summary>A set's top members (sprint 3.1), most retained first (<see cref="SetDominatorColumns"/>); its rows read the graph under a lease.</summary>
+/// <summary>A set's top members, most retained first (<see cref="SetDominatorColumns"/>); its rows read the graph under a lease.</summary>
 internal sealed class SetDominatorsSource(HeapGraph graph, Dominators dominators, SetDominatorList tops) : IResultSource
 {
     private static readonly ResultColumn[] s_columns =

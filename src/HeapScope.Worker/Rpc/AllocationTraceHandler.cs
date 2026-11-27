@@ -123,7 +123,7 @@ internal sealed class AllocationTraceHandler(
                 samples,
                 bytes,
                 string.Join("; ", rows.Take(LoggedAllocationRows).Select(r => string.Create(CultureInfo.InvariantCulture, $"{open.Trace.Types[r.Type]} {r.Bytes} bytes ({r.Samples} samples, LOH {r.LargeBytes}, POH {r.PinnedBytes})"))));
-            return new AllocationTypesResult(resultSets.Add(new AllocationTypesSource(open.Trace.Types, rows, bytes)), bytes, samples, Interval(open, filter));
+            return new AllocationTypesResult(resultSets.Add(null, new AllocationTypesSource(open.Trace.Types, rows, bytes)), bytes, samples, Interval(open, filter));
         }, LevelOf(request?.TraceId));
 
     public Task<AllocationStacksResult> QueryAllocationStacksAsync(AllocationStacksRequest request, CancellationToken cancellationToken) =>
@@ -143,7 +143,7 @@ internal sealed class AllocationTraceHandler(
             var stacks = top.Select(s => new AllocationStackDto(s.Bytes, s.Samples, [.. AllocationProfile.FramesOf(open.Trace, s.Node).Select(f => open.Trace.Frames[f])])).ToArray();
 
             // Every stack answered, with its rank, its innermost stack node (which rebuilds it from the same trace) and its
-            // frames, allocating frame first: framework frames come first, so the disputed one may be deep (the 2.5 review).
+            // frames, allocating frame first: framework frames come first, so the disputed one may be deep.
             Logger.LogInformation(
                 "Allocation stacks of trace {Id}{AsOf} from {From} s to {To}, type {Type}: {Samples} samples of {Bytes} bytes, {Count} stacks: {Stacks}",
                 request.TraceId,
@@ -216,7 +216,7 @@ internal sealed class AllocationTraceHandler(
                 request.RevealKey ?? "none",
                 reveal,
                 string.Join("; ", shown.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Name} total {r.Total} own {r.Own}"))));
-            return new AllocationTreeResult(resultSets.Add(new AllocationTreeSource(view)), view.TotalBytes, view.TotalSamples, view.Truncated, reveal);
+            return new AllocationTreeResult(resultSets.Add(null, new AllocationTreeSource(view)), view.TotalBytes, view.TotalSamples, view.Truncated, reveal);
         });
 
     private OpenTrace Trace(Guid traceId) => traces.TryGet(traceId) ?? throw NotLoaded(traceId);

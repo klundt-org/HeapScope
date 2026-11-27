@@ -35,10 +35,10 @@ namespace HeapScope.UI.ViewModels;
 /// <summary>One row of the process list. Numbers stay numeric so the grid sorts them.</summary>
 public sealed record ProcessRow(int ProcessId, string Name, string Runtime, string Elevation, long WorkingSetBytes, string CommandLine, bool NeedsAdministrator, bool IsSample = false)
 {
-    /// <summary>The mark after a process's name where a list has no Elevation column (the Live page's chooser, sprint 4.1.1).</summary>
+    /// <summary>The mark after a process's name where a list has no Elevation column (the Live page's chooser).</summary>
     public string ElevationSuffix => Elevation.Length == 0 ? string.Empty : ", " + Elevation;
 
-    /// <summary>"Sample" for the tutorial's sample this HeapScope started (sprint 3.13), else empty.</summary>
+    /// <summary>"Sample" for the tutorial's sample this HeapScope started, else empty.</summary>
     public string Kind => IsSample ? "Sample" : string.Empty;
 
     public static ProcessRow From(ProcessEntry process)
@@ -55,8 +55,8 @@ public sealed record ProcessRow(int ProcessId, string Name, string Runtime, stri
 }
 
 /// <summary>
-/// The Processes page (sprint 1.1): running .NET processes with elevation hints, capture into the current session,
-/// and opening the captured dump through the Snapshots page (which runs the memory check). Since sprint 2.5 it also
+/// The Processes page: running .NET processes with elevation hints, capture into the current session,
+/// and opening the captured dump through the Snapshots page (which runs the memory check). It also
 /// records a process's allocations, shown on the Allocations page when done.
 /// </summary>
 public sealed partial class ProcessesViewModel : ObservableObject
@@ -72,7 +72,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
     private readonly SnapshotsViewModel _snapshots;
     private readonly IUserInteraction _interaction;
 
-    /// <param name="samples">The tutorial's sample (sprint 3.13); null hides the page's sample section.</param>
+    /// <param name="samples">The tutorial's sample; null hides the page's sample section.</param>
     /// <param name="dispatcher">Where a sample's exit is reported (raised on any thread); null runs it at once.</param>
     public ProcessesViewModel(ICaptureService capture, SnapshotsViewModel snapshots, IUserInteraction interaction, AllocationsViewModel? allocations = null, SampleService? samples = null, IUiDispatcher? dispatcher = null, Microsoft.Extensions.Logging.ILogger<ProcessesViewModel>? logger = null)
     {
@@ -94,7 +94,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(CaptureCommand), nameof(RecordAllocationsCommand), nameof(StopSampleCommand))]
     private ProcessRow? _selected;
 
-    /// <summary>Whether a sample started here keeps growing (sprint 3.13), so Live, traces, Compare and Trend show change.</summary>
+    /// <summary>Whether a sample started here keeps growing, so Live, traces, Compare and Trend show change.</summary>
     [ObservableProperty]
     private bool _keepGrowing = true;
 
@@ -112,7 +112,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
     [ObservableProperty]
     private bool _showElevationHint;
 
-    // Sprint 4.1.1: the processes HeapScope cannot capture as it runs now are hidden unless the box is checked.
+    // The processes HeapScope cannot capture as it runs now are hidden unless the box is checked.
     private readonly ProcessListFilter _filter = new();
 
     /// <summary>The check box: list the processes hidden because they need more rights (off at each start).</summary>
@@ -127,17 +127,17 @@ public sealed partial class ProcessesViewModel : ObservableObject
     [ObservableProperty]
     private string? _hiddenNote;
 
-    /// <summary>Capture a gcdump instead of a full dump (sprint 1.8): the object graph only, smaller, no field values.</summary>
+    /// <summary>Capture a gcdump instead of a full dump: the object graph only, smaller, no field values.</summary>
     [ObservableProperty]
     private bool _captureGcDump;
 
     public ObservableCollection<ProcessRow> Processes { get; } = [];
 
-    /// <summary>The tutorial sample's scenarios to choose from (sprint 3.13), read from the sample.</summary>
+    /// <summary>The tutorial sample's scenarios to choose from, read from the sample.</summary>
     public ObservableCollection<SampleScenarioItem> SampleScenarios { get; } = [];
 
     /// <summary>
-    /// Whether this page offers the tutorial's sample: its host has the service, and capture works here (review M3: off
+    /// Whether this page offers the tutorial's sample: its host has the service, and capture works here (off
     /// Windows nothing can be done with it, so the section is not shown).
     /// </summary>
     public bool HasSample => _samples is not null && Unavailable is null;
@@ -152,7 +152,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
     /// <summary>The path of the last allocations recording, read or not (tests).</summary>
     public string? LastRecordingPath { get; private set; }
 
-    /// <summary>Why capture is not available on this system (sprint 2.3.6), or null; the page shows it instead of the list.</summary>
+    /// <summary>Why capture is not available on this system, or null; the page shows it instead of the list.</summary>
     public string? Unavailable => _capture.UnavailableReason;
 
     [RelayCommand]
@@ -175,7 +175,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException or UnauthorizedAccessException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Process list", ex.Message);
             Status = "The process list could not be read: " + ex.Message;
         }
@@ -184,13 +184,13 @@ public sealed partial class ProcessesViewModel : ObservableObject
             IsBusy = false;
         }
 
-        // Review H2: the sample's catalog after the list, on its own: a sample that cannot run never empties the list.
+        // The sample's catalog after the list, on its own: a sample that cannot run never empties the list.
         await LoadSampleScenariosAsync();
     }
 
     private bool CanCapture() => Selected is not null && Unavailable is null;
 
-    // The sample's catalog, read once from the sample when the page first lists processes (sprint 3.13).
+    // The sample's catalog, read once from the sample when the page first lists processes.
     private async Task LoadSampleScenariosAsync()
     {
         if (_samples is null || SampleScenarios.Count > 0 || _samples.UnavailableReason is not null)
@@ -209,14 +209,14 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (SampleRefusedException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Sample", ex.Message);
             SampleStatus = ex.Message;
         }
     }
 
     /// <summary>
-    /// Starts the tutorial's sample with the chosen scenarios (sprint 3.13), then lists it, selected and marked "Sample", ready to
+    /// Starts the tutorial's sample with the chosen scenarios, then lists it, selected and marked "Sample", ready to
     /// capture or record.
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasSample))]
@@ -236,7 +236,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
             Selected = Processes.FirstOrDefault(p => p.ProcessId == sample.ProcessId);
             if (Selected is null)
             {
-                // Review H5: the claim "the sample is not in the list" can be backed up from the log.
+                // The claim "the sample is not in the list" can be backed up from the log.
                 Microsoft.Extensions.Logging.LoggerExtensions.LogInformation(_logger, "Sample {Pid} started but is not among the {Count} processes listed", sample.ProcessId, Processes.Count);
             }
 
@@ -246,7 +246,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (SampleRefusedException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Sample", ex.Message);
             Status = ex.Message;
         }
@@ -258,7 +258,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
 
     private bool CanStopSample() => Selected is { IsSample: true };
 
-    /// <summary>Stops the selected sample (sprint 3.13).</summary>
+    /// <summary>Stops the selected sample.</summary>
     [RelayCommand(CanExecute = nameof(CanStopSample))]
     private async Task StopSampleAsync()
     {
@@ -281,7 +281,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
 
     /// <summary>
     /// Shows the rows the filter lets through, keeps the selection while its row is shown, and says what is hidden: the
-    /// note while processes are hidden, the banner once they are listed (sprint 4.1.1).
+    /// note while processes are hidden, the banner once they are listed.
     /// </summary>
     private void ShowRows()
     {
@@ -298,8 +298,8 @@ public sealed partial class ProcessesViewModel : ObservableObject
         ShowElevationHint = Processes.Any(p => p.NeedsAdministrator);
     }
 
-    // Review H3: a sample stopped elsewhere, or exited, loses its Sample mark without waiting for a refresh.
-    // Every listed row, hidden or not, so a row shown later never brings back a stale mark (review M4).
+    // A sample stopped elsewhere, or exited, loses its Sample mark without waiting for a refresh.
+    // Every listed row, hidden or not, so a row shown later never brings back a stale mark.
     private void MarkSamples()
     {
         var changed = false;
@@ -337,7 +337,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
     private bool CanRecord() => CanCapture() && _allocations is not null && !IsRecording;
 
     /// <summary>
-    /// Records the selected process's sampled allocations (sprint 2.5) for up to 30 s into the session folder, then shows
+    /// Records the selected process's sampled allocations for up to 30 s into the session folder, then shows
     /// them on the Allocations page.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanRecord))]
@@ -366,21 +366,21 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (CaptureFailedException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Recording", ex.Message);
             Status = ex.Message;
         }
         catch (HeapScope.Application.Allocations.TraceRecordedButNotReadException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Recording", ex.Message);
-            // The trace is kept: say where, and how to open it later (the 2.5 review).
+            // The trace is kept: say where, and how to open it later.
             LastRecordingPath = ex.Path;
             Status = ex.Message;
         }
         catch (HeapScope.Application.Workers.WorkerException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Recording", ex.Message);
             Status = ex.Message;
         }
@@ -420,7 +420,7 @@ public sealed partial class ProcessesViewModel : ObservableObject
         }
         catch (CaptureFailedException ex)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Capture", ex.Message);
             Status = ex.Message;
         }

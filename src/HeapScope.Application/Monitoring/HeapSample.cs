@@ -33,9 +33,9 @@ using HeapScope.Application.Events;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>
-/// One interval of a process's GC heap (sprint 1.7), in bytes. <see cref="GcHeapBytes"/> is the heap now, garbage
+/// One interval of a process's GC heap, in bytes. <see cref="GcHeapBytes"/> is the heap now, garbage
 /// allocated since the last GC included; the generation sizes are as of the last GC, so <see cref="HeapAfterGcBytes"/>
-/// is what survived it (the rule metric, review of 1.7). Front ends see this, not Capture's counter type.
+/// is what survived it (the rule metric). Front ends see this, not Capture's counter type.
 /// </summary>
 public sealed record HeapSample(
     DateTimeOffset At,

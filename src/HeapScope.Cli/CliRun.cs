@@ -40,7 +40,7 @@ internal static partial class CliCommands
     /// <summary>
     /// Writes results to <paramref name="output"/> and diagnostics to <paramref name="error"/>. Ctrl+C cancels the
     /// command's token and then waits up to an hour for the command to return: a canceled capture must let the runtime
-    /// finish writing and then delete the dump (sprint 1.1 review H1). The default (2 seconds) would return 130 and exit
+    /// finish writing and then delete the dump. The default (2 seconds) would return 130 and exit
     /// with the dump left on disk; null would turn Ctrl+C handling off altogether.
     /// </summary>
     public static InvocationConfiguration CreateInvocationConfiguration(TextWriter output, TextWriter error) =>
@@ -55,8 +55,7 @@ internal static partial class CliCommands
         var output = parseResult.InvocationConfiguration.Output;
         var error = parseResult.InvocationConfiguration.Error;
 
-        // The command and what it was given, under one activity whose trace id the worker's lines carry too (sprint 2.3.7
-        // review H4, M1). Paths and numbers are logged as they are; any other value by its length (a filter may be secret).
+        // The command and what it was given, under one activity whose trace id the worker's lines carry too. Paths and numbers are logged as they are; any other value by its length (a filter may be secret).
         using var activity = new System.Diagnostics.Activity("HeapScope.Cli").Start();
         var command = parseResult.CommandResult.Command.Name;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -80,10 +79,10 @@ internal static partial class CliCommands
         catch (Exception ex) when (ex is WorkerException
             or CaptureFailedException { Reason: CaptureFailure.NotSupportedOnThisSystem })
         {
-            // What the user was told, in the log too (sprint 2.3.7 review H4).
+            // What the user was told, in the log too.
             logger.LogInformation("Command {Command} failed: {Message}", command, ex.Message);
 
-            // An unexpected worker failure asks for the log (B5): the command line says where it is (the review's M16).
+            // An unexpected worker failure asks for the log: the command line says where it is.
             var where = ex is WorkerOperationException { ErrorCode: HeapScope.Contracts.HeapScopeErrorCode.Unknown } or WorkerCrashedException
                 ? $" Details are in the log in {logFolder}."
                 : string.Empty;
@@ -102,11 +101,11 @@ internal static partial class CliCommands
         return exitCode;
     }
 
-    /// <summary>Options whose values are filter or search text the user typed (sprint 3.12, B1).</summary>
+    /// <summary>Options whose values are filter or search text the user typed.</summary>
     private static readonly HashSet<string> s_filterOptions = new(StringComparer.Ordinal) { "--filter" };
 
     /// <summary>
-    /// The command line for the log, value by value by the option it belongs to (sprint 3.12, B1): a filter's text as given
+    /// The command line for the log, value by value by the option it belongs to: a filter's text as given
     /// when <paramref name="includeFilterText"/> (the user's setting, on by default) and by its length otherwise, whatever it
     /// looks like; paths, numbers, true or false and on or off of other options as given; any other text by its length.
     /// </summary>

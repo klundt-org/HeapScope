@@ -47,7 +47,7 @@ public sealed class CapabilityNotSupportedException : Exception
         Missing = missing;
     }
 
-    /// <summary>The missing capabilities, with the explanation for the snapshot's kind (sprint 1.8).</summary>
+    /// <summary>The missing capabilities, with the explanation for the snapshot's kind.</summary>
     public CapabilityNotSupportedException(SnapshotCapabilities missing, string message)
         : base(message)
     {

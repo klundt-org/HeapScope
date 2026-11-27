@@ -26,7 +26,7 @@ using System.Globalization;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// A step of an <see cref="AnalysisPath"/> (sprint 2.7): a subject of the Snapshot tab (the types grid, instances, an
+/// A step of an <see cref="AnalysisPath"/>: a subject of the Snapshot tab (the types grid, instances, an
 /// object, a type's referrers or paths), or a link into the Retainers tab, replayed when the step is chosen again.
 /// </summary>
 public sealed class AnalysisStep
@@ -126,7 +126,7 @@ public sealed class AnalysisStep
 }
 
 /// <summary>
-/// One snapshot's analysis path (sprint 2.7, dotMemory's Analysis Path): a tree of the steps taken from the types grid.
+/// One snapshot's analysis path (dotMemory's Analysis Path): a tree of the steps taken from the types grid.
 /// Opening something adds a child of the current step, so opening from an earlier step starts a branch beside the later
 /// steps instead of dropping them. Back goes to the parent; Forward to the child shown last. At most
 /// <see cref="MaxSteps"/> steps are kept: past that, the least recently shown leaf off the current trail is closed, or,

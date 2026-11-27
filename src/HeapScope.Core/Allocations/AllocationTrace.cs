@@ -37,7 +37,7 @@ public enum AllocationKind : byte
 }
 
 /// <summary>
-/// Sampled allocations read from an EventPipe trace (sprint 2.5, ADR-028): one sample about every 100 KB allocated per
+/// Sampled allocations read from an EventPipe trace (ADR-028): one sample about every 100 KB allocated per
 /// heap and kind, each with its type, kind, the bytes it stands for and its call stack. Holds type and method names,
 /// times and sizes only, never heap contents (ARCHITECTURE.md 12).
 /// </summary>
@@ -46,7 +46,7 @@ public enum AllocationKind : byte
 /// node <see cref="StackParents"/>[n] (-1 at the outermost frame), and a parent always comes before its children. A
 /// sample points at its innermost node, the frame that allocated; a sample the trace recorded no stack for points at a
 /// node of its own (<see cref="NoStackFrame"/>), so every view adds up to the same bytes. Samples are in time order. The
-/// constructor checks all three rules: the queries rely on them (the 2.5 review).
+/// constructor checks all three rules: the queries rely on them.
 /// </remarks>
 public sealed class AllocationTrace
 {
@@ -148,7 +148,7 @@ public sealed class AllocationTrace
     public AllocationKind[] SampleKinds { get; }
 
     /// <summary>
-    /// How many samples each entry stands for, or null when each is one. A live trace (sprint 4.3) keeps its samples added up by
+    /// How many samples each entry stands for, or null when each is one. A live trace keeps its samples added up by
     /// stretch of time, type, stack and kind: an entry's time is then the start of its stretch.
     /// </summary>
     public int[]? SampleCounts { get; }
@@ -157,7 +157,7 @@ public sealed class AllocationTrace
     public int CountOf(int index) => SampleCounts is { } counts ? counts[index] : 1;
 
     /// <summary>
-    /// Each sample's method table as the tick gives it (sprint 4.4), the key that joins it to a full dump of the process; null for a
+    /// Each sample's method table as the tick gives it, the key that joins it to a full dump of the process; null for a
     /// live trace.
     /// </summary>
     public AllocationMethodTables? MethodTables { get; }
@@ -206,7 +206,7 @@ public sealed record AllocationTraceInfo(
     int ConversionIssues = 0,
     IReadOnlyList<string>? FirstIssues = null)
 {
-    /// <summary>What the check of the file walked, in words for the log (4.2.1).</summary>
+    /// <summary>What the check of the file walked, in words for the log.</summary>
     public string? Checked { get; init; }
 
     /// <summary>True when the trace may be cut short or misses names: the figures should be read with care.</summary>

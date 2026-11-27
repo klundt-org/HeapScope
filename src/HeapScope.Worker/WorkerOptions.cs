@@ -38,7 +38,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
 
     /// <summary>
     /// Tests only, and only with <see cref="EnableTestHooksSwitch"/>: no DAC is taken from an installed runtime, so a real dump
-    /// can be opened as on a machine without its runtime (sprint 3.12: the older cache fallback, end to end).
+    /// can be opened as on a machine without its runtime (the older cache fallback, end to end).
     /// </summary>
     public const string HideInstalledDacsSwitch = "--test-hide-installed-dacs";
 
@@ -55,7 +55,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     public HeapScopeFolders Folders => DataFolder is null ? HeapScopeFolders.Default : new HeapScopeFolders(DataFolder, "--data-folder");
 
     /// <summary>
-    /// The folder of the user's <c>settings.json</c> (<c>--settings-folder</c>; sprint 3.12 review H4): the client's own data
+    /// The folder of the user's <c>settings.json</c> (<c>--settings-folder</c>): the client's own data
     /// folder, which is where its Settings page saves, even when <see cref="DataFolder"/> moves the worker's data elsewhere.
     /// Null: the data folder's.
     /// </summary>
@@ -71,7 +71,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     public bool AllowMicrosoftSymbolServer { get; init; }
 
     /// <summary>
-    /// The DAC lookup a load uses now (sprint 4.8, H15; ADR-017 amended): the command line's <see cref="DacFolder"/> wins over the
+    /// The DAC lookup a load uses now (ADR-017 amended): the command line's <see cref="DacFolder"/> wins over the
     /// one saved on the Settings page, and downloads are on when the command line or the saved settings turn them on. Read at each
     /// load, so a change on the Settings page reaches the next open without a restart. A settings file that cannot be read is
     /// no saved folder and downloads off.
@@ -79,7 +79,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     public WorkerSymbols Symbols() => Symbols(InvokingUser.Current is not null);
 
     /// <param name="underSudo">
-    /// Run with sudo (sprint 4.8 review H1): the saved settings are the invoking user's file, which that user can write, so a saved
+    /// Run with sudo: the saved settings are the invoking user's file, which that user can write, so a saved
     /// DAC folder and a saved opt-in are ignored; the command line's still apply.
     /// </param>
     internal WorkerSymbols Symbols(bool underSudo)
@@ -103,7 +103,7 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     }
 
     /// <summary>
-    /// Whether the worker runs as administrator or root (sprint 4.8, M3): a full dump then gets a note that its DAC runs with those
+    /// Whether the worker runs as administrator or root: a full dump then gets a note that its DAC runs with those
     /// rights. Read from the process when the options are read; off for options a test makes.
     /// </summary>
     public bool RunsElevated { get; init; }

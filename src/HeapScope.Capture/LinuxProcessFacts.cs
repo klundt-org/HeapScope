@@ -27,7 +27,7 @@ using System.Globalization;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// A process's facts on Linux, read from <c>/proc/&lt;pid&gt;</c> (sprint 4.1) and parsed by <see cref="ProcText"/>. Another
+/// A process's facts on Linux, read from <c>/proc/&lt;pid&gt;</c> and parsed by <see cref="ProcText"/>. Another
 /// user's <c>exe</c> and <c>maps</c> are readable only by that user or root, so those reads return null for it.
 /// </summary>
 internal sealed class LinuxProcessFacts : IProcessFacts
