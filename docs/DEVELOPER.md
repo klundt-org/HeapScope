@@ -490,6 +490,10 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   and small records or enums that serve only the file's main type. `PublicTypesPerFileTests` lists the files that held
   more in 3.8: none may be added, a listed file may not grow, and a file split below two leaves the list (update
   `PublicTypesPerFile.txt`). Split a listed file when a change works in it anyway.
+- **View model size** (peer review 4.5 M15): a file of HeapScope.UI.ViewModels stays at 600 lines or fewer
+  (`ViewModelSizeTests`). A class that outgrows it is split along its parts: a type of its own in its own file, or a
+  partial file per part named after it (`CompareViewModel.Links.cs`, `SnapshotsViewModel.Dac.cs`). The test's exceptions
+  list is a ratchet, empty since sprint 4.9.
 - **Comments** (sprint 3.8, peer review S8): state the current reason, not the history. Cite a sprint, review or ADR
   id only beside a guard someone might otherwise simplify away, so its reason can be found; the history lives in git,
   the review files and the ADRs. Apply it to the code a change touches.

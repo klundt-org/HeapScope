@@ -36,137 +36,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>One row of the comparison grid, filled when its page arrives (one notification per row, as in the types grid).</summary>
-public sealed class DiffRowItem(int index) : ObservableObject, IIndexedRow
-{
-    public int Index { get; } = index;
-
-    public string Name { get; private set; } = string.Empty;
-
-    /// <summary>"new", "gone" or empty.</summary>
-    public string Change { get; private set; } = string.Empty;
-
-    public long BaselineObjects { get; private set; }
-
-    public long CurrentObjects { get; private set; }
-
-    public long ObjectsDelta { get; private set; }
-
-    public long BaselineBytes { get; private set; }
-
-    public long CurrentBytes { get; private set; }
-
-    public long BytesDelta { get; private set; }
-
-    /// <summary>Distinct types (method tables) summed into the row in the baseline; 0 when it has none.</summary>
-    public int BaselineTypes { get; private set; }
-
-    /// <summary>Distinct types summed into the row in the current snapshot ("copies" when it differs from the baseline).</summary>
-    public int CurrentTypes { get; private set; }
-
-    /// <summary>The raw type name that opens the row's instances; null for namespace and assembly rows.</summary>
-    public string? TypeName { get; private set; }
-
-    /// <summary>The module file name of <see cref="TypeName"/> (empty when none).</summary>
-    public string? Module { get; private set; }
-
-    /// <summary>Current objects not at their address in the baseline (sprint 3.3), when matched.</summary>
-    public long? NewObjects { get; private set; }
-
-    /// <summary>Baseline objects not at their address in the current snapshot, when matched.</summary>
-    public long? DeadObjects { get; private set; }
-
-    public long? BaselineRetained { get; private set; }
-
-    public long? CurrentRetained { get; private set; }
-
-    public long? RetainedDelta { get; private set; }
-
-    public long? Gen0Delta { get; private set; }
-
-    public long? Gen1Delta { get; private set; }
-
-    public long? Gen2Delta { get; private set; }
-
-    public long? LohDelta { get; private set; }
-
-    public long? PohDelta { get; private set; }
-
-    /// <summary>Sampled bytes allocated between the snapshots (sprint 4.4, an estimate); null without a sample.</summary>
-    public long? AllocatedBytes { get; private set; }
-
-    public long? AllocatedSamples { get; private set; }
-
-    /// <summary>The trace's name of the row's type, when it has one name there.</summary>
-    public string? AllocatedType { get; private set; }
-
-    /// <summary>-1, 0 or 1: the sign of the bytes delta, for the growth color.</summary>
-    public int Trend => Math.Sign(BytesDelta);
-
-    public bool IsLoaded { get; private set; }
-
-    /// <summary>A row list over a diff result set; fails at once when a column is missing.</summary>
-    public static VirtualRowList<DiffRowItem> CreateList(ResultSetHandle? rows, ResultSetInfo info, Action<Exception>? onError = null, ILogger? logger = null)
-    {
-        ArgumentNullException.ThrowIfNull(info);
-        int[] layout =
-        [
-            ResultColumns.Require(info.Columns, TypeDiffColumns.Name),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.Change),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.BaselineObjects),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.CurrentObjects),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.ObjectsDelta),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.BaselineBytes),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.CurrentBytes),
-            ResultColumns.Require(info.Columns, TypeDiffColumns.BytesDelta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.BaselineTypes),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.CurrentTypes),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.TypeName),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.Module),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.NewObjects),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.DeadObjects),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.BaselineRetained),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.CurrentRetained),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.RetainedDelta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.Gen0Delta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.Gen1Delta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.Gen2Delta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.LohDelta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.PohDelta),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.AllocatedBytes),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.AllocatedSamples),
-            ResultColumns.Find(info.Columns, TypeDiffColumns.AllocatedType),
-        ];
-        return new VirtualRowList<DiffRowItem>(rows, info.TotalCount, i => new DiffRowItem(i), (row, cells) => row.Fill(cells, layout), onError, logger);
-    }
-
-    private void Fill(IReadOnlyList<string?> cells, int[] layout)
-    {
-        Name = Cells.Text(cells, layout[0]);
-        Change = Cells.Text(cells, layout[1]);
-        BaselineObjects = Cells.Long(cells, layout[2]);
-        CurrentObjects = Cells.Long(cells, layout[3]);
-        ObjectsDelta = Cells.Long(cells, layout[4]);
-        BaselineBytes = Cells.Long(cells, layout[5]);
-        CurrentBytes = Cells.Long(cells, layout[6]);
-        BytesDelta = Cells.Long(cells, layout[7]);
-        BaselineTypes = (int)Cells.Long(cells, layout[8]);
-        CurrentTypes = (int)Cells.Long(cells, layout[9]);
-        TypeName = layout[10] >= 0 ? Cells.Text(cells, layout[10]) : null;
-        Module = layout[11] >= 0 ? Cells.Text(cells, layout[11]) : null;
-        long? Optional(int at) => layout[at] >= 0 ? Cells.Long(cells, layout[at]) : null;
-        (NewObjects, DeadObjects) = (Optional(12), Optional(13));
-        (BaselineRetained, CurrentRetained, RetainedDelta) = (Optional(14), Optional(15), Optional(16));
-        (Gen0Delta, Gen1Delta, Gen2Delta, LohDelta, PohDelta) = (Optional(17), Optional(18), Optional(19), Optional(20), Optional(21));
-        // Empty without a sample, which is not the same as zero bytes.
-        long? Sampled(int at) => layout[at] >= 0 && cells[layout[at]] is not null ? Cells.Long(cells, layout[at]) : null;
-        (AllocatedBytes, AllocatedSamples) = (Sampled(22), Sampled(23));
-        AllocatedType = layout[24] >= 0 ? cells[layout[24]] : null;
-        IsLoaded = true;
-        OnPropertyChanged(string.Empty);
-    }
-}
-
 /// <summary>
 /// The comparison grid (sprint 1.4, dotMemory's comparison view, ADR-018): two pickers over the open snapshots (the
 /// earlier capture is the default baseline), per-type deltas, sorting by any column, the shared grouping and filter.
@@ -235,7 +104,6 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     [ObservableProperty]
     private string? _retainedNote;
 
-
     public CompareViewModel(SnapshotSession session, ObservableCollection<SnapshotItemViewModel> snapshots, IUiDispatcher dispatcher, ILogger<CompareViewModel>? logger = null, INavigator? navigator = null, AllocationsViewModel? allocations = null)
         : base(TypeDiffColumns.BytesDelta, dispatcher, logger)
     {
@@ -295,24 +163,6 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         RequeryIfPair();
     }
 
-    // The rows are asked for with the trace: without it they could not be loaded again.
-    private void OnTracesChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (_readingTrace == 0 && ShowAllocated && _allocated is { } shown && _allocations!.Traces.All(t => t.Trace != shown.Trace))
-        {
-            Untick(shown.Trace, AllocatedBetweenTexts.TraceClosed);
-        }
-    }
-
-    // The trace cannot be asked any more: the comparison is shown without it, and why.
-    private void Untick(TraceHandle trace, string note)
-    {
-        Logger.LogInformation("Compare: Allocated between is unticked, as the allocation trace {Trace} cannot be used; said as: {Note}", trace.Path, note);
-        _allocated = null;
-        _untickedNote = note;
-        ShowAllocated = false;
-    }
-
     protected override void OnCleared()
     {
         (_allocated, AllocatedShown, AllocatedNote, _untickedNote) = (null, false, null, null);
@@ -328,86 +178,6 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
 
     /// <summary>Shows the interval of the allocations on the Allocations page, narrowed to a row's type (sprint 4.4).</summary>
     public System.Windows.Input.ICommand ShowWhereAllocatedCommand { get; }
-
-    private void ShowWhereAllocated(DiffRowItem? row)
-    {
-        if (_readingTrace > 0)
-        {
-            Status = AllocatedBetweenTexts.StillReading;
-            return;
-        }
-
-        if (_allocated is not { } allocated || _allocations is null)
-        {
-            Status = AllocatedNote ?? AllocatedBetweenTexts.TickFirst;
-            return;
-        }
-
-        if (row is not { IsLoaded: true })
-        {
-            return;
-        }
-
-        if (row.AllocatedBytes is null)
-        {
-            Status = AllocatedBetweenTexts.NoSample;
-            return;
-        }
-
-        Logger.LogInformation(
-            "Compare: opened {Trace} from {From:R} s to {To:R} s for the row {Row} ({Bytes} bytes, {Samples} samples; its type there: {Type})",
-            allocated.Trace.Path,
-            allocated.Interval.FromSeconds,
-            allocated.Interval.ToSeconds,
-            row.Name,
-            row.AllocatedBytes,
-            row.AllocatedSamples,
-            row.AllocatedType ?? "several, so every type is shown");
-        var note = row.AllocatedType is not { } traced ? AllocatedBetweenTexts.EveryType
-            : row.TypeName?.Contains('+', StringComparison.Ordinal) == true ? AllocatedBetweenTexts.EveryOfName(traced)
-            : null;
-        if (!_allocations.ShowInterval(allocated.Trace, allocated.Interval, row.AllocatedType, note))
-        {
-            Status = AllocatedBetweenTexts.TraceClosed;
-        }
-    }
-
-    /// <summary>The trace between the two snapshots and its interval, or why there is none. Reading a trace takes seconds, shown as a job.</summary>
-    private async Task<(DiffAllocations? Allocations, string? Note, double ClockShift)> AllocationsAsync(string baseline, string current, CancellationToken cancellationToken)
-    {
-        if (_allocations is null)
-        {
-            return (null, null, 0);
-        }
-
-        var found = await Task.Run(() => AllocatedBetween.Find(baseline, current), cancellationToken);
-        Logger.LogInformation(
-            "Allocations between {Baseline} and {Current}: {Outcome}; {Evidence}",
-            baseline,
-            current,
-            found.Reason is { } reason ? "none, said as: " + reason : string.Create(CultureInfo.InvariantCulture, $"{found.TracePath} from {found.FromUtc:O} to {found.ToUtc:O}"),
-            found.Evidence);
-        if (found.TracePath is not { } path)
-        {
-            return (null, found.Reason, 0);
-        }
-
-        Interlocked.Increment(ref _readingTrace);
-        try
-        {
-            return (await _allocations.OpenBesideAsync(path, found.FromUtc, found.ToUtc, cancellationToken), found.NoHeapTime ? AllocatedBetweenTexts.NoHeapTime : null, found.ClockShiftSeconds);
-        }
-        catch (Exception ex) when (ex is WorkerException or OperationCanceledException && !cancellationToken.IsCancellationRequested)
-        {
-            var note = ex is OperationCanceledException ? AllocatedBetweenTexts.ReadCanceled : ex.Message;
-            Logger.LogInformation("Compare: the trace {Trace} was not read, said as: {Note}", path, note);
-            return (null, note, 0);
-        }
-        finally
-        {
-            Interlocked.Decrement(ref _readingTrace);
-        }
-    }
 
     partial void OnIsTrendShownChanged(bool value)
     {
@@ -429,37 +199,6 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
             _pending = CanQuery;
         }
     }
-
-    /// <summary>
-    /// A row's new, dead or survived objects as a set (decision 2): new and survived in the current snapshot against the
-    /// baseline, dead in the baseline against the current snapshot.
-    /// </summary>
-    private void OpenChange(DiffRowItem? row, ObjectChange change, INavigator? navigator)
-    {
-        if (row is not { IsLoaded: true } || Baseline is not { } baseline || Current is not { } current)
-        {
-            return;
-        }
-
-        if (row.TypeName is null)
-        {
-            Status = "Group by type to open a row's new, dead or survived objects.";
-            return;
-        }
-
-        if (!IdentityShown)
-        {
-            Status = IdentityNote ?? "Tick New and dead objects first: objects are matched by address only for two snapshots of one process.";
-            return;
-        }
-
-        var (side, other) = change == ObjectChange.Dead ? (baseline, current) : (current, baseline);
-        var spec = ObjectSetSpec.ComparedOf(ObjectSetSpec.OfType(row.TypeName, row.Module), change);
-        var title = string.Create(System.Globalization.CultureInfo.CurrentCulture, $"{change} by address: {row.Name}");
-        Logger.LogInformation("Compare: opened the {Change} objects of a row as a set in the {Side} snapshot", change, change == ObjectChange.Dead ? "baseline" : "current");
-        navigator?.Navigate(NavigationTarget.ObjectSet(side.Handle, new ObjectSetQuery(spec, other.Handle), title));
-    }
-
 
     /// <summary>Why there is nothing to compare yet, if so.</summary>
     public string? Hint => Snapshots.Count < 2
@@ -606,89 +345,6 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     /// of them is in the current one. The parameter is the grid's selected rows.
     /// </summary>
     public System.Windows.Input.ICommand OpenAsSetCommand { get; }
-
-    private void OpenAsSet(System.Collections.IList? rows, INavigator? navigator)
-    {
-        if (rows is null || Current is not { } current)
-        {
-            return;
-        }
-
-        var selected = rows.OfType<DiffRowItem>().ToList();
-        if (selected.Any(r => !r.IsLoaded))
-        {
-            Status = "Some of the selected rows are not loaded yet. Scroll through them, or filter the grid, and open the set again.";
-            return;
-        }
-
-        var keyed = selected.Where(r => r.TypeName is not null).ToList();
-        if (keyed.Count == 0)
-        {
-            Status = GroupBy == TypeGrouping.Type ? "Select the rows of types to open them as a set." : "Group by type to open rows as a set.";
-            return;
-        }
-
-        if (keyed.Count > ObjectSetLimits.MaxTypes)
-        {
-            Status = string.Create(System.Globalization.CultureInfo.CurrentCulture, $"A set takes at most {ObjectSetLimits.MaxTypes:N0} types; {keyed.Count:N0} are selected.");
-            return;
-        }
-
-        // One snapshot's objects: the current one's, or the baseline's when none of the types is left (the 3.1 review: types
-        // only in the baseline are left out of a current set, and the status says so).
-        var inBaselineOnly = Baseline is { } baseline && keyed.All(r => r.CurrentObjects == 0);
-        var side = inBaselineOnly ? Baseline! : current;
-        var used = inBaselineOnly ? keyed : [.. keyed.Where(r => r.CurrentObjects > 0)];
-        var title = used.Count == 1 ? used[0].Name : string.Create(System.Globalization.CultureInfo.CurrentCulture, $"{used.Count:N0} compared types");
-        Logger.LogInformation("Compare: opened {Count} types as a set in the {Side} snapshot ({Left} only in the baseline left out)", used.Count, inBaselineOnly ? "baseline" : "current", keyed.Count - used.Count);
-        navigator?.Navigate(NavigationTarget.ObjectSet(side.Handle, new ObjectSetQuery(ObjectSetSpec.OfTypes(used.Select(r => new TypeKeyDto(r.TypeName!, r.Module)))), title));
-        if (used.Count < keyed.Count)
-        {
-            Status = string.Create(System.Globalization.CultureInfo.CurrentCulture, $"{keyed.Count - used.Count:N0} of the selected types are only in the baseline, so the current snapshot's set leaves them out.");
-        }
-    }
-
-    // Retention is the current snapshot's: a type it no longer has retains nothing there.
-    private void Link(DiffRowItem? row, INavigator? navigator, Func<SnapshotHandle, DiffRowItem, NavigationTarget> target)
-    {
-        if (row is not { IsLoaded: true } || Current is not { } current)
-        {
-            return;
-        }
-
-        if (row.TypeName is null || row.CurrentObjects == 0)
-        {
-            Status = row.TypeName is null ? "Group by type to follow a row's objects." : "The current snapshot has no objects of this type.";
-            return;
-        }
-
-        navigator?.Navigate(target(current.Handle, row));
-    }
-
-    /// <summary>
-    /// Opens a row's type on the Snapshot tab: its objects in the current snapshot, or in the baseline for a type the
-    /// current snapshot no longer has (ADR-018; sprint 1.5 review).
-    /// </summary>
-    private void OpenRow(DiffRowItem? row, INavigator? navigator)
-    {
-        if (row is not { IsLoaded: true } || Current is not { } current)
-        {
-            return;
-        }
-
-        if (row.TypeName is null)
-        {
-            // In Type grouping a row has no key only when one side merged several of its types under one name: a full
-            // dump's nested types compared with a gcdump, which records them without their declaring type (sprint 1.8).
-            Status = GroupBy == TypeGrouping.Type
-                ? "This row joins several types of the full dump under the one name the gcdump records, so it cannot open one type's objects. Find the type in the full dump's own summary."
-                : "Group by type to open a row's objects.";
-            return;
-        }
-
-        var side = row.CurrentObjects == 0 && Baseline is { } baseline ? baseline : current;
-        navigator?.Navigate(NavigationTarget.Instances(side.Handle, row.TypeName, row.Module));
-    }
 
     /// <summary>
     /// <paramref name="item"/> was opened again as a new worker snapshot, maybe of a rebuilt cache (3.11 review): a pair that holds
