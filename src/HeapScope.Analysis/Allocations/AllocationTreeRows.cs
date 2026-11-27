@@ -238,33 +238,18 @@ public static class AllocationTreeRows
             }
         }
 
-        public void BackTraces(long[] own, int[] ownSamples, int count)
-        {
-            // A back-trace row stands for positions in the stack tree: at the first level the nodes that allocated, one
-            // level down their callers, and so on; each carries the bytes of the samples that allocated below it.
-            var leaves = new List<Position>();
-            for (var n = 0; n < count; n++)
-            {
-                if (ownSamples[n] > 0)
-                {
-                    leaves.Add(new Position(n, own[n], ownSamples[n]));
-                }
-            }
+        public void BackTraces(long[] own, int[] ownSamples, int count) =>
+            List(RootKey, BackTraceGroups.Leaves(trace, own, ownSamples, count, cancellationToken), 0);
 
-            List(RootKey, Group(leaves, p => p.Node), 0);
-        }
-
-        private void List(string listKey, List<Group> groups, int depth)
+        private void List(string listKey, List<FrameGroup> groups, int depth)
         {
-            var ordered = groups
-                .OrderByDescending(g => g.Bytes).ThenBy(g => trace.Frames[g.Frame], StringComparer.Ordinal).ThenBy(g => g.Frame)
-                .ToArray();
+            var ordered = BackTraceGroups.Ordered(trace, groups);
             var shown = Math.Min(ordered.Length, Batches(listKey) * maxChildren);
             for (var i = 0; i < shown && !Truncated; i++)
             {
                 var group = ordered[i];
                 var key = BackTraceKey(listKey, group.Frame);
-                var callers = Callers(group);
+                var callers = BackTraceGroups.Callers(trace, group, cancellationToken);
                 var isExpanded = depth < MaxDepth && callers.Count > 0 && expanded.Contains(key);
                 if (Add(new AllocationRow(key, listKey, depth, AllocationRowKind.Frame, group.Frame, trace.Frames[group.Frame], group.Bytes, depth == 0 ? group.Bytes : -1, group.Samples, callers.Count, isExpanded)) && isExpanded)
                 {
@@ -281,47 +266,6 @@ public static class AllocationTreeRows
             }
 
             More(listKey, depth, ordered.Length, shown, moreBytes, moreSamples);
-        }
-
-        // The callers of a back-trace row, grouped by frame (stacks that start at this row's frame end here).
-        private List<Group> Callers(Group group)
-        {
-            var callers = group.Positions.Where(p => trace.StackParents[p.Node] >= 0).ToList();
-            return Group(callers, p => trace.StackParents[p.Node]);
-        }
-
-        private List<Group> Group(List<Position> positions, Func<Position, int> next)
-        {
-            var groups = new Dictionary<int, Group>();
-            var nodes = new Dictionary<int, int>();
-            foreach (var position in positions)
-            {
-                var node = next(position);
-                var frame = trace.StackFrames[node];
-                if (!groups.TryGetValue(frame, out var group))
-                {
-                    group = new Group(frame);
-                    groups.Add(frame, group);
-                }
-
-                // Positions of one node merge, so a group never holds more positions than the tree has nodes.
-                if (nodes.TryGetValue(node, out var at) && group.Positions[at].Node == node)
-                {
-                    var merged = group.Positions[at];
-                    group.Positions[at] = merged with { Bytes = merged.Bytes + position.Bytes, Samples = merged.Samples + position.Samples };
-                }
-                else
-                {
-                    nodes[node] = group.Positions.Count;
-                    group.Positions.Add(new Position(node, position.Bytes, position.Samples));
-                }
-
-                group.Bytes += position.Bytes;
-                group.Samples += position.Samples;
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            return [.. groups.Values];
         }
 
         private void More(string listKey, int depth, int count, int shown, long bytes, int samples)
@@ -374,18 +318,5 @@ public static class AllocationTreeRows
 
             return true;
         }
-    }
-
-    private readonly record struct Position(int Node, long Bytes, int Samples);
-
-    private sealed class Group(int frame)
-    {
-        public int Frame { get; } = frame;
-
-        public long Bytes { get; set; }
-
-        public int Samples { get; set; }
-
-        public List<Position> Positions { get; } = [];
     }
 }

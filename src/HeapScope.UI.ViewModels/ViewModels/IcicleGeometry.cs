@@ -32,139 +32,33 @@ namespace HeapScope.UI.ViewModels;
 public static class IcicleGeometry
 {
     /// <summary>A bar narrower than this many pixels is not drawn on its own (and cannot be hit).</summary>
-    public const double MinWidth = 1;
+    public const double MinWidth = ChartSegments.MinLength;
 
     /// <summary>Neighbors with one parent narrower than this many pixels are one "+N smaller" bar: too thin to point at, or to read.</summary>
-    public const double GroupBelow = 6;
+    public const double GroupBelow = ChartSegments.GroupBelow;
 
     /// <summary>
     /// The rectangle of each bar, in level order: each bar at least <see cref="MinWidth"/> wide, except that two or more neighbors under
-    /// <see cref="GroupBelow"/> with one parent are one group, which hides what lies below them. Here, not in the
-    /// worker: how narrow a bar is depends on the window.
+    /// <see cref="GroupBelow"/> with one parent are one group, which hides what lies below them (<see cref="ChartSegments"/>).
     /// </summary>
     public static IReadOnlyList<IcicleBar> Bars(IReadOnlyList<IcicleSegmentDto> segments, long total, double width, double rowHeight)
     {
         ArgumentNullException.ThrowIfNull(segments);
-        var bars = new List<IcicleBar>();
         if (total <= 0 || width <= 0)
         {
-            return bars;
+            return [];
         }
 
         var scale = width / total;
-        // One walk along each level, in step with the level above and the groups so far: a chart can hold 20,000 segments, and this runs
-        // on every draw. Both lists are sorted by offset, and spans at one level do not overlap.
-        var groups = new List<IcicleSegmentDto>();
-        var row = new List<IcicleSegmentDto>();
-        var parents = new List<IcicleSegmentDto>();
-        foreach (var level in segments.GroupBy(static s => s.Level).OrderBy(static l => l.Key))
-        {
-            row.Clear();
-            var nextGroup = 0;
-            foreach (var segment in level.OrderBy(static s => s.Offset))
-            {
-                if (Find(groups, segment, ref nextGroup) is null)
-                {
-                    row.Add(segment);
-                }
-            }
-
-            var run = new List<IcicleSegmentDto>();
-            var nextParent = 0;
-            var runParent = -1;
-            var added = new List<IcicleSegmentDto>();
-            foreach (var segment in row)
-            {
-                var parent = Find(parents, segment, ref nextParent) is null ? -1 : nextParent;
-                if (run.Count > 0 && (segment.Width * scale >= GroupBelow || parent != runParent))
-                {
-                    AddRun(run, bars, added, scale, rowHeight);
-                }
-
-                runParent = parent;
-                if (segment.Width * scale < GroupBelow)
-                {
-                    run.Add(segment);
-                }
-                else
-                {
-                    bars.Add(BarOf(segment, 1, scale, rowHeight));
-                }
-            }
-
-            AddRun(run, bars, added, scale, rowHeight);
-            if (added.Count > 0)
-            {
-                groups.AddRange(added);
-                groups.Sort(static (a, b) => a.Offset.CompareTo(b.Offset));
-            }
-
-            (parents, row) = (row, parents);
-        }
-
-        return bars;
+        return [.. ChartSegments.Shown(segments, _ => scale).Select(s =>
+            new IcicleBar(s.Segment, s.Segment.Offset * scale, s.Segment.Level * rowHeight, s.Segment.Width * scale, rowHeight, s.Count))];
     }
 
-    /// <summary>The span in the sorted <paramref name="spans"/> that holds the segment; segments are asked about in offset order.</summary>
-    private static IcicleSegmentDto? Find(List<IcicleSegmentDto> spans, IcicleSegmentDto segment, ref int next)
-    {
-        while (next < spans.Count && spans[next].Offset + Math.Max(1, spans[next].Width) <= segment.Offset)
-        {
-            next++;
-        }
-
-        return next < spans.Count && spans[next].Offset <= segment.Offset ? spans[next] : null;
-    }
-
-    private static IcicleBar BarOf(IcicleSegmentDto segment, int count, double scale, double rowHeight) =>
-        new(segment, segment.Offset * scale, segment.Level * rowHeight, segment.Width * scale, rowHeight, count);
-
-    private static void AddRun(List<IcicleSegmentDto> run, List<IcicleBar> bars, List<IcicleSegmentDto> grouped, double scale, double rowHeight)
-    {
-        if (run.Count == 1 && run[0].Width * scale >= MinWidth)
-        {
-            bars.Add(BarOf(run[0], 1, scale, rowHeight));
-        }
-        else if (run.Count > 1)
-        {
-            var first = run[0];
-            var last = run[^1];
-            var group = new IcicleSegmentDto(
-                first.Level,
-                first.Offset,
-                last.Offset + last.Width - first.Offset,
-                string.Create(CultureInfo.InvariantCulture, $"group:{first.Level}:{first.Offset}"),
-                string.Create(CultureInfo.CurrentCulture, $"+{run.Count:N0} smaller"),
-                0);
-            grouped.Add(group);
-            bars.Add(BarOf(group, run.Count, scale, rowHeight));
-        }
-
-        run.Clear();
-    }
-
-    /// <summary>Where a group's bars are, whatever the tree's grouping.</summary>
-    private const string TreeHasThem = "The tree below has them (expand a group or a \"more\" row if they are not shown).";
-
-    /// <summary>What a bar stands for, in words: most bars are too narrow to carry a label.</summary>
-    public static string Describe(IcicleBar bar, long total)
+    /// <summary>What a bar stands for, in words (<see cref="ChartTexts"/>).</summary>
+    public static string Describe(IcicleBar bar, long total, ChartSubject subject = ChartSubject.Retention)
     {
         ArgumentNullException.ThrowIfNull(bar);
-        var segment = bar.Segment;
-        var share = total > 0 ? (double)segment.Width / total : 0;
-        if (!bar.IsGroup)
-        {
-            return string.Create(CultureInfo.CurrentCulture, $"{segment.Name}\nKeeps {Format.Bytes(segment.Width)} alive, {share:P1} of this chart");
-        }
-
-        // Level 1 sits under the chart's top bar, the focus itself: a double-click there shows the same chart, so
-        // the tree below is where they are. Deeper, the bar above is their parent, and focusing it puts them in the tree. Under
-        // Group children by Type or Namespace the tree lists groups, and past 100 rows a "more" row: the text holds for both.
-        // A group's width adds up its members' retained sizes; what they keep alive together is counted in the bar above.
-        var where = segment.Level <= 1
-            ? TreeHasThem
-            : "Double-click the bar above them to focus on it; " + char.ToLowerInvariant(TreeHasThem[0]) + TreeHasThem[1..];
-        return string.Create(CultureInfo.CurrentCulture, $"{segment.Name}\nTogether keep at least {Format.Bytes(segment.Width)} alive, {share:P1} of this chart\n{where}");
+        return ChartTexts.Describe(bar.Segment, bar.Count, total, subject, ChartShape.Icicle);
     }
 
     /// <summary>What a bar this wide can show, or null when it has no room for words: a group's count must not be cut to "+12 ...".</summary>

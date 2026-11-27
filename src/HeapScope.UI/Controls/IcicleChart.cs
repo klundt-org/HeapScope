@@ -33,8 +33,8 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// The Retainers tab's icicle chart: the focus as the top bar and its dominator children below, as wide as
-/// what they retain. A click selects a bar (and the path to it is highlighted); a double-click runs
+/// A tree's icicle chart: the top as the first bar and its children below, as wide as their bytes (on the Retainers tab what
+/// they retain, on the Allocations page what was allocated through them). A click selects a bar (and the path to it is highlighted); a double-click runs
 /// <see cref="FocusCommand"/> with it. One control drawn in one pass; the geometry is <see cref="IcicleGeometry"/>'s.
 /// </summary>
 public sealed class IcicleChart : Control
@@ -54,7 +54,13 @@ public sealed class IcicleChart : Control
     public static readonly StyledProperty<double> RowHeightProperty =
         AvaloniaProperty.Register<IcicleChart, double>(nameof(RowHeight), 22);
 
+    public static readonly StyledProperty<ChartSubject> SubjectProperty =
+        AvaloniaProperty.Register<IcicleChart, ChartSubject>(nameof(Subject));
+
     private IReadOnlyList<IcicleBar> _bars = [];
+
+    // What the bars were laid out for: a selection, hover or theme change draws the same bars again with other fills.
+    private (IReadOnlyList<IcicleSegmentDto>? Segments, long Total, double Width, double RowHeight) _laidOut;
 
     /// <summary>The bars as last drawn, in the chart's own coordinates (the screenshot run points at them).</summary>
     internal IReadOnlyList<IcicleBar> Bars => _bars;
@@ -105,6 +111,13 @@ public sealed class IcicleChart : Control
         set => SetValue(RowHeightProperty, value);
     }
 
+    /// <summary>What the widths measure, for the words on hover.</summary>
+    public ChartSubject Subject
+    {
+        get => GetValue(SubjectProperty);
+        set => SetValue(SubjectProperty, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize) =>
         new(double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width, IcicleGeometry.Height(Segments, RowHeight));
 
@@ -117,7 +130,7 @@ public sealed class IcicleChart : Control
         if (bar?.Segment != _hovered)
         {
             _hovered = bar?.Segment;
-            ToolTip.SetTip(this, bar is null ? null : IcicleGeometry.Describe(bar, Total));
+            ToolTip.SetTip(this, bar is null ? null : IcicleGeometry.Describe(bar, Total, Subject));
         }
     }
 
@@ -152,7 +165,13 @@ public sealed class IcicleChart : Control
         ArgumentNullException.ThrowIfNull(context);
         var width = Bounds.Width;
         context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
-        _bars = Segments is { } segments ? IcicleGeometry.Bars(segments, Total, width, RowHeight) : [];
+        var layout = (Segments, Total, width, RowHeight);
+        if (!ReferenceEquals(layout.Segments, _laidOut.Segments) || layout.Total != _laidOut.Total || layout.width != _laidOut.Width || layout.RowHeight != _laidOut.RowHeight)
+        {
+            _laidOut = layout;
+            _bars = Segments is { } segments ? IcicleGeometry.Bars(segments, Total, width, RowHeight) : [];
+        }
+
         if (_bars.Count == 0)
         {
             return;

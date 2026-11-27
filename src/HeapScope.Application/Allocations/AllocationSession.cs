@@ -271,6 +271,13 @@ public sealed partial class AllocationSession(IWorkerClient worker, JobTracker j
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>The chart of the same tree: the call tree or back traces of the scope as segments keyed like its rows (ADR-046).</summary>
+    public Task<AllocationChartResult> QueryChartAsync(TraceHandle handle, AllocationScope scope, AllocationTreeKindDto kind, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        return UseAsync(handle, (service, id, ct) => service.QueryAllocationChartAsync(new AllocationChartRequest(id, kind, scope.FromSeconds, scope.ToSeconds, scope.TypeName), progress, ct), cancellationToken);
+    }
+
     /// <summary>
     /// Runs <paramref name="call"/> with the trace's current worker id, reading the trace again first when the worker
     /// restarted since, and once more when the worker reports it as not open.

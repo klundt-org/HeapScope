@@ -354,6 +354,10 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   full analysis path, and trimming the row lists of subjects and workspaces not shown (M3; sprint 4.9 made the worker
   evict the sets of snapshots not shown first, ADR-044); export marks for a gcdump's sampled counts (L17).
 - From 4.10 (decided autonomously): "open in a new tab" from a row of a grid or the path (tabs start at the types grid now).
+- From the 4.11 review (decided autonomously): measure the allocation tree and its chart queried together (each runs the interval's
+  samples and, for back traces, the grouping) on the 600 s trace and a large synthetic one, in the `allocations` benchmark, and record
+  it in budgets.md (M6; the grouping's allocations were trimmed in 4.11); the allocation call tree and back traces in the CLI
+  (`allocations --view calltree|backtraces`), which has none yet (ADR-046). The 4.11 review's Lows are listed in docs/reviews/sprint-4.11.md.
 - More channels and formats (sprint 3.9 decided GitHub Releases with a Windows `.zip`, a Linux `.tar.gz` and the CLI's
   dotnet tool, ADR-039; product owner, 2026-10-31):
   - nuget.org for the dotnet tool: since 3.13.1 the owner uploads the release's package by hand (ADR-039). Next: publish

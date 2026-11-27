@@ -782,3 +782,50 @@ strip only on the Snapshot and Retainers tabs, a store test that proves the tab 
 listed. Measured: two Medium snapshots and 8 tabs on one hold 69 MB of managed heap in the UI process (about 1 to 3.5 MB a tab),
 back to 35 MB when all close; a third in-memory Medium's inspections were refused by the worker budget on 32 GB. Gate at close: pass
 (after a saturated machine and a try on claude-dev-2, review file), 0 warnings, 2,388 tests (the known answers run in CI).
+
+---
+
+## Sprint 4.11: Sunburst
+
+**Goal:** a sunburst beside the icicle chart, for the dominator tree on the Retainers tab and for the allocation call tree and back
+traces, so a person sees at a glance which part of a heap or of an interval's allocations is biggest, and from a chart reaches its row.
+Input: peer review 4.5 M16 (the sunburst had no layout for call trees: the allocation trees had no chart at all).
+
+1. [x] Sunburst geometry, toolkit free (UI.ViewModels): the focus as the center disc, each level a ring, each segment an arc whose angle
+   is its share of the top; neighbors with one parent too narrow to point at are one "+N smaller" arc, as in the icicle; the arc under
+   a point; the path to a selected arc. The texts (a segment's description and label) shared with the icicle. Tests: children lie
+   inside their parent's angle; the grouping; the hit test of the center, a ring, a gap and outside; an empty chart.
+2. [x] The sunburst control (UI): the same inputs as the icicle (segments, total, selected segment, focus command); hover says what an
+   arc is, a click selects it and the path to it turns amber, a double-click runs the focus command; the center names the focus and
+   its size. Tests: UI tests of the arcs drawn, a click and a double-click.
+3. [x] The Retainers tab: a choice of Icicle or Sunburst above the chart, kept by the tab; the icicle parts of RetainersViewModel move to
+   a part file of their own (the 600-line rule). Tests: the choice shows one chart; selection and focus work from the sunburst;
+   view tests.
+4. [x] The allocation chart (worker, protocol 27): a layout of the call tree (from the outermost frames) and of the back traces (from
+   the allocating frames) of an interval and type, as chart segments keyed like the tree's rows (AllocationTreeKeys), six levels,
+   segments under 0.1 percent left out; `QueryAllocationChartAsync` beside the tree query, logged with its counts. Tests: children fit
+   inside their parent, the keys are the tree's, the totals are the tree's; the query over the pipe; the session method.
+5. [x] The chart on the Allocations page: above the back traces or call tree, Icicle or Sunburst, queried with the tree for the same
+   interval, type and kind; a click on a segment opens its ancestors in the tree and selects its row, and a selected row selects its
+   segment. Tests: a segment reveals and selects its row; a row selects its segment; the chart follows the interval, type and kind.
+6. [x] Docs: ADR-046 (the charts: the sunburst drawn from the icicle's segments, the allocation chart's layout in the worker), ARCHITECTURE.md,
+   process-model.md (protocol 27), code-map.md, logging.md, the user guide (a draft), info-text.md (drafts).
+
+**Decisions**
+- Decided autonomously: the sunburst draws the icicle's segments (no new dominator query); the choice of chart is per tab and per
+  Allocations view, starts at the icicle, and is not kept across restarts.
+- Decided autonomously: the sunburst's rings carry no words (they curve and are short); the center names the focus, and hover names
+  every arc.
+- Decided autonomously: the allocation chart has no focus of its own: a double-click, like a click, shows the row in the tree, whose
+  rows already narrow by type and interval. Both allocation trees get the chart.
+- Decided autonomously: no chart in the CLI (its trees are text); no new sample scenario or lesson (the charts show what the
+  existing lessons find); the screenshots stay as they are.
+
+**Review summary:** 1 High and 14 Moderate ([reviews/sprint-4.11.md](../reviews/sprint-4.11.md)), all fixed and confirmed but the
+measurement of M6, deferred to the Backlog. The High: a contested allocation chart could not be backed up from the log (now each
+level's count, bytes and widest segments, what was left out and the cut, every click with its bytes and share, and the tree's revealed
+row). Moderates: arcs drawn with no parent under them, a stale chart clickable while the next one loads, Close not stopping the chart,
+the sunburst squeezing the tree, missing tests, the back traces' grouping allocations, a redraw rebuilding every arc, what the chart
+left out and the cap, failures and empty charts that vanished, the wrong note in a cut tree, the drafts' missing limits, and a tally
+that grew with the whole trace. 24 Lows listed. Measured: none beyond the tests (the large-trace measurement is in the Backlog). Gate at close: pass, 0 warnings, 2,417 tests
+(the known answers run in CI).

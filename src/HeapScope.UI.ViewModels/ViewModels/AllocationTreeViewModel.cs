@@ -53,6 +53,7 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
     private AllocationScope _scope = AllocationScope.All;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChartCaption))]
     private AllocationTreeKindDto _kind = AllocationTreeKindDto.BackTraces;
 
     [ObservableProperty]
@@ -91,6 +92,7 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
         Trace = trace;
         Scope = scope ?? AllocationScope.All;
         Requery();
+        LoadChart();
     }
 
     /// <summary>Queries again for another interval or type; open rows stay open where they still exist.</summary>
@@ -98,6 +100,7 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
     {
         Scope = scope ?? AllocationScope.All;
         Requery();
+        LoadChart();
     }
 
     partial void OnKindChanged(AllocationTreeKindDto value)
@@ -107,6 +110,7 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
         ClearResults();
         _expanded.Clear();
         Requery();
+        LoadChart();
     }
 
     protected override async Task<GridQuery<AllocationRowItem>> RunQueryAsync(CancellationToken cancellationToken)
@@ -129,6 +133,7 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
                     ? string.Create(CultureInfo.CurrentCulture, $"The tree is cut at {AllocationTreeLimits.MaxRows:N0} rows; collapse rows to see the rest.")
                     : null;
                 (_revealAsked, _revealIndex, _fallbackAsked) = (reveal, result.RevealIndex, fallback);
+                _cut = result.Truncated;
             },
             onError => AllocationRowItem.CreateList(answer.Rows, result.Rows, onError, Logger));
     }
@@ -137,6 +142,7 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
     {
         var (key, index, fallback) = (_revealAsked, _revealIndex, _fallbackAsked);
         (_revealAsked, _revealIndex, _fallbackAsked) = (null, -1, -1);
+        ChartRevealed(key, index);
         if (key is null)
         {
             return;
@@ -159,6 +165,8 @@ public sealed partial class AllocationTreeViewModel : GridQueryViewModel<Allocat
         SelectedRow = null;
         Note = null;
         (_revealKey, _revealAsked, _revealIndex, _revealFallback, _fallbackAsked) = (null, null, -1, -1, -1);
+        _cut = false;
+        ClearChart();
     }
 
     /// <summary>Expands a closed row or collapses an open one (its arrow, Enter, a double-click).</summary>

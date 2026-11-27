@@ -51,9 +51,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
     private readonly SnapshotSession _session;
     private readonly INavigator? _navigator;
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
-    private CancellationTokenSource? _icicle;
     private bool _queried;
-    private bool _syncingSelection;
     private bool _navigating;
 
     // The row to keep the user's place on: asked with the query, found in its answer, selected once its rows are bound.
@@ -91,18 +89,6 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
     [NotifyCanExecuteChangedFor(nameof(FocusCommand), nameof(OpenObjectCommand), nameof(OpenInstancesCommand), nameof(OpenPathsCommand), nameof(RetainedBySetCommand))]
     private DominatorRowItem? _selectedRow;
 
-    [ObservableProperty]
-    private IReadOnlyList<IcicleSegmentDto> _icicleSegments = [];
-
-    [ObservableProperty]
-    private long _icicleTotal;
-
-    [ObservableProperty]
-    private IcicleSegmentDto? _selectedSegment;
-
-    [ObservableProperty]
-    private string? _icicleStatus;
-
     public RetainersViewModel(SnapshotSession session, IUiDispatcher dispatcher, ILogger<RetainersViewModel>? logger, INavigator? navigator, ILogger<RetainedBySetViewModel>? setLogger = null)
         : base(DominatorTreeColumns.Retained, dispatcher, logger)
     {
@@ -125,9 +111,6 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
 
     /// <summary>"Objects retained by this set" for the type last asked for.</summary>
     public RetainedBySetViewModel Set { get; }
-
-    /// <summary>The icicle query in progress (tests and smoke runs await it).</summary>
-    public Task IcicleTask { get; private set; } = Task.CompletedTask;
 
     /// <summary>The selection of the row a query revealed (tests and smoke runs await it).</summary>
     public Task SelectTask { get; private set; } = Task.CompletedTask;
@@ -221,32 +204,6 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         using var activity = Act("group by {0}", value);
         _expanded.RemoveWhere(k => k.Contains("|g:", StringComparison.Ordinal) || k.Contains("|m:", StringComparison.Ordinal));
         RequeryTree();
-    }
-
-    partial void OnSelectedRowChanged(DominatorRowItem? value)
-    {
-        if (_syncingSelection || value is null)
-        {
-            return;
-        }
-
-        _syncingSelection = true;
-        SelectedSegment = IcicleSegments.FirstOrDefault(s => s.Key == value.Key);
-        _syncingSelection = false;
-    }
-
-    partial void OnSelectedSegmentChanged(IcicleSegmentDto? value)
-    {
-        if (_syncingSelection || value is null)
-        {
-            return;
-        }
-
-        // A bar selects its row when the row is in the loaded part of the tree; otherwise no row is selected, so the row
-        // commands never act on another one. A double-click on the bar focuses on it.
-        _syncingSelection = true;
-        SelectedRow = FindLoadedRow(value.Key);
-        _syncingSelection = false;
     }
 
     protected override async Task<GridQuery<DominatorRowItem>> RunQueryAsync(CancellationToken cancellationToken)
@@ -346,16 +303,6 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         {
             using var activity = Act("focus on 0x{0:x}", row.Address);
             FocusOn(row.Address);
-        }
-    }
-
-    [RelayCommand]
-    private void FocusSegment(IcicleSegmentDto? segment)
-    {
-        if (segment is not null)
-        {
-            using var activity = Act("focus on the icicle's 0x{0:x}", segment.Address);
-            FocusOn(segment.Address);
         }
     }
 
@@ -488,50 +435,6 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         Requery();
         LoadIcicle();
         Set.Start();
-    }
-
-    private void LoadIcicle()
-    {
-        _icicle?.Cancel();
-        _icicle?.Dispose();
-        _icicle = new CancellationTokenSource();
-        IcicleTask = LoadIcicleAsync(Snapshot!, FocusAddress, _icicle.Token);
-    }
-
-    private async Task LoadIcicleAsync(SnapshotHandle snapshot, ulong focus, CancellationToken cancellationToken)
-    {
-        // Its trace id joins the action's.
-        using var activity = new Activity("HeapScope.Query").SetTag("grid", "Icicle").Start();
-        IcicleStatus = "Drawing...";
-        try
-        {
-            var result = await _session.QueryIcicleAsync(snapshot, focus, null, cancellationToken);
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
-
-            IcicleTotal = result.Total;
-            IcicleSegments = result.Segments;
-            SelectedSegment = null;
-            IcicleStatus = null;
-        }
-        catch (Exception) when (cancellationToken.IsCancellationRequested)
-        {
-            // A newer focus replaced this chart.
-        }
-        catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
-        {
-            // The grid shows the same refusal; the chart says it is empty rather than repeating it.
-            IcicleSegments = [];
-            IcicleStatus = null;
-            Logger.LogInformation("Retainers: the icicle was refused: {Reason}", ex.Message);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "The icicle chart failed");
-            IcicleStatus = "The chart failed. Details are in the log.";
-        }
     }
 
     private async Task SelectAsync(VirtualRowList<DominatorRowItem> rows, int index)

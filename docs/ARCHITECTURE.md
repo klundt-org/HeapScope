@@ -15,6 +15,7 @@ traffic, takes snapshots over time, and uses HeapScope to find what is growing a
 - Type summaries, snapshot diffs, object inspection, simple inspections (duplicate strings, LOH, collections).
 - Live counters, live allocations (sprint 4.3) and timed snapshots.
 - Reverse references, retention paths, dominator tree, retained sizes, smart leak detectors.
+- The dominator tree and the allocation trees as charts, an icicle or a sunburst of the same segments (sprint 4.11, ADR-046).
 - A CLI with the same capabilities as the UI, usable in automation.
 - Linux and macOS core dumps read on the system that took them (sprint 2.3.5, ADR-025); capture on Linux since sprint 4.1,
   on macOS since sprint 4.2 (untested).

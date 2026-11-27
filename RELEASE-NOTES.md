@@ -22,6 +22,16 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.11.0: Sunburst (sprint 4.11)
+
+- **Sunburst**: the Retainers tab draws what its focus keeps alive as an icicle or, by your choice, a sunburst of the same chart:
+  the focus in the center and each level a ring around it, each arc's angle its share. Hover names an arc, a click selects it and
+  a double-click focuses on it, as with the icicle's bars. Each tab keeps the shape you chose.
+- **A chart of the allocation trees**: the Allocations page draws its back traces or call tree above the tree, as an icicle or a
+  sunburst. A click on a segment opens its row in the tree, and a selected row lights its segment.
+- Limited: the allocation chart shows six levels and leaves out frames under 0.1 percent of the sampled bytes with what lies below
+  them (the tree lists every frame); a trace still being recorded has none; the shape is not kept across restarts.
+
 ## 4.10.0: Analysis tabs (sprint 4.10)
 
 - **Analysis tabs**: open several tabs on one snapshot, each with its own types grid (filter, sort, grouping), analysis path and

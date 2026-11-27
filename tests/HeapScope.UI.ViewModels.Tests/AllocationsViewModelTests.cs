@@ -21,14 +21,11 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-using System.IO;
-using HeapScope.Application;
 using HeapScope.Application.Allocations;
 using HeapScope.Application.Jobs;
 using HeapScope.Application.Sessions;
 using HeapScope.Contracts;
 using HeapScope.UI.Services;
-using HeapScope.UI.ViewModels;
 
 namespace HeapScope.UI.ViewModels.Tests;
 
@@ -137,6 +134,164 @@ public sealed class AllocationsViewModelTests : IDisposable
         trace.Tree.SelectedRow!.Key.ShouldBe("b:1");
         trace.Tree.CollapseCommand.CanExecute(trace.Tree.SelectedRow).ShouldBeTrue();
         trace.Tree.ExpandCommand.CanExecute(trace.Tree.SelectedRow).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_segment_of_the_chart_opens_its_parents_in_the_tree_and_selects_its_row()
+    {
+        var trace = await OpenAsync();
+        var chart = trace.Tree.ChartSegments;
+        chart.Select(s => (s.Level, s.Key)).ShouldBe([(0, "root"), (1, "b:1"), (1, "b:3"), (2, "b:1/2"), (2, "b:3/0")]);
+        trace.Tree.ChartTotal.ShouldBe(400);
+
+        trace.Tree.SelectedSegment = chart.Single(s => s.Key == "b:1/2");
+        await trace.Tree.QueryTask;
+        await trace.Tree.SelectTask;
+
+        var query = Service.AllocationTreeQueries[^1];
+        query.Expanded.ShouldBe(["b:1"]);
+        query.RevealKey.ShouldBe("b:1/2");
+        trace.Tree.SelectedRow!.Key.ShouldBe("b:1/2");
+        trace.Tree.SelectedSegment!.Key.ShouldBe("b:1/2");
+
+        // A row selects its segment, and a segment whose row is loaded selects it without asking again.
+        var rows = await TreeAsync(trace);
+        var queries = Service.AllocationTreeQueries.Count;
+        trace.Tree.SelectedRow = rows.Single(r => r.Key == "b:3");
+        trace.Tree.SelectedSegment!.Key.ShouldBe("b:3");
+        trace.Tree.SelectedSegment = chart.Single(s => s.Key == "b:1");
+        trace.Tree.SelectedRow!.Key.ShouldBe("b:1");
+        Service.AllocationTreeQueries.Count.ShouldBe(queries);
+    }
+
+    [Fact]
+    public async Task The_chart_follows_the_trees_interval_type_and_kind_and_its_shape_asks_nothing()
+    {
+        var trace = await OpenAsync();
+        Service.AllocationChartQueries.Count.ShouldBe(1);
+        trace.Tree.ChartCaption.ShouldStartWith("The first row is the methods that allocated");
+
+        trace.Selection = new TimeInterval(6, 2);
+        await SettleAsync(trace);
+        (Service.AllocationChartQueries[^1].FromSeconds, Service.AllocationChartQueries[^1].ToSeconds).ShouldBe((2.0, (double?)6));
+
+        await TypesAsync(trace);
+        trace.Types.SelectedRow = trace.Types.Rows.GetRow(1);
+        await SettleAsync(trace);
+        Service.AllocationChartQueries[^1].TypeName.ShouldBe("System.String");
+        trace.Tree.ChartSegments.Select(s => s.Key).ShouldBe(["root", "b:3", "b:3/0"]);
+
+        trace.ShowCallTree = true;
+        await SettleAsync(trace);
+        Service.AllocationChartQueries[^1].Kind.ShouldBe(AllocationTreeKindDto.CallTree);
+        trace.Tree.ChartCaption.ShouldStartWith("Each bar is a method");
+
+        var asked = Service.AllocationChartQueries.Count;
+        trace.Tree.ShowsSunburst = true;
+        trace.Tree.ChartShape.ShouldBe(ChartShape.Sunburst);
+        trace.Tree.ChartCaption.ShouldStartWith("Each arc is a method");
+        trace.Tree.ChartInfo.ShouldBe(InfoTexts.AllocationsSunburst);
+        Service.AllocationChartQueries.Count.ShouldBe(asked, "the shape asks the worker nothing");
+    }
+
+    [Fact]
+    public async Task A_segment_whose_row_the_tree_lists_further_down_says_so()
+    {
+        var trace = await OpenAsync();
+        var missing = new IcicleSegmentDto(2, 300, 50, "b:3/9", "App.Elsewhere", 0);
+        trace.Tree.ChartSegments = [.. trace.Tree.ChartSegments, missing];
+
+        trace.Tree.SelectedSegment = missing;
+        await trace.Tree.QueryTask;
+
+        Service.AllocationTreeQueries[^1].Expanded.ShouldBe(["b:3"]);
+        trace.Tree.Note.ShouldNotBeNull().ShouldContain("further down");
+        trace.Tree.SelectedRow.ShouldBeNull();
+    }
+
+    /// <summary>A tree cut at its row limit keeps its own next step: collapsing rows helps there, a "more" row does not.</summary>
+    [Fact]
+    public async Task A_segment_missing_from_a_cut_tree_keeps_the_trees_own_note()
+    {
+        Service.TreeTruncated = true;
+        var trace = await OpenAsync();
+        var cut = trace.Tree.Note.ShouldNotBeNull();
+        cut.ShouldContain("collapse rows");
+        var missing = new IcicleSegmentDto(2, 300, 50, "b:3/9", "App.Elsewhere", 0);
+        trace.Tree.ChartSegments = [.. trace.Tree.ChartSegments, missing];
+
+        trace.Tree.SelectedSegment = missing;
+        await trace.Tree.QueryTask;
+
+        trace.Tree.Note.ShouldBe(cut);
+    }
+
+    [Fact]
+    public async Task A_chart_that_fails_alone_says_why_and_a_refused_request_leaves_that_to_the_tree()
+    {
+        Service.ChartFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InsufficientMemory, "Too little memory.", null);
+        var trace = await OpenAsync();
+
+        trace.Tree.ChartSegments.ShouldBeEmpty();
+        trace.Tree.ChartStatus.ShouldBe("Too little memory.", "the tree answered, so the chart says why it did not");
+        (await TreeAsync(trace)).ShouldNotBeEmpty();
+
+        Service.ChartFailure = new HeapScope.Application.Workers.WorkerOperationException(HeapScopeErrorCode.InvalidArgument, "A trace that is being recorded has no call tree.", null);
+        trace.ShowCallTree = true;
+        await SettleAsync(trace);
+        trace.Tree.ChartStatus.ShouldBeNull("the tree shows the same refusal");
+    }
+
+    [Fact]
+    public async Task A_chart_with_no_frame_wide_enough_says_so()
+    {
+        Service.ChartTopOnly = true;
+        var trace = await OpenAsync();
+
+        trace.Tree.ChartSegments.ShouldBeEmpty();
+        trace.Tree.ChartStatus.ShouldBe(AllocationTreeViewModel.NothingWideEnough);
+    }
+
+    [Fact]
+    public async Task While_a_chart_is_drawn_the_old_one_is_gone_and_a_row_selected_meanwhile_selects_its_segment()
+    {
+        var trace = await OpenAsync();
+        trace.Tree.ChartSegments.ShouldNotBeEmpty();
+        Service.ChartGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        trace.ShowCallTree = true;
+        await trace.Tree.QueryTask;
+        trace.Tree.ChartSegments.ShouldBeEmpty("the back traces' chart cannot be clicked under the call tree");
+        trace.Tree.ChartStatus.ShouldBe("Drawing...");
+        var main = (await TreeAsync(trace)).Single(r => r.Key == "n:0");
+        trace.Tree.SelectedRow = main;
+        trace.Tree.SelectedSegment.ShouldBeNull();
+
+        Service.ChartGate.SetResult();
+        await trace.Tree.ChartTask;
+        trace.Tree.ChartSegments.Select(s => s.Key).ShouldContain("n:0");
+        trace.Tree.SelectedSegment.ShouldNotBeNull().Key.ShouldBe("n:0");
+        trace.Tree.SelectedRow.ShouldBeSameAs(main);
+    }
+
+    [Fact]
+    public async Task Closing_a_trace_stops_its_chart()
+    {
+        Service.ChartGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var path = Path.Combine(_folder, "app.nettrace");
+        await File.WriteAllBytesAsync(path, [1], Ct);
+        await _page.OpenPathAsync(path);
+        var trace = _page.Selected.ShouldNotBeNull();
+        await trace.LoadTask;
+        await trace.Tree.QueryTask;
+        var chart = trace.Tree.ChartTask;
+        chart.IsCompleted.ShouldBeFalse();
+
+        trace.Close();
+
+        Service.LastChartToken.IsCancellationRequested.ShouldBeTrue("the worker stops laying it out");
+        await chart;
+        (trace.Tree.ChartSegments.Count, trace.Tree.ChartStatus).ShouldBe((0, (string?)null));
     }
 
     [Fact]
@@ -297,6 +452,7 @@ public sealed class AllocationsViewModelTests : IDisposable
         await trace.LoadTask;
         await trace.Types.QueryTask;
         await trace.Tree.QueryTask;
+        await trace.Tree.ChartTask;
     }
 
     private static async Task<List<string?>> TypesAsync(AllocationTraceViewModel trace)

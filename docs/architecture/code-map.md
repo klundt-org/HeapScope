@@ -304,6 +304,10 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `SnapshotsViewModel.Tabs.cs` (`ShowAnalysis`, `ShowTab`, `NewTab`, `CloseTab`, `NavigateIn`); the UI's tab strip
   (`AnalysisTabs` on the Snapshots page) and `ShortcutKeys.NewTab` and `CloseTab`; `--smoke-more` for the memory of several
   snapshots open (`UiOptions.SmokeMorePaths`).
+  Sprint 4.11 (ADR-046): `ChartShape`, `ChartSubject`, `ChartSegments` (which segments are drawn and which grouped, for both shapes),
+  `ChartTexts` (a segment in words), `SunburstGeometry` and `SunburstArc`; the chart parts of the Retainers tab in
+  `RetainersViewModel.Chart.cs` and of the allocation trees in `AllocationTreeViewModel.Chart.cs` (a segment opens its row's
+  parents and selects it); the UI's `Controls/SunburstChart` beside `IcicleChart`, which also takes a `Subject`.
 - **UI** (Avalonia, sprint 2.3.6, ADR-025). `Program` (the desktop app, or `--headless` on Avalonia's headless platform
   for CI smoke runs), `App` (host start and bounded stop, last-chance handlers, power throttling off on Windows, theme)
   and `UiHost` (DI, `UiOptions`). `Views/`: `MainWindow` (the shell, the attribution strip as `AttributionText`,
@@ -402,11 +406,13 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `Allocations/AllocationProfile` (sample
   ranges by binary search, the timeline, types, totals, top stacks, a stack's frames) and `AllocationTreeRows` (the call
   tree and back traces flattened from open keys like ADR-027, with `AllocationRow`, `AllocationTreeView`,
-  `AllocationFilter`). Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
-  `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource`. Application:
+  `AllocationFilter`), and `AllocationChartLayout` (the same trees laid out as a chart keyed like their rows, with
+  `AllocationChartSegment` and `AllocationChart`; the back traces' grouping shared with the rows in `BackTraceGroups`) [4.11]. Worker: `Traces/LiveTrace` (a trace followed, its reservation and its lines in the log) [4.3], `Traces/TraceStore` (open traces, a memory reservation while reading,
+  `ReadReservation`) and `AllocationTraceHandler` with `AllocationTypesSource` and `AllocationTreeSource` (and the chart query,
+  `QueryAllocationChartAsync`, with `AllocationChartRequest` and `AllocationChartResult` in Contracts [4.11]). Application:
   `Allocations/AllocatedBetween` (which run's trace lies between two snapshots, or why none does), `DiffAllocations` and
   `AllocationsUnavailableException` (the trace of a question about snapshots cannot be used) [4.4] and
-  `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, and
+  `Allocations/AllocationSession` (`TraceHandle`, reading again after a worker restart, `AllocationScope`, `QueryChartAsync`, and
   `StartRecord`, which records into the current session's folder and opens the trace). UI.ViewModels:
   `AllocationsViewModel` (the page), `AllocationTraceViewModel` (a trace: interval, type, stacks), `AllocationTypesViewModel`,
   `AllocationTreeViewModel`, `AllocationRowItem`, `AllocationTimelineGeometry`, `TimeInterval`; Record allocations and Stop

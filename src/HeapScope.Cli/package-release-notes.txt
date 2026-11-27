@@ -1,3 +1,7 @@
+4.11.0: Sunburst.
+
+- No change to the commands (4.11.0).
+
 4.10.0: Analysis tabs.
 
 - No change to the commands (4.10.0).

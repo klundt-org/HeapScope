@@ -50,3 +50,4 @@ section 13 links here).
 - [ADR-043](ADR-043-dump-values-in-logs-by-consent.md) Dump values in logs, by consent (added in sprint 3.13.2)
 - [ADR-044](ADR-044-a-workspace-per-open-snapshot.md) A workspace per open snapshot (added in sprint 4.9, amends ADR-029; amended by ADR-045)
 - [ADR-045](ADR-045-analysis-tabs.md) Analysis tabs (added in sprint 4.10, amends ADR-044)
+- [ADR-046](ADR-046-sunburst-and-tree-charts.md) The sunburst and the tree charts (added in sprint 4.11)

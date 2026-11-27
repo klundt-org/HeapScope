@@ -106,10 +106,16 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     type steps, objects, bytes), with stopped-early, truncated and the root path fallback. Compare logs how its pair was
     chosen; result set re-runs are logged. The dominator tree logs its focus, grouping, row count, total, the trail
     (types, addresses, retained), the first 20 open keys, the revealed key and its row, and the first ten rows of the
-    list just opened (or the top); the icicle its widest bars; set retention the type, all and reachable members, what
+    list just opened (or the top); the icicle its widest bars; an allocation chart (ADR-046) its kind, interval, type, levels,
+    share, segment count, sampled bytes and samples, the rows left out under the share with their bytes, whether the segment cap
+    cut it, and for each level its segments and bytes and its five widest by frame, key and bytes, with how many more; the
+    allocation tree also the revealed row itself (name, total, own); set retention the type, all and reachable members, what
     they retain, the lower bound and the first ten retained types. Each user action on the Retainers tab (expand,
     collapse, focus, grouping, a link from another tab, a set) logs one line under its own activity, which its tree,
-    icicle and set queries join (sprint 2.4 and its review). Grid queries and the panel loads that go through `QueryRunner`
+    icicle and set queries join (sprint 2.4 and its review). The chart's shape (Icicle or Sunburst) logs one line, on the Retainers
+    tab and the Allocations page; on the Retainers tab a double-click on a segment logs its focus, and on the Allocations page every
+    segment clicked logs its key, frame, bytes and share, and one whose row the tree does not list says why (behind a "more" row,
+    or past the row limit). A chart that fails alone, or has no frame wide enough to draw, is logged as shown (ADR-046). Grid queries and the panel loads that go through `QueryRunner`
     run under an activity too, so their worker lines carry their trace id; the Object view's load does not yet (see
     Correlation above).
   - Monitoring logs each run's rules and, when a rule fires, the metric and its source, the threshold after steps, the

@@ -163,6 +163,70 @@ internal sealed partial class FakeWorkerService : IAllocationTraceService
         Emit(AllocationTreeKeys.Root, 0);
         var id = Guid.NewGuid();
         _sets[id] = rows;
-        return Task.FromResult(new AllocationTreeResult(new ResultSetInfo(id, rows.Count, AllocationTreeColumnsList), total, 4, false, request.RevealKey is { } reveal ? keys.IndexOf(reveal) : -1));
+        return Task.FromResult(new AllocationTreeResult(new ResultSetInfo(id, rows.Count, AllocationTreeColumnsList), total, 4, TreeTruncated, request.RevealKey is { } reveal ? keys.IndexOf(reveal) : -1));
+    }
+
+    public List<AllocationChartRequest> AllocationChartQueries { get; } = [];
+
+    /// <summary>When set, every tree answers as cut at its row limit.</summary>
+    public bool TreeTruncated { get; set; }
+
+    /// <summary>When set, the next chart query fails with it.</summary>
+    public Exception? ChartFailure { get; set; }
+
+    /// <summary>When set, chart queries wait for it (tests make a chart arrive late), and end when their token is cancelled.</summary>
+    public TaskCompletionSource? ChartGate { get; set; }
+
+    /// <summary>When set, a chart holds its top alone, as when no frame reaches the share.</summary>
+    public bool ChartTopOnly { get; set; }
+
+    /// <summary>The token of the last chart query.</summary>
+    public CancellationToken LastChartToken { get; private set; }
+
+    /// <summary>The chart of the same nodes as the tree: each level's children side by side inside their parent.</summary>
+    public async Task<AllocationChartResult> QueryAllocationChartAsync(AllocationChartRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
+    {
+        AllocationChartQueries.Add(request);
+        LastChartToken = cancellationToken;
+        if (ChartGate is { } gate)
+        {
+            await gate.Task.WaitAsync(cancellationToken);
+        }
+
+        return await Chart(request);
+    }
+
+    private Task<AllocationChartResult> Chart(AllocationChartRequest request)
+    {
+        if (ChartFailure is { } failure)
+        {
+            ChartFailure = null;
+            return Task.FromException<AllocationChartResult>(failure);
+        }
+
+        var nodes = (request.Kind == AllocationTreeKindDto.CallTree ? CallTreeNodes : BackTraceNodes)
+            .Where(n => request.TypeName is null || n.Type is null || n.Type == request.TypeName)
+            .ToArray();
+        var total = nodes.Where(n => n.Parent == AllocationTreeKeys.Root).Sum(n => n.Total);
+        var segments = new List<IcicleSegmentDto> { new(0, 0, total, AllocationTreeKeys.Root, "All sampled allocations", 0) };
+        var level = new List<(string Key, long Offset)> { (AllocationTreeKeys.Root, 0) };
+        for (var depth = 1; level.Count > 0; depth++)
+        {
+            var next = new List<(string Key, long Offset)>();
+            foreach (var (key, offset) in level)
+            {
+                var x = offset;
+                foreach (var node in nodes.Where(n => n.Parent == key))
+                {
+                    segments.Add(new IcicleSegmentDto(depth, x, node.Total, node.Key, node.Name, 0));
+                    next.Add((node.Key, x));
+                    x += node.Total;
+                }
+            }
+
+            level = next;
+        }
+
+        return Task.FromResult(new AllocationChartResult(ChartTopOnly ? segments[..1] : segments, total, 4));
     }
 }

@@ -103,6 +103,25 @@
                   <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Totals}" Classes="subtle" />
                   <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Note}" TextWrapping="Wrap" />
                   <ctl:NoteText DockPanel.Dock="Top" Text="{Binding Status}" TextWrapping="Wrap" />
+                  <!-- The tree's chart (ADR-046): a click shows the segment's row in the tree below. No group name on the shapes:
+                       they group by their panel. -->
+                  <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,2,8,4"
+                              IsVisible="{Binding ChartSegments.Count, Converter={x:Static ctl:SignConverters.HasItems}}">
+                    <TextBlock x:Name="AllocationChartCaption" Classes="subtle" VerticalAlignment="Center" Text="{Binding ChartCaption}"
+                               TextTrimming="CharacterEllipsis" MaxWidth="560" />
+                    <ctl:InfoIcon Text="{Binding ChartInfo}" />
+                    <RadioButton x:Name="AllocationIcicleShape" Content="Icicle" IsChecked="{Binding !ShowsSunburst}" Margin="12,0,0,0" />
+                    <RadioButton x:Name="AllocationSunburstShape" Content="Sunburst" IsChecked="{Binding ShowsSunburst}" />
+                  </StackPanel>
+                  <ScrollViewer DockPanel.Dock="Top" MaxHeight="140" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,6"
+                                IsVisible="{Binding !ShowsSunburst}">
+                    <ctl:IcicleChart x:Name="AllocationIcicle" Subject="Allocations" Segments="{Binding ChartSegments}" Total="{Binding ChartTotal}"
+                                     SelectedSegment="{Binding SelectedSegment, Mode=TwoWay}" />
+                  </ScrollViewer>
+                  <ctl:SunburstChart x:Name="AllocationSunburst" DockPanel.Dock="Top" Diameter="240" Margin="0,0,8,6" Subject="Allocations"
+                                     IsVisible="{Binding ShowsSunburst}" Segments="{Binding ChartSegments}" Total="{Binding ChartTotal}"
+                                     SelectedSegment="{Binding SelectedSegment, Mode=TwoWay}" />
+                  <ctl:NoteText DockPanel.Dock="Top" Text="{Binding ChartStatus}" Classes="subtle" />
                   <DataGrid x:Name="TreeGrid" ctl:GridExports.ExportName="AllocationCallTree" CanUserSortColumns="False" SelectedItem="{Binding SelectedRow, Mode=TwoWay}" ctl:GridBehaviors.ScrollToSelection="True"
                             ctl:GridBehaviors.Rows="{Binding Rows}"
                             ctl:GridBehaviors.OpenCommand="{Binding OpenRowCommand}"

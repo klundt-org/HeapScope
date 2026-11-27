@@ -507,6 +507,26 @@ Drafts for the owner (sprint 4.10, analysis tabs, ADR-045).
 | About | Shortcuts list | "Open another analysis tab of the selected snapshot" (Ctrl+T), "Close the selected snapshot's tab shown (never its last one)" (Ctrl+W) | draft |
 | USER-GUIDE | Analysis tabs | The bullet as written in sprint 4.10 | draft |
 
+## Sprint 4.11 additions
+
+Drafts for the owner (sprint 4.11, the sunburst and the tree charts, ADR-046). The Retainers chart's approved text above stays the
+icicle's; the sunburst has its own.
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Snapshots, Retainers tab | Chart choice | "Icicle", "Sunburst" | draft |
+| Snapshots, Retainers tab | Caption above the sunburst | Each arc is what the arc inside it keeps alive, and its angle is how much. | draft |
+| Snapshots, Retainers tab | The sunburst's info icon (`InfoTexts.RetainersSunburst`) | The same chart as rings: the focus is the center, each arc is what the arc inside it keeps alive, and its angle is how much. The two ring colors only separate the levels; an arc and its path turn amber when selected.<br>Hover for an arc's name and size, click to select it, double-click to show the tree below it. Arcs too thin to point at are grouped as +N smaller. | draft |
+| Snapshots, Retainers tab | Hover over a "+N smaller" arc away from the center | ... Double-click the arc inside them to focus on it; the tree below has them (expand a group or a "more" row if they are not shown). | draft |
+| Allocations | Captions above the chart | Call tree: "Each bar is a method the bar above it called; its width is what was allocated through it." (sunburst: "Each arc is a method the arc inside it called; its angle is what was allocated through it."). Back traces: "The first row is the methods that allocated; each bar below is a caller of the bar above it, as wide as what was allocated through it." (sunburst: "The first ring is the methods that allocated; each arc further out is a caller of the arc inside it, its angle what was allocated through it.") | draft |
+| Allocations | The chart's info icon (`InfoTexts.AllocationsChart`, `AllocationsSunburst`) | As in InfoTexts.cs: the tree below as a chart (or as rings around all the sampled bytes), what a bar or arc stands for in each tree, its width or angle what was allocated through it, estimated from samples; six levels, frames under 0.1 percent left out with what lies below them, the tree lists every frame, a trace still being recorded has no chart; hover for a name and size, click to show its row in the tree below; +N smaller. | draft |
+| Allocations | Hover over a segment | "{Method}\nAbout {bytes} allocated through it, {share} of this chart"; a group: "{+N smaller}\nTogether about {bytes}, {share} of this chart\nThe tree below has them (expand a "more" row if they are not shown)." | draft |
+| Allocations | The chart's top segment | "All sampled allocations", or "Allocations of {type}" with a type selected | draft |
+| Allocations | Note when a segment's row is past its list's first rows | The tree lists that frame further down its list: expand the list's "more" row to find it. (A tree cut at its row limit keeps its own note.) | draft |
+| Allocations | Status when no frame is wide enough to draw | No frame reaches 0.1 percent of the sampled bytes; the tree below lists them all. | draft |
+| Allocations | Status when the chart alone fails | The worker's own message, with its next step; an unexpected failure: "The chart failed. Details are in the log." | draft |
+| USER-GUIDE | Charts | The bullet as written in sprint 4.11 | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

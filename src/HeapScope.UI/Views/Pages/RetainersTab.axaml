@@ -77,13 +77,20 @@
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,8,4"
                 IsVisible="{Binding IcicleSegments.Count, Converter={x:Static ctl:SignConverters.HasItems}}">
       <TextBlock x:Name="IcicleCaption" Classes="subtle" VerticalAlignment="Center"
-                 Text="Each bar is what the bar above it keeps alive, and its width is how much." />
-      <ctl:InfoIcon Text="{x:Static vm:InfoTexts.RetainersChart}" />
+                 Text="{Binding ChartCaption}" />
+      <ctl:InfoIcon Text="{Binding ChartInfo}" />
+      <!-- The same segments drawn two ways (ADR-046); the tab keeps the choice. No group name: they group by their panel, so another tab's view never unchecks them. -->
+      <RadioButton x:Name="IcicleShape" Content="Icicle" IsChecked="{Binding !ShowsSunburst}" Margin="12,0,0,0" />
+      <RadioButton x:Name="SunburstShape" Content="Sunburst" IsChecked="{Binding ShowsSunburst}" />
     </StackPanel>
-    <ScrollViewer DockPanel.Dock="Top" MaxHeight="180" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,6">
+    <ScrollViewer DockPanel.Dock="Top" MaxHeight="180" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,6"
+                  IsVisible="{Binding !ShowsSunburst}">
       <ctl:IcicleChart x:Name="Icicle" Segments="{Binding IcicleSegments}" Total="{Binding IcicleTotal}"
                        SelectedSegment="{Binding SelectedSegment, Mode=TwoWay}" FocusCommand="{Binding FocusSegmentCommand}" />
     </ScrollViewer>
+    <ctl:SunburstChart x:Name="Sunburst" DockPanel.Dock="Top" Diameter="300" Margin="0,0,8,6" IsVisible="{Binding ShowsSunburst}"
+                       Segments="{Binding IcicleSegments}" Total="{Binding IcicleTotal}"
+                       SelectedSegment="{Binding SelectedSegment, Mode=TwoWay}" FocusCommand="{Binding FocusSegmentCommand}" />
     <ctl:NoteText DockPanel.Dock="Top" Text="{Binding IcicleStatus}" Margin="0,0,0,4" Classes="subtle" />
 
     <!-- Objects retained by a set: what every object of a type keeps alive together, exactly. -->
