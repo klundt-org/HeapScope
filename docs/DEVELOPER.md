@@ -704,8 +704,10 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
 - Versions follow the sprint number: `/close-sprint` sets `<Version>X.Y.0</Version>` in `Directory.Build.props`
   (`X.Y.Z` for an in-between sprint such as 2.3.5).
 - Releases: when the owner says so, a PR from `develop` to `main`, merged with a merge commit (never squash, so the
-  branches do not drift), then the annotated tag `vX.Y.0` on `main` and a GitHub Release (`gh release create`, marked
-  pre-release for now). Only the owner decides when to release. The CLI's dotnet tool goes to nuget.org from the release's
+  branches do not drift), then the annotated tag `vX.Y.0` on `main` (`git tag -a`, pushed), then
+  `gh workflow run release.yml -f tag=vX.Y.0 -f publish=true` (since sprint 4.8, peer review 4.5 M1), which makes the GitHub
+  Release as a draft, builds and runs it, and publishes it, marked pre-release for now (`-f prerelease=false` when that ends).
+  Only the owner decides when to release. The CLI's dotnet tool goes to nuget.org from the release's
   attached `HeapScope.Cli.X.Y.Z.nupkg`: the owner uploads it on nuget.org (Upload; a version can be unlisted, never
   replaced). The package's license file is `LICENSE.txt`, which `build/pack-tool.sh` joins from
   `build/package-license-header.txt`, `ADDITIONAL-TERMS.md`, `COMMERCIAL.md` and `LICENSE`, so nuget.org shows the
@@ -715,18 +717,30 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   every change to the CLI since the last version on nuget.org (it starts them over after a release, and adds to them
   otherwise). The architecture test `ReleaseNotesTests` fails a version missing from either, and `release.yml` refuses a
   release whose package notes start with another version.
-- Release builds (sprint 3.7; channels and formats since 3.9, ADR-039): publishing the GitHub release runs `release.yml`,
-  which builds the tag for win-x64 (a `.zip`), linux-x64, osx-arm64 and osx-x64 (each a `.tar.gz`; the macOS ones on Linux,
-  and its last step puts a note at the top of the release's notes saying they are untested) and packs the CLI's dotnet tool (its version
-  must match the tag), installs that tool file on Windows and Linux (`build/check-tool.sh` without a dump), with read
-  access only, and then, in one job that builds nothing, attaches the archives, the tool
-  package, an SBOM of the app, the CLI and the worker, and `SHA256SUMS`, attesting each in GitHub's attestation store
-  (`gh attestation verify <file> --repo
-  klundt-org/HeapScope` checks one; attestations need a public repository or GitHub Enterprise). To try it before a
-  release: `gh workflow run release.yml -f tag=<tag>` builds without attaching (a dry run; `-f dry-run=false` attaches);
-  manual runs need the workflow on the default branch. If a build fails after publishing, rerun the failed jobs: one
-  runtime failing does not cancel the others, and attaching replaces files of the same name. Security reports:
-  `SECURITY.md`.
+- Release builds (sprint 3.7; channels and formats since 3.9, ADR-039; built before it is public since 4.8, M1): `release.yml`
+  runs by hand only, in this order. Prepare: the tag must be an annotated `vX.Y.Z` tag on `main` matching `<Version>`, and no
+  release of it may have files (HeapScope never replaces a release's files: a mistake is a new version); it creates a draft
+  with a line to INSTALL.md and the `RELEASE-NOTES.md` sections since the last release, or keeps the owner's draft and its
+  notes when one is there with no files. Build, with read access only: the tag for win-x64 (a `.zip`), linux-x64, osx-arm64
+  and osx-x64 (each a `.tar.gz`; the macOS ones on Linux, never run); win-x64 and linux-x64 are unpacked, capture the
+  LeakyConsole fixture with their own CLI and run as a user gets them (`build/check-install.sh`: `--version`, the worker, a
+  summary, the app without a display; Linux in a plain `ubuntu:24.04` container as root, which also checks a run by sudo); the
+  CLI's dotnet tool is packed (its version and its package notes must be the tag's) and installed on Windows and Linux
+  (`build/check-tool.sh`); SBOMs of the app, the CLI, the worker and the sample. Attest, in a job that holds only the rights to
+  attest: the nine files the release holds are named one by one (a missing or an extra file stops it), `SHA256SUMS` is made of
+  them, and each of the ten gets a build provenance attestation (`gh attestation verify <file> --repo klundt-org/HeapScope`
+  checks one; attestations need a public repository or GitHub Enterprise). Publish, in a job that builds nothing: the files
+  are attached without replacing any (an upload of a name already there fails), the note that the macOS packages are untested
+  goes at the top of the notes, and the draft is published. A failure before Publish leaves a draft, visible to maintainers
+  only: rerun the failed jobs, or delete the draft and run again. To try it without a release:
+  `gh workflow run release.yml --ref <branch> -f tag=<tag, branch or commit>` builds and runs everything and creates, attests and
+  attaches nothing (`publish` is off by default). The architecture test `ReleaseWorkflowTests` holds the workflow to these
+  rules. Security reports: `SECURITY.md`.
+- Repository settings for releases (the owner's to apply; drafted in sprint 4.8, M1): a tag ruleset on `v*` that blocks
+  updates and deletion and allows creation by the owner only (Settings, Rules, Rulesets, New tag ruleset: target `v*`, restrict
+  updates and deletions); immutable releases (Settings, General, Releases: "Enable release immutability"), so a published
+  release's files and tag cannot change; and the required check "CI passed" on `main` and `develop`, as now. `release.yml`
+  refuses to replace files either way; the settings stop a person, or a token, from doing it by hand.
 - SkiaSharp native libraries (ADR-038, 2026-10-30): `.github/workflows/skia-native.yml` builds `libSkiaSharp` for win-x64,
   linux-x64 and macOS (one universal library for both macOS runtimes) from SkiaSharp's sources at a pinned commit, with
   only `skia_use_dng_sdk` and `skia_use_piex` off; it checks each library (`build/check-no-dng.sh`) and attests the set.

@@ -195,7 +195,7 @@ perf/
 2.3.6; no macOS runners since 2026-10-31).
 .github/workflows/fuzz.yml     Nightly mutation tests with more iterations (sprint 3.7).
 .github/workflows/release.yml  Release builds (win-x64 .zip; linux-x64 and untested macOS .tar.gz; the CLI's dotnet tool), SBOM, checksums
-                               and attestations (sprint 3.7; ADR-039).
+                               and attestations (sprint 3.7; ADR-039); a draft, built and run, published last (sprint 4.8).
 .github/workflows/skia-native.yml SkiaSharp's native library built without the DNG SDK and piex (ADR-038).
 fixtures/
   Leaks                        Shared leak implementations and semantic fixtures (namespace Fixtures.Leaks).

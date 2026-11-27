@@ -68,8 +68,10 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   win-x64 (a `.zip`), linux-x64 and both macOS runtimes (each a `.tar.gz`; the macOS ones are built on Linux and marked untested
   on the release) and packs the CLI's dotnet tool, installs that tool file on Windows and
   Linux, and attaches them, an SBOM (CycloneDX) of the app, the CLI and the worker, and `SHA256SUMS`, all with build
-  provenance attestations in GitHub's attestation store (`release.yml`; the builds hold read access only, one job that
-  builds nothing attests and attaches; a manual run is a dry run by default); CI and release builds are deterministic
+  provenance attestations in GitHub's attestation store (`release.yml`; since 4.8 it makes a draft first, runs the Windows and
+  Linux archives before anything is public, attests each file by name, attaches without replacing any file and publishes last;
+  the builds hold read access only, the attest job only the rights to attest, and the jobs that write releases build nothing;
+  a run without `publish` is a dry run); CI and release builds are deterministic
   (`ContinuousIntegrationBuild`). Nothing is signed: users verify by checksum and attestation (INSTALL.md). The dotnet
   tool installs from the downloaded file only, through a `nuget.config` that clears every other source, since HeapScope
   does not hold its package ID on nuget.org yet (3.9 review H1).

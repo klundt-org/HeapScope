@@ -140,7 +140,7 @@ mapped switch does not return, a note when a load's references fall back to memo
 3. [x] H17: sudo on Linux works as written. The advice names the full path (`secure_path` drops the user's `PATH`), and HeapScope run
    under sudo keeps the invoking user's data folder and gives the files it writes (dumps, sessions) to that user (`SUDO_UID`), so a
    dump of a service is readable afterwards. Tests: the texts; the owner change on Linux CI (as root in the container).
-4. [ ] M1: a release is built and run before it is public. The workflow creates a draft, builds every package, runs each archive it
+4. [x] M1: a release is built and run before it is public. The workflow creates a draft, builds every package, runs each archive it
    can run (Windows and Linux: `--version`, open a fixture dump), refuses to replace an existing tag's assets, attests only the
    assets, then publishes. Tag protection and immutable releases are repository settings (owner, listed). Tests: the workflow's dry run
    on a test tag in a fork-free way (workflow_dispatch with publish off).

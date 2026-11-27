@@ -1,28 +1,38 @@
-# HeapScope release builds (sprint 3.7, peer review P17). When the owner publishes a GitHub release (DEVELOPER.md 7), this
-# builds the release's tag with build/publish.sh (license files checked) for the runtimes HeapScope ships (sprint 3.9,
-# ADR-039: win-x64 as a .zip, linux-x64 and both macOS runtimes as a .tar.gz, the macOS ones built on Linux, never run and
-# called untested on the release), packs the CLI's dotnet tool, and attaches
-# them, an SBOM (CycloneDX) of the app, the CLI, the worker and the sample, and SHA256SUMS of them all, each with a build provenance
-# attestation in GitHub's attestation store. Builds are deterministic (ContinuousIntegrationBuild in CI). Nothing is
-# signed (ADR-039: no certificate); the checksums and attestations are how a download is verified.
+# HeapScope release builds (sprint 3.7, peer review P17; built before it is public since sprint 4.8, peer review 4.5 M1). The
+# owner starts a release by hand (DEVELOPER.md 7): `gh workflow run release.yml -f tag=vX.Y.Z -f publish=true`. In order:
 #
-# Least privilege (3.7 review): the builds, which run every restored package's build logic, hold read access only and hand
-# their files on as artifacts; one short job that runs no build holds the rights to attest and attach. A manual run takes
-# a tag and, as a dry run (the default), attaches and attests nothing, so the workflow can be tried before a release.
-# Only releases of HeapScope (tags v*) are built: a release that holds build inputs, such as the SkiaSharp native
-# libraries (skia-native.yml), is not.
+# 1. Prepare: the tag must be an annotated tag on main, and no release of it may have files already (HeapScope never replaces
+#    a release's files: a new version is a new tag). A draft release is created, with the notes of the versions since the last
+#    release, unless the owner made the draft first (its notes are kept). A draft is visible to maintainers only.
+# 2. Build: the tag for the runtimes HeapScope ships (ADR-039: win-x64 as a .zip, linux-x64 and both macOS runtimes as a
+#    .tar.gz, the macOS ones built on Linux, never run and called untested on the release), the CLI's dotnet tool, and an SBOM
+#    (CycloneDX) of the app, the CLI, the worker and the sample. Each archive that can run here (win-x64, linux-x64) is unpacked
+#    and run as a user gets it: `--version`, its worker, a summary of a fixture dump it captured, and the app without a display
+#    (build/check-install.sh; Linux in a plain Ubuntu container, also run as root by sudo). The tool file is installed on
+#    Windows and Linux. Builds are deterministic (ContinuousIntegrationBuild in CI).
+# 3. Attest: each file the release will hold, named one by one, gets a build provenance attestation; nothing else does.
+# 4. Publish: the files are attached without replacing any (an upload of a name that is there fails), the macOS note goes at
+#    the top of the notes, and the draft is published.
+#
+# Nothing is signed (ADR-039: no certificate); the checksums and attestations are how a download is verified. Least privilege
+# (3.7 review): the builds, which run every restored package's build logic, hold read access only and hand their files on as
+# artifacts; the attest job holds only the rights to attest, and the prepare and publish jobs, which run no build, the right
+# to write releases. With publish off (the default) it is a dry run: any tag, branch or commit is built and run, and nothing
+# is created, attested or attached.
 name: Release
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: The tag to build
+        description: The tag to release (vX.Y.Z), or for a dry run any tag, branch or commit
         required: true
-      dry-run:
-        description: Build only; attach and attest nothing
+      publish:
+        description: Create the draft, attest, attach and publish; off is a dry run
+        type: boolean
+        default: false
+      prerelease:
+        description: Mark the release as a pre-release
         type: boolean
         default: true
 
@@ -32,28 +42,92 @@ permissions:
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: '1'
   AVALONIA_TELEMETRY_OPTOUT: '1'
-  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  TAG: ${{ inputs.tag }}
 
 jobs:
+  prepare:
+    name: Check the tag and make the draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      name: ${{ steps.name.outputs.name }}
+    steps:
+      - name: The files' name
+        # A dry run may build a branch, whose name can hold a slash.
+        id: name
+        shell: bash
+        run: echo "name=${TAG//\//-}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ inputs.publish }}
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: The tag is an annotated tag on main, and its version's
+        if: ${{ inputs.publish }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "A release's tag is vX.Y.Z; $TAG is not."; exit 1; }
+          type=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.type) || { echo "There is no tag $TAG on GitHub: push it first."; exit 1; }
+          [ "$type" = tag ] || { echo "$TAG is a lightweight tag; a release's tag is annotated (git tag -a)."; exit 1; }
+          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$commit" --jq .status)
+          [ "$status" = identical ] || [ "$status" = behind ] || { echo "$TAG ($commit) is not on main ($status): a release is merged into main first."; exit 1; }
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+          [ "v$version" = "$TAG" ] || { echo "The tag $TAG does not match the version $version"; exit 1; }
+      - name: No release of the tag has files; the draft
+        if: ${{ inputs.publish }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets > "$RUNNER_TEMP/release.json" 2> /dev/null; then
+            draft=$(jq -r .isDraft "$RUNNER_TEMP/release.json")
+            files=$(jq '.assets | length' "$RUNNER_TEMP/release.json")
+            [ "$draft" = true ] || { echo "The release $TAG is published already. HeapScope never replaces a release's files: release a new version."; exit 1; }
+            [ "$files" = 0 ] || { echo "The draft $TAG has $files files already. HeapScope never replaces a release's files: delete them, or the draft, and run again."; exit 1; }
+            echo "The owner's draft $TAG is used, with its notes."
+            exit 0
+          fi
+          # The notes: a line to INSTALL, then the sections of RELEASE-NOTES.md since the last release (DEVELOPER.md 7).
+          last=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')
+          {
+            echo "Install: see [INSTALL.md](https://github.com/$GITHUB_REPOSITORY/blob/main/INSTALL.md), from download to a first snapshot."
+            echo
+            awk -v last="## ${last#v}:" 'index($0, last) == 1 { exit } /^## [0-9]/ { on = 1 } on' RELEASE-NOTES.md
+          } > "$RUNNER_TEMP/notes.md"
+          flag=; [ "$PRERELEASE" = true ] && flag=--prerelease
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft $flag --verify-tag --title "HeapScope $TAG" --notes-file "$RUNNER_TEMP/notes.md"
+
   build:
     name: Build ${{ matrix.rid }}
-    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
+    needs: prepare
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
-      # One runtime failing does not stop the other: its archive is still built and can be attached by a rerun.
+      # One runtime failing does not stop the others; nothing is published unless every one passed.
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             rid: win-x64
+            runs: true
           - os: ubuntu-latest
             rid: linux-x64
+            runs: true
           # Built on Linux, which cannot run them (no macOS runners); the publish job says so on the release.
           - os: ubuntu-latest
             rid: osx-arm64
+            runs: false
           - os: ubuntu-latest
             rid: osx-x64
+            runs: false
+    env:
+      NAME: HeapScope-${{ needs.prepare.outputs.name }}-${{ matrix.rid }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -65,18 +139,51 @@ jobs:
       - name: Publish and pack
         shell: bash
         run: |
-          bash build/publish.sh ${{ matrix.rid }} "$RUNNER_TEMP/HeapScope-$TAG-${{ matrix.rid }}"
-          bash build/archive.sh pack "$RUNNER_TEMP/HeapScope-$TAG-${{ matrix.rid }}" "$RUNNER_TEMP/out"
+          bash build/publish.sh ${{ matrix.rid }} "$RUNNER_TEMP/$NAME"
+          bash build/archive.sh pack "$RUNNER_TEMP/$NAME" "$RUNNER_TEMP/out"
+      - name: Unpack the archive and take a dump of the fixture with it
+        if: ${{ matrix.runs }}
+        shell: bash
+        run: |
+          dir=$(bash build/archive.sh unpack "$RUNNER_TEMP"/out/"$NAME".* "$RUNNER_TEMP/unpacked")
+          echo "UNPACKED=$dir" >> "$GITHUB_ENV"
+          dotnet build fixtures/LeakyConsole -c Release
+          ext=; [ "${{ matrix.rid }}" = "win-x64" ] && ext=.exe
+          bash build/fixture-dump.sh "$RUNNER_TEMP/dump/leaky.dmp" "cli=$dir/heapscope-cli$ext"
+      - name: Run the archive as a user gets it, without .NET
+        # As CI's package job does (build/check-install.sh); on Linux in a plain Ubuntu container, as root, which also checks
+        # a run by sudo.
+        if: ${{ matrix.runs }}
+        shell: bash
+        run: |
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            bash build/check-install.sh "$UNPACKED" "$RUNNER_TEMP/dump/leaky.dmp"
+          else
+            docker run --rm -e HEAPSCOPE_DATA_FOLDER=/tmp/heapscope -e Logging__File__Directory=/dump/logs -e OWNER="$(id -u):$(id -g)" \
+              -v "$UNPACKED:/heapscope:ro" -v "$RUNNER_TEMP/dump:/dump" \
+              -v "$PWD/build:/build:ro" ubuntu:24.04 bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+              libicu74 libfontconfig1 > /dev/null && bash /build/check-install.sh /heapscope /dump/leaky.dmp; code=$?; \
+              chown -R "$OWNER" /dump; exit $code'
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: archive-${{ matrix.rid }}
-          path: ${{ runner.temp }}/out/HeapScope-*
+          path: ${{ runner.temp }}/out/${{ env.NAME }}.*
           if-no-files-found: error
+          retention-days: 7
+      - name: Keep HeapScope's logs
+        # So a failed run of an archive can be explained. Logs hold paths and type names, never dump values.
+        if: ${{ always() && matrix.runs }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-${{ matrix.rid }}
+          path: ${{ runner.temp }}/dump/logs
+          if-no-files-found: ignore
           retention-days: 7
 
   tool:
     name: The CLI's dotnet tool
-    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -88,14 +195,16 @@ jobs:
         with:
           global-json-file: global.json
       - name: Pack
-        # One package for every system (ADR-039); a release's version is its tag's (a manual run may build any commit).
+        # One package for every system (ADR-039); a release's version is its tag's (a dry run may build any commit).
         shell: bash
+        env:
+          PUBLISH: ${{ inputs.publish }}
         run: |
           version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
-          [ "${{ github.event_name }}" != "release" ] || [ "v$version" = "$TAG" ] || { echo "The tag $TAG does not match the version $version"; exit 1; }
+          [ "$PUBLISH" != true ] || [ "v$version" = "$TAG" ] || { echo "The tag $TAG does not match the version $version"; exit 1; }
           # The notes nuget.org shows must be this version's (DEVELOPER.md 7).
           notes=src/HeapScope.Cli/package-release-notes.txt
-          [ "${{ github.event_name }}" != "release" ] || head -1 "$notes" | grep -q "^$version: " || { echo "$notes does not start with \"$version: \"; write the notes nuget.org shows for this version first."; exit 1; }
+          [ "$PUBLISH" != true ] || head -1 "$notes" | grep -q "^$version: " || { echo "$notes does not start with \"$version: \"; write the notes nuget.org shows for this version first."; exit 1; }
           bash build/pack-tool.sh "$RUNNER_TEMP/out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -132,9 +241,11 @@ jobs:
 
   sbom:
     name: SBOM of the app, the CLI, the worker and the sample
-    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NAME: HeapScope-${{ needs.prepare.outputs.name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -150,7 +261,7 @@ jobs:
           export PATH="$PATH:$HOME/.dotnet/tools"
           for project in UI Cli Worker Sample; do
             dotnet CycloneDX "src/HeapScope.$project/HeapScope.$project.csproj" --output "$RUNNER_TEMP/sbom" \
-              --filename "HeapScope-$TAG-sbom-$project.cdx.json" --output-format Json
+              --filename "$NAME-sbom-$project.cdx.json" --output-format Json
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -159,36 +270,71 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  publish:
-    name: Attest and attach
-    needs: [build, tool, tool-check, sbom]
-    if: ${{ github.event_name == 'release' || !inputs.dry-run }}
+  attest:
+    name: Attest the release's files
+    needs: [prepare, build, tool, tool-check, sbom]
+    if: ${{ inputs.publish }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
+    env:
+      NAME: HeapScope-${{ needs.prepare.outputs.name }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: ${{ runner.temp }}/assets
+          pattern: '{archive-*,tool,sbom}'
           merge-multiple: true
-      - name: Checksums
+      - name: The release's files, by name, and their checksums
+        # Exactly the files the release holds (M1: the provenance names nothing else), or it stops here.
+        id: files
         shell: bash
-        run: (cd "$RUNNER_TEMP/assets" && sha256sum HeapScope-* HeapScope.Cli.*.nupkg > SHA256SUMS && cat SHA256SUMS)
+        run: |
+          cd "$RUNNER_TEMP/assets"
+          version=${TAG#v}
+          files=("$NAME-win-x64.zip" "$NAME-linux-x64.tar.gz" "$NAME-osx-arm64.tar.gz" "$NAME-osx-x64.tar.gz" "HeapScope.Cli.$version.nupkg"
+            "$NAME-sbom-UI.cdx.json" "$NAME-sbom-Cli.cdx.json" "$NAME-sbom-Worker.cdx.json" "$NAME-sbom-Sample.cdx.json")
+          for file in "${files[@]}"; do [ -f "$file" ] || { echo "$file was not built"; exit 1; }; done
+          extra=$(ls | grep -vxF -f <(printf '%s\n' "${files[@]}") || true)
+          [ -z "$extra" ] || { echo "Files the release does not name: $extra"; exit 1; }
+          sha256sum "${files[@]}" > SHA256SUMS && cat SHA256SUMS
+          { echo 'subjects<<EOF'; for file in "${files[@]}" SHA256SUMS; do echo "$RUNNER_TEMP/assets/$file"; done; echo EOF; } >> "$GITHUB_OUTPUT"
       - name: Attest the build's provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: |
-            ${{ runner.temp }}/assets/HeapScope-*
-            ${{ runner.temp }}/assets/HeapScope.Cli.*.nupkg
-            ${{ runner.temp }}/assets/SHA256SUMS
-      - name: Attach to the release
+          subject-path: ${{ steps.files.outputs.subjects }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sums
+          path: ${{ runner.temp }}/assets/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Attach and publish
+    needs: attest
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/assets
+          pattern: '{archive-*,tool,sbom,sums}'
+          merge-multiple: true
+      - name: Attach to the draft, replacing nothing
+        # With no option to replace, a file of the same name already attached fails the upload (M1).
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "$RUNNER_TEMP"/assets/HeapScope-* "$RUNNER_TEMP"/assets/HeapScope.Cli.*.nupkg "$RUNNER_TEMP/assets/SHA256SUMS" --clobber --repo "$GITHUB_REPOSITORY"
+        run: |
+          cd "$RUNNER_TEMP/assets"
+          gh release upload "$TAG" $(awk '{ print $2 }' SHA256SUMS) SHA256SUMS --repo "$GITHUB_REPOSITORY"
       - name: Say on the release that the macOS packages are untested
         # A note a person adds can be forgotten (ADR-039). A rerun finds it there and leaves the notes alone.
         shell: bash
@@ -201,3 +347,8 @@ jobs:
             { printf '%s\n\n' "$NOTE"; cat "$RUNNER_TEMP/body.md"; } > "$RUNNER_TEMP/notes.md"
             gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --repo "$GITHUB_REPOSITORY"
           fi
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
