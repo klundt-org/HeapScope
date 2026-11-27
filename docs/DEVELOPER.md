@@ -50,7 +50,7 @@ dotnet test --solution HeapScope.sln
   `Fakes/` folder) is a UI thread of its own with a synchronization context, so a test body run with
   `RunCheckedAsync` and its awaits continue there as in the app. `WatchPage` watches the Snapshots page and every
   workspace it shows, and a property or collection change raised on another thread fails the test. The page and
-  workspace tests (`SnapshotsViewModelTests`, `WorkspaceTests`) use it; other view model tests use
+  workspace tests (`SnapshotsViewModelTests`, `WorkspaceTests`, `AnalysisTabsTests`) use it; other view model tests use
   `ImmediateUiDispatcher`, which runs work on the calling thread and so cannot see such a change. New page-level tests
   use the single-thread one.
 - Data folders (sprint 3.8): every test process sets `HEAPSCOPE_DATA_FOLDER` to `HeapScopeTests/data` under the temporary
@@ -300,6 +300,9 @@ dotnet test --solution HeapScope.sln
   ("Smoke open types"), which CI checks against the known answers. Every smoke run also works with `--headless`.
   Add `--smoke-allocations <file.nettrace>` to `--smoke-open` to also show an allocations trace on the Allocations page
   ("Smoke allocations": its cold first show logged; expanding the first back trace and the call tree checked; sprint 2.5).
+  Add `--smoke-more <dump>;<dump>` to `--smoke-open` to open more dumps after it, each drilled and inspected, then the most
+  tabs on the last one, each grid of objects paged as far as a grid keeps pages, then close them: "Smoke memory with N
+  snapshots open, T tabs" logs the UI process's memory at each count (budgets.md; sprint 4.10).
   `--smoke-open` also counts the UI operations over 100 ms in every phase ("Smoke slow operations", by phase) and fails
   a passing run with more than 12 with exit 7 (sprint 3.12, task 5; not headless). Exit codes: 0 ok, 3 lag over the gate, 4
   a step failed, 5 the first window over 30 s, 6 a whole-list grid walk, 7 too many slow operations.

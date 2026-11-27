@@ -46,12 +46,12 @@ internal sealed class ResultSetHandler(ResultSetStore resultSets, ILogger<Result
             LogLevel.Debug);
     }
 
-    public Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken) =>
+    public Task ShowSnapshotAsync(Guid? snapshotId, Guid? scope, CancellationToken cancellationToken) =>
         GuardAsync(
             snapshotId,
             () =>
             {
-                resultSets.Show(snapshotId);
+                resultSets.Show(snapshotId, scope);
                 return Task.FromResult(true);
             },
             LogLevel.Debug);

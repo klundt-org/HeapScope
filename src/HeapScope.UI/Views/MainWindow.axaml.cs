@@ -125,6 +125,8 @@ public partial class MainWindow : Window
             _ when Matches(e, ShortcutKeys.OpenAsSet) => OpenAsSet,
             _ when Matches(e, ShortcutKeys.FocusPath) => FocusPath,
             _ when Matches(e, ShortcutKeys.OpenDump) => () => Run(shell.Snapshots.OpenDumpCommand),
+            _ when Matches(e, ShortcutKeys.NewTab) && shell.SelectedItem?.Page == shell.Snapshots => () => Run(shell.Snapshots.NewTabCommand),
+            _ when Matches(e, ShortcutKeys.CloseTab) && shell.SelectedItem?.Page == shell.Snapshots => () => Run(shell.Snapshots.CloseTabCommand),
             _ when Matches(e, ShortcutKeys.Refresh) => () =>
             {
                 shell.RefreshPage();

@@ -41,8 +41,9 @@ public interface IResultSetService
     Task ReleaseResultSetAsync(Guid resultSetId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Says which snapshot the client's window shows (null: none), so the result sets of the others are evicted first and
-    /// the one on screen keeps its rows (ADR-044). An unknown snapshot is not an error.
+    /// Says which snapshot the client's window shows (null: none), and in which of its tabs (<paramref name="scope"/>, an id of
+    /// the client's, ADR-045), so the result sets of the other snapshots are evicted first, then those of the shown snapshot's
+    /// other tabs, and the tab on screen keeps its rows (ADR-044). An unknown snapshot is not an error.
     /// </summary>
-    Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken);
+    Task ShowSnapshotAsync(Guid? snapshotId, Guid? scope, CancellationToken cancellationToken);
 }

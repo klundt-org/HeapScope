@@ -238,6 +238,9 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   (null: none), and the result set store evicts the sets of the other snapshots first, least recently used among them; then
   the rest, least recently used. Sets of no snapshot (traces, a synthetic graph) and Compare's diff and trend sets are never
   preferred for eviction. Before the client says anything, eviction is least recently used, as before.
+  Version 26 (sprint 4.10, ADR-045): `ShowSnapshotAsync(snapshotId, scope, ...)`: the client also says which of the snapshot's
+  tabs it shows (an id of its own); a new set of the shown snapshot is that tab's, and over the limits the shown snapshot's other
+  tabs' sets go after the other snapshots' and before the rest.
 - When to bump `WorkerProtocol.Version`: for a method added, removed or renamed, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id
@@ -272,7 +275,8 @@ for the requested page, never stored as one string per cell. The store evicts le
 sets or an estimated 256 MB, whichever comes first (the newest set is always kept). Each set names the snapshot it
 came from, and once the client has said which snapshot its window shows (`ShowSnapshotAsync`, ADR-044), the sets of
 the other snapshots are evicted first, least recently used among them, then the rest; sets of no snapshot (traces, a
-synthetic graph) and Compare's diff and trend sets are never preferred. Closing a snapshot drops its sets, so a page of one
+synthetic graph) and Compare's diff and trend sets are never preferred. With the tab shown (`scope`, ADR-045), a new set of the
+shown snapshot is that tab's (the inspections' sets are the snapshot's, shared by its tabs, and carry none), and the shown snapshot's other tabs' sets go after the other snapshots' and before the rest. Closing a snapshot drops its sets, so a page of one
 fails with `ResultSetNotFound` and its handle runs the query again on the reopened snapshot (a set a query adds just
 after the close stays until released or evicted). Evictions log as logging.md says. A set can carry an owner, for
 example a snapshot lease, disposed on release or eviction. Producers must stay compact (indices, counts, sizes),

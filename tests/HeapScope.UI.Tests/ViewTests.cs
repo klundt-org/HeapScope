@@ -676,6 +676,26 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             Press(window, PhysicalKey.ArrowUp);
             snapshots.Navigator.Current.ShouldBeOfType<TypeSummaryViewModel>();
 
+            // Command+T opens a tab of the snapshot in the strip, Command+W closes it, and the first tab is as it was.
+            var first = snapshots.Current;
+            Press(window, PhysicalKey.T, command);
+            Dispatcher.UIThread.RunJobs();
+            snapshots.Tabs.Count.ShouldBe(2);
+            var strip = window.GetVisualDescendants().OfType<ListBox>().Single(l => l.Name == "AnalysisTabs");
+            (strip.IsEffectivelyVisible, strip.ItemCount, strip.SelectedItem).ShouldBe((true, 2, (object)snapshots.Current));
+            snapshots.Navigate(NavigationTarget.Instances(snapshots.Selected!.Handle, "System.String", "System.Private.CoreLib.dll"));
+            Dispatcher.UIThread.RunJobs();
+            snapshots.Current.Title.ShouldNotBe("Types");
+            var pathList = window.GetVisualDescendants().OfType<ListBox>().Single(l => l.Name == "PathList");
+            pathList.SelectedItem.ShouldBeSameAs(snapshots.Navigator.CurrentStep, "the path list shows the new tab's step selected");
+            strip.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ShouldContain(snapshots.Current.Title, "the tab is titled by its step");
+            Press(window, PhysicalKey.W, command);
+            Dispatcher.UIThread.RunJobs();
+            (snapshots.Tabs.Count, strip.ItemCount).ShouldBe((1, 1));
+            snapshots.Current.ShouldBeSameAs(first);
+            pathList.SelectedItem.ShouldBeSameAs(snapshots.Navigator.CurrentStep, "the path list shows the first tab's step selected again");
+            snapshots.Navigator.Current.ShouldBeOfType<TypeSummaryViewModel>();
+
             // Export the view's grid, refresh a page, and the shortcuts list.
             Press(window, PhysicalKey.E, command);
             await WaitFor(() => File.Exists(interaction.SaveFile));

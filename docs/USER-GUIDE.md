@@ -63,6 +63,11 @@ notes who can capture whom.
 - **Switching snapshots.** Each open snapshot keeps its own types grid (filter, sort, grouping), path, inspections and
   Retainers tab as you left them: selecting it again shows them without running anything again. A link into a snapshot
   you closed says so; open the dump again to look there.
+- **Analysis tabs.** New tab (Ctrl+T, Cmd+T on macOS) opens another analysis of the selected snapshot at its types grid,
+  with its own path, filter and Retainers tab, beside the ones you have; the inspections and Compare are the same in every
+  tab, so the tabs show on the Snapshot and Retainers tabs. A link opens in the tab you followed it from, and a link into
+  another snapshot in that snapshot's tab. Close a tab with its x or Ctrl+W; a snapshot keeps at least one tab, and up to 8.
+  Tabs are not kept when HeapScope closes or a dump is opened again.
 - **Bookmarks.** Ctrl+D (Cmd+D on macOS) marks the shown object, or the selected row's object, with a color. Bookmarks
   of every open snapshot are listed together and come back when the same dump is opened again.
 - **Object sets.** Select several types (Ctrl or Shift and click, or Shift+Down) and press Ctrl+Shift+O (Cmd+Shift+O), or

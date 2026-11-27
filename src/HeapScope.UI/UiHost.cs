@@ -51,8 +51,14 @@ namespace HeapScope.UI;
 /// <param name="SmokeLiveProcess">When set (<c>--smoke-live-process pid</c>), the Live page watches this process for real and records its allocations
 /// under a data folder of its own, and the run exits with the dispatcher checks.</param>
 /// <param name="ScreenshotLivePid">With <c>--screenshots</c> (<c>--screenshot-live-pid N</c>), the Live page's picture watches this process for real.</param>
-public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null, string? ScreenshotFolder = null, int? ScreenshotLivePid = null, int? SmokeLiveProcess = null)
+/// <param name="SmokeMorePaths">With <c>--smoke-open</c> (<c>--smoke-more a.dmp;b.dmp</c>), more dumps opened after it, each drilled into and
+/// inspected, with the UI process's memory logged after each: what several open snapshots cost the front end.</param>
+public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null, string? ScreenshotFolder = null, int? ScreenshotLivePid = null, int? SmokeLiveProcess = null, IReadOnlyList<string>? SmokeMorePaths = null)
 {
+    /// <summary>The paths of <c>--smoke-more</c>, separated by semicolons; none for null or blank.</summary>
+    public static IReadOnlyList<string> SplitPaths(string? paths) =>
+        paths?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+
     public bool IsSmokeRun => SmokeSyntheticObjects is not null || SmokeOpenPath is not null || SmokeLiveSamples is not null || SmokeLiveProcess is not null || ScreenshotFolder is not null;
 }
 
@@ -101,7 +107,8 @@ internal static class UiHost
             builder.Configuration["smoke-allocations"],
             builder.Configuration["screenshots"],
             builder.Configuration["screenshot-live-pid"] is { } livePid ? int.Parse(livePid, NumberStyles.None, CultureInfo.InvariantCulture) : null,
-            builder.Configuration["smoke-live-process"] is { } watched ? int.Parse(watched, NumberStyles.None, CultureInfo.InvariantCulture) : null);
+            builder.Configuration["smoke-live-process"] is { } watched ? int.Parse(watched, NumberStyles.None, CultureInfo.InvariantCulture) : null,
+            UiOptions.SplitPaths(builder.Configuration["smoke-more"]));
         builder.Services.AddSingleton(options);
 
         builder.Services.AddSingleton<IUiDispatcher>(new AvaloniaUiDispatcher(dispatcher));

@@ -62,11 +62,15 @@ internal sealed partial class FakeWorkerService : IResultSetService
     /// <summary>The snapshots the client said it shows, in order (null: none).</summary>
     public List<Guid?> Shown { get; } = [];
 
-    public Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken)
+    /// <summary>The tabs the client said it shows, beside <see cref="Shown"/> (null: none).</summary>
+    public List<Guid?> ShownScopes { get; } = [];
+
+    public Task ShowSnapshotAsync(Guid? snapshotId, Guid? scope, CancellationToken cancellationToken)
     {
         lock (Shown)
         {
             Shown.Add(snapshotId);
+            ShownScopes.Add(scope);
         }
 
         return Task.CompletedTask;

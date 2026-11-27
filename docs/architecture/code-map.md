@@ -299,6 +299,11 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `DiffRowItem`, `CompareViewModel.Allocated.cs`, `CompareViewModel.Links.cs`; `InspectionTileViewModel`,
   `FragmentItem`, `BaselineChoice`, `InspectionTarget`, `InspectionsViewModel.Baselines.cs`;
   `LiveAllocationsViewModel.Follow.cs` (following a live trace).
+  Sprint 4.10 (ADR-045): `SnapshotAnalysisViewModel` (a snapshot's tabs, the inspections they share, `AddTab`, `RemoveTab`, at most
+  `MaxTabs`), `SnapshotWorkspaceViewModel` as one tab and the navigator of its own views, and the page's tabs in
+  `SnapshotsViewModel.Tabs.cs` (`ShowAnalysis`, `ShowTab`, `NewTab`, `CloseTab`, `NavigateIn`); the UI's tab strip
+  (`AnalysisTabs` on the Snapshots page) and `ShortcutKeys.NewTab` and `CloseTab`; `--smoke-more` for the memory of several
+  snapshots open (`UiOptions.SmokeMorePaths`).
 - **UI** (Avalonia, sprint 2.3.6, ADR-025). `Program` (the desktop app, or `--headless` on Avalonia's headless platform
   for CI smoke runs), `App` (host start and bounded stop, last-chance handlers, power throttling off on Windows, theme)
   and `UiHost` (DI, `UiOptions`). `Views/`: `MainWindow` (the shell, the attribution strip as `AttributionText`,

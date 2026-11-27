@@ -95,6 +95,10 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     private readonly object _gate = new();
     private readonly List<SnapshotHandle> _snapshots = [];
     private SnapshotHandle? _shown;
+    private Guid? _shownScope;
+
+    // One tell at a time, each sending what is shown when it runs: a quick switch away and back ends with the latest told.
+    private readonly SemaphoreSlim _telling = new(1, 1);
 
     /// <summary>Raised on any thread when a snapshot is opened, reopened or closed.</summary>
     public event EventHandler? SnapshotsChanged;
@@ -211,11 +215,13 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// and the one on screen keeps its rows (ADR-044). A worker that is not running is told when the snapshot is reopened in
     /// it; nothing starts a worker for this.
     /// </summary>
-    public async Task ShowAsync(SnapshotHandle? handle, CancellationToken cancellationToken)
+    /// <param name="scope">The tab shown (ADR-045): new result sets of the snapshot are its, and evicted after the others'.</param>
+    public async Task ShowAsync(SnapshotHandle? handle, CancellationToken cancellationToken, Guid? scope = null)
     {
         lock (_gate)
         {
             _shown = handle;
+            _shownScope = scope;
         }
 
         await TellShownAsync(cancellationToken).ConfigureAwait(false);
@@ -225,9 +231,9 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// <see cref="ShowAsync"/> without waiting, for the UI. A failure costs only eviction order, but the worker then keeps
     /// plain least recently used order, so it is logged where support reads.
     /// </summary>
-    public void ShowInBackground(SnapshotHandle? handle) =>
-        _ = ShowAsync(handle, CancellationToken.None).ContinueWith(
-            static (t, state) => ((ILogger)state!).LogInformation(t.Exception, "Telling the worker which snapshot is shown failed; it evicts in least recently used order until told"),
+    public void ShowInBackground(SnapshotHandle? handle, Guid? scope = null) =>
+        _ = ShowAsync(handle, CancellationToken.None, scope).ContinueWith(
+            static (t, state) => ((ILogger)state!).LogWarning(t.Exception, "Telling the worker which snapshot is shown failed; it evicts in least recently used order until told"),
             _logger,
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
@@ -235,10 +241,24 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
 
     private async Task TellShownAsync(CancellationToken cancellationToken)
     {
+        await _telling.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await TellLatestAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _telling.Release();
+        }
+    }
+
+    private async Task TellLatestAsync(CancellationToken cancellationToken)
+    {
         SnapshotHandle? shown;
+        Guid? scope;
         lock (_gate)
         {
-            shown = _shown;
+            (shown, scope) = (_shown, _shownScope);
         }
 
         // A snapshot not open in this worker (it restarted) is told once its reopen gives it an id there.
@@ -255,8 +275,8 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         }
 
         var id = shown is { IsClosed: false } ? shown.WorkerSnapshotId : (Guid?)null;
-        await worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(id, ct), cancellationToken).ConfigureAwait(false);
-        _logger.LogDebug("The worker was told the window shows {Path} (worker snapshot {WorkerSnapshotId})", shown?.Path ?? "no snapshot", id);
+        await worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(id, id is null ? null : scope, ct), cancellationToken).ConfigureAwait(false);
+        _logger.LogDebug("The worker was told the window shows {Path} (worker snapshot {WorkerSnapshotId}, tab {Scope})", shown?.Path ?? "no snapshot", id, scope);
     }
 
     /// <summary>Closes a snapshot in the worker (when it is still there) and forgets the handle.</summary>
@@ -733,7 +753,13 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
 
         if (shown)
         {
-            ShowInBackground(handle);
+            Guid? scope;
+            lock (_gate)
+            {
+                scope = _shownScope;
+            }
+
+            ShowInBackground(handle, scope);
         }
 
         SafeEvents.Raise(SnapshotsChanged, this, _logger, nameof(SnapshotsChanged));

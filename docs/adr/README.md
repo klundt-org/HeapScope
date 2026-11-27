@@ -48,4 +48,5 @@ section 13 links here).
 - [ADR-041](ADR-041-older-index-cache-in-place-of-a-rebuild-without-a-dac.md) An older index cache in place of a rebuild without a DAC (added in sprint 3.12, amended in 4.5 and 4.7, amends ADR-006, ADR-032, ADR-035 and ADR-036)
 - [ADR-042](ADR-042-tutorial-sample-and-lessons-as-catalogs.md) The tutorial: a shipped sample and lessons, both catalogs (added in sprint 3.13, amends ADR-039)
 - [ADR-043](ADR-043-dump-values-in-logs-by-consent.md) Dump values in logs, by consent (added in sprint 3.13.2)
-- [ADR-044](ADR-044-a-workspace-per-open-snapshot.md) A workspace per open snapshot (added in sprint 4.9, amends ADR-029)
+- [ADR-044](ADR-044-a-workspace-per-open-snapshot.md) A workspace per open snapshot (added in sprint 4.9, amends ADR-029; amended by ADR-045)
+- [ADR-045](ADR-045-analysis-tabs.md) Analysis tabs (added in sprint 4.10, amends ADR-044)

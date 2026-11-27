@@ -353,11 +353,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   reads or sends them (M2, a protocol change); measuring front end and worker memory with three Medium snapshots open, each with a
   full analysis path, and trimming the row lists of subjects and workspaces not shown (M3; sprint 4.9 made the worker
   evict the sets of snapshots not shown first, ADR-044); export marks for a gcdump's sampled counts (L17).
-- For sprint 4.10, from the 4.9 review (decided autonomously): before tabs multiply the state, measure the UI process's
-  working set and managed heap with three Medium snapshots open, each with a full path and an inspections run, and record it
-  in budgets.md (M6); tag the worker's sets by workspace (an opaque scope id, a protocol change) so a tab's hidden siblings
-  do not share the shown tab's preference (M4); make the workspace the navigator of its own views, so a link lands in the
-  tab it came from (M7). The 4.9 review's Lows are listed in docs/reviews/sprint-4.9.md.
+- From 4.10 (decided autonomously): "open in a new tab" from a row of a grid or the path (tabs start at the types grid now).
 - More channels and formats (sprint 3.9 decided GitHub Releases with a Windows `.zip`, a Linux `.tar.gz` and the CLI's
   dotnet tool, ADR-039; product owner, 2026-10-31):
   - nuget.org for the dotnet tool: since 3.13.1 the owner uploads the release's package by hand (ADR-039). Next: publish
@@ -376,8 +372,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
 - One type entry among several with one name and module (from the 2.4 review M12): the set and the tree's Type grouping
   take every entry of the name; naming one entry (an unloaded `AssemblyLoadContext`'s stale copy) is an additive field.
 - Reveal an icicle bar's row by opening its dominator path (from the 2.4 review M13).
-- The navigator's history at the Snapshots page level, keyed by `NavigationTarget`, so Back returns from the Retainers
-  tab (from the 2.4 review L14; with 2.7's history).
+- The tab's history across its page tabs, keyed by `NavigationTarget`, so Back returns from the Retainers tab (from the 2.4
+  review L14; with 2.7's history; since 4.10 each analysis tab owns its path, ADR-045).
 - Extract the type grid toolbar (2.3.7 M14 rest, from 2.4): group by, filter and totals are repeated on the types
   grid and the Compare tab; extract it when a third grid needs it.
 - Typed fake rows for the older fakes (2.3.7 M15 rest, from 2.4): the type, instance and reference fakes still take

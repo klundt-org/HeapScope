@@ -64,10 +64,13 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     private readonly ILogger? _logger;
     private readonly ILoggerFactory? _loggers;
 
-    // A workspace per open snapshot, and the empty one shown while nothing is selected.
-    private readonly Dictionary<SnapshotHandle, SnapshotWorkspaceViewModel> _workspaces = [];
-    private readonly SnapshotWorkspaceViewModel _empty;
-    private SnapshotWorkspaceViewModel _current;
+    // An analysis (tabs and inspections) per open snapshot, and the empty one shown while nothing is selected.
+    private readonly Dictionary<SnapshotHandle, SnapshotAnalysisViewModel> _analyses = [];
+    private readonly SnapshotAnalysisViewModel _empty;
+    private SnapshotAnalysisViewModel _analysis;
+
+    // Set while a link selects its snapshot, so the snapshot's tab is pointed at the link before its views query.
+    private bool _navigating;
 
     public SnapshotsViewModel(
         SnapshotSession session,
@@ -87,18 +90,13 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         _interaction = interaction ?? throw new ArgumentNullException(nameof(interaction));
         _loggers = loggers;
         _session.SnapshotsChanged += OnSnapshotsChanged;
-        _empty = _current = new SnapshotWorkspaceViewModel(null, session, dispatcher, this, loggers);
+        _empty = _analysis = new SnapshotAnalysisViewModel(null, session, dispatcher, this, NavigateIn, loggers);
         _empty.Show();
-        _current.Navigator.StepShown += OnStepShown;
+        _empty.Current.Show();
+        _analysis.Current.Navigator.StepShown += OnStepShown;
         Bookmarks = new BookmarksViewModel(bookmarks, this, loggers?.CreateLogger<BookmarksViewModel>());
         Compare = new CompareViewModel(session, Snapshots, dispatcher, loggers?.CreateLogger<CompareViewModel>(), this, allocations);
     }
-
-    /// <summary>The workspace shown: the selected snapshot's, or the empty one.</summary>
-    public SnapshotWorkspaceViewModel Current => _current;
-
-    /// <summary>The workspaces of the open snapshots that have been shown, for tests and the log.</summary>
-    public IReadOnlyCollection<SnapshotWorkspaceViewModel> Workspaces => _workspaces.Values;
 
     /// <summary>The detail tab (named, not numbered).</summary>
     public SnapshotTabs Tab
@@ -123,30 +121,28 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
 
         if (Selected != item)
         {
-            Selected = item;
+            _navigating = true;
+            try
+            {
+                Selected = item;
+            }
+            finally
+            {
+                _navigating = false;
+            }
         }
 
-        if (target.Kind is NavigationKind.Retainers or NavigationKind.RetainedBySet)
-        {
-            // The target first, so showing the tab queries what it asks for rather than the biggest retainers. The link is a
-            // step of the analysis path, replayed when it is chosen again.
-            Retainers.Navigate(target);
-            Navigator.Record(target);
-            Tab = SnapshotTabs.Retainers;
-            return;
-        }
-
-        Tab = SnapshotTabs.Snapshot;
-        Navigator.Navigate(target);
+        // The snapshot's current tab, the one it shows.
+        Open(target);
     }
 
     public ObservableCollection<SnapshotItemViewModel> Snapshots { get; } = [];
 
     /// <summary>The types grid of the selected snapshot (its workspace's).</summary>
-    public TypeSummaryViewModel Types => _current.Types;
+    public TypeSummaryViewModel Types => _analysis.Current.Types;
 
     /// <summary>The Snapshot tab's subjects of the selected snapshot: the types grid, instances and objects, with back and forward.</summary>
-    public NavigatorViewModel Navigator => _current.Navigator;
+    public NavigatorViewModel Navigator => _analysis.Current.Navigator;
 
     /// <summary>Bookmarked objects of every open snapshot.</summary>
     public BookmarksViewModel Bookmarks { get; }
@@ -185,79 +181,22 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     public CompareViewModel Compare { get; }
 
     /// <summary>The selected snapshot's inspections; they run when their tab is shown.</summary>
-    public InspectionsViewModel Inspections => _current.Inspections;
+    public InspectionsViewModel Inspections => _analysis.Inspections;
 
     /// <summary>The selected snapshot's dominator tree, icicle and set retention; queried when the tab is shown.</summary>
-    public RetainersViewModel Retainers => _current.Retainers;
+    public RetainersViewModel Retainers => _analysis.Current.Retainers;
 
     public void Dispose()
     {
         _session.SnapshotsChanged -= OnSnapshotsChanged;
-        _current.Navigator.StepShown -= OnStepShown;
-        foreach (var workspace in _workspaces.Values)
+        _analysis.Current.Navigator.StepShown -= OnStepShown;
+        foreach (var analysis in _analyses.Values)
         {
-            workspace.Dispose();
+            analysis.Dispose();
         }
 
-        _workspaces.Clear();
+        _analyses.Clear();
         _empty.Dispose();
-    }
-
-    /// <summary>
-    /// Shows the workspace of <paramref name="snapshot"/>, made the first time: the views it had are shown as they were, and
-    /// nothing is queried again; null shows the empty one.
-    /// </summary>
-    private void ShowWorkspace(SnapshotHandle? snapshot)
-    {
-        var workspace = _empty;
-        if (snapshot is not null && !_workspaces.TryGetValue(snapshot, out workspace!))
-        {
-            _workspaces[snapshot] = workspace = new SnapshotWorkspaceViewModel(snapshot, _session, _dispatcher, this, _loggers);
-        }
-
-        var kept = workspace.IsShown;
-
-        if (workspace == _current && workspace.IsShown)
-        {
-            return;
-        }
-
-        _current.Navigator.StepShown -= OnStepShown;
-        _current.Hide();
-        _current = workspace;
-        _current.Navigator.StepShown += OnStepShown;
-        _current.Show();
-        _logger?.LogInformation(
-            "Workspace shown: {Path} (snapshot {Snapshot}), {How}, tab {Tab}, {Open} workspaces open",
-            snapshot?.Path ?? "none",
-            snapshot?.Descriptor.SnapshotId.ToString() ?? "none",
-            kept
-                ? "kept as it was; a stopped inspection run or stale growth tiles run if its Inspections tab is shown, and evicted result sets run again when paged"
-                : "new, its views query the snapshot",
-            Tab,
-            _workspaces.Count);
-        _current.SetActiveTab(Tab);
-        _session.ShowInBackground(snapshot);
-        OnPropertyChanged(nameof(Current));
-        OnPropertyChanged(nameof(Types));
-        OnPropertyChanged(nameof(Navigator));
-        OnPropertyChanged(nameof(Inspections));
-        OnPropertyChanged(nameof(Retainers));
-    }
-
-    /// <summary>Closes the workspace of a snapshot that was closed or opened again, with its path and results.</summary>
-    private void CloseWorkspace(SnapshotHandle snapshot)
-    {
-        if (_workspaces.Remove(snapshot, out var workspace))
-        {
-            if (workspace == _current)
-            {
-                ShowWorkspace(null);
-            }
-
-            workspace.Dispose();
-            _logger?.LogInformation("Workspace of {Path} closed: its types grid, path, inspections and retainers, and their result sets, released", snapshot.Path);
-        }
     }
 
     /// <summary>
@@ -363,7 +302,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
                 handle.Path,
                 previous,
                 handle.Descriptor.SnapshotId);
-            CloseWorkspace(handle);
+            CloseAnalysis(handle);
             Compare.Reopened(item);
             if (Selected == item)
             {
@@ -481,13 +420,16 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         RaiseCanTrustDac();
 
         // Each snapshot keeps its workspace, its analysis path included, while it is open (ADR-029).
-        ShowWorkspace(value?.Handle);
+        ShowAnalysis(value?.Handle, activate: !_navigating);
     }
 
     partial void OnSelectedTabChanged(int value)
     {
         OnPropertyChanged(nameof(Tab));
-        _current.SetActiveTab((SnapshotTabs)value);
+        OnPropertyChanged(nameof(ShowsTabStrip));
+        NewTabCommand.NotifyCanExecuteChanged();
+        CloseTabCommand.NotifyCanExecuteChanged();
+        Activate();
         Compare.IsActive = value == (int)SnapshotTabs.Compare;
     }
 
@@ -514,7 +456,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         {
             if (!handles.Contains(Snapshots[i].Handle))
             {
-                CloseWorkspace(Snapshots[i].Handle);
+                CloseAnalysis(Snapshots[i].Handle);
                 Bookmarks.Forget(Snapshots[i].Handle);
                 Snapshots.RemoveAt(i);
             }
@@ -542,9 +484,9 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         }
 
         // Another snapshot opened or closed: the growth detectors' baseline choices follow, in every workspace.
-        foreach (var workspace in _workspaces.Values)
+        foreach (var analysis in _analyses.Values)
         {
-            workspace.Inspections.RefreshBaselines();
+            analysis.Inspections.RefreshBaselines();
         }
     }
 }

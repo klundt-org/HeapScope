@@ -57,8 +57,6 @@ public sealed partial class NavigatorViewModel : ObservableObject
     [ObservableProperty]
     private INavigationSubject _current;
 
-    /// <summary>The current step; the sidebar selects it, and choosing another step shows that one.</summary>
-    [ObservableProperty]
     private AnalysisStep? _currentStep;
 
     /// <param name="navigator">What the subjects' links go through: the Snapshots page, which picks the tab first.</param>
@@ -174,10 +172,19 @@ public sealed partial class NavigatorViewModel : ObservableObject
         }
     }
 
-    /// <summary>Opens a target of the Snapshot tab as a new step; other targets are not this tab's and are ignored.</summary>
+    /// <summary>
+    /// Opens a target of the Snapshot tab as a new step; other targets are not this tab's and are ignored, and so is a target of
+    /// another snapshot than the one shown (a tab's path is its snapshot's).
+    /// </summary>
     public INavigationSubject? Navigate(NavigationTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
+        if (_snapshot is { } shown && target.Snapshot != shown)
+        {
+            _logger.LogWarning("A {Kind} link of snapshot {Target} was not opened in the path of {Shown}", target.Kind, target.Snapshot.Descriptor.SnapshotId, SnapshotId);
+            return null;
+        }
+
         return target.Kind switch
         {
             NavigationKind.Object => OpenObject(target.Snapshot, target.Address, target.ObjectTab),
@@ -194,6 +201,11 @@ public sealed partial class NavigatorViewModel : ObservableObject
     public AnalysisStep Record(NavigationTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
+        if (_snapshot is { } shown && target.Snapshot != shown)
+        {
+            throw new InvalidOperationException("A link of another snapshot is not a step of this path.");
+        }
+
         var step = _path.Open(target);
         Log("Opened", step);
         Move();
@@ -291,14 +303,41 @@ public sealed partial class NavigatorViewModel : ObservableObject
         }
     }
 
-    // The sidebar chose a step (two-way binding): show it.
-    partial void OnCurrentStepChanged(AnalysisStep? value)
+    /// <summary>
+    /// The current step; the sidebar selects it, and choosing another step shows that one. A null is ignored: the sidebar writes
+    /// it when it shows another tab's path, and the current step stays.
+    /// </summary>
+    public AnalysisStep? CurrentStep
     {
-        if (value is not null && value != _path.Current && _path.Steps.Contains(value))
+        get => _currentStep;
+        set
         {
-            ShowStep(_path.Select(value));
+            if (value is null || !SetProperty(ref _currentStep, value))
+            {
+                return;
+            }
+
+            if (value != _path.Current && _path.Steps.Contains(value))
+            {
+                ShowStep(_path.Select(value));
+            }
         }
     }
+
+    /// <summary>Says the current step again, so the sidebar selects it after it showed another tab's path and cleared its selection.</summary>
+    public void ReselectStep()
+    {
+        // A binding passes on only a value that differs from the one it passed last, the step, though the sidebar has
+        // cleared its own selection since: a null first, then the step, makes it select the step again.
+        var step = _currentStep;
+        _currentStep = null;
+        OnPropertyChanged(nameof(CurrentStep));
+        _currentStep = step;
+        OnPropertyChanged(nameof(CurrentStep));
+    }
+
+    /// <summary>The tab whose path this is, named in the path's log lines (ADR-045); null for none.</summary>
+    public Guid? Tab { get; set; }
 
     private void ShowStep(AnalysisStep step)
     {
@@ -320,7 +359,7 @@ public sealed partial class NavigatorViewModel : ObservableObject
             "Analysis path: {Action} {Kind} step {Step} (from step {Parent}, depth {Depth}) in snapshot {Snapshot} ({Steps} steps)",
             action, KindOf(step), step.Id, step.Parent?.Id, step.Depth, SnapshotId, _path.Count);
 
-    private string SnapshotId => _snapshot?.Descriptor?.SnapshotId.ToString() ?? "none";
+    private string SnapshotId => (_snapshot?.Descriptor?.SnapshotId.ToString() ?? "none") + (Tab is { } tab ? $", tab {tab}" : string.Empty);
 
     // Kinds are allow-listed names, never a type name or an address (ARCHITECTURE 11).
     private static string KindOf(AnalysisStep step) => step.Subject switch
@@ -380,6 +419,9 @@ public sealed partial class NavigatorViewModel : ObservableObject
         {
             _steps = null;
             OnPropertyChanged(nameof(Steps));
+
+            // The sidebar clears its selection when its steps are replaced (its null is ignored): it selects the step again.
+            ReselectStep();
         }
 
         OnPropertyChanged(nameof(CanGoBack));

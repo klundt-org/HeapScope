@@ -316,8 +316,8 @@ public sealed class WorkerIpcTests : IAsyncDisposable
     public async Task The_shown_snapshot_is_told_over_the_pipe_and_an_unknown_one_is_not_an_error()
     {
         // ADR-044: the store only orders eviction by it, so any id, or none, is accepted.
-        await _operations.Worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(Guid.NewGuid(), ct), Ct);
-        await _operations.Worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(null, ct), Ct);
+        await _operations.Worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(Guid.NewGuid(), Guid.NewGuid(), ct), Ct);
+        await _operations.Worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(null, null, ct), Ct);
     }
 
     [Fact]
