@@ -76,11 +76,15 @@ internal static class SessionDocumentFile
     private static readonly TimeSpan s_replacePatience = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan s_retryDelay = TimeSpan.FromMilliseconds(25);
 
+    // Reads of a file not found before it counts as missing: 75 ms, much longer than a replace takes.
+    private const int MissingRetries = 3;
+
     /// <summary>Reads the document of <paramref name="folder"/>.</summary>
     public static SessionRead Read(string folder)
     {
         var path = Path.Combine(folder, DocumentName);
         var watch = Stopwatch.StartNew();
+        var missing = 0;
         while (true)
         {
             try
@@ -108,6 +112,12 @@ internal static class SessionDocumentFile
                 return document.Snapshots.All(s => s is { File.Length: > 0 })
                     ? new SessionRead(SessionReadStatus.Read, new Session(folder, document), null)
                     : Unreadable("its session.json lists a snapshot without a file", $"{Elsewhere} {Untouched}");
+            }
+            catch (FileNotFoundException) when (++missing <= MissingRetries)
+            {
+                // A save on Windows replaces the file in two steps, and a read between them finds no file (sprint 4.8, M14: the
+                // readers test failed one run in five): read again shortly before calling it missing.
+                Thread.Sleep(s_retryDelay);
             }
             catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
             {
