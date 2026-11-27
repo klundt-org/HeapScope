@@ -18,7 +18,7 @@
 # Nothing is signed (ADR-039: no certificate); the checksums and attestations are how a download is verified. Least privilege
 # (3.7 review): the builds, which run every restored package's build logic, hold read access only and hand their files on as
 # artifacts; the attest job holds only the rights to attest, and the prepare and publish jobs, which run no build, the right
-# to write releases. With publish off (the default) it is a dry run: any tag, branch or commit is built and run, and nothing
+# to write releases. With publish off (the default) it is a dry run: the branch or tag the run is on (--ref) is built and run, and nothing
 # is created, attested or attached.
 name: Release
 
@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The tag to release (vX.Y.Z), or for a dry run any tag, branch or commit
+        description: The tag to release (vX.Y.Z), the ref the run is on; for a dry run, a name for its files
         required: true
       publish:
         description: Create the draft, attest, attach and publish; off is a dry run
@@ -54,31 +54,26 @@ jobs:
       contents: write
     outputs:
       name: ${{ steps.name.outputs.name }}
-      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - name: The files' name
         # A dry run may build a branch, whose name can hold a slash.
         id: name
         shell: bash
         run: echo "name=${TAG//\//-}" >> "$GITHUB_OUTPUT"
+      # Every job checks out the run's own commit (no ref: given), the one the provenance names: a release runs on its tag
+      # (review H6), and a commit taken from an input or a job's output is never built (CodeQL's cache poisoning rule).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
           persist-credentials: false
-      - name: The commit every job builds
-        # Resolved once (review H6): the builds check out this commit, never the name again, so a tag moved meanwhile is not built.
-        id: sha
-        shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: The run is the tag's
-        # The provenance names the run's own ref and commit, so a release runs on the tag (gh workflow run --ref vX.Y.Z).
         if: ${{ inputs.publish }}
         shell: bash
         env:
-          SHA: ${{ steps.sha.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           [ "$GITHUB_REF" = "refs/tags/$TAG" ] || { echo "A release runs on its tag: gh workflow run release.yml --ref $TAG -f tag=$TAG -f publish=true (this run is on $GITHUB_REF)."; exit 1; }
-          [ "$GITHUB_SHA" = "$SHA" ] || { echo "The tag $TAG moved while the run started ($GITHUB_SHA, now $SHA)."; exit 1; }
+          tagged=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          [ "$tagged" = "$GITHUB_SHA" ] || { echo "The tag $TAG moved after the run started ($GITHUB_SHA, now $tagged)."; exit 1; }
       - name: The tag is an annotated tag on main, and its version's
         if: ${{ inputs.publish }}
         shell: bash
@@ -146,7 +141,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -207,7 +201,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -244,7 +237,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -267,7 +259,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
