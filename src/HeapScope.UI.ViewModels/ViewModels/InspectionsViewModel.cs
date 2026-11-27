@@ -175,7 +175,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
     public void Show(SnapshotHandle? snapshot) => Show(snapshot, keepBaseline: false);
 
     /// <param name="keepBaseline">Whether a chosen baseline that is still open stays chosen (Try again).</param>
-    private void Show(SnapshotHandle? snapshot, bool keepBaseline)
+    /// <param name="keepAnyBaseline">Whether the baseline in place stays, chosen or the default (a suspended run, H13).</param>
+    private void Show(SnapshotHandle? snapshot, bool keepBaseline, bool keepAnyBaseline = false)
     {
         var (kept, wasChosen) = (Baseline?.Snapshot, _baselineChosen);
         _running?.Cancel();
@@ -199,19 +200,34 @@ public sealed partial class InspectionsViewModel : ObservableObject
         _started = false;
         _baselineChosen = false;
         ChooseBaselines(snapshot);
-        if (keepBaseline && wasChosen && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
+        if (keepBaseline && (wasChosen || keepAnyBaseline) && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
         {
             // Before the run starts, so its growth tiles run with it (the second review).
             _choosingBaseline = true;
             Baseline = same;
             _choosingBaseline = false;
-            _baselineChosen = true;
+            _baselineChosen = wasChosen;
         }
 
         if (IsActive)
         {
             Start();
         }
+    }
+
+    /// <summary>
+    /// Stops a run that has not finished, for a workspace that is no longer shown (peer review 4.5 H13): the worker's time goes to
+    /// the snapshot shown, and the inspections run again when this one is shown. A finished run is kept as it is.
+    /// </summary>
+    public void Suspend()
+    {
+        if (!_started || RunTask.IsCompleted)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Inspections: the run of {Snapshot} stopped, its workspace no longer shown; it runs again when shown", Snapshot?.Path);
+        Show(Snapshot, keepBaseline: true, keepAnyBaseline: true);
     }
 
     /// <summary>Runs every inspection of the snapshot again, after a failure.</summary>

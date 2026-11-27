@@ -132,7 +132,7 @@ paths per snapshot, links without a workspace, 32 result sets) and M15 (classes 
 comments, tests without a UI thread).
 
 **Tasks**
-1. [ ] A workspace per open snapshot: `SnapshotWorkspaceViewModel` owns its types grid, analysis path (navigator), inspections and
+1. [x] A workspace per open snapshot: `SnapshotWorkspaceViewModel` owns its types grid, analysis path (navigator), inspections and
    retainers; the Snapshots page keeps one per open snapshot and shows the current one; closing a snapshot disposes its workspace.
    Views bind to the current workspace. Compare stays on the page. Tests: switching between two snapshots keeps each one's filter, sort,
    path, inspection results and retainers as they were, without a new query; closing one drops its workspace.
