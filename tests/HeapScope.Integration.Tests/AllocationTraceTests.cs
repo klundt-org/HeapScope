@@ -411,6 +411,22 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         open.Result.RevealIndex.ShouldBe(0);
         var rows = await RetainedSizesTests.AllRowsAsync(open.Rows);
         rows.Where(r => r[AllocationTreeColumns.ParentKey] == key).ShouldNotBeEmpty();
+
+        // The charts of both trees (ADR-046): all the sampled bytes on top, and each segment a row of its tree with the same bytes.
+        foreach (var kind in new[] { AllocationTreeKindDto.CallTree, AllocationTreeKindDto.BackTraces })
+        {
+            var chart = await _session.QueryChartAsync(handle, AllocationScope.All, kind, null, Ct);
+            (chart.SampledBytes, chart.Segments[0].Width, chart.Segments[0].Key).ShouldBe((total, total, AllocationTreeKeys.Root));
+            chart.Segments.Count(s => s.Level == 1).ShouldBeGreaterThan(0);
+            var drawn = chart.Segments.Skip(1).ToList();
+            var tree = await _session.QueryTreeAsync(handle, AllocationScope.All, kind, [.. drawn.Select(s => s.Key)], null, null, Ct);
+            var byKey = (await RetainedSizesTests.AllRowsAsync(tree.Rows)).ToDictionary(r => r[AllocationTreeColumns.Key]!);
+            foreach (var segment in drawn)
+            {
+                byKey.ShouldContainKey(segment.Key, $"{kind} {segment.Name}");
+                long.Parse(byKey[segment.Key][AllocationTreeColumns.Total]!, CultureInfo.InvariantCulture).ShouldBe(segment.Width, segment.Key);
+            }
+        }
     }
 
     [Fact]
@@ -543,6 +559,8 @@ public sealed class AllocationTraceTests : IClassFixture<LeakyApiAllocations>, I
         state.StartUtc.ShouldNotBeNull();
         var tree = await Should.ThrowAsync<WorkerOperationException>(() => _session.QueryTreeAsync(live, AllocationScope.All, AllocationTreeKindDto.BackTraces, [], null, null, Ct));
         tree.ErrorCode.ShouldBe(HeapScopeErrorCode.InvalidArgument);
+        var chart = await Should.ThrowAsync<WorkerOperationException>(() => _session.QueryChartAsync(live, AllocationScope.All, AllocationTreeKindDto.CallTree, null, Ct));
+        chart.ErrorCode.ShouldBe(HeapScopeErrorCode.InvalidArgument);
         var types = await _session.QueryTypesAsync(live, new AllocationScope(0.5, 1.5), Ct);
         types.Result.Interval.ShouldBe(new AllocationIntervalDto(0, 2, state.Version, state.DurationSeconds, 1), "whole stretches");
         (await _session.QueryTimelineAsync(live, 1.5, Ct)).BucketSeconds.ShouldBe(2);

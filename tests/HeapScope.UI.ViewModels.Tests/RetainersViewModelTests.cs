@@ -21,13 +21,10 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-using System.IO;
 using HeapScope.Application;
 using HeapScope.Application.Jobs;
-using HeapScope.Application.Snapshots;
 using HeapScope.Contracts;
 using HeapScope.UI.Services;
-using HeapScope.UI.ViewModels;
 
 namespace HeapScope.UI.ViewModels.Tests;
 
@@ -222,6 +219,32 @@ public sealed class RetainersViewModelTests : IDisposable
         Retainers.SelectedSegment = Retainers.IcicleSegments.First(s => s.Address == 0x200);
         Retainers.SelectedRow.ShouldBeNull();
         Retainers.FocusCommand.CanExecute(Retainers.SelectedRow).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task The_chart_is_an_icicle_or_a_sunburst_of_the_same_segments_and_selection_works_the_same()
+    {
+        await OpenAsync();
+        await ShowTabAsync();
+        var rows = await RowsAsync();
+        var segments = Retainers.IcicleSegments;
+        var changed = new List<string?>();
+        Retainers.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        Retainers.ChartShape.ShouldBe(ChartShape.Icicle, "a tab starts with the icicle");
+        Retainers.ChartCaption.ShouldStartWith("Each bar ");
+        Retainers.ShowsSunburst = true;
+        Retainers.ChartShape.ShouldBe(ChartShape.Sunburst);
+        Retainers.ChartCaption.ShouldStartWith("Each arc ");
+        changed.ShouldContain(nameof(RetainersViewModel.ShowsSunburst));
+        changed.ShouldContain(nameof(RetainersViewModel.ChartCaption));
+        Retainers.IcicleSegments.ShouldBeSameAs(segments, "the shape asks the worker nothing");
+
+        Retainers.SelectedSegment = Retainers.IcicleSegments.Single(s => s.Address == 0x400);
+        Retainers.SelectedRow.ShouldBeSameAs(rows[1]);
+        Retainers.FocusSegmentCommand.Execute(Retainers.IcicleSegments.First(s => s.Address == 0x200));
+        Retainers.FocusAddress.ShouldBe(0x200UL);
+        Retainers.ChartShape.ShouldBe(ChartShape.Sunburst, "a focus keeps the shape");
     }
 
     [Fact]

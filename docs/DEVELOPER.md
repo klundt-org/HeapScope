@@ -601,7 +601,7 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
      (`10-retainers-bar`, `10-retainers-smaller`, when the dump has one), and Purge all's question
      (`19-purge-all-question`). What they cannot judge: fonts and scaling on your monitor, and where a popup lands near
      the screen's edge. That the popups open, by mouse and keyboard, and what they say is tested (`InfoIconTests`,
-     `IcicleChartTests`), and so is what the purges delete (`SettingsViewModelTests`).
+     `IcicleChartTests`, `SunburstChartTests`), and so is what the purges delete (`SettingsViewModelTests`).
   2. Live's refusal: from an administrator terminal, `dotnet run --project src/HeapScope.Sample -- --scenarios StaticCache`.
      In HeapScope, not elevated, monitor that pid on the Live page: a warning says it runs elevated and what to do, and
      stays.

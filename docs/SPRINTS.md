@@ -60,7 +60,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.8 | Ready to release | Closed | 2026-11-27 | sprint-4.8 |
 | 4.9 | Workspaces | Closed | 2026-11-27 | sprint-4.9 |
 | 4.10 | Analysis tabs | Closed | 2026-11-27 | sprint-4.10 |
-| 4.11 | Sunburst | Planned | | |
+| 4.11 | Sunburst | Closed | 2026-11-27 | sprint-4.11 |
 | 4.12 | WPF leak detectors (optional) | Planned | | |
 
 ---
@@ -119,6 +119,13 @@ Owner decisions, 2026-11-18:
 | 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.11: Sunburst
+
+Closed 2026-11-27; its section is in [sprints/phase-4.md](sprints/phase-4.md) and its review in
+[reviews/sprint-4.11.md](reviews/sprint-4.11.md). ADR-046 is added for it.
 
 ---
 

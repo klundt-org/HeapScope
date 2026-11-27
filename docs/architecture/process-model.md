@@ -241,6 +241,10 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   Version 26 (sprint 4.10, ADR-045): `ShowSnapshotAsync(snapshotId, scope, ...)`: the client also says which of the snapshot's
   tabs it shows (an id of its own); a new set of the shown snapshot is that tab's, and over the limits the shown snapshot's other
   tabs' sets go after the other snapshots' and before the rest.
+  Version 27 (sprint 4.11, ADR-046): `IAllocationTraceService.QueryAllocationChartAsync(AllocationChartRequest)`: the call tree
+  or back traces of an interval and type as chart segments (`AllocationChartResult`, the icicle's `IcicleSegmentDto`), keyed like
+  the tree's rows, by default six levels and segments under 0.1 percent left out (Levels 1 to 20, MinShare 0.0001 to 0.5), with
+  the rows left out under the share and their bytes and whether the 20,000-segment cap cut it. A live trace is refused, as for the tree.
 - When to bump `WorkerProtocol.Version`: for a method added, removed or renamed, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

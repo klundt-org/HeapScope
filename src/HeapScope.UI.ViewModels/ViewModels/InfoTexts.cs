@@ -322,6 +322,11 @@ public static class InfoTexts
         "Each bar is what the bar above it keeps alive, and its width is how much. The two band colors only separate the levels; a bar and its path turn amber when selected.\n" +
         "Hover for a bar's name and size, click to select it, double-click to show the tree below it. Bars too thin to point at are grouped as +N smaller.";
 
+    /// <summary>Retainers: the chart drawn as a sunburst (a draft for the owner, docs/design/info-text.md).</summary>
+    public const string RetainersSunburst =
+        "The same chart as rings: the focus is the center, each arc is what the arc inside it keeps alive, and its angle is how much. The two ring colors only separate the levels; an arc and its path turn amber when selected.\n" +
+        "Hover for an arc's name and size, click to select it, double-click to show the tree below it. Arcs too thin to point at are grouped as +N smaller.";
+
     /// <summary>Retainers: The buttons above the tree.</summary>
     public const string RetainersTree =
         "Retained is what the row alone keeps alive, % is its share of the reachable heap, Bytes the objects' own size, and Objects how many the row stands for. Each level lists 100 rows before a \"more\" row.\n" +
@@ -331,6 +336,16 @@ public static class InfoTexts
         "Instances lists all objects of its type on the Snapshot tab. Object rows and type groups.\n" +
         "Why alive opens its Retention tab: the paths that keep it alive from roots, what the runtime holds on to by itself. Object rows only.\n" +
         "Objects retained by this set computes exactly what every object of its type keeps alive together, shown below the tree. Object rows and type groups.";
+
+    /// <summary>Allocations: the chart of the tree (a draft for the owner, docs/design/info-text.md).</summary>
+    public const string AllocationsChart =
+        "The tree below as a chart. In the call tree each bar is a method the bar above it called; in back traces the first row allocated, and each bar below is a caller of the bar above it. A bar's width is what was allocated through it, estimated from samples. It shows six levels; frames under 0.1 percent of the sampled bytes are left out with what lies below them, and the tree lists every frame. A trace still being recorded has no chart.\n" +
+        "Hover for a bar's name and size, click to show its row in the tree below. Bars too thin to point at are grouped as +N smaller.";
+
+    /// <summary>Allocations: the chart drawn as a sunburst (a draft for the owner, docs/design/info-text.md).</summary>
+    public const string AllocationsSunburst =
+        "The tree below as rings around all the sampled bytes. In the call tree each arc is a method the arc inside it called; in back traces the first ring allocated, and each arc further out is a caller of the arc inside it. An arc's angle is what was allocated through it, estimated from samples. It shows six levels; frames under 0.1 percent of the sampled bytes are left out with what lies below them, and the tree lists every frame. A trace still being recorded has no chart.\n" +
+        "Hover for an arc's name and size, click to show its row in the tree below. Arcs too thin to point at are grouped as +N smaller.";
 
     /// <summary>Allocations: Back traces and Call tree.</summary>
     public const string AllocationTrees =

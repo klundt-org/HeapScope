@@ -72,4 +72,7 @@ public interface IAllocationTraceService
 
     /// <summary>The call tree or back traces of an interval, flattened from the open keys.</summary>
     Task<AllocationTreeResult> QueryAllocationTreeAsync(AllocationTreeRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
+
+    /// <summary>The chart of the same tree: the call tree or back traces of an interval as segments (ADR-046), like the icicle's.</summary>
+    Task<AllocationChartResult> QueryAllocationChartAsync(AllocationChartRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 }

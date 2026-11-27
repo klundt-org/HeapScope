@@ -39,6 +39,9 @@ internal sealed class AllocationTraceHandler(
     /// <summary>Rows written to a query's provenance line.</summary>
     private const int LoggedAllocationRows = 10;
 
+    /// <summary>The widest segments of each chart level that are logged.</summary>
+    private const int LoggedChartSegments = 5;
+
     /// <summary>Frames of each stack written to the stacks line; the stack node gives the rest.</summary>
     private const int LoggedFrames = 16;
 
@@ -201,7 +204,7 @@ internal sealed class AllocationTraceHandler(
                 ? view.Rows.Where(r => r.ParentKey == request.RevealKey).Take(LoggedAllocationRows)
                 : view.Rows.Take(LoggedAllocationRows);
             Logger.LogInformation(
-                "Allocation {Kind} of trace {Id} from {From} s to {To}, type {Type}: {Samples} samples of {Bytes} bytes, {Rows} rows{Truncated}; {Open} open rows {Keys}; reveal {Reveal} at row {RevealIndex}; rows shown under it {Shown}",
+                "Allocation {Kind} of trace {Id} from {From} s to {To}, type {Type}: {Samples} samples of {Bytes} bytes, {Rows} rows{Truncated}; {Open} open rows {Keys}; reveal {Reveal} at row {RevealIndex} ({Revealed}); rows shown under it {Shown}",
                 kind,
                 request.TraceId,
                 request.FromSeconds,
@@ -215,9 +218,75 @@ internal sealed class AllocationTraceHandler(
                 string.Join(", ", request.Expanded.Take(LoggedKeys)),
                 request.RevealKey ?? "none",
                 reveal,
+                reveal >= 0 ? string.Create(CultureInfo.InvariantCulture, $"{view.Rows[reveal].Name} total {view.Rows[reveal].Total} own {view.Rows[reveal].Own}") : "not found",
                 string.Join("; ", shown.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Name} total {r.Total} own {r.Own}"))));
             return new AllocationTreeResult(resultSets.Add(null, new AllocationTreeSource(view)), view.TotalBytes, view.TotalSamples, view.Truncated, reveal);
         });
+
+    public Task<AllocationChartResult> QueryAllocationChartAsync(AllocationChartRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
+        GuardAsync(request, async () =>
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            if (request.Levels is < 1 or > 20)
+            {
+                throw new RequestRefusedException("Levels must be between 1 and 20.", nameof(request));
+            }
+
+            if (request.MinShare is < 0.0001 or > 0.5 || double.IsNaN(request.MinShare))
+            {
+                throw new RequestRefusedException("MinShare must be between 0.0001 and 0.5.", nameof(request));
+            }
+
+            var open = Trace(request.TraceId);
+            if (open.Live is not null)
+            {
+                // Its keys are stack nodes, numbered anew when a live trace's names arrive, as for the tree.
+                throw new RequestRefusedException("A trace that is being recorded has no call tree. Open the finished trace for it.");
+            }
+
+            var filter = Filter(open, request.FromSeconds, request.ToSeconds, request.TypeName);
+            var kind = request.Kind == AllocationTreeKindDto.BackTraces ? AllocationTreeKind.BackTraces : AllocationTreeKind.CallTree;
+            progress?.Report(new JobProgress("Drawing the chart", 0, null));
+            var chart = await Task.Run(() => AllocationChartLayout.Build(open.Trace, filter, kind, request.Levels, request.MinShare, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var top = request.TypeName is { } type ? "Allocations of " + type : "All sampled allocations";
+            var result = new AllocationChartResult(
+                [.. chart.Segments.Select(s => new IcicleSegmentDto(s.Level, s.Offset, s.Width, s.Key, s.Frame >= 0 ? open.Trace.Frames[s.Frame] : top, 0))],
+                chart.TotalBytes,
+                chart.TotalSamples,
+                chart.LeftOut,
+                chart.LeftOutBytes,
+                chart.Truncated);
+
+            // Each level's widest segments with their bytes, and how many more: a chart a user contests is backed up by the bytes per
+            // frame, and what it left out says why a frame is not drawn.
+            Logger.LogInformation(
+                "Allocation {Kind} chart of trace {Id} from {From} s to {To}, type {Type}: {Levels} levels, share {Share}, {Segments} segments of {Bytes} bytes in {Samples} samples; left out under the share {LeftOut} rows of {LeftOutBytes} bytes{Cut}; by level {ByLevel}",
+                kind,
+                request.TraceId,
+                request.FromSeconds,
+                To(request.ToSeconds),
+                request.TypeName ?? "all",
+                request.Levels,
+                request.MinShare,
+                result.Segments.Count,
+                result.SampledBytes,
+                result.Samples,
+                result.LeftOut,
+                result.LeftOutBytes,
+                result.Truncated ? string.Create(CultureInfo.InvariantCulture, $" (cut at {AllocationChartLayout.MaxSegments:N0} segments)") : string.Empty,
+                ChartLevels(result.Segments));
+            return result;
+        });
+
+    /// <summary>A chart's levels for the log: each one's segments and bytes, its five widest with their bytes, and how many more.</summary>
+    private static string ChartLevels(IReadOnlyList<IcicleSegmentDto> segments) => string.Join(" | ", segments.Where(static s => s.Level > 0).GroupBy(static s => s.Level).Select(static level =>
+    {
+        var widest = level.OrderByDescending(static s => s.Width).Take(LoggedChartSegments).ToList();
+        var more = level.Count() - widest.Count;
+        return string.Create(CultureInfo.InvariantCulture, $"level {level.Key}: {level.Count()} segments of {level.Sum(static s => s.Width)} bytes; ")
+            + string.Join("; ", widest.Select(static s => string.Create(CultureInfo.InvariantCulture, $"{s.Name} {s.Key} {s.Width} bytes")))
+            + (more > 0 ? string.Create(CultureInfo.InvariantCulture, $"; and {more} more") : string.Empty);
+    }));
 
     private OpenTrace Trace(Guid traceId) => traces.TryGet(traceId) ?? throw NotLoaded(traceId);
 

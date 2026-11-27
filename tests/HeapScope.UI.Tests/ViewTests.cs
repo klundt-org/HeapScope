@@ -339,6 +339,22 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             Grid(window, "SetGrid").IsEffectivelyVisible.ShouldBeTrue();
             window.GetVisualDescendants().OfType<Controls.IcicleChart>().ShouldHaveSingleItem().Bounds.Width.ShouldBeGreaterThan(0);
 
+            // Sunburst draws the same segments as rings (ADR-046); Icicle brings the bars back.
+            var sunburst = window.GetVisualDescendants().OfType<Controls.SunburstChart>().ShouldHaveSingleItem();
+            sunburst.IsEffectivelyVisible.ShouldBeFalse("the tab starts with the icicle");
+            window.GetVisualDescendants().OfType<RadioButton>().Single(r => r.Name == "SunburstShape").IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame().ShouldNotBeNull();
+            retainers.ChartShape.ShouldBe(ChartShape.Sunburst);
+            sunburst.IsEffectivelyVisible.ShouldBeTrue();
+            sunburst.Arcs.Count.ShouldBeGreaterThan(1);
+            window.GetVisualDescendants().OfType<Controls.IcicleChart>().Single().IsEffectivelyVisible.ShouldBeFalse();
+            window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "IcicleCaption").Text.ShouldStartWith("Each arc ");
+            window.GetVisualDescendants().OfType<RadioButton>().Single(r => r.Name == "IcicleShape").IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            retainers.ChartShape.ShouldBe(ChartShape.Icicle);
+            window.GetVisualDescendants().OfType<Controls.IcicleChart>().Single().IsEffectivelyVisible.ShouldBeTrue();
+
             // Right expands the selected row in place, Left collapses it.
             var tree = Grid(window, "TreeGrid");
             tree.IsEffectivelyVisible.ShouldBeTrue();
@@ -477,6 +493,29 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             await trace.Tree.QueryTask;
             await Settle(trace.Tree.Rows);
             trace.Tree.Rows.GetRow(0).Name.ShouldBe("App.Main");
+
+            // The tree's chart (ADR-046): a click on a bar shows its row; Sunburst draws the same segments as rings.
+            await trace.Tree.ChartTask;
+            Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame().ShouldNotBeNull();
+            var icicle = window.GetVisualDescendants().OfType<Controls.IcicleChart>().Single(c => c.Name == "AllocationIcicle");
+            icicle.IsEffectivelyVisible.ShouldBeTrue();
+            var grow = icicle.Bars.Single(b => b.Segment.Key == "n:2");
+            var at = icicle.TranslatePoint(new Point(grow.X + (grow.Width / 2), grow.Y + (grow.Height / 2)), window)!.Value;
+            window.MouseDown(at, Avalonia.Input.MouseButton.Left);
+            window.MouseUp(at, Avalonia.Input.MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            await trace.Tree.QueryTask;
+            await trace.Tree.SelectTask;
+            Dispatcher.UIThread.RunJobs();
+            trace.Tree.SelectedRow.ShouldNotBeNull().Key.ShouldBe("n:2", "the bar's row, its parents opened");
+            window.GetVisualDescendants().OfType<RadioButton>().Single(r => r.Name == "AllocationSunburstShape").IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame().ShouldNotBeNull();
+            var sunburst = window.GetVisualDescendants().OfType<Controls.SunburstChart>().Single(c => c.Name == "AllocationSunburst");
+            sunburst.IsEffectivelyVisible.ShouldBeTrue();
+            sunburst.Arcs.Select(a => a.Segment.Key).ShouldContain("n:2");
+            icicle.IsEffectivelyVisible.ShouldBeFalse();
 
             ui.BindingErrors.ShouldBeEmpty();
             window.Close();

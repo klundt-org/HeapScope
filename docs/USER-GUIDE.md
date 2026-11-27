@@ -68,6 +68,13 @@ notes who can capture whom.
   tab, so the tabs show on the Snapshot and Retainers tabs. A link opens in the tab you followed it from, and a link into
   another snapshot in that snapshot's tab. Close a tab with its x or Ctrl+W; a snapshot keeps at least one tab, and up to 8.
   Tabs are not kept when HeapScope closes or a dump is opened again.
+- **Charts.** The Retainers tab draws what its focus keeps alive as a chart, and the Allocations page draws its back traces
+  or call tree above the tree. Icicle shows each level as a row of bars, Sunburst as a ring around the center: the same
+  chart either way, a segment as wide (or as wide an angle) as its bytes. Hover over a segment for its name and size. On the
+  Retainers tab a click selects a bar or arc and a double-click focuses on it; on the Allocations page a click opens its row
+  in the tree below. The allocation chart is estimated from samples, like the tree; it shows six levels and leaves out frames
+  under 0.1 percent of the sampled bytes with what lies below them (the tree lists every frame), and a trace still being recorded
+  has none. The tab or page keeps the shape you chose while it is open.
 - **Bookmarks.** Ctrl+D (Cmd+D on macOS) marks the shown object, or the selected row's object, with a color. Bookmarks
   of every open snapshot are listed together and come back when the same dump is opened again.
 - **Object sets.** Select several types (Ctrl or Shift and click, or Shift+Down) and press Ctrl+Shift+O (Cmd+Shift+O), or
