@@ -266,7 +266,7 @@ internal static class ClrMdDump
                     if (options.IsTrustedDac?.Invoke(sha256) != true)
                     {
                         // The files the trusted folders held and why they did not match go with the refusal (review H3).
-                        throw new UntrustedDacException(beside, sha256, request.RuntimeVersion, [.. candidates.Select(c => c.ToString()), .. DacLocator.DacFolderNotSearched(options) is { } notSearched ? [notSearched] : Array.Empty<string>()]);
+                        throw new UntrustedDacException(beside, sha256, request.RuntimeVersion, [.. candidates.Select(c => c.ToString()), .. DacLocator.DacFolderNotSearched(options) is { } leftOut ? [leftOut] : Array.Empty<string>()]);
                     }
 
                     path = CopyTrusted(beside, sha256, options.TrustedDacCopyFolder);
