@@ -724,7 +724,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   release whose package notes start with another version.
 - Release builds (sprint 3.7; channels and formats since 3.9, ADR-039; built before it is public since 4.8, M1): `release.yml`
   runs by hand only, on the tag (`--ref vX.Y.Z`: the run's ref and commit are what the provenance names, review H6), in this order.
-  Prepare: it resolves the tag's commit once, which every job builds, refuses a run that is not on the tag; the tag must be an annotated `vX.Y.Z` tag on `main` matching `<Version>`, and no
+  Prepare: it refuses a run that is not on the tag or whose tag has moved since the run began (every job checks out the run's own
+  commit, never a ref from an input, which CodeQL would call untrusted code); the tag must be an annotated `vX.Y.Z` tag on `main` matching `<Version>`, and no
   release of it may have files (HeapScope never replaces a release's files: a mistake is a new version); it creates a draft
   with a line to INSTALL.md and the `RELEASE-NOTES.md` sections since the last release, or keeps the owner's draft and its
   notes when one is there with no files. Build, with read access only: the tag for win-x64 (a `.zip`), linux-x64, osx-arm64
@@ -739,7 +740,7 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   are attached without replacing any (an upload of a name already there fails), the note that the macOS packages are untested
   goes at the top of the notes, and the draft is published. A failure before Publish leaves a draft, visible to maintainers
   only: rerun the failed jobs, or delete the draft and run again. To try it without a release:
-  `gh workflow run release.yml --ref <branch> -f tag=<tag, branch or commit>` builds and runs everything and creates, attests and
+  `gh workflow run release.yml --ref <branch or tag> -f tag=<a name for its files>` (it builds the ref the run is on) builds and runs everything and creates, attests and
   attaches nothing (`publish` is off by default). The architecture test `ReleaseWorkflowTests` holds the workflow to these
   rules. Security reports: `SECURITY.md`.
 - .NET servicing (sprint 4.8, peer review 4.5 M14). The released builds are self-contained, so they carry the .NET runtime of the SDK
