@@ -197,6 +197,8 @@ public sealed partial class LiveViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger.LogInformation("{Section} shown as: {Message}", "Live process list", ex.Message);
             Shown.Status = "The process list could not be read: " + ex.Message;
         }
     }

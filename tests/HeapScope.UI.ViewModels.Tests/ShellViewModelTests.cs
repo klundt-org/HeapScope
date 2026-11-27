@@ -248,6 +248,39 @@ public sealed class ShellViewModelTests : IDisposable
         shell.CanRestartWorker.ShouldBeTrue();
     }
 
+    // Sprint 4.8 (M13): a run that closed unexpectedly left a report; the next start offers it once.
+    [Fact]
+    public async Task The_report_of_a_run_that_closed_unexpectedly_is_offered_once_and_shown_on_a_yes()
+    {
+        var logs = Path.Combine(_sessions, "logs");
+        HeapScope.Application.Logging.CrashReport.Write(logs, "ui", new InvalidOperationException("broken"), "unhandled, HeapScope closed", DateTimeOffset.Now).ShouldNotBeNull();
+        var interaction = new FakeUserInteraction { Answer = true };
+        var snapshots = new SnapshotsViewModel(new Application.Snapshots.SnapshotSession(_worker, _operations.Jobs), _operations, new ImmediateUiDispatcher(), interaction);
+        var shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, snapshots), snapshots, new ProcessesViewModel(new FakeCaptureService(_sessions, _operations.Jobs), snapshots, interaction), new AboutViewModel(_operations), interaction: interaction);
+
+        var offered = await shell.OfferCrashReportsAsync(logs);
+
+        offered.ShouldNotBeNull();
+        interaction.Titles.ShouldBe([InfoTexts.CrashReportOfferTitle]);
+        interaction.Questions.ShouldHaveSingleItem().ShouldContain(offered);
+        interaction.Shown.ShouldBe([offered]);
+        (await shell.OfferCrashReportsAsync(logs)).ShouldBeNull("offered once");
+    }
+
+    // Sprint 4.8 (M13): Copy details names the last unexpected failure, so an issue finds its log lines.
+    [Fact]
+    public void Copy_details_carries_the_version_the_system_and_the_last_errors_id()
+    {
+        HeapScope.Application.Workers.ErrorIds.Note("... report it at the issues page with this id: 1234abcd.");
+
+        var details = new AboutViewModel(_operations, logFolder: "logs here").Details;
+
+        details.ShouldStartWith("HeapScope ");
+        details.ShouldContain(HeapScope.Contracts.RuntimeEnvironment.System);
+        details.ShouldContain("Log folder: logs here");
+        details.ShouldContain("Last error id: 1234abcd");
+    }
+
     [Fact]
     public async Task Crash_banner_appears_on_worker_crash_and_restart_hides_it()
     {

@@ -115,6 +115,10 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null, IUserInteraction? interaction = null)
     {
         _interaction = interaction;
+        if (settings is not null)
+        {
+            settings.Purged += (_, _) => snapshots?.Bookmarks.ForgetAll();
+        }
         Exports = exports ?? new GridExportService(new AutomaticUserInteraction());
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
@@ -296,6 +300,32 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         await RestartWorkerAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Offers the report of an earlier run that closed unexpectedly (sprint 4.8, peer review 4.5 M13), once: the newest, with a
+    /// way to show it in its folder; every report found is marked offered. Returns the report offered, or null.
+    /// </summary>
+    public async Task<string?> OfferCrashReportsAsync(string logFolder)
+    {
+        var reports = await Task.Run(() => HeapScope.Application.Logging.CrashReport.NotOffered(logFolder));
+        if (reports.Count == 0 || _interaction is null)
+        {
+            return null;
+        }
+
+        var offered = await Task.Run(() => reports.Select(HeapScope.Application.Logging.CrashReport.MarkOffered).ToList());
+        var newest = offered[^1];
+        if (await _interaction.ConfirmAsync(InfoTexts.CrashReportOfferTitle, string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.CrashReportOffer, newest), CrashReportShow, CrashReportClose))
+        {
+            await _interaction.ShowInFolderAsync(newest);
+        }
+
+        return newest;
+    }
+
+    public const string CrashReportShow = "Show the report";
+
+    public const string CrashReportClose = "Close";
+
     public const string RestartWorkerConfirm = "Restart worker";
 
     public const string RestartWorkerCancel = "Cancel";
@@ -384,7 +414,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         WorkerStatus = state switch
         {
             WorkerState.NotStarted => "Worker not started",
-            WorkerState.Starting => "Worker starting",
+            WorkerState.Starting => InfoTexts.WorkerStarting,
             WorkerState.Running => _operations.Worker.Info is { } info ? $"Worker running (pid {info.ProcessId})" : "Worker running",
             WorkerState.Crashed => "Worker stopped unexpectedly",
             WorkerState.Stopped => "Worker stopped",

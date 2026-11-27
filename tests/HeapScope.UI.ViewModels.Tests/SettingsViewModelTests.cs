@@ -414,9 +414,12 @@ public sealed class SettingsViewModelTests : IDisposable
         var trusted = Write("trusted-dacs.json");
         var key = Write("index-cache.key");
         var page = new SettingsViewModel(_service, _interaction);
+        var purged = 0;
+        page.Purged += (_, _) => purged++;
 
         await page.PurgeAllCommand.ExecuteAsync(null);
 
+        purged.ShouldBe(1, "so the bookmarks on screen go too (sprint 4.8, M13)");
         Directory.Exists(current).ShouldBeFalse("the current session goes too");
         Directory.Exists(older).ShouldBeFalse();
         File.Exists(_bookmarks.Path).ShouldBeFalse();

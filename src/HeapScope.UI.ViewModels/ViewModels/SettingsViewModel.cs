@@ -376,12 +376,16 @@ public sealed partial class SettingsViewModel : ObservableObject
             }
 
             var (done, deleted) = await _settings.PurgeAllAsync(cancellationToken);
+            // The bookmarks are gone from disk, so from the screen too (sprint 4.8, M13: they stayed listed).
+            Purged?.Invoke(this, EventArgs.Empty);
             Status = deleted.Complete
                 ? string.Create(CultureInfo.CurrentCulture, $"Deleted everything HeapScope keeps: {done.Sessions} sessions, {deleted.Files.Count} files ({Format.Bytes(deleted.Bytes)}).")
                 : Failed(deleted.Failed!);
         }
         catch (InvalidOperationException ex)
         {
+            // What the user was shown, for the log (sprint 4.8, M13).
+            _logger?.LogInformation("{Section} shown as: {Message}", "Purge all", ex.Message);
             Status = "Nothing was deleted: " + ex.Message;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HeapScope.Application.Workers.WorkerException)
@@ -395,6 +399,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             IsBusy = false;
         }
     }
+
+    /// <summary>Raised after Purge all deleted what it lists, so views that show it (the bookmarks) let go of it.</summary>
+    public event EventHandler? Purged;
 
     public const string PurgeAllTitle = "Delete everything HeapScope keeps?";
 

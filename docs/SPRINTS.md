@@ -151,7 +151,7 @@ mapped switch does not return, a note when a load's references fall back to memo
    within a format and what bumps it. Tests: each command's JSON has the field; a contract test per command's top-level shape.
 8. [x] M5: the worker. A crash banner stays until the worker is back or dismissed; "Restart worker" for a stuck one (also the CLI's
    timeout message names it). One process for live and snapshots stays (Backlog, with its reason). Tests: the banner's life; restart.
-9. [ ] M13: the support paths, each small: the app's crash path writes a report it offers; Copy details carries version, system, id;
+9. [x] M13: the support paths, each small: the app's crash path writes a report it offers; Copy details carries version, system, id;
    a log that cannot be written is said once; every failure shown has its log line; the worker's first start says what it is doing
    and is measured; Purge does what its text promises; README's path to a first answer; INSTALL's Linux steps checked on a clean
    container. Tests: per item.

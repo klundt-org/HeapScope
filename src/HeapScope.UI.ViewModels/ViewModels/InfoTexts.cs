@@ -206,6 +206,16 @@ public static class InfoTexts
     public const string WorkerBackOnItsOwn =
         "A new worker started for the next request, and open snapshots are read back from their saved index when next used.";
 
+    /// <summary>The status bar while the worker starts (M13: the first start after an install can take 30 s).</summary>
+    public const string WorkerStarting = "Worker starting: the first start after installing or updating HeapScope can take up to half a minute";
+
+    /// <summary>The message at the next start after the app closed unexpectedly; {0} is the report's path.</summary>
+    public const string CrashReportOffer =
+        "HeapScope closed unexpectedly last time. A report of where it failed is in {0}: the versions, the system and the error, never anything from your dumps. To help fix it, open an issue on HeapScope's page and attach it (Getting help, on the About page).";
+
+    /// <summary>The title of <see cref="CrashReportOffer"/>.</summary>
+    public const string CrashReportOfferTitle = "HeapScope closed unexpectedly";
+
     /// <summary>The status bar's Restart worker: the question's title.</summary>
     public const string RestartWorkerQuestionTitle = "Restart the worker?";
 

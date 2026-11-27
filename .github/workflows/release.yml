@@ -159,10 +159,12 @@ jobs:
           if [ "${{ matrix.rid }}" = "win-x64" ]; then
             bash build/check-install.sh "$UNPACKED" "$RUNNER_TEMP/dump/leaky.dmp"
           else
-            docker run --rm -e HEAPSCOPE_DATA_FOLDER=/tmp/heapscope -e Logging__File__Directory=/dump/logs -e OWNER="$(id -u):$(id -g)" \
-              -v "$UNPACKED:/heapscope:ro" -v "$RUNNER_TEMP/dump:/dump" \
+            # Then INSTALL.md's Linux steps as written, from the release's own archive (build/check-install-steps.sh).
+            docker run --rm -e HEAPSCOPE_DATA_FOLDER=/tmp/heapscope -e Logging__File__Directory=/dump/logs -e OWNER="$(id -u):$(id -g)" -e NAME \
+              -v "$UNPACKED:/heapscope:ro" -v "$RUNNER_TEMP/dump:/dump" -v "$RUNNER_TEMP/out:/out:ro" -v "$PWD/INSTALL.md:/INSTALL.md:ro" \
               -v "$PWD/build:/build:ro" ubuntu:24.04 bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-              libicu74 libfontconfig1 > /dev/null && bash /build/check-install.sh /heapscope /dump/leaky.dmp; code=$?; \
+              libicu74 libfontconfig1 > /dev/null && bash /build/check-install.sh /heapscope /dump/leaky.dmp \
+              && bash /build/check-install-steps.sh /INSTALL.md "/out/$NAME.tar.gz" /dump/leaky.dmp; code=$?; \
               chown -R "$OWNER" /dump; exit $code'
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

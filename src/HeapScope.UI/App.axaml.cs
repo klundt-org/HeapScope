@@ -130,6 +130,11 @@ public sealed partial class App : Avalonia.Application
             _ = _host.Services.GetRequiredService<ViewPrewarmer>().RunAsync(window, _prewarmStop.Token);
 
             var options = _host.Services.GetRequiredService<UiOptions>();
+            if (!options.IsSmokeRun && options.ScreenshotFolder is null)
+            {
+                window.Opened += (_, _) => Dispatcher.UIThread.Post(() => _ = OfferCrashReportsAsync(_host.Services), DispatcherPriority.Background);
+            }
+
             if (options.ScreenshotFolder is { } screenshots)
             {
                 _exitCode = await new ScreenshotRunner(_host.Services, window, screenshots).RunAsync(options);
@@ -168,6 +173,10 @@ public sealed partial class App : Avalonia.Application
 
     private const string ProductName = "HeapScope";
 
+    // Sprint 4.8 (M13): the report of an earlier run that closed unexpectedly, offered once the window is up.
+    private static Task OfferCrashReportsAsync(IServiceProvider services) =>
+        services.GetRequiredService<ShellViewModel>().OfferCrashReportsAsync(services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory);
+
     // Stops the background build of the pages when the window closes (sprint 3.12 review M12).
     private CancellationTokenSource? _prewarmStop;
 
@@ -201,11 +210,26 @@ public sealed partial class App : Avalonia.Application
             _ = MessageWindow.ShowAsync(
                 _window,
                 ProductName,
-                $"Something went wrong: {e.Exception.Message}\n\nHeapScope keeps running. Details are in the log at {services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory}.",
+                $"Something went wrong: {e.Exception.Message}\n\nHeapScope keeps running. Details are in the log at {services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory}. If it happens again, report it at {Core.HelpLinks.Issues}.",
                 MessageButtons.Ok);
         };
+        var logs = services.GetRequiredService<Application.Logging.FileLoggerProvider>();
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
             logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception; HeapScope is terminating");
+            // Offered at the next start (sprint 4.8, M13): the log may not be at hand for the user, the report is one file.
+            if (e.ExceptionObject is Exception ex && !smoke)
+            {
+                Application.Logging.CrashReport.Write(logs.Directory, "ui", ex, "unhandled, HeapScope closed", DateTimeOffset.Now);
+            }
+        };
+        logs.BecameUnavailable += message => Dispatcher.UIThread.Post(() =>
+        {
+            if (!smoke)
+            {
+                _ = MessageWindow.ShowAsync(_window, ProductName, message, MessageButtons.Ok);
+            }
+        });
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {
             logger.LogError(e.Exception, "Unobserved task exception");

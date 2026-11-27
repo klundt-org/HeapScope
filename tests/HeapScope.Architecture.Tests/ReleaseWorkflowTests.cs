@@ -95,6 +95,7 @@ public sealed class ReleaseWorkflowTests
 
         build.ShouldContain("bash build/fixture-dump.sh");
         build.ShouldContain("bash build/check-install.sh");
+        build.ShouldContain("check-install-steps.sh /INSTALL.md", customMessage: "INSTALL.md's Linux steps, from the release's own archive");
         build.IndexOf("check-install.sh", StringComparison.Ordinal).ShouldBeLessThan(build.IndexOf("upload-artifact", StringComparison.Ordinal));
         build.Split("runs: true").Length.ShouldBe(3, "win-x64 and linux-x64 run; the macOS builds cannot here");
     }

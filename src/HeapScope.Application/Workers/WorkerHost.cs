@@ -223,6 +223,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 
             SetState(WorkerState.Starting, null);
             WorkerSession session;
+            var started = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 // On the pool (peer review 4.5 H10): the gate's wait can end at once, and starting checks files and starts a process.
@@ -252,6 +253,13 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 
             Interlocked.Increment(ref _generation);
             Volatile.Write(ref _session, session);
+            // Measured (sprint 4.8, M13): the first start after an install or an update can take many seconds while the system
+            // checks the new files.
+            _logger.LogInformation(
+                "Worker started in {Ms:N0} ms (generation {Generation}{First})",
+                started.Elapsed.TotalMilliseconds,
+                Generation,
+                Generation == 1 ? ", the first of this run" : string.Empty);
             SetState(WorkerState.Running, null);
             return session;
         }
@@ -650,6 +658,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
     private static WorkerOperationException Translate(RemoteInvocationException ex)
     {
         var code = Enum.IsDefined(typeof(HeapScopeErrorCode), ex.ErrorCode) ? (HeapScopeErrorCode)ex.ErrorCode : HeapScopeErrorCode.Unknown;
+        ErrorIds.Note(ex.Message);
         return new WorkerOperationException(code, ex.Message, ex) { DacTrust = code == HeapScopeErrorCode.DacNotTrusted ? DacTrustOf(ex.ErrorData) : null };
     }
 

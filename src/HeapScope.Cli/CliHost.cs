@@ -54,6 +54,8 @@ internal static class CliHost
         // its stack and the request, filter text included, which the user is not shown (B5) and CI logs would keep.
         builder.Logging.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>("Worker", LogLevel.None);
         var fileLog = builder.Services.AddHeapScopeFileLog(builder.Configuration, "cli");
+        // Said once on stderr when the log cannot be written (sprint 4.8, M13): the log cannot say it itself.
+        fileLog.BecameUnavailable += message => Console.Error.WriteLine("Note: " + message);
         builder.Logging.Configure(o => o.ActivityTrackingOptions = ActivityTrackingOptions.TraceId);
         if (fileLog.MinimumLevel < LogLevel.Information)
         {

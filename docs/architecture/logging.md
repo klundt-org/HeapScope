@@ -16,6 +16,14 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   to debug output, Avalonia's warnings (area, template and source type only) and failures before its host exists; the
   CLI also writes Warning and up to stderr. The worker logs single-line records to stderr, which the client forwards
   into its own log.
+- **When the log cannot help (sprint 4.8, peer review 4.5 M13)**: a log that cannot be written is said once, since it cannot say it
+  itself (`FileLoggerProvider.BecameUnavailable`: the CLI on stderr, the app in a message), with the folder, the error and what to
+  do. When the app ends on an unhandled exception it writes a crash report beside the logs (`CrashReport`:
+  `heapscope-<date>-ui-<pid>-crash-<time>.log`, the build, the system, where and the exception), which its next start offers once
+  with a way to show it; it is a log file, so the 14 days and Purge logs apply. A failure a view shows is logged as shown
+  ("{Section} shown as: {Message}") where no other line says it. The worker's start is measured ("Worker started in N ms", the
+  first of a run said), and the status bar says a first start after an install can take half a minute. Copy details on the About
+  page carries the id of the last unexpected worker failure (`ErrorIds`), which names its lines in the worker's log.
 - **Correlation (sprint 2.3.7)**: every job (`JobTracker`: open, capture) and every CLI command runs under an
   `Activity`; its trace id is a scope of every line it causes, in the front end and, through StreamJsonRpc's activity
   tracing (W3C trace context in each request), in the worker. Not every app call has one yet (checked in sprint 3.12): the

@@ -58,7 +58,8 @@ HeapScope's files are not signed. Check them against the release's checksums and
    ln -sf ~/.local/opt/HeapScope-vX.Y.Z-linux-x64/heapscope-cli ~/.local/bin/heapscope-cli
    ```
 
-4. Run `heapscope` for the app, `heapscope-cli --help` for the CLI.
+4. Run `heapscope` for the app, `heapscope-cli --help` for the CLI. If they are not found, log out and in again: Ubuntu adds
+   `~/.local/bin` to your `PATH` when you log in, once the folder exists; elsewhere add it in your shell's profile.
 
 ## macOS (untested)
 
