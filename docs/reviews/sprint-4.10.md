@@ -85,8 +85,15 @@ Listed only, not fixed.
   found M5 not fixed: ignoring the sidebar's null kept the step but left the path list with nothing selected, which its test could
   not see. Fixed: the navigator says the step again after its steps are replaced and after the page shows another tab's path (a
   null first, since a binding passes on only a changed value), and the UI test checks the path list's selection itself.
-- Second re-check: to be recorded.
+- Second re-check: senior-dev confirmed M5 (the path list's selection after a new step and after Ctrl+W, read from the list itself;
+  a snapshot switch takes the same path, untested, a Low). Nothing High or Moderate remains open.
 
 ## Markdown sweep
 
-To be filled after the fixes are confirmed.
+The tracked Markdown files were checked against what this sprint changed (tabs and the shared inspections, protocol 26 and the
+store's tab tier, link routing, the tab strip and its shortcuts, `--smoke-more`). Changed: ARCHITECTURE.md 3.2, ADR-044 (amended by
+ADR-045), ADR-045, the ADR index, architecture/process-model.md (version 26, the store), code-map.md, logging.md, threading.md,
+budgets.md (the measurement), DEVELOPER.md (`AnalysisTabsTests` on the UI thread, `--smoke-more`), USER-GUIDE.md (analysis tabs, a
+draft), design/info-text.md (the drafts), BACKLOG.md (open in a new tab; the done 4.9 items removed; the tab's history item
+re-scoped), and CLAUDE.md (git-ignored; `--smoke-more`). Past review files and RELEASE-NOTES' past sections were left as written.
+No em or en dashes in the changed files.

@@ -59,7 +59,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
 | 4.8 | Ready to release | Closed | 2026-11-27 | sprint-4.8 |
 | 4.9 | Workspaces | Closed | 2026-11-27 | sprint-4.9 |
-| 4.10 | Analysis tabs | In Progress | | |
+| 4.10 | Analysis tabs | Wrapping | | |
 | 4.11 | Sunburst | Planned | | |
 | 4.12 | WPF leak detectors (optional) | Planned | | |
 
@@ -160,6 +160,15 @@ results first. Inputs: the 4.9 review's deferred M4, M6 and M7 (ADR-044), and it
   snapshot with it, since only the shown tab queries (ADR-044); sets of no snapshot and Compare's stay untagged.
 - Decided autonomously: Ctrl+T and Ctrl+W (Cmd+T and Cmd+W on macOS) for New tab and Close tab; tabs are not kept across restarts.
 - Decided autonomously: the 4.9 Lows L2 and L6 come in with task 3; the other Lows stay in the review file.
+
+**Review summary:** 2 High and 9 Moderate ([reviews/sprint-4.10.md](reviews/sprint-4.10.md)), all fixed and confirmed. The Highs: the
+shared inspections' result sets were tagged with a tab and evicted as another tab's (they now carry none, and the tab tier takes only
+another tab's), and no log line said which tab a step or a link landed in (every path line, the workspace and tab lines and the
+evictions name it). Moderates: the measurement redone with 8 tabs paged deep and closed, the smoke phases counted right, the tab
+strip only on the Snapshot and Retainers tabs, a store test that proves the tab tier, the path list's selection kept across tabs
+(fixed in the re-check), tab tests for every move, the memory line tested, late links through the page, logging.md. 18 Lows
+listed. Measured: two Medium snapshots and 8 tabs on one hold 69 MB of managed heap in the UI process (about 1 to 3.5 MB a tab),
+back to 35 MB when all close; a third in-memory Medium's inspections were refused by the worker budget on 32 GB.
 
 ---
 
