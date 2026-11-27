@@ -171,6 +171,30 @@ public class ResultSetStoreTests
     }
 
     [Fact]
+    public void Eviction_takes_other_snapshots_then_the_shown_snapshots_other_tabs()
+    {
+        // ADR-045: a set of the shown snapshot belongs to the tab shown when it was added.
+        var (snapshot, other, first, second) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore(capacity: 3);
+        store.Show(snapshot, first);
+        var firstTabs = store.Add(snapshot, new CountingSource(1));
+        store.Show(snapshot, second);
+        var secondTabs = store.Add(snapshot, new CountingSource(1));
+        var others = store.Add(other, new CountingSource(1));
+
+        store.Add(snapshot, new CountingSource(1));
+        store.TryGetPage(others.Id, 0, 1).ShouldBeNull("another snapshot's set goes first");
+
+        store.Add(snapshot, new CountingSource(1));
+        store.TryGetPage(firstTabs.Id, 0, 1).ShouldBeNull("then the shown snapshot's other tab's");
+        store.TryGetPage(secondTabs.Id, 0, 1).ShouldNotBeNull();
+        store.ShownScope.ShouldBe(second);
+
+        store.Show(null, second);
+        store.ShownScope.ShouldBeNull("no tab without a snapshot");
+    }
+
+    [Fact]
     public void With_no_snapshot_shown_eviction_is_least_recently_used()
     {
         var (a, b) = (Guid.NewGuid(), Guid.NewGuid());

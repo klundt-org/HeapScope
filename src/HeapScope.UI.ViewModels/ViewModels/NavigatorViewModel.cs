@@ -174,10 +174,19 @@ public sealed partial class NavigatorViewModel : ObservableObject
         }
     }
 
-    /// <summary>Opens a target of the Snapshot tab as a new step; other targets are not this tab's and are ignored.</summary>
+    /// <summary>
+    /// Opens a target of the Snapshot tab as a new step; other targets are not this tab's and are ignored, and so is a target of
+    /// another snapshot than the one shown (a tab's path is its snapshot's).
+    /// </summary>
     public INavigationSubject? Navigate(NavigationTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
+        if (_snapshot is { } shown && target.Snapshot != shown)
+        {
+            _logger.LogWarning("A {Kind} link of snapshot {Target} was not opened in the path of {Shown}", target.Kind, target.Snapshot.Descriptor.SnapshotId, SnapshotId);
+            return null;
+        }
+
         return target.Kind switch
         {
             NavigationKind.Object => OpenObject(target.Snapshot, target.Address, target.ObjectTab),

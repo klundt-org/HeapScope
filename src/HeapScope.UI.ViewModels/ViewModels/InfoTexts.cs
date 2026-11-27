@@ -159,6 +159,10 @@ public static class InfoTexts
     public const string LinkOfClosedSnapshot =
         "This link leads into {0}, which is no longer open. Open the dump again to look there.";
 
+    /// <summary>Snapshots: a New tab refused; {0} is the most tabs a snapshot opens.</summary>
+    public const string TabLimit =
+        "A snapshot opens at most {0} tabs. Close one you no longer need, then open a new one.";
+
     /// <summary>Settings: the status after dump values are turned on.</summary>
     public const string DumpValuesOn = "From now on, HeapScope's logs hold the values it reads from your dumps.";
 

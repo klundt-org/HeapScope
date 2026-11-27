@@ -382,6 +382,11 @@ internal sealed class SmokeRunner(IServiceProvider services)
                 await Task.Delay(500);
                 phases.End("compare", cold: false);
             }
+
+            if (completed && services.GetRequiredService<UiOptions>().SmokeMorePaths is { Count: > 0 } more)
+            {
+                completed = await RunSmokeMoreAsync(snapshots, more, phases, logger);
+            }
         }
         finally
         {
@@ -414,6 +419,52 @@ internal sealed class SmokeRunner(IServiceProvider services)
             SlowOperationCeiling,
             string.Join(", ", phases.All.Where(p => p.SlowOperations > 0).Select(p => $"{p.Name} {p.SlowOperations}")) is { Length: > 0 } byPhase ? byPhase : "none");
         return SmokeVerdict.Ceiling(SmokeVerdict.Phase(completed, operation, lag), phases.SlowOperations, SlowOperationCeiling, Program.IsHeadless);
+    }
+
+    /// <summary>
+    /// Opens more dumps after the first, each drilled into and inspected as the first was, and logs what the UI process holds
+    /// with each count of snapshots open (the cost of several workspaces, budgets.md). The workspaces stay as left.
+    /// </summary>
+    private static async Task<bool> RunSmokeMoreAsync(SnapshotsViewModel snapshots, IReadOnlyList<string> more, SmokePhases phases, ILogger logger)
+    {
+        LogMemory(snapshots, logger);
+        foreach (var dump in more)
+        {
+            snapshots.Tab = SnapshotTabs.Snapshot;
+            await snapshots.OpenPathAsync(dump);
+            await snapshots.Types.QueryTask;
+            if (snapshots.Selected?.Handle.Path != System.IO.Path.GetFullPath(dump) || snapshots.Types.Rows.Count == 0)
+            {
+                logger.LogWarning("Smoke more: {Dump} did not open ({Status})", dump, snapshots.Status ?? "no status");
+                return false;
+            }
+
+            await TouchRowsAsync(snapshots.Types.Rows);
+            phases.End($"open {System.IO.Path.GetFileName(dump)}", cold: false);
+            if (!await RunSmokeDrillAsync(snapshots, phases, logger) || !await RunSmokeInspectionsAsync(snapshots, phases, logger))
+            {
+                return false;
+            }
+
+            await Task.Delay(500);
+            phases.End($"more {System.IO.Path.GetFileName(dump)}", cold: false);
+            LogMemory(snapshots, logger);
+        }
+
+        return true;
+    }
+
+    // A contract with budgets.md's measurements: keep the wording.
+    private static void LogMemory(SnapshotsViewModel snapshots, ILogger logger)
+    {
+        var heap = GC.GetTotalMemory(forceFullCollection: true);
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        logger.LogInformation(
+            "Smoke memory with {Open} snapshots open: working set {WorkingSet:N0} MB, private {Private:N0} MB, managed heap {Heap:N0} MB after a full collection",
+            snapshots.Snapshots.Count,
+            process.WorkingSet64 >> 20,
+            process.PrivateMemorySize64 >> 20,
+            heap >> 20);
     }
 
     /// <summary>

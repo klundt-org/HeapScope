@@ -191,11 +191,14 @@ internal sealed class SingleThreadUiDispatcher : IUiDispatcher, IDisposable
         Watch(page.Bookmarks, "page.Bookmarks");
         Watch(page.Bookmarks.Items, "page.Bookmarks.Items");
         WatchWorkspace(page.Current);
+        Watch(page.Tabs, "page.Tabs");
         page.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(SnapshotsViewModel.Current))
             {
                 WatchWorkspace(page.Current);
+                Watch(page.Tabs, "page.Tabs");
+                Watch(page.CurrentAnalysis, "page.CurrentAnalysis");
             }
         };
     }

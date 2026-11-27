@@ -128,20 +128,20 @@ Owner decisions, 2026-11-18:
 follow two leads in one dump without losing either; links land in the tab they came from, and the worker keeps the shown tab's
 results first. Inputs: the 4.9 review's deferred M4, M6 and M7 (ADR-044), and its Lows L2 and L6, which touch the same code.
 
-1. [ ] Measure first (4.9 review M6): a smoke run that opens three dumps (`--smoke-open` given more than once), walks a path and runs
+1. [x] Measure first (4.9 review M6): a smoke run that opens three dumps (`--smoke-open` and `--smoke-more a;b`), walks a path and runs
    the inspections on each, and logs the UI process's working set, private bytes and managed heap after each; run on the three
    Medium dumps (or what of them opens here) and recorded in budgets.md. Tests: the options take several dumps; the smoke run's
    measure line.
-2. [ ] Tabs of a snapshot: a snapshot's analysis holds its tabs (each a `SnapshotWorkspaceViewModel`: types grid, path, retainers)
+2. [x] Tabs of a snapshot: a snapshot's analysis holds its tabs (each a `SnapshotWorkspaceViewModel`: types grid, path, retainers)
    and one inspections view shared by them (one run per snapshot); the page shows the selected snapshot's current tab. New tab
    starts at the types grid; closing a tab disposes it and its sets; the last tab of a snapshot cannot be closed; at most 8 tabs
    per snapshot, a ninth refused with why. Tests: a second tab keeps its own filter and path; the inspections run once for two
    tabs; closing a tab releases its sets; the cap.
-3. [ ] Links land in their tab (4.9 review M7, L2, L6): a tab is the navigator of its own views, so a link of its snapshot lands in
+3. [x] Links land in their tab (4.9 review M7, L2, L6): a tab is the navigator of its own views, so a link of its snapshot lands in
    the tab it came from, and one into another snapshot goes to the page, which shows that snapshot's current tab; the navigator
    keeps one path (its snapshot's); a Retainers link into a tab not yet shown navigates before the tab queries. Tests: a link in
    the second tab stays there; a cross-snapshot link; the Retainers order.
-4. [ ] The worker keeps the shown tab's sets first (4.9 review M4): the client says which snapshot and which tab are shown
+4. [x] The worker keeps the shown tab's sets first (4.9 review M4): the client says which snapshot and which tab are shown
    (`ShowSnapshotAsync(snapshot, scope)`, protocol 26); new sets of the shown snapshot carry the shown tab; eviction goes other
    snapshots first, then the shown snapshot's other tabs, then the rest. Tests: the eviction order with two tabs; the scope over the
    pipe; the page tells the scope on a tab switch.
