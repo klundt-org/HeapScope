@@ -276,4 +276,12 @@ public sealed class LinuxCaptureRulesTests
             "The process (pid 7) runs elevated or as another user, so HeapScope cannot dump it. Run HeapScope as administrator (right-click, Run as administrator) and capture again.");
         ElevationTexts.NeedsMore.ShouldBe(ElevationTexts.NeedsMoreOn(HostSystems.Current));
     }
+
+    // Sprint 4.8 (H17): sudo's secure_path drops the user's PATH, so the command line's note gives the command with its full path.
+    [Fact]
+    public void The_command_lines_note_gives_sudo_the_full_path_on_linux_only()
+    {
+        ElevationTexts.CliNoteOn(HostSystem.Linux).ShouldBe("Processes marked elevated run as another user: run heapscope-cli as that user, or as root with its full path, since sudo does not keep your PATH (sudo \"$(command -v heapscope-cli)\" capture --pid <pid>), to capture them.");
+        ElevationTexts.CliNoteOn(HostSystem.MacOS).ShouldNotContain("sudo");
+    }
 }

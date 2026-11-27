@@ -171,6 +171,7 @@ public sealed class TrustedDacs
                 // Never overwrite what this build cannot read: a newer build's list or a damaged one is kept beside it.
                 var kept = $"{Path}.{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}.bak";
                 File.Copy(Path, kept, overwrite: false);
+                InvokingUser.Give(kept);
                 _logger.LogWarning("{Path} {Problem}; kept it as {Kept} and started a new list", Path, problem, kept);
             }
 

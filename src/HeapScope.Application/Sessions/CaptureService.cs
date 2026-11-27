@@ -561,6 +561,7 @@ public sealed class CaptureService : ICaptureService
             {
                 PrivateFiles.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(source, target);
+                InvokingUser.Give(target);
             }
 
             TrustCopiedDac(source, target);
@@ -575,6 +576,7 @@ public sealed class CaptureService : ICaptureService
                 else if (!File.Exists(libraryCopy))
                 {
                     File.Copy(library, libraryCopy);
+                    InvokingUser.Give(libraryCopy);
                 }
             }
         }

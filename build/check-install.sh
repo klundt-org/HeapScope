@@ -76,3 +76,22 @@ log=$(mktemp -d)
 "$dir/HeapScope$ext" --headless --smoke-open "$dump" --Logging:File:Directory "$log" || { cat "$log"/*.log; exit 1; }
 grep -q "Smoke open types: .*Fixtures.Leaks.StaticCacheEntry 2000" "$log"/*.log || { cat "$log"/*.log; echo "The app did not show 2000 StaticCacheEntry objects"; exit 1; }
 echo "Installed build $dir runs without .NET: the CLI, its worker and the app opened the fixture dump, and the sample listed its scenarios."
+
+# Run with sudo (sprint 4.8, peer review 4.5 H17), where it can be: as root on Linux, with a user of id 1000 (the Ubuntu image's
+# own). sudo's variables name that user, so HeapScope keeps the user's data folder, not root's, and everything it writes
+# (its folders, logs, the dump's index cache) is the user's afterwards.
+if [ "$(uname -s)" = Linux ] && [ "$(id -u)" = 0 ] && entry=$(getent passwd 1000); then
+  user=$(cut -d: -f1 <<< "$entry")
+  home=$(cut -d: -f6 <<< "$entry")
+  mkdir -p "$home" && chown 1000:1000 "$home"
+  mine=$(mktemp -d) && cp "$dump" "$mine/sudo.dmp" && chown -R 1000:1000 "$mine"
+  ( unset HEAPSCOPE_DATA_FOLDER Logging__File__Directory
+    SUDO_UID=1000 SUDO_GID=1000 SUDO_USER="$user" "$dir/heapscope-cli$ext" summary "$mine/sudo.dmp" > /dev/null ) \
+    || fail "heapscope-cli run as root by sudo failed"
+  data="$home/.local/share/HeapScope"
+  ls "$data"/logs/*.log > /dev/null 2>&1 || fail "Run with sudo, HeapScope did not keep $user's data folder ($data)"
+  ls "$mine"/sudo.dmp.* > /dev/null 2>&1 || fail "Run with sudo, HeapScope wrote no index cache beside the dump"
+  others=$(find "$home/.local" "$mine" ! -uid 1000 -print)
+  [ -z "$others" ] || fail "Run with sudo, HeapScope left files that are not $user's: $others"
+  echo "Run with sudo, HeapScope kept $user's data folder and gave $user everything it wrote."
+fi

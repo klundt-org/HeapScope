@@ -137,7 +137,7 @@ mapped switch does not return, a note when a load's references fall back to memo
 2. [x] H15: a missing DAC is not a dead end. The app's Settings page gets the DAC folder (picked or typed) and the opt-in Microsoft
    symbol server, saved where the worker reads them; the missing-DAC message names that page in the app and the options in the CLI;
    INSTALL says where the DAC is found and how to copy one. Tests: the settings round trip, the worker reading them, the message per front end.
-3. [ ] H17: sudo on Linux works as written. The advice names the full path (`secure_path` drops the user's `PATH`), and HeapScope run
+3. [x] H17: sudo on Linux works as written. The advice names the full path (`secure_path` drops the user's `PATH`), and HeapScope run
    under sudo keeps the invoking user's data folder and gives the files it writes (dumps, sessions) to that user (`SUDO_UID`), so a
    dump of a service is readable afterwards. Tests: the texts; the owner change on Linux CI (as root in the container).
 4. [ ] M1: a release is built and run before it is public. The workflow creates a draft, builds every package, runs each archive it

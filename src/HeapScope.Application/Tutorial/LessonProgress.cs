@@ -66,6 +66,7 @@ public sealed class LessonProgress
         if (outcome == JsonFileRead.Damaged)
         {
             File.Copy(FilePath, FilePath + ".bak", overwrite: true);
+            InvokingUser.Give(FilePath + ".bak");
             _logger.LogWarning("The damaged lesson progress {Path} was kept as {Backup}", FilePath, FilePath + ".bak");
         }
 

@@ -144,8 +144,13 @@ To update, put the new version's file in that folder and run `dotnet tool update
   Then `heapscope-cli summary app.dmp` shows what is on its heap. Capturing a process that runs as administrator needs
   HeapScope run as administrator too.
 - Linux: the same, in the app or with `heapscope-cli`. HeapScope captures the processes that run as your user; another
-  user's process needs HeapScope run as that user, or as root (`sudo`). As root, a full dump of another user's
-  process goes to a folder that user can write (`--out`): the runtime writes it as that user. Some systems stop one process from examining
+  user's process needs HeapScope run as that user, or as root (`sudo`). sudo does not keep your `PATH`, so give it the full
+  path, as in `sudo "$(command -v heapscope-cli)" capture --pid <pid> --out /tmp/app.dmp` (the archive's link in
+  `~/.local/bin`, or the dotnet tool). The dotnet tool also needs the .NET it runs on: if you
+  installed .NET in your home folder (`~/.dotnet`), add `DOTNET_ROOT="$HOME/.dotnet"` after `sudo`. Run with sudo, HeapScope keeps
+  your data folder (your sessions, logs and settings, not root's) and gives you what it writes, the dump included, so it is
+  yours to open and delete afterwards. As root, a full dump of another user's process goes to a folder that user can write
+  (`--out`, such as `/tmp`): the runtime writes it as that user, and HeapScope then makes it yours. Some systems stop one process from examining
   another (`kernel.yama.ptrace_scope` of 2 or 3, or a container without `SYS_PTRACE`); HeapScope then says what to
   change, and changes nothing itself. A process that keeps its diagnostics socket in another temp folder (its `TMPDIR`)
   is found when HeapScope runs with the same `TMPDIR`.

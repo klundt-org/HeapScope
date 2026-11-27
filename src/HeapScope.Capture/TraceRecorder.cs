@@ -100,7 +100,7 @@ public static class TraceRecorder
             throw new DumpFileExistsException($"{fullPath} already exists; HeapScope never overwrites a file. Choose another file name.");
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        PrivateFiles.CreateUserDirectory(Path.GetDirectoryName(fullPath)!);
         // Created new under a name of its own before the session starts (sprint 3.7, peer review P15; 3.7 review): a file made
         // beforehand by someone else is never written into or deleted, and a recording into the same folder never meets it.
         var partial = PartialName(fullPath);
@@ -149,7 +149,7 @@ public static class TraceRecorder
             throw new DumpFileExistsException($"{fullPath} already exists; HeapScope never overwrites a file. Choose another file name.");
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        PrivateFiles.CreateUserDirectory(Path.GetDirectoryName(fullPath)!);
         var stopwatch = Stopwatch.StartNew();
         var names = PartialName(fullPath);
         var stoppedEarly = false;

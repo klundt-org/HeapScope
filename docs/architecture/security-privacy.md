@@ -136,6 +136,10 @@ references such as "ARCHITECTURE.md 12" still name the right section.
   index caches and their sidecars, monitoring timelines and traces are created 0700 (folders) and 0600 (files) instead
   of the process umask, which often lets other users read them. A folder the user picked keeps its permissions; on
   Windows the files get an owner-only access list (sprint 3.7, above).
+- Run with sudo on Linux (sprint 4.8, H17; ADR-014 amended), those folders and files are the invoking user's, not root's: HeapScope
+  keeps that user's data folder and gives the user what it creates and a dump it protects after a capture, with `lchown`, which
+  never follows a link. The user is the one sudo names (`SUDO_UID`), who could run anything as root already, so nothing is given
+  to anyone who could not read it before.
 
 - Allocation traces (sprint 2.5) hold type and method names, times and sizes, not heap contents. Record allocations writes
   them into the session folder (user-only, like dumps); the CLI writes them where `--out` says. Reading one writes

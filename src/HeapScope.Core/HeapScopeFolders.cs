@@ -28,7 +28,8 @@ namespace HeapScope.Core;
 /// copies, trace conversion, and the files at the root (the index cache key, trusted DACs, bookmarks). The root is
 /// <c>%LOCALAPPDATA%\HeapScope</c> (the platform's local application data folder elsewhere), or the folder
 /// <see cref="EnvironmentVariable"/> names, which every process HeapScope starts inherits; the worker also takes
-/// <c>--data-folder</c>. Tests set it so nothing they do reaches the user's own folders.
+/// <c>--data-folder</c>. Tests set it so nothing they do reaches the user's own folders. Run with sudo on Linux, the default is
+/// the invoking user's folder, not root's (sprint 4.8, H17; <see cref="InvokingUser"/>).
 /// </summary>
 public sealed class HeapScopeFolders
 {
@@ -55,9 +56,11 @@ public sealed class HeapScopeFolders
     /// The folders this process uses unless told otherwise, read once at its start. A value of only spaces counts as unset
     /// (3.8 review): a malformed variable must not stop every HeapScope process before it can log anything.
     /// </summary>
-    public static HeapScopeFolders Default { get; } = string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(EnvironmentVariable))
-        ? new HeapScopeFolders(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HeapScope"), "the default", isDefault: true)
-        : new HeapScopeFolders(Environment.GetEnvironmentVariable(EnvironmentVariable)!, EnvironmentVariable);
+    public static HeapScopeFolders Default { get; } = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(EnvironmentVariable))
+        ? new HeapScopeFolders(Environment.GetEnvironmentVariable(EnvironmentVariable)!, EnvironmentVariable)
+        : InvokingUser.Current is { } user
+            ? new HeapScopeFolders(user.DataFolder, $"the default of {user.Name}, who ran it with sudo", isDefault: true)
+            : new HeapScopeFolders(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HeapScope"), "the default", isDefault: true);
 
     /// <summary>Where <see cref="Root"/> came from, for the start lines: the default, the environment variable or an option.</summary>
     public string Source { get; }
