@@ -161,7 +161,7 @@ mapped switch does not return, a note when a load's references fall back to memo
 11. [x] From the Backlog: the memory the drop before the mapped switch does not return (find what holds it; `load-dump` back near
     3.12's 34 MB), a snapshot note when a load's references fell back to memory (draft wording), `ColumnBytes` split into private and
     file-backed for the memory mode's log. Tests: `load-dump`'s private bytes after the drop; the note; the split.
-12. [ ] The trial: docs/trial.md, what to try, how to report, and what is known not to work; the release checklist for the first full
+12. [x] The trial: docs/trial.md, what to try, how to report, and what is known not to work; the release checklist for the first full
     release in DEVELOPER.md 7. The trial itself and the release are the owner's.
 
 **Decisions**

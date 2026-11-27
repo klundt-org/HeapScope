@@ -169,6 +169,8 @@ Or build it from source:
 
 - [User guide](docs/USER-GUIDE.md): how each part works, the shortcuts and filters, logs and getting help.
 - [Install](INSTALL.md) and [release notes](RELEASE-NOTES.md).
+- [Trying HeapScope](docs/trial.md): what to try before the first full release, how to report it, and what is known not to work.
+- [The command line's JSON output](docs/cli-output.md): what a script can rely on.
 - [Developer guide](docs/DEVELOPER.md), [architecture](docs/ARCHITECTURE.md) and [how to contribute](CONTRIBUTING.md).
 - [Security policy](SECURITY.md).
 

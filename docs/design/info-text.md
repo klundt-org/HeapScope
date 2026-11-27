@@ -482,6 +482,7 @@ Drafts for the owner (sprint 4.8, ready to release; peer review 4.5).
 | README | Your first answer (M13) | The steps as written in sprint 4.8: Learn (Start lesson), then Capture dump on Processes, then the Inspections, Snapshot and Retainers tabs, with the CLI's commands | draft |
 | INSTALL | Linux step 4 (M13; checked in a clean container by build/check-install-steps.sh) | Run heapscope for the app, heapscope-cli --help for the CLI. If they are not found, log out and in again: Ubuntu adds ~/.local/bin to your PATH when you log in, once the folder exists; elsewhere add it in your shell's profile. | draft |
 | Snapshots | A load whose references went to memory (task 11, F12) | While this dump loaded, its references were kept in the worker's memory instead of a temporary file, so the load needed about 4 bytes per reference more memory than usual. Why: {reason and next step, as the log says}. | draft |
+| docs/trial.md | The trial guide (task 12) | The page as written in sprint 4.8: what to try, how to report, what is known not to work | draft |
 | INSTALL | A missing DAC (H15) | The section as written in sprint 4.8: the order HeapScope looks in, and how to copy a DAC from an installed runtime, a self-contained application or a container | draft |
 | Settings | Status after downloads are turned on, or off (H15) | From the next dump you open, a missing DAC is downloaded from Microsoft's symbol server. / Missing DACs are no longer downloaded: HeapScope looks on this computer only. | draft |
 

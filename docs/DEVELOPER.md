@@ -771,6 +771,25 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   updates and deletions); immutable releases (Settings, General, Releases: "Enable release immutability"), so a published
   release's files and tag cannot change; and the required check "CI passed" on `main` and `develop`, as now. `release.yml`
   refuses to replace files either way; the settings stop a person, or a token, from doing it by hand.
+- **The release checklist** (sprint 4.8; the first full release follows the trial by people outside, `docs/trial.md`, when the owner
+  says). Each step is the owner's or done on the owner's word:
+  1. The owner says to release, and which version. The trial's reports are read: no open High, and every wrong result explained
+     or fixed.
+  2. Every text marked draft in `docs/design/info-text.md` is approved or changed by the owner, and its rows say so.
+  3. `develop` is green and the local gate passed on it (`bash build/gate.sh`). `Directory.Build.props` has the version, and
+     `RELEASE-NOTES.md` and `src/HeapScope.Cli/package-release-notes.txt` start with it (`ReleaseNotesTests`); the notes say what
+     changed for a user, and a new JSON format if there is one (docs/cli-output.md).
+  4. The repository settings above are applied: the tag ruleset on `v*` and immutable releases (once on, a published release's
+     files cannot change, so check the draft first).
+  5. A PR from `develop` to `main`, merged with a merge commit once "CI passed"; then `git tag -a vX.Y.Z` on that commit of
+     `main` and `git push origin vX.Y.Z`.
+  6. A dry run on the tag: `gh workflow run release.yml -f tag=vX.Y.Z`. Then the release:
+     `gh workflow run release.yml -f tag=vX.Y.Z -f publish=true`, with `-f prerelease=false` for a full release.
+  7. Check what it published: the nine files and `SHA256SUMS` on the release, `gh attestation verify <file> --repo
+     klundt-org/HeapScope` for one of them, the macOS note at the top, and the Windows and Linux downloads installed as
+     INSTALL.md says on a machine that has never had HeapScope.
+  8. The owner uploads `HeapScope.Cli.X.Y.Z.nupkg` from the release to nuget.org.
+  9. `RELEASE-NOTES.md`'s table at the top gets the release's row, in the next PR into `develop`.
 - SkiaSharp native libraries (ADR-038, 2026-10-30): `.github/workflows/skia-native.yml` builds `libSkiaSharp` for win-x64,
   linux-x64 and macOS (one universal library for both macOS runtimes) from SkiaSharp's sources at a pinned commit, with
   only `skia_use_dng_sdk` and `skia_use_piex` off; it checks each library (`build/check-no-dng.sh`) and attests the set.
