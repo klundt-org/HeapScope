@@ -118,7 +118,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <summary>Saves the DAC folder as typed; an empty box clears it.</summary>
     [RelayCommand]
-    private void SaveDacFolder() => Save(DacFolder);
+    private Task SaveDacFolderAsync() => SaveAsync(DacFolder);
 
     /// <summary>Asks for the DAC folder, then saves it.</summary>
     [RelayCommand]
@@ -126,15 +126,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (await _interaction.PickFolderAsync(InfoTexts.DacFolderPickerTitle) is { } folder)
         {
-            Save(folder);
+            await SaveAsync(folder);
         }
     }
 
-    private void Save(string? folder)
+    private async Task SaveAsync(string? folder)
     {
         try
         {
-            var saved = _settings.SetDacFolder(folder);
+            // Off the UI thread (sprint 4.8 review): checking a folder on a drive that is gone can take many seconds.
+            var saved = await Task.Run(() => _settings.SetDacFolder(folder));
             Status = saved is null ? InfoTexts.DacFolderCleared : string.Format(CultureInfo.CurrentCulture, InfoTexts.DacFolderSaved, saved);
             DacFolder = saved;
         }

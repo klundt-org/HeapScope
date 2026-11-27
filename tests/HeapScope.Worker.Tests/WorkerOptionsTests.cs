@@ -102,6 +102,12 @@ public class WorkerOptionsTests
             Read("--pipe", "p", "--settings-folder", settings, "--allow-symbol-server", "true").Symbols()
                 .ShouldBe(new WorkerSymbols(null, "none", true, "--allow-symbol-server"));
 
+            // Sprint 4.8 review H1: run with sudo, the invoking user's saved values are ignored; the command line's apply.
+            new HeapScopeSettings(DacFolder: @"C:\saved", AllowMicrosoftSymbolServer: true).Save(folders);
+            options.Symbols(underSudo: true).ShouldBe(new WorkerSymbols(null, "a saved one is ignored under sudo", false, "a saved one is ignored under sudo"));
+            Read("--pipe", "p", "--settings-folder", settings, "--dac-folder", @"C:\given", "--allow-symbol-server", "true").Symbols(underSudo: true)
+                .ShouldBe(new WorkerSymbols(@"C:\given", "--dac-folder", true, "--allow-symbol-server"));
+
             File.WriteAllText(HeapScopeSettings.PathIn(folders), "{ \"AllowMicrosoftSymbolServer\": tr");
             options.Symbols().AllowMicrosoftSymbolServer.ShouldBeFalse("a file that cannot be read never turns downloads on");
         }

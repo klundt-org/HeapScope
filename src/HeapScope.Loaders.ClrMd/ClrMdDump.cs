@@ -282,7 +282,7 @@ internal static class ClrMdDump
             }
         }
 
-        looked = [.. candidates.Select(c => c.ToString())];
+        looked = [.. candidates.Select(c => c.ToString()), .. DacLocator.DacFolderNotSearched(options) is { } notSearched ? [notSearched] : Array.Empty<string>()];
         return path;
     }
 

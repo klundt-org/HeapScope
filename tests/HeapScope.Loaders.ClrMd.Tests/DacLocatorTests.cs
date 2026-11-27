@@ -212,6 +212,18 @@ public sealed class DacLocatorTests : IDisposable
         exception.RuntimeVersion.ShouldBe("8.0.11");
     }
 
+    // Sprint 4.8 review H2: a DAC folder the search leaves out is named in the refusal, with why.
+    [Fact]
+    public void A_dac_folder_that_is_not_searched_says_so()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The locator's rules are checked with Windows paths here.");
+
+        DacLocator.DacFolderNotSearched(new ClrMdLoaderOptions { DacFolder = @"\\server\dacs" }).ShouldNotBeNull()
+            .ShouldBe(@"\\server\dacs (the DAC folder: not searched, since it is not on a local fixed disk; copy the DAC to a folder on one)");
+        DacLocator.DacFolderNotSearched(new ClrMdLoaderOptions { DacFolder = Path.GetTempPath() }).ShouldBeNull();
+        DacLocator.DacFolderNotSearched(new ClrMdLoaderOptions()).ShouldBeNull();
+    }
+
     // Sprint 4.8 (H15): the message is shared by the app and the command line, so it names where each front end sets the folder
     // and the opt-in, and no setting the app has no page for.
     [Fact]

@@ -308,6 +308,19 @@ public static class DacLocator
     }
 
     /// <summary>
+    /// The DAC folder (<see cref="ClrMdLoaderOptions.DacFolder"/>) when the search leaves it out, with why, for the refusal's list of
+    /// what was searched (sprint 4.8 review H2: a saved folder on a removable or network drive was dropped without a word); null
+    /// when there is none or it is searched.
+    /// </summary>
+    public static string? DacFolderNotSearched(ClrMdLoaderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return string.IsNullOrEmpty(options.DacFolder) || IsLocalFixedPath(options.DacFolder)
+            ? null
+            : $"{options.DacFolder} (the DAC folder: not searched, since it is not on a local fixed disk; copy the DAC to a folder on one)";
+    }
+
+    /// <summary>
     /// True for a fully qualified path on a local fixed drive; false for UNC paths (<c>\\server\share</c>, <c>\\?\UNC</c>),
     /// device paths and network or removable drives. On Linux and macOS, the mount holding the path decides, after
     /// symbolic links are resolved (<see cref="UnixLocalPath"/>, sprint 2.3.5 review H1).

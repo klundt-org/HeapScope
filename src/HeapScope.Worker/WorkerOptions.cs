@@ -76,8 +76,23 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// load, so a change on the Settings page reaches the next open without a restart. A settings file that cannot be read is
     /// no saved folder and downloads off.
     /// </summary>
-    public WorkerSymbols Symbols()
+    public WorkerSymbols Symbols() => Symbols(InvokingUser.Current is not null);
+
+    /// <param name="underSudo">
+    /// Run with sudo (sprint 4.8 review H1): the saved settings are the invoking user's file, which that user can write, so a saved
+    /// DAC folder and a saved opt-in are ignored; the command line's still apply.
+    /// </param>
+    internal WorkerSymbols Symbols(bool underSudo)
     {
+        if (underSudo)
+        {
+            return new WorkerSymbols(
+                DacFolder,
+                DacFolder is not null ? "--dac-folder" : "a saved one is ignored under sudo",
+                AllowMicrosoftSymbolServer,
+                AllowMicrosoftSymbolServer ? "--allow-symbol-server" : "a saved one is ignored under sudo");
+        }
+
         var saved = HeapScopeSettings.Read(SettingsFolders);
         var savedFolder = string.IsNullOrWhiteSpace(saved.DacFolder) ? null : saved.DacFolder;
         return new WorkerSymbols(

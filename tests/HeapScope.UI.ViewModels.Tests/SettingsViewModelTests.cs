@@ -188,7 +188,7 @@ public sealed class SettingsViewModelTests : IDisposable
         new SettingsViewModel(_service, _interaction).DacFolder.ShouldBe(dacs, "a new run shows it");
 
         page.DacFolder = "  ";
-        page.SaveDacFolderCommand.Execute(null);
+        await page.SaveDacFolderCommand.ExecuteAsync(null);
 
         HeapScopeSettings.Read(Folders).DacFolder.ShouldBeNull();
         page.Status.ShouldBe(InfoTexts.DacFolderCleared);
@@ -198,19 +198,21 @@ public sealed class SettingsViewModelTests : IDisposable
     [Theory]
     [InlineData("relative", "is not a full path")]
     [InlineData("missing", "does not exist")]
-    [InlineData("network", "is a network folder")]
-    public void A_dac_folder_heapscope_cannot_use_is_refused_with_why_and_nothing_is_saved(string kind, string why)
+    [InlineData("network", "is a network or device path")]
+    [InlineData("device", "is a network or device path")]
+    public async Task A_dac_folder_heapscope_cannot_use_is_refused_with_why_and_nothing_is_saved(string kind, string why)
     {
-        Assert.SkipWhen(kind == "network" && !OperatingSystem.IsWindows(), "A network folder is told apart by its path on Windows only.");
+        Assert.SkipWhen(kind is "network" or "device" && !OperatingSystem.IsWindows(), "A network or device path is told apart by its form on Windows only.");
         var typed = kind switch
         {
             "relative" => "dacs",
             "missing" => Path.Combine(_root, "no such folder"),
+            "device" => @"\\?\" + Directory.CreateDirectory(Path.Combine(_root, "dacs")).FullName,
             _ => @"\\server\share\dacs",
         };
         var page = new SettingsViewModel(_service, _interaction) { DacFolder = typed };
 
-        page.SaveDacFolderCommand.Execute(null);
+        await page.SaveDacFolderCommand.ExecuteAsync(null);
 
         page.Status.ShouldNotBeNull().ShouldStartWith("Not saved: ");
         page.Status.ShouldContain(why);

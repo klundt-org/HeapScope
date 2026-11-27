@@ -52,6 +52,15 @@ public sealed class WorkerCrashedException : WorkerException
     /// <summary>The worker's exit code, when it exited.</summary>
     public int? ExitCode { get; }
 
+    /// <summary>
+    /// The message of a call that a restart the user asked for ended (sprint 4.8 review H3): not "stopped unexpectedly", which would
+    /// send the user and support after a crash that did not happen. A draft (docs/design/info-text.md).
+    /// </summary>
+    public const string EndedByRestartMessage = "This stopped because the worker was restarted (Restart worker). Run it again.";
+
+    /// <summary>Whether a restart the user asked for ended the call, rather than a crash.</summary>
+    public bool EndedByRestart { get; init; }
+
     private static string Describe(int? exitCode) => exitCode is int code
         ? $"The analysis worker stopped unexpectedly (exit code {code}{(WorkerLogForwarder.ExplainExitCode(code) is { } meaning ? ", " + meaning : string.Empty)}). It restarts automatically on the next operation; see the log for its last messages."
         : "The connection to the analysis worker was lost. It restarts automatically on the next operation; see the log for details.";

@@ -198,9 +198,10 @@ public sealed class SettingsService
         }
 
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(text));
-        if (OperatingSystem.IsWindows() && full.StartsWith(@"\\", StringComparison.Ordinal) && !IsLocalDevicePath(full))
+        if (OperatingSystem.IsWindows() && NotOnALocalFixedDisk(full) is { } why)
         {
-            throw new ArgumentException($"{full} is a network folder, which HeapScope never searches for a DAC. Copy the DAC into a folder on this computer and choose that one.");
+            // The DAC search's own rule (DacLocator.IsLocalFixedPath, sprint 4.8 review H2): a folder it would leave out is refused here.
+            throw new ArgumentException($"{full} is {why}, which HeapScope never searches for a DAC. Copy the DAC into a folder on a local disk of this computer and choose that one.");
         }
 
         if (!Directory.Exists(full))
@@ -211,9 +212,31 @@ public sealed class SettingsService
         return full;
     }
 
-    // \\?\C:\ is a local drive; \\?\UNC\ and \\server\ are network folders.
-    private static bool IsLocalDevicePath(string path) =>
-        path.StartsWith(@"\\?\", StringComparison.Ordinal) && !path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase);
+    // As DacLocator.IsLocalFixedPath decides on Windows: no \\ path (a share, or a device path), and a fixed drive.
+    private static string? NotOnALocalFixedDisk(string path)
+    {
+        if (path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal))
+        {
+            return "a network or device path";
+        }
+
+        try
+        {
+            return Path.GetPathRoot(path) is { Length: > 0 } root && new DriveInfo(root).DriveType is var type && type != DriveType.Fixed
+                ? type switch
+                {
+                    DriveType.Network => "on a network drive",
+                    DriveType.Removable => "on a removable drive",
+                    DriveType.CDRom => "on a CD or DVD",
+                    _ => "not on a local fixed disk",
+                }
+                : null;
+        }
+        catch (ArgumentException)
+        {
+            return "not on a local fixed disk";
+        }
+    }
 
     /// <summary>Whether downloads from Microsoft's symbol server are on, as saved (off when nothing is saved; sprint 4.8).</summary>
     public bool AllowMicrosoftSymbolServer => HeapScopeSettings.Read(_folders).AllowMicrosoftSymbolServer;

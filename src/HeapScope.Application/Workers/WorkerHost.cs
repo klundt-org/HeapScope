@@ -135,6 +135,12 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             ThrowIfUnavailable();
             if (_session is { } session)
             {
+                // Said in the log (sprint 4.8 review H3): what it ends fails as ended by the restart, not as a crash.
+                _logger.LogInformation(
+                    "Worker restart: stopping generation {Generation} (pid {Pid}, {State}) to start a new one",
+                    Generation,
+                    session.Info.ProcessId,
+                    session.IsAlive ? "running" : "already stopped");
                 Volatile.Write(ref _session, null);
                 await StopSessionAsync(session, cancellationToken).ConfigureAwait(false);
             }
@@ -473,7 +479,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             info.ArgumentList.Add("--allow-symbol-server");
             info.ArgumentList.Add("true");
         }
-        else if (HeapScope.Core.HeapScopeSettings.Read(HeapScope.Core.HeapScopeFolders.Default).AllowMicrosoftSymbolServer)
+        else if (HeapScope.Core.InvokingUser.Current is null && HeapScope.Core.HeapScopeSettings.Read(HeapScope.Core.HeapScopeFolders.Default).AllowMicrosoftSymbolServer)
         {
             // Sprint 4.8 (H15): turned on on the Settings page, which the worker reads at each load; said here too, for the CLI's stderr.
             _logger.LogWarning("Symbol server downloads are on (Settings page, {File}): a missing DAC may be downloaded from Microsoft's symbol server (module identifiers only, never dump contents).", HeapScope.Core.HeapScopeSettings.PathIn(HeapScope.Core.HeapScopeFolders.Default));
@@ -581,6 +587,13 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             {
                 // Another caller's restart disposed the process meanwhile (peer review 4.5 M8): it is still a crash, without an exit code.
             }
+        }
+
+        if (session.Stopping)
+        {
+            // A restart or a stop the user asked for ended this call (sprint 4.8 review H3).
+            _logger.LogInformation("A call to the worker ended because the worker was stopped for a restart or a close ({Cause})", cause.GetType().Name);
+            return new WorkerCrashedException(WorkerCrashedException.EndedByRestartMessage, cause) { EndedByRestart = true };
         }
 
         OnSessionLost(session, cause.GetType().Name);

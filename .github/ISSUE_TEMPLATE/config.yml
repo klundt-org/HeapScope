@@ -5,4 +5,4 @@ contact_links:
     about: Report it privately, as the security policy says. Please do not open a public issue for it.
   - name: Getting help
     url: https://github.com/klundt-org/HeapScope/blob/main/SUPPORT.md
-    about: What to include in an issue, and how to check a log before you attach it.
+    about: What to include in an issue (which is public), and which log lines to paste.

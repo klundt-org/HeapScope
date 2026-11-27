@@ -5,7 +5,7 @@ brackets.
 
 Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
-- **Core.** `HelpLinks` (the one place to get help, the issues and SUPPORT.md, which messages name) [4.8]; `SystemMemory` and `ProcessMemory` (the machine's memory and this process's, from the system on Windows, Linux and
+- **Core.** `SystemMemory` and `ProcessMemory` (the machine's memory and this process's, from the system on Windows, Linux and
   macOS) [4.7]; `FirstLoadEstimate` and `TraceReadCost` (what a first load and a trace's read cost the worker) [4.7]; `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
   `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder; the DAC folder and the symbol server opt-in [4.8]) and `InvokingUser` (who ran HeapScope with sudo on Linux: their data folder, and `Give` for what HeapScope writes) [4.8], and `LogPrivacy`
   (what the logs may hold, followed within a second by every process) [3.12], with `LogPrivacyChange` (both settings as one
@@ -120,7 +120,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   the full dump loader's form), `ObservedReadStream` (progress and cancellation while the vendored reader reads) [1.8].
 - **ThirdParty.GcDump.** The vendored dotnet-gcdump code (PerfView's `MemoryGraph`, `GCHeapDump` and the EventPipe heap
   dumper), MIT, with its five changes listed in its `CHANGES.md` [1.8, 1.9, 3.7].
-- **Contracts.** `PathIdentity`, the one rule for when two paths name the same file (case ignored on Windows and macOS),
+- **Contracts.** `HelpLinks` (the one place to get help, the issues and SUPPORT.md, which messages name; in Contracts since the 4.8 review, H5, so the front ends name it) [4.8]; `PathIdentity`, the one rule for when two paths name the same file (case ignored on Windows and macOS),
   its source also compiled into Loaders.ClrMd and Capture as an internal copy [3.12]. The worker contracts by area since 3.8 (`IWorkerControl`, `IWorkerTestHooks`, `ISnapshotService`,
   `IResultSetService`, `IHeapQueryService`, `IRetentionService`, `IInspectionService`, `IAllocationTraceService`, listed
   in `WorkerContracts.All`; `IWorkerService` aggregates them for clients), `WorkerProtocol`, `HeapScopeErrorCode`, the wire enums and `CapabilityDescriptions`

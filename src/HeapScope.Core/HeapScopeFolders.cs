@@ -77,8 +77,11 @@ public sealed class HeapScopeFolders
     /// <summary>Index caches of snapshots in folders HeapScope cannot write.</summary>
     public string Cache => Path.Combine(Root, "cache");
 
-    /// <summary>Private copies of trusted DACs, one folder per SHA-256 (ADR-035).</summary>
-    public string DacCopies => Path.Combine(Root, "dac");
+    /// <summary>
+    /// Private copies of trusted DACs, one folder per SHA-256 (ADR-035). Run with sudo, root's own folder's, never the invoking
+    /// user's (sprint 4.8 review H1): a copy the user could replace after its hash was checked would run as root.
+    /// </summary>
+    public string DacCopies => Path.Combine(InvokingUser.TrustFolder ?? Root, "dac");
 
     /// <summary>
     /// TraceEvent's <c>.etlx</c> files while a trace is read: the user's own temporary folder on Windows, HeapScope's

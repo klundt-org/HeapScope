@@ -39,9 +39,11 @@ result that looks wrong, or a question. [SUPPORT.md](../SUPPORT.md) says what to
 - what you did, what you expected and what happened, in words, with the message HeapScope showed;
 - the kind of snapshot and the .NET version of the process it came from.
 
-A log helps with almost anything, but read it first: it holds file paths and type names (SUPPORT.md says what else). If HeapScope
-closed on its own, it offers a crash report at its next start; attach that. **Never attach a dump, a gcdump, a trace or an index
-cache**: they hold your process's data.
+Issues are public. A log helps with almost anything, so paste the lines around the message, after you have read them and replaced what
+you do not want public: a log holds file paths with your user name and the names from your code (SUPPORT.md says what else). If
+HeapScope closed on its own, it offers a crash report at its next start; paste its error and first lines of stack. If more is
+needed, say so in the issue and it can be shared privately. **Never attach a dump, a gcdump, a trace or an index cache**: they hold
+your process's data.
 
 What we most want to hear:
 - a result that is wrong (a count, a size, a path, a finding), even if you are not sure;

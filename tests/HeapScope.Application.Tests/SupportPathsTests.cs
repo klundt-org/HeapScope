@@ -41,7 +41,7 @@ public sealed class SupportPathsTests : IDisposable
         var text = File.ReadAllText(report);
         text.ShouldContain("HeapScope crash report: HeapScope ");
         text.ShouldContain("Where: unhandled, HeapScope closed.");
-        text.ShouldContain(Core.HelpLinks.Issues);
+        text.ShouldContain(Contracts.HelpLinks.Issues);
         text.ShouldContain("InvalidOperationException: broken");
         CrashReport.NotOffered(_directory).ShouldBe([report]);
 
@@ -93,7 +93,7 @@ public sealed class SupportPathsTests : IDisposable
         ErrorIds.Note("Something the user did wrong, with no id.");
         var before = ErrorIds.Last;
 
-        ErrorIds.Note($"The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, report it at {Core.HelpLinks.Issues} with this id: 0f3a9c2e41b84d7f.");
+        ErrorIds.Note($"The analysis worker failed unexpectedly while answering this, and nothing was changed. Try again; if it fails again, report it at {Contracts.HelpLinks.Issues} with this id: 0f3a9c2e41b84d7f.");
 
         ErrorIds.Last.ShouldBe("0f3a9c2e41b84d7f");
         before.ShouldNotBe("0f3a9c2e41b84d7f");

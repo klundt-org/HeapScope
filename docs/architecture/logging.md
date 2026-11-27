@@ -145,7 +145,8 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   the data folder (`HeapScopeSettings`), and every process follows a change within a second (`LogPrivacy`): the worker's
   provenance lines, the CLI's command line (by option: a `--filter` value follows the setting whatever it looks like) and
   the growth gate's line. Logs are local evidence for support; they are not meant to be
-  published, since paths name the user and the machine. A result meant to be shared goes through the shared analysis
+  published, since paths name the user and the machine: SUPPORT.md (sprint 4.8 review H4) asks for the lines around a message in a
+  public issue, never a whole log, and offers a private way for one. A result meant to be shared goes through the shared analysis
   export (ADR-026), which strips names by default.
 - Exceptions are caught at boundaries only: worker RPC methods, view model commands, CLI command handlers.
   Inner code throws specific exceptions (`CapabilityNotSupportedException`, `SnapshotFormatException`,

@@ -88,7 +88,7 @@ If you try a macOS package, please say how it went in an [issue](https://github.
 reported yet. In a clone of the repository, `bash build/capture-check.sh <folder>/heapscope-cli` tries every kind of capture
 on the sample that comes with HeapScope and says what failed. Its output shows no other process, but it does show your
 folders: read it, then put it in the issue. When something failed it also prints where HeapScope's log is. The log names
-your processes, so leave it out of the issue and share it only with someone you trust.
+your processes and folders, so paste only the lines about the failure into the issue (SUPPORT.md says how).
 
 To build on your Mac instead, with the .NET 10 SDK, run `bash build/publish.sh osx-arm64 <folder>` (or `osx-x64`) in a clone
 of the repository. That build is untested too.

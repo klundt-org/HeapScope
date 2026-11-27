@@ -219,13 +219,17 @@ public class TextRulesTests
             var text = File.ReadAllText(Path.Combine(folder, form));
             text.ShouldContain("Never attach a memory dump", customMessage: form);
             text.ShouldContain("Copy details", customMessage: form);
+            text.ShouldContain("An issue is public", customMessage: form + " (sprint 4.8 review H4)");
+            text.ShouldContain("never a whole log", customMessage: form);
         }
+
+        File.ReadAllText(Path.Combine(RepoPaths.Root, "SUPPORT.md")).ShouldContain("**Issues are public**");
 
         var config = File.ReadAllText(Path.Combine(folder, "config.yml"));
         config.ShouldContain("blank_issues_enabled: false");
         config.ShouldContain("security/policy");
         File.ReadAllText(Path.Combine(RepoPaths.Root, "README.md")).ShouldContain("(SUPPORT.md)");
-        File.ReadAllText(Path.Combine(RepoPaths.Root, "SUPPORT.md")).ShouldContain(HeapScope.Core.HelpLinks.Issues);
+        File.ReadAllText(Path.Combine(RepoPaths.Root, "SUPPORT.md")).ShouldContain(HeapScope.Contracts.HelpLinks.Issues);
     }
 
     private static bool IsIgnored(string relative)

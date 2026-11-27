@@ -21,7 +21,7 @@
 //
 // Commercial licenses are available. See COMMERCIAL.md.
 
-namespace HeapScope.Core;
+namespace HeapScope.Contracts;
 
 /// <summary>
 /// Where a user gets help (peer review 4.5 H14): one place, the project's issues, with SUPPORT.md saying what to include and what

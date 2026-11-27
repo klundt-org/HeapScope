@@ -107,7 +107,8 @@ public static class ViewModelServiceCollectionExtensions
             sp.GetRequiredService<GridExportService>(),
             sp.GetRequiredService<SettingsViewModel>(),
             sp.GetRequiredService<LearnViewModel>(),
-            sp.GetRequiredService<IUserInteraction>()));
+            sp.GetRequiredService<IUserInteraction>(),
+            sp.GetService<ILogger<ShellViewModel>>()));
         return services;
     }
 }

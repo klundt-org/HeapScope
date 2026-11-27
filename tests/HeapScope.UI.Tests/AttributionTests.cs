@@ -79,9 +79,9 @@ public class AttributionTests
         var page = XDocument.Load(Path.Combine(global::HeapScope.Tests.Shared.RepoRoot.Path, "src", "HeapScope.UI", "Views", "Pages", "AboutPage.axaml"));
         var help = page.Descendants(s_controls + "AttributionText").Single(e => (string?)e.Attribute(s_x + "Name") == "HelpLink");
 
-        ((string?)help.Attribute("LinkUri")).ShouldBe(global::HeapScope.Core.HelpLinks.Support);
-        global::HeapScope.Core.HelpLinks.Support.ShouldStartWith(ProductInfo.RepositoryUrl + "/");
-        global::HeapScope.Core.HelpLinks.Issues.ShouldBe(ProductInfo.RepositoryUrl + "/issues");
+        ((string?)help.Attribute("LinkUri")).ShouldBe(global::HeapScope.Contracts.HelpLinks.Support);
+        global::HeapScope.Contracts.HelpLinks.Support.ShouldStartWith(ProductInfo.RepositoryUrl + "/");
+        global::HeapScope.Contracts.HelpLinks.Issues.ShouldBe(ProductInfo.RepositoryUrl + "/issues");
         ((string?)help.Descendants(s_avalonia + "Run").Single(r => (string?)r.Attribute("Classes") == "link").Attribute("Text")).ShouldBe("Getting help");
     }
 

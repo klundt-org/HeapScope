@@ -51,7 +51,7 @@ public static class CrashReport
             PrivateFiles.CreateDirectory(folder);
             using var writer = new StreamWriter(PrivateFiles.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read));
             writer.WriteLine($"# HeapScope crash report: {RuntimeEnvironment.Summary}; {app} pid {Environment.ProcessId}; {now.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture)}");
-            writer.WriteLine($"# Where: {where}. Attach this file to an issue at {HelpLinks.Issues} (SUPPORT.md says what a log holds).");
+            writer.WriteLine($"# Where: {where}. To report it, read this file, then paste the error and its first lines of stack into an issue at {HelpLinks.Issues}; issues are public, so replace what you do not want published (SUPPORT.md).");
             writer.WriteLine(exception.ToString());
             return path;
         }

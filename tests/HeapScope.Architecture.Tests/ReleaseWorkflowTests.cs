@@ -112,6 +112,21 @@ public sealed class ReleaseWorkflowTests
         jobs["attest"].ShouldNotContain("subject-path: |", customMessage: "a glob would attest whatever lay in the folder");
     }
 
+    // Sprint 4.8 review H6: the provenance names the run's ref and commit, so a release runs on its tag and builds the commit resolved once.
+    [Fact]
+    public void A_release_runs_on_its_tag_and_every_job_builds_the_commit_prepare_resolved()
+    {
+        var jobs = Jobs();
+
+        jobs["prepare"].ShouldContain("[ \"$GITHUB_REF\" = \"refs/tags/$TAG\" ]");
+        jobs["prepare"].ShouldContain("sha=$(git rev-parse HEAD)");
+        foreach (var (name, job) in jobs.Where(static j => j.Key != "prepare" && j.Value.Contains("actions/checkout", StringComparison.Ordinal)))
+        {
+            job.ShouldContain("ref: ${{ needs.prepare.outputs.sha }}", customMessage: name);
+            job.ShouldNotContain("ref: ${{ env.TAG }}", customMessage: name);
+        }
+    }
+
     [Fact]
     public void Only_the_jobs_that_build_nothing_may_write()
     {

@@ -29,6 +29,8 @@ using HeapScope.Application.Jobs;
 using HeapScope.Application.Workers;
 using HeapScope.Contracts;
 using HeapScope.UI.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HeapScope.UI.ViewModels;
 
@@ -111,10 +113,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     // While the user's own restart runs: the worker coming back then ends the crash banner (sprint 4.8, M5).
     private bool _restarting;
     private readonly IUserInteraction? _interaction;
+    private readonly ILogger _logger;
 
-    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null, IUserInteraction? interaction = null)
+    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null, IUserInteraction? interaction = null, ILogger<ShellViewModel>? logger = null)
     {
         _interaction = interaction;
+        _logger = (ILogger?)logger ?? NullLogger.Instance;
         if (settings is not null)
         {
             settings.Purged += (_, _) => snapshots?.Bookmarks.ForgetAll();
@@ -266,8 +270,11 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
     /// <summary>The crash banner's Restart worker: the worker stopped, so nothing is lost by asking nothing.</summary>
     [RelayCommand]
-    private async Task RestartWorkerAsync(CancellationToken cancellationToken)
+    private Task RestartWorkerAsync(CancellationToken cancellationToken) => RestartAsync("the crash banner", cancellationToken);
+
+    private async Task RestartAsync(string from, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Restart worker pressed in {From}", from);
         IsCrashBannerVisible = false;
         _restarting = true;
         try
@@ -276,6 +283,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            _logger.LogInformation("{Section} shown as: {Message}", "Restart worker", ex.Message);
             CrashMessage = ex.Message;
             IsCrashBannerVisible = true;
         }
@@ -292,12 +300,14 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanRestartWorker))]
     private async Task RestartRunningWorkerAsync(CancellationToken cancellationToken)
     {
-        if (_interaction is not null && !await _interaction.ConfirmAsync(InfoTexts.RestartWorkerQuestionTitle, InfoTexts.RestartWorkerQuestion, RestartWorkerConfirm, RestartWorkerCancel))
+        var yes = _interaction is null || await _interaction.ConfirmAsync(InfoTexts.RestartWorkerQuestionTitle, InfoTexts.RestartWorkerQuestion, RestartWorkerConfirm, RestartWorkerCancel);
+        _logger.LogInformation("Asked to restart the worker (the status bar); the user answered {Answer}", yes ? "yes" : "no");
+        if (!yes)
         {
             return;
         }
 
-        await RestartWorkerAsync(cancellationToken);
+        await RestartAsync("the status bar", cancellationToken);
     }
 
     /// <summary>
@@ -314,7 +324,9 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
 
         var offered = await Task.Run(() => reports.Select(HeapScope.Application.Logging.CrashReport.MarkOffered).ToList());
         var newest = offered[^1];
-        if (await _interaction.ConfirmAsync(InfoTexts.CrashReportOfferTitle, string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.CrashReportOffer, newest), CrashReportShow, CrashReportClose))
+        var show = await _interaction.ConfirmAsync(InfoTexts.CrashReportOfferTitle, string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.CrashReportOffer, newest), CrashReportShow, CrashReportClose);
+        _logger.LogInformation("Offered the report of a run that closed unexpectedly, {Report} ({Count} found); the user chose {Choice}", newest, offered.Count, show ? CrashReportShow : CrashReportClose);
+        if (show)
         {
             await _interaction.ShowInFolderAsync(newest);
         }

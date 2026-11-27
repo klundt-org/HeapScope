@@ -40,10 +40,34 @@ namespace HeapScope.Core;
 /// <param name="Home">The user's home folder.</param>
 public sealed partial record InvokingUser(int UserId, int GroupId, string Name, string Home)
 {
+    private static readonly string? s_passwd = OperatingSystem.IsLinux() ? ReadPasswd() : null;
+
     /// <summary>The user who ran this process with sudo, or null (read once at the start).</summary>
     public static InvokingUser? Current { get; } = OperatingSystem.IsLinux() && Environment.IsPrivilegedProcess
-        ? From(Environment.GetEnvironmentVariable, ReadPasswd())
+        ? From(Environment.GetEnvironmentVariable, s_passwd)
         : null;
+
+    /// <summary>
+    /// The folder of what a run with sudo must not take from the invoking user (sprint 4.8 review H1): the trusted DACs and their
+    /// private copies, which decide what native code the root worker loads. Root's own HeapScope data folder, from the password
+    /// file's entry for root; null when HeapScope does not run with sudo.
+    /// </summary>
+    public static string? TrustFolder { get; } = Current is null ? null : Path.Combine(RootHome(s_passwd), ".local", "share", "HeapScope");
+
+    /// <summary>Root's home in the password file's text, or /root.</summary>
+    internal static string RootHome(string? passwd)
+    {
+        foreach (var line in (passwd ?? string.Empty).Split('\n'))
+        {
+            var fields = line.TrimEnd('\r').Split(':');
+            if (fields.Length >= 7 && fields[2] == "0" && fields[5].StartsWith('/'))
+            {
+                return fields[5];
+            }
+        }
+
+        return "/root";
+    }
 
     /// <summary>The user's HeapScope data folder, as the user's own runs name it (<c>~/.local/share/HeapScope</c>).</summary>
     public string DataFolder => Path.Combine(Home, ".local", "share", "HeapScope");

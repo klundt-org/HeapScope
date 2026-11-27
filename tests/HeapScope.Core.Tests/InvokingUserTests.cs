@@ -67,12 +67,23 @@ public sealed class InvokingUserTests
         InvokingUser.From(Sudo("1000", user: null), "ubuntu:x:1000:1000::/home/ubuntu:/bin/sh\r\n").ShouldNotBeNull().Name.ShouldBe("ubuntu");
     }
 
+    // Sprint 4.8 review H1: what decides which DAC root loads stays in root's own folder.
+    [Fact]
+    public void Roots_home_comes_from_the_password_file()
+    {
+        InvokingUser.RootHome(Passwd).ShouldBe("/root");
+        InvokingUser.RootHome("root:x:0:0:root:/var/root:/bin/sh\n").ShouldBe("/var/root");
+        InvokingUser.RootHome(null).ShouldBe("/root");
+    }
+
     [Fact]
     public void Off_linux_and_when_not_root_no_one_is_given_anything()
     {
         Assert.SkipWhen(OperatingSystem.IsLinux() && Environment.IsPrivilegedProcess, "this run is root on Linux: build/check-install.sh checks that case");
 
         InvokingUser.Current.ShouldBeNull();
+        InvokingUser.TrustFolder.ShouldBeNull();
+        HeapScopeFolders.Default.DacCopies.ShouldBe(Path.Combine(HeapScopeFolders.Default.Root, "dac"));
         InvokingUser.Give(Path.GetTempPath()).ShouldBeFalse();
     }
 }

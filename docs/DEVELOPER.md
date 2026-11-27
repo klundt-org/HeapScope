@@ -709,7 +709,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   (`X.Y.Z` for an in-between sprint such as 2.3.5).
 - Releases: when the owner says so, a PR from `develop` to `main`, merged with a merge commit (never squash, so the
   branches do not drift), then the annotated tag `vX.Y.0` on `main` (`git tag -a`, pushed), then
-  `gh workflow run release.yml -f tag=vX.Y.0 -f publish=true` (since sprint 4.8, peer review 4.5 M1), which makes the GitHub
+  `gh workflow run release.yml --ref vX.Y.0 -f tag=vX.Y.0 -f publish=true` (since sprint 4.8, peer review 4.5 M1; on the tag, so its
+  provenance names the tag's commit), which makes the GitHub
   Release as a draft, builds and runs it, and publishes it, marked pre-release for now (`-f prerelease=false` when that ends).
   Only the owner decides when to release. The CLI's dotnet tool goes to nuget.org from the release's
   attached `HeapScope.Cli.X.Y.Z.nupkg`: the owner uploads it on nuget.org (Upload; a version can be unlisted, never
@@ -722,7 +723,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   otherwise). The architecture test `ReleaseNotesTests` fails a version missing from either, and `release.yml` refuses a
   release whose package notes start with another version.
 - Release builds (sprint 3.7; channels and formats since 3.9, ADR-039; built before it is public since 4.8, M1): `release.yml`
-  runs by hand only, in this order. Prepare: the tag must be an annotated `vX.Y.Z` tag on `main` matching `<Version>`, and no
+  runs by hand only, on the tag (`--ref vX.Y.Z`: the run's ref and commit are what the provenance names, review H6), in this order.
+  Prepare: it resolves the tag's commit once, which every job builds, refuses a run that is not on the tag; the tag must be an annotated `vX.Y.Z` tag on `main` matching `<Version>`, and no
   release of it may have files (HeapScope never replaces a release's files: a mistake is a new version); it creates a draft
   with a line to INSTALL.md and the `RELEASE-NOTES.md` sections since the last release, or keeps the owner's draft and its
   notes when one is there with no files. Build, with read access only: the tag for win-x64 (a `.zip`), linux-x64, osx-arm64
@@ -783,8 +785,8 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
      files cannot change, so check the draft first).
   5. A PR from `develop` to `main`, merged with a merge commit once "CI passed"; then `git tag -a vX.Y.Z` on that commit of
      `main` and `git push origin vX.Y.Z`.
-  6. A dry run on the tag: `gh workflow run release.yml -f tag=vX.Y.Z`. Then the release:
-     `gh workflow run release.yml -f tag=vX.Y.Z -f publish=true`, with `-f prerelease=false` for a full release.
+  6. A dry run on the tag: `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z`. Then the release:
+     `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z -f publish=true`, with `-f prerelease=false` for a full release.
   7. Check what it published: the nine files and `SHA256SUMS` on the release, `gh attestation verify <file> --repo
      klundt-org/HeapScope` for one of them, the macOS note at the top, and the Windows and Linux downloads installed as
      INSTALL.md says on a machine that has never had HeapScope.

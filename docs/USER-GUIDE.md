@@ -145,7 +145,8 @@ whether it holds them; the text you type in filters, unless you turn that off wi
 The About page shows the folder and copies the version details for an issue. For more detail in one run,
 start the app with `--Logging:File:MinimumLevel Debug`, or set the environment variable
 `Logging__File__MinimumLevel=Debug` (the CLI reads settings from the environment, not from its arguments). Logs are kept
-14 days. They hold file paths and type names, so share them only with someone you trust. Purge logs on the Settings page
+14 days. They hold file paths and type names, so share them only with someone you trust, and in a public issue paste only the
+lines around the message (SUPPORT.md says how). Purge logs on the Settings page
 (or `heapscope-cli purge logs`) deletes them, but the ones other running HeapScope processes write (the app's own log goes
 on in a new file, so all it wrote before goes too; after you turn dump values off, it waits two seconds so the last values
 go with it); Purge all deletes the logs,

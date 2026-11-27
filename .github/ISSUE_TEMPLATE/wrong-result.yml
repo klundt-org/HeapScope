@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Never attach a memory dump, gcdump, trace or index cache: they hold everything the process had in memory. Describe how to make
-        one instead, or use HeapScope's sample process. A log may be attached after you have read it (SUPPORT.md says what it holds).
+        one instead, or use HeapScope's sample process. An issue is public: paste only the log lines around the message, after you have read them and replaced what you do not want public (your user name and paths, names from your code), never a whole log. SUPPORT.md says what a log holds.
   - type: textarea
     id: details
     attributes:
@@ -32,5 +32,5 @@ body:
     id: log
     attributes:
       label: Log lines (optional)
-      description: The log's lines for that result (it records why each result came out as it did), after you have removed what you do not want to share.
+      description: The log's lines for that result (it records why each result came out as it did), after you have replaced what you do not want public. Never a whole log.
       render: text

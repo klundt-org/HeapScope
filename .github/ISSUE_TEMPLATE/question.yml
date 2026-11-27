@@ -2,6 +2,10 @@ name: A question
 description: How to do something, or what a page or a result means.
 labels: [question]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        An issue is public: write nothing here you would not publish, and paste only log lines you have read (SUPPORT.md says how).
   - type: textarea
     id: question
     attributes:

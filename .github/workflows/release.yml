@@ -1,5 +1,6 @@
 # HeapScope release builds (sprint 3.7, peer review P17; built before it is public since sprint 4.8, peer review 4.5 M1). The
-# owner starts a release by hand (DEVELOPER.md 7): `gh workflow run release.yml -f tag=vX.Y.Z -f publish=true`. In order:
+# owner starts a release by hand, on the tag itself (DEVELOPER.md 7): `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z -f publish=true`,
+# so the run, and the provenance it attests, is the tag's commit and the tag's workflow (sprint 4.8 review H6). In order:
 #
 # 1. Prepare: the tag must be an annotated tag on main, and no release of it may have files already (HeapScope never replaces
 #    a release's files: a new version is a new tag). A draft release is created, with the notes of the versions since the last
@@ -53,6 +54,7 @@ jobs:
       contents: write
     outputs:
       name: ${{ steps.name.outputs.name }}
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - name: The files' name
         # A dry run may build a branch, whose name can hold a slash.
@@ -60,10 +62,23 @@ jobs:
         shell: bash
         run: echo "name=${TAG//\//-}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: ${{ inputs.publish }}
         with:
           ref: ${{ env.TAG }}
           persist-credentials: false
+      - name: The commit every job builds
+        # Resolved once (review H6): the builds check out this commit, never the name again, so a tag moved meanwhile is not built.
+        id: sha
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: The run is the tag's
+        # The provenance names the run's own ref and commit, so a release runs on the tag (gh workflow run --ref vX.Y.Z).
+        if: ${{ inputs.publish }}
+        shell: bash
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          [ "$GITHUB_REF" = "refs/tags/$TAG" ] || { echo "A release runs on its tag: gh workflow run release.yml --ref $TAG -f tag=$TAG -f publish=true (this run is on $GITHUB_REF)."; exit 1; }
+          [ "$GITHUB_SHA" = "$SHA" ] || { echo "The tag $TAG moved while the run started ($GITHUB_SHA, now $SHA)."; exit 1; }
       - name: The tag is an annotated tag on main, and its version's
         if: ${{ inputs.publish }}
         shell: bash
@@ -131,7 +146,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -191,7 +206,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -218,7 +233,7 @@ jobs:
   tool-check:
     # The very file the release attaches, installed as INSTALL.md says on each system it ships for (3.9 review M4).
     name: Install the tool on ${{ matrix.os }}
-    needs: tool
+    needs: [prepare, tool]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -228,7 +243,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -251,7 +266,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:

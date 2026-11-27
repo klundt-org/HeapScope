@@ -210,7 +210,7 @@ public sealed partial class App : Avalonia.Application
             _ = MessageWindow.ShowAsync(
                 _window,
                 ProductName,
-                $"Something went wrong: {e.Exception.Message}\n\nHeapScope keeps running. Details are in the log at {services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory}. If it happens again, report it at {Core.HelpLinks.Issues}.",
+                $"Something went wrong: {e.Exception.Message}\n\nHeapScope keeps running. Details are in the log at {services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory}. If it happens again, report it at {Contracts.HelpLinks.Issues}.",
                 MessageButtons.Ok);
         };
         var logs = services.GetRequiredService<Application.Logging.FileLoggerProvider>();
