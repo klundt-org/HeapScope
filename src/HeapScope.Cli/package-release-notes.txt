@@ -1,3 +1,7 @@
+4.9.0: Workspaces.
+
+- No change to the commands: the worker behind them keeps more result sets and lets go of a closed snapshot's at once (4.9.0).
+
 4.8.0: Ready to release.
 
 - Every --format json output starts with "Format": 1, and inspect without a name writes {"Format": 1, "Inspections": [...]} (4.8.0).
