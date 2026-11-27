@@ -29,7 +29,7 @@ namespace HeapScope.Loaders.ClrMd;
 /// <summary>
 /// The fixed header of a Windows minidump (MINIDUMP_HEADER): signature, time stamp and the MINIDUMP_TYPE flags. Read
 /// before ClrMD opens the file, so a file that is not a minidump, or a minidump without the managed heap, fails with a
-/// clear message instead of producing an empty or partial graph (sprint 1.2 review).
+/// clear message instead of producing an empty or partial graph.
 /// </summary>
 public readonly record struct MinidumpHeader(uint Signature, DateTimeOffset? CapturedAtUtc, ulong Flags)
 {
@@ -78,12 +78,12 @@ public readonly record struct MinidumpHeader(uint Signature, DateTimeOffset? Cap
     }
 
     /// <summary>
-    /// True when the file is shorter than its own directory says (sprint 1.8): a stream, or the memory a memory list
+    /// True when the file is shorter than its own directory says: a stream, or the memory a memory list
     /// describes, lies past the end of the file. A dump cut short while written or copied loses whole memory ranges,
     /// including the GC's own bookkeeping, so its heap can look complete while objects are missing.
     /// </summary>
     /// <remarks>
-    /// Each memory list is read once (sprint 3.7, peer review P13): a crafted directory repeating one huge list made the
+    /// Each memory list is read once: a crafted directory repeating one huge list made the
     /// check quadratic; a real dump has one of each. Cancellable every 64K ranges.
     /// </remarks>
     public static bool IsTruncated(string path, CancellationToken cancellationToken = default)
@@ -117,7 +117,7 @@ public readonly record struct MinidumpHeader(uint Signature, DateTimeOffset? Cap
                 return true;
             }
 
-            // Memory data must lie inside the file too (review M3): the full-memory list keeps it in one block after
+            // Memory data must lie inside the file too: the full-memory list keeps it in one block after
             // the descriptors; the plain list (heap dumps without full memory) gives each range its own location. Counts
             // are bounded by the stream's size, sums by the file length, so a damaged directory cannot overflow them.
             if (type is Memory64ListStream or MemoryListStream && !memoryListsRead.Add(type))

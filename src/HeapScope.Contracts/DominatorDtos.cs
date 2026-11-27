@@ -23,7 +23,7 @@
 
 namespace HeapScope.Contracts;
 
-/// <summary>How a node's children are shown in the dominator tree (sprint 2.4).</summary>
+/// <summary>How a node's children are shown in the dominator tree.</summary>
 public enum DominatorGroupingDto
 {
     /// <summary>Each child object on its own row.</summary>
@@ -32,7 +32,7 @@ public enum DominatorGroupingDto
     /// <summary>
     /// Children grouped by type (with its module). A group's retained size adds up its members' retained sizes, which never overlap;
     /// what several members keep alive together is counted in the row above (at the top level, in rows of its own), so it is a lower
-    /// bound of what they keep alive together (3.11 review M6).
+    /// bound of what they keep alive together.
     /// </summary>
     Type = 1,
 
@@ -41,7 +41,7 @@ public enum DominatorGroupingDto
 }
 
 /// <summary>
-/// The dominator tree's row keys (sprint 2.4), for clients that link into the tree: an object's is <c>o:</c> and its
+/// The dominator tree's row keys, for clients that link into the tree: an object's is <c>o:</c> and its
 /// address in hex; a group's extends its list's key (the top level's is empty) with <c>|g:</c> and the group's name (a
 /// type's name and module file name in brackets, or a namespace); a "more" row's extends it with <c>|m:</c> and how many
 /// rows precede it. Contracts owns the format; the worker's tree mirrors it (ADR-016, a test checks every form).
@@ -76,7 +76,7 @@ public static class DominatorRowKinds
     public const string More = "More";
 }
 
-/// <summary>The dominator tree query's limits (sprint 2.4), so clients can keep within them and say when they were met.</summary>
+/// <summary>The dominator tree query's limits, so clients can keep within them and say when they were met.</summary>
 public static class DominatorTreeLimits
 {
     /// <summary>Rows in one answer; beyond it the answer is cut (<see cref="DominatorTreeResult.Truncated"/>).</summary>
@@ -99,7 +99,7 @@ public static class DominatorTreeLimits
     public const int TrailTail = 20;
 }
 
-/// <summary>Column names of a dominator tree result set (sprint 2.4).</summary>
+/// <summary>Column names of a dominator tree result set.</summary>
 public static class DominatorTreeColumns
 {
     /// <summary>The row's key: <c>o:&lt;address&gt;</c> for an object, the parent's key plus the group for a group, <c>m:</c> for a "more" row.</summary>
@@ -128,7 +128,6 @@ public static class DominatorTreeColumns
 
     /// <summary>
     /// Bytes the row retains: exact for an object; for a group or a "more" row, its members' retained sizes added up, a lower bound
-    /// (3.11 review M6).
     /// </summary>
     public const string Retained = "Retained";
 
@@ -146,7 +145,7 @@ public static class DominatorTreeColumns
 
     /// <summary>
     /// Whether the row's <see cref="Retained"/> is <see cref="RetainedExact"/> (an object) or <see cref="RetainedAtLeast"/> (a group
-    /// or a "more" row, its members' sizes added up; sprint 3.12, M6 of the 3.11 review). Exported with the rows.
+    /// or a "more" row, its members' sizes added up). Exported with the rows.
     /// </summary>
     public const string RetainedIs = "Retained is";
 
@@ -158,11 +157,11 @@ public static class DominatorTreeColumns
 }
 
 /// <summary>
-/// The dominator tree as a flattened, paged list (sprint 2.4, ADR-027): from the virtual root (the biggest retainers are
+/// The dominator tree as a flattened, paged list (ADR-027): from the virtual root (the biggest retainers are
 /// its top level) or from <paramref name="FocusAddress"/>, with the rows of <paramref name="Expanded"/> keys expanded, each
 /// node's children as objects or groups, at most <paramref name="MaxChildren"/> per node plus a "more" row (expanding it
 /// shows the next ones). <paramref name="RevealKey"/> asks where a row landed (the one just expanded or linked to), so
-/// the client can keep the user's place (<see cref="DominatorTreeResult.RevealIndex"/>; the 2.4 review).
+/// the client can keep the user's place (<see cref="DominatorTreeResult.RevealIndex"/>).
 /// </summary>
 public sealed record DominatorTreeRequest(
     Guid SnapshotId,
@@ -196,7 +195,7 @@ public sealed record DominatorTreeResult(
     int AncestorDepth = 0,
     int RevealIndex = -1);
 
-/// <summary>Column names of an "objects retained by this set" result set (sprint 2.4): one row per retained type.</summary>
+/// <summary>Column names of an "objects retained by this set" result set: one row per retained type.</summary>
 public static class RetainedBySetColumns
 {
     /// <summary>The type's display name (with its module when another type has the same name); the key.</summary>
@@ -219,8 +218,8 @@ public static class RetainedBySetColumns
 }
 
 /// <summary>
-/// "Objects retained by this set" (sprint 2.4): what every object of a type (by name and module, as in
-/// <see cref="InstancesRequest"/>) keeps alive together, exactly; or, with <paramref name="Set"/> (sprint 3.1), what the
+/// "Objects retained by this set": what every object of a type (by name and module, as in
+/// <see cref="InstancesRequest"/>) keeps alive together, exactly; or, with <paramref name="Set"/>, what the
 /// members of any object set keep alive together (the type name is then ignored).
 /// </summary>
 public sealed record RetainedBySetRequest(Guid SnapshotId, string TypeName, string? Module, ObjectSetSpec? Set = null);
@@ -247,7 +246,7 @@ public sealed record RetainedBySetResult(
     long AllObjects = 0);
 
 /// <summary>
-/// The icicle chart of the dominator tree (sprint 2.4): <paramref name="Levels"/> levels below <paramref name="FocusAddress"/>
+/// The icicle chart of the dominator tree: <paramref name="Levels"/> levels below <paramref name="FocusAddress"/>
 /// (0 for the whole reachable heap), leaving out bars narrower than <paramref name="MinShare"/> of the top bar.
 /// </summary>
 public sealed record IcicleRequest(Guid SnapshotId, ulong FocusAddress = 0, int Levels = 6, double MinShare = 0.001);

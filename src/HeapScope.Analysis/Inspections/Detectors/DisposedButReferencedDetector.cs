@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Disposed but referenced (sprint 2.6): at least <see cref="MinObjects"/> reachable objects of one type whose disposed
+/// Disposed but referenced: at least <see cref="MinObjects"/> reachable objects of one type whose disposed
 /// flag is set (the field names the .NET dispose pattern, its templates and auto-properties use; a bool, or an integer
 /// set with Interlocked). Something still holds objects that are done: a list never cleared, a cache, an event.
 /// </summary>
@@ -67,7 +67,7 @@ internal sealed class DisposedButReferencedDetector : IInspection
         var ct = context.CancellationToken;
         var reachable = DetectorGraph.Reachable(context);
 
-        // Reachable objects per type, and each type's first one: only types with enough of them are probed (review H7).
+        // Reachable objects per type, and each type's first one: only types with enough of them are probed.
         var perType = new long[graph.Types.Count];
         var first = new int[graph.Types.Count];
         Array.Fill(first, -1);
@@ -129,7 +129,7 @@ internal sealed class DisposedButReferencedDetector : IInspection
                     disposed.Add(type, obj, graph.GetSize(obj));
                     break;
                 case null:
-                    // Not known to be disposed or not (the review's M15): left out, never counted as not disposed.
+                    // Not known to be disposed or not: left out, never counted as not disposed.
                     unreadableFlags++;
                     break;
             }

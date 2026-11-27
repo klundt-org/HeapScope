@@ -35,7 +35,7 @@ internal abstract class RpcHandler(ILogger logger)
     /// <summary>The handler's log, under the handler's own category.</summary>
     protected ILogger Logger { get; } = logger;
 
-    // Every answer is logged with its request (sprint 2.3.7 review H3); page reads and probes, which a grid makes many of,
+    // Every answer is logged with its request; page reads and probes, which a grid makes many of,
     // at Debug.
     protected Task<T> GuardAsync<T>(Func<Task<T>> body, LogLevel resultLevel = LogLevel.Information, [CallerMemberName] string operation = "") =>
         WorkerErrors.GuardAsync(body, Logger, operation, null, resultLevel);

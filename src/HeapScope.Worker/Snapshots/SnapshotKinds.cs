@@ -32,7 +32,7 @@ using HeapScope.Storage;
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// What the worker does differently per snapshot kind (sprint 1.9): the loader and its version, how an opened graph
+/// What the worker does differently per snapshot kind: the loader and its version, how an opened graph
 /// becomes an <see cref="ISnapshot"/> (with or without a reader of the original file), the kind's data quality notes,
 /// why a loader fact is missing, and how its type names are matched against another kind's. The worker asks these
 /// handlers instead of checking the kind itself. Contracts' <c>CapabilityDescriptions</c> also words explanations per
@@ -47,7 +47,7 @@ internal abstract class SnapshotKindHandler
 
     /// <summary>
     /// The oldest loader version whose index cache opens in place of a rebuild that cannot reach the native code it needs
-    /// (sprint 3.12, the 3.10 review M14 and M30); a cache older than this is rebuilt or the open fails. A kind that loads no
+    /// a cache older than this is rebuilt or the open fails. A kind that loads no
     /// native code never falls back, so by default only the current version qualifies.
     /// </summary>
     public virtual int OldestFallbackLoaderVersion => LoaderVersion;
@@ -56,7 +56,7 @@ internal abstract class SnapshotKindHandler
 
     /// <summary>
     /// The snapshot over an opened graph. <paramref name="ensureUnchanged"/> checks the file before a reader uses it. With
-    /// <paramref name="refused"/>, the snapshot reads no values from the file and says why (sprint 3.12).
+    /// <paramref name="refused"/>, the snapshot reads no values from the file and says why.
     /// </summary>
     public abstract ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged, ValueReadsRefused? refused = null);
 
@@ -83,11 +83,11 @@ internal abstract class SnapshotKindHandler
 
     /// <summary>
     /// Why the roots of a snapshot of this kind are not all known (its GC handles, its static fields), or null when they are: an
-    /// object held only by one it lacks can look unreachable (sprint 4.7).
+    /// object held only by one it lacks can look unreachable.
     /// </summary>
     public virtual UncheckedRoots? Unchecked(SnapshotInfo info) => null;
 
-    /// <summary>What "no root reaches it" means for an object of a snapshot of this kind (review M3).</summary>
+    /// <summary>What "no root reaches it" means for an object of a snapshot of this kind.</summary>
     public abstract string UnreachableNote(SnapshotInfo info);
 
     /// <summary>
@@ -98,12 +98,12 @@ internal abstract class SnapshotKindHandler
 
     /// <summary>
     /// How this kind's type names are mapped before they are matched with a snapshot of <paramref name="other"/>, or null
-    /// when they are matched as they are (a diff across kinds, sprint 1.8).
+    /// when they are matched as they are (a diff across kinds).
     /// </summary>
     public abstract Func<string, string>? NamesWhenComparedWith(SnapshotKind other);
 
     /// <summary>
-    /// Why a snapshot opened from its index cache could not read field values later (sprint 3.6 review H1, sprint 3.12): the
+    /// Why a snapshot opened from its index cache could not read field values later: the
     /// full dump's DAC lies untrusted next to the dump (<see cref="UntrustedDacException"/>) or is missing
     /// (<see cref="RuntimeComponentMissingException"/>). Null when the reads can go ahead, and for kinds that load no native code.
     /// </summary>
@@ -111,23 +111,22 @@ internal abstract class SnapshotKindHandler
 
     /// <summary>
     /// The process name the current loader reads from <paramref name="path"/> and its rule, or null for a kind whose name never
-    /// changed between loader versions (sprint 3.12: an older full dump cache opened in place of a rebuild).
+    /// changed between loader versions (an older full dump cache opened in place of a rebuild).
     /// </summary>
     /// <exception cref="SnapshotFormatException">The file cannot be read for it.</exception>
     public virtual (string? Name, string Source)? ReadProcessName(string path) => null;
 }
 
 /// <summary>The handlers of every kind, chosen by kind or by a file's first bytes.</summary>
-/// <param name="dacChosen">Told which DAC each full dump's runtime was created with (sprint 2.3.7).</param>
-/// <param name="edgesKeptInMemory">Told a dump's path and why when its load keeps the references in memory (sprint 4.7).</param>
-/// <param name="symbolsChanged">Told the DAC lookup the first time a load uses it and whenever it changes (sprint 4.8, H15).</param>
+/// <param name="dacChosen">Told which DAC each full dump's runtime was created with.</param>
+/// <param name="edgesKeptInMemory">Told a dump's path and why when its load keeps the references in memory.</param>
+/// <param name="symbolsChanged">Told the DAC lookup the first time a load uses it and whenever it changes.</param>
 internal sealed class SnapshotKinds
 {
     // For what does not depend on the worker's options (texts, name forms, versions): explanations and diffs.
     private static readonly SnapshotKinds s_descriptions = new(new WorkerOptions(string.Empty, null));
 
-    // DACs the user trusts to load from next to a dump, by SHA-256, as open requests named them (sprint 3.6, peer review
-    // P2). Kept for the worker's lifetime: the field reader opens the dump again later with the same trust.
+    // DACs the user trusts to load from next to a dump, by SHA-256, as open requests named them. Kept for the worker's lifetime: the field reader opens the dump again later with the same trust.
     private readonly ConcurrentDictionary<string, byte> _trustedDacs = new(StringComparer.Ordinal);
 
     private readonly SnapshotKindHandler[] _handlers;
@@ -155,7 +154,7 @@ internal sealed class SnapshotKinds
     public SnapshotKindHandler For(SnapshotKind kind) =>
         _handlers.FirstOrDefault(h => h.Kind == kind) ?? throw new ArgumentOutOfRangeException(nameof(kind), $"No handler for snapshot kind {kind}.");
 
-    /// <summary>The handler for the file at <paramref name="path"/>, by its content, never its extension (sprint 1.8).</summary>
+    /// <summary>The handler for the file at <paramref name="path"/>, by its content, never its extension.</summary>
     /// <exception cref="SnapshotFormatException">The file is neither kind.</exception>
     public SnapshotKindHandler ForFile(string path) =>
         SnapshotFileSignature.Detect(path) is { } kind ? For(kind) : throw new SnapshotFormatException(SnapshotFileSignature.DescribeUnknown(path));
@@ -178,7 +177,7 @@ internal sealed class SnapshotKinds
 
         public override (string? Name, string Source)? ReadProcessName(string path) => ClrMdDumpLoader.ReadProcessName(path, LoaderOptions());
 
-        // Field values and strings are read from the dump on demand (sprint 1.5); the reader opens the dump only when
+        // Field values and strings are read from the dump on demand; the reader opens the dump only when
         // something is inspected, after checking it is still the file the graph was built from.
         public override ISnapshot Open(SnapshotInfo info, SnapshotCapabilities capabilities, HeapGraph graph, string path, Action ensureUnchanged, ValueReadsRefused? refused = null) =>
             refused is null
@@ -209,7 +208,7 @@ internal sealed class SnapshotKinds
                 notes.Add("This core dump does not record when it was taken; its capture time is the file's time, which a copy of the file can change.");
             }
 
-            // Sprint 4.8 (M3): the DAC is native code that reads untrusted data, with the worker's rights.
+            // The DAC is native code that reads untrusted data, with the worker's rights.
             if (options.RunsElevated)
             {
                 notes.Add(ElevationTexts.ElevatedDumpNote);
@@ -245,7 +244,7 @@ internal sealed class SnapshotKinds
         public override Func<string, string>? NamesWhenComparedWith(SnapshotKind other) =>
             other == SnapshotKind.GcDump ? TypeNameForms.AsGcDumpName : null;
 
-        // The lookup as the command line and the Settings page say now (sprint 4.8, H15), logged when it is new.
+        // The lookup as the command line and the Settings page say now, logged when it is new.
         private WorkerSymbols SymbolsNow()
         {
             var now = options.Symbols();
@@ -269,7 +268,7 @@ internal sealed class SnapshotKinds
         {
             DacFolder = symbols.DacFolder,
             AllowMicrosoftSymbolServer = symbols.AllowMicrosoftSymbolServer,
-            // Read again when the field reader opens the dump later (review M5): a withdrawn opt-in holds for open snapshots too.
+            // Read again when the field reader opens the dump later: a withdrawn opt-in holds for open snapshots too.
             AllowMicrosoftSymbolServerNow = () => options.Symbols().AllowMicrosoftSymbolServer,
             SecondHandleWalk = options.SecondHandleWalk,
             DacChosen = dacChosen,

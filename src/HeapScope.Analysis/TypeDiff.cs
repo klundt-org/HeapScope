@@ -31,11 +31,11 @@ namespace HeapScope.Analysis;
 /// <paramref name="BaselineTypes"/> and <paramref name="CurrentTypes"/> count the distinct types (method tables) summed
 /// into the row on each side. In Type grouping, <paramref name="TypeName"/> and <paramref name="Module"/> are the key that
 /// opens the row's objects on the side front ends open (the current snapshot, or the baseline for a gone row), as that
-/// side names the type; null when the row merges several types of that side under one name (sprint 1.8: a full dump's
+/// side names the type; null when the row merges several types of that side under one name (a full dump's
 /// nested types in a diff against a gcdump).
 /// </summary>
 /// <param name="ComparesCopies">False when the two sides are different snapshot kinds: their types are matched by mapped
-/// names, so the number of types per row says nothing about copies (sprint 1.8 review).</param>
+/// names, so the number of types per row says nothing about copies.</param>
 public sealed record DiffRow(
     string Name,
     long BaselineCount,
@@ -48,13 +48,13 @@ public sealed record DiffRow(
     string? Module = null,
     bool ComparesCopies = true)
 {
-    /// <summary>Current objects with no object of their type at their address in the baseline (sprint 3.3), when matched.</summary>
+    /// <summary>Current objects with no object of their type at their address in the baseline, when matched.</summary>
     public long? NewObjects { get; init; }
 
     /// <summary>Baseline objects with no object of their type at their address in the current snapshot, when matched.</summary>
     public long? DeadObjects { get; init; }
 
-    /// <summary>The row's retained lower bound in the baseline (sprint 3.3), when asked for.</summary>
+    /// <summary>The row's retained lower bound in the baseline, when asked for.</summary>
     public ulong? BaselineRetained { get; init; }
 
     /// <summary>The row's retained lower bound in the current snapshot, when asked for.</summary>
@@ -66,7 +66,7 @@ public sealed record DiffRow(
     /// <summary>The row's bytes per heap kind in the current snapshot.</summary>
     public ulong[]? CurrentKinds { get; init; }
 
-    /// <summary>Sampled bytes allocated of the row's types between the snapshots (sprint 4.4, an estimate); null without a sample.</summary>
+    /// <summary>Sampled bytes allocated of the row's types between the snapshots (an estimate); null without a sample.</summary>
     public long? AllocatedBytes { get; init; }
 
     /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
@@ -109,13 +109,13 @@ public sealed record DiffRow(
 }
 
 /// <summary>
-/// Compares the per-type totals of two snapshots (sprint 1.4, ADR-018): rows are matched by type name plus module file
+/// Compares the per-type totals of two snapshots (ADR-018): rows are matched by type name plus module file
 /// name, never by object identity and never by the types view's display names (their <c>#n</c> follows each snapshot's
 /// own type order). Method tables that share a key in one snapshot (one assembly in two load contexts) are summed.
 /// </summary>
 public static class TypeDiff
 {
-    /// <param name="baselineNames">Maps the baseline's type names before matching, or null (sprint 1.8: a full dump's names in
+    /// <param name="baselineNames">Maps the baseline's type names before matching, or null (a full dump's names in
     /// their gcdump form when it is compared with a gcdump, <see cref="TypeNameForms.AsGcDumpName"/>).</param>
     /// <param name="currentNames">Maps the current snapshot's type names before matching, or null.</param>
     public static List<DiffRow> Build(
@@ -211,7 +211,7 @@ public static class TypeDiff
                 _ => [(name, module)],
             };
 
-            // Retained bytes (sprint 3.3): per type in Type grouping (summed over its method tables), per group otherwise.
+            // Retained bytes: per type in Type grouping (summed over its method tables), per group otherwise.
             var typeRetained = retained is { ByType: true } ? retained.Bytes[t] : 0UL;
             var allocatedBytes = (isBaseline ? allocated?.BaselineBytes : allocated?.CurrentBytes)?[t] ?? 0;
             var allocatedSamples = (isBaseline ? allocated?.BaselineSamples : allocated?.CurrentSamples)?[t] ?? 0;
@@ -278,7 +278,7 @@ public static class TypeDiff
 }
 
 /// <summary>
-/// What a diff adds to its rows (sprint 3.3): object matches by address (unmatched objects per type index of each side)
+/// What a diff adds to its rows: object matches by address (unmatched objects per type index of each side)
 /// and retained bytes per group of each side.
 /// </summary>
 public sealed class DiffExtras
@@ -293,7 +293,7 @@ public sealed class DiffExtras
 
     public GroupRetained? CurrentRetained { get; init; }
 
-    /// <summary>The sampled allocations between the snapshots (sprint 4.4), joined to their types.</summary>
+    /// <summary>The sampled allocations between the snapshots, joined to their types.</summary>
     public AllocationJoin? Allocated { get; init; }
 
     /// <summary>Whether rows carry their bytes per heap kind (both snapshots have generations).</summary>

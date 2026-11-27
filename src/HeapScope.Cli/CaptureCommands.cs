@@ -92,7 +92,7 @@ internal static partial class CliCommands
             }
             catch (SessionUnreadableException ex)
             {
-                // A session that exists but cannot be read says why, not "is not a session" (sprint 3.6 review).
+                // A session that exists but cannot be read says why, not "is not a session".
                 await error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
                 return Failure;
             }

@@ -27,7 +27,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// What a set of objects retains together, exactly (sprint 2.4; 2.3 decision 7): the objects that are reachable now and
+/// What a set of objects retains together, exactly: the objects that are reachable now and
 /// would not be without the set, its own members included. One reachability pass from the roots
 /// (<see cref="PathRoots.Sources"/>, as the dominators use) that never enters the set; whatever the dominators reach and
 /// the pass does not is retained. A group's retained column is only a lower bound (ADR-024) because objects held by
@@ -37,7 +37,7 @@ public static class SetRetention
 {
     /// <summary>
     /// Bytes per object of working memory at worst: a bit per object, and the search stack (an int per object at worst,
-    /// held in 64 KB chunks that grow and shrink with it; the 2.4 review: a doubling list held two copies while it grew).
+    /// held in 64 KB chunks that grow and shrink with it; a doubling list held two copies while it grew).
     /// </summary>
     public const int WorkingBytesPerObject = 5;
 
@@ -75,7 +75,7 @@ public static class SetRetention
     }
 
     /// <summary>
-    /// The objects the members of <paramref name="set"/> retain, by type (sprint 3.1). With
+    /// The objects the members of <paramref name="set"/> retain, by type. With
     /// <paramref name="collectRetained"/> the result also holds the retained objects as a set (a "retained by" set).
     /// </summary>
     public static SetRetentionResult Compute(
@@ -211,8 +211,8 @@ public static class SetRetention
 }
 
 /// <summary>
-/// What a set retains (sprint 2.4): all of the set's members (no root reaches the others, so they retain nothing), its
+/// What a set retains: all of the set's members (no root reaches the others, so they retain nothing), its
 /// reachable members and their bytes, the objects it retains (members included) and their bytes, and the retained
-/// objects and bytes per type table entry; with collectRetained, the retained objects as a set (sprint 3.1).
+/// objects and bytes per type table entry; with collectRetained, the retained objects as a set.
 /// </summary>
 public sealed record SetRetentionResult(long AllObjects, long SetObjects, ulong SetBytes, long RetainedObjects, ulong RetainedBytes, long[] ObjectsByType, ulong[] BytesByType, ObjectSet? Retained = null);

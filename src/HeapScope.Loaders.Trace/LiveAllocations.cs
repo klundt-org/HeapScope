@@ -28,7 +28,7 @@ using HeapScope.Core.Allocations;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// The allocations of a trace that is still being recorded, added up as they arrive (sprint 4.3, ADR-037): by stretch of time,
+/// The allocations of a trace that is still being recorded, added up as they arrive (ADR-037): by stretch of time,
 /// type, stack and kind. Stacks are folded by method where it is known when the sample arrives, by address where not, and the
 /// addresses take their method's name once it is (<see cref="Rename"/>). Bounded: a stretch grows when there are too many of them,
 /// or too many entries, and what is past the limits is added up under <see cref="OtherStacks"/> and <see cref="OtherTypes"/>,

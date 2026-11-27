@@ -27,7 +27,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Worker;
 
 /// <summary>
-/// The worker's line for a change of what the logs may hold (sprint 3.12 review M19; sprint 3.13.2): a log that holds values
+/// The worker's line for a change of what the logs may hold: a log that holds values
 /// read from a dump says so from the line where it starts to, as a warning so a log kept at Warning says so too.
 /// </summary>
 internal static class PrivacyLog

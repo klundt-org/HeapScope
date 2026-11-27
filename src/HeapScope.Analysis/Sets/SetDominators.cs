@@ -26,7 +26,7 @@ using HeapScope.Analysis.Retention;
 namespace HeapScope.Analysis.Sets;
 
 /// <summary>
-/// The members of a set no other member dominates (sprint 3.1), most retained first: <see cref="Tops"/> with, at the same
+/// The members of a set no other member dominates, most retained first: <see cref="Tops"/> with, at the same
 /// position, how many other members are below each in the dominator tree; and the members no root reaches.
 /// </summary>
 public sealed class SetDominatorList(int[] tops, int[] below, long unreachable)
@@ -43,9 +43,9 @@ public sealed class SetDominatorList(int[] tops, int[] below, long unreachable)
 }
 
 /// <summary>
-/// The members of a set that no other member dominates (sprint 3.1): what the set's retention divides into, each with its
+/// The members of a set that no other member dominates: what the set's retention divides into, each with its
 /// retained size (exact, other members below it included). No two of them overlap, so their retained sizes add up.
-/// Two walks down the dominator tree from the root (sprint 3.1 review: chunked stacks and exact arrays, no doubling
+/// Two walks down the dominator tree from the root (chunked stacks and exact arrays, no doubling
 /// lists): the first marks the tops, the second counts the members below each; then a sort by retained size.
 /// </summary>
 public static class SetDominators

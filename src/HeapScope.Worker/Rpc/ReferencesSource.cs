@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// The objects one object references (sprint 1.5), in the graph's order. With an object reader each reference is named
+/// The objects one object references, in the graph's order. With an object reader each reference is named
 /// by the field path or array index that holds it; otherwise by its position (<c>#1</c>, <c>#2</c>).
 /// </summary>
 internal sealed class ReferencesSource : IResultSource

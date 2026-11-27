@@ -145,7 +145,7 @@ comments, tests without a UI thread).
 4. [x] M15, classes: the view models over 600 lines are split along their parts (CompareViewModel, LiveAllocationsViewModel,
    InspectionsViewModel, SnapshotsViewModel once the workspace is out), and an architecture test caps a view model file at 600 lines,
    with a named, shrinking list of exceptions. Tests: the cap; the split classes' existing tests unchanged.
-5. [ ] M15, comments: source comments say why without sprint or review ids (a decision keeps its ADR number); an architecture test
+5. [x] M15, comments: source comments say why without sprint or review ids (a decision keeps its ADR number); an architecture test
    refuses new ones in src. Tests: the rule, with its patterns.
 6. [ ] M15, the UI thread: a test dispatcher that runs on a thread of its own, and checks that a view model's state changes there;
    the workspace and page tests use it. Tests: a property set off that thread fails the test; the workspace tests pass on it.

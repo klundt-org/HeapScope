@@ -28,8 +28,8 @@ using Microsoft.Diagnostics.Runtime;
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// Reads field values, strings and reference paths from a full dump (sprint 1.5, <see cref="IObjectReader"/>), as typed
-/// values (sprint 1.6; the worker formats them). The dump is opened with ClrMD on first use, not when the snapshot
+/// Reads field values, strings and reference paths from a full dump (<see cref="IObjectReader"/>), as typed
+/// values (the worker formats them). The dump is opened with ClrMD on first use, not when the snapshot
 /// opens, so snapshots nobody inspects cost nothing; reads are serialized (ClrMD's caches are not meant for concurrent
 /// readers) and the dump is released on dispose.
 /// </summary>
@@ -43,7 +43,7 @@ public sealed class ClrMdObjectReader : IObjectReader, IDisposable
 
     /// <summary>
     /// Characters streamed per lock acquisition by <see cref="ReadStringPieces"/>: a batch of huge strings releases the
-    /// lock often enough for other reads (pages, the object view) to get in (review of 1.6).
+    /// lock often enough for other reads (pages, the object view) to get in.
     /// </summary>
     private const long CharBudget = 16L * 1024 * 1024;
 
@@ -58,7 +58,7 @@ public sealed class ClrMdObjectReader : IObjectReader, IDisposable
 
     /// <param name="beforeOpen">
     /// Runs before the dump is opened, which can be long after the snapshot was: the owner checks the file is still the
-    /// one its graph was built from and throws if not (sprint 1.5 review H5).
+    /// one its graph was built from and throws if not.
     /// </param>
     public ClrMdObjectReader(string dumpPath, ClrMdLoaderOptions? options = null, Action? beforeOpen = null)
     {
@@ -307,7 +307,7 @@ public sealed class ClrMdObjectReader : IObjectReader, IDisposable
     {
         lock (_gate)
         {
-            // ClrMD lists a type's own non-generic InterfaceImpl rows (the 3.2 review): base types' interfaces and generic
+            // ClrMD lists a type's own non-generic InterfaceImpl rows: base types' interfaces and generic
             // instantiations (from the module's metadata) are added here. Interfaces an interface extends come with the
             // class's own rows (compilers list the closure); BaseInterface is walked in case a module does not.
             if (Object(address).Type is not { } type)
@@ -546,7 +546,7 @@ public sealed class ClrMdObjectReader : IObjectReader, IDisposable
 
     /// <summary>
     /// The paths to one target: the first few and a count. An array whose slots share one object (empty strings, a
-    /// sentinel) has a million paths to it; joining them all would be quadratic and useless (sprint 1.5 review H1).
+    /// sentinel) has a million paths to it; joining them all would be quadratic and useless.
     /// </summary>
     private sealed class PathNames
     {
@@ -650,7 +650,7 @@ public sealed class ClrMdObjectReader : IObjectReader, IDisposable
 
     /// <summary>
     /// One element of an array by its position in memory (row-major). Multi-dimensional arrays are read with indices
-    /// (ClrMD's single-index reads are for vectors) and named <c>[i,j]</c> with their lower bounds (sprint 1.5 review).
+    /// (ClrMD's single-index reads are for vectors) and named <c>[i,j]</c> with their lower bounds.
     /// </summary>
     private readonly struct ArraySlot : IValueSource
     {

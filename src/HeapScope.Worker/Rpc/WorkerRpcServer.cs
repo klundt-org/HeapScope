@@ -75,7 +75,7 @@ internal sealed class WorkerRpcServer(
 
             logger.LogInformation("Client connected on pipe {Pipe}", options.Pipe);
             // Each request runs under an activity whose parent is the client's (W3C trace context in the request), so the
-            // worker's lines carry the trace id of the UI or CLI action that caused them (sprint 2.3.7 review M1).
+            // worker's lines carry the trace id of the UI or CLI action that caused them.
             using var rpc = new JsonRpc(new HeaderDelimitedMessageHandler(pipe, pipe, new JsonMessageFormatter()))
             {
                 ActivityTracingStrategy = new ActivityTracingStrategy(),

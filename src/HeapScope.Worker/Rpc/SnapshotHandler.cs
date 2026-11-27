@@ -44,7 +44,7 @@ internal sealed class SnapshotHandler(
         });
 
     /// <summary>Closes the snapshot; the store drops its derived data and its object sets with it.</summary>
-    /// <remarks>Through the guard like every method (sprint 3.12 review M17): a failure is logged with its id, as B5 shows it.</remarks>
+    /// <remarks>Through the guard like every method: a failure is logged with its id, as B5 shows it.</remarks>
     public Task CloseSnapshotAsync(Guid snapshotId, CancellationToken cancellationToken) =>
         GuardAsync(
             snapshotId,

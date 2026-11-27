@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>
-/// A monitoring run's timeline CSV (sprint 1.7, split from the run in 3.8, peer review P11): created new in the run's
+/// A monitoring run's timeline CSV (a part of the run): created new in the run's
 /// session folder, one row per sample, capture marker or event. Never creates a file after it is closed, and after its
 /// first failure it writes nothing more and has warned once: the timeline is a convenience, and a full disk must not stop
 /// monitoring or flood the log. Not thread-safe: the run calls it under its lock.

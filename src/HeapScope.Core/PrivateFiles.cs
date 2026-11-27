@@ -25,13 +25,13 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// Creates HeapScope's own folders and files readable by the user only (sprint 2.3.6, 2.3.5 review L5; ARCHITECTURE.md
+/// Creates HeapScope's own folders and files readable by the user only (ARCHITECTURE.md
 /// 12): on Linux and macOS folders get 0700 and files 0600 instead of the process's umask, which often lets other users
-/// read them. On Windows a file it creates gets an owner-only access list since sprint 3.7 (peer review P15): the profile's
+/// read them. On Windows a file it creates gets an owner-only access list: the profile's
 /// own list covers files under the profile, not a dump's index cache in a folder the user picked (<c>--out</c>). Applies
 /// to what HeapScope writes (sessions, logs, index caches and their sidecars, timelines, traces, exports), not to a folder
 /// the user picked. Run with sudo on Linux, what it creates here, and a file it protects, is given to the user who ran it
-/// (sprint 4.8, H17; <see cref="InvokingUser"/>).
+/// (<see cref="InvokingUser"/>).
 /// </summary>
 public static class PrivateFiles
 {
@@ -71,7 +71,7 @@ public static class PrivateFiles
 
     /// <summary>
     /// Creates <paramref name="path"/> and missing parents as <see cref="Directory.CreateDirectory(string)"/> does, for a folder the
-    /// user picked (a capture's <c>--out</c>): the umask's mode, and under sudo each new folder is the invoking user's (sprint 4.8).
+    /// user picked (a capture's <c>--out</c>): the umask's mode, and under sudo each new folder is the invoking user's.
     /// </summary>
     public static DirectoryInfo CreateUserDirectory(string path)
     {
@@ -103,7 +103,7 @@ public static class PrivateFiles
     /// Opens <paramref name="path"/> like the <see cref="FileStream"/> constructor; a file it creates is owner-only off
     /// Windows. <paramref name="preallocationSize"/> reserves disk space for a new file up front, so a full disk fails here
     /// with an <see cref="IOException"/> rather than later (a mapped write to a sparse file on Linux and macOS would
-    /// kill the process with SIGBUS; sprint 2.3.6 review).
+    /// kill the process with SIGBUS).
     /// </summary>
     public static FileStream Open(string path, System.IO.FileMode mode, FileAccess access, FileShare share, int bufferSize = 4096, FileOptions options = FileOptions.None, long preallocationSize = 0)
     {
@@ -117,7 +117,7 @@ public static class PrivateFiles
         if (OperatingSystem.IsWindows() && mode is System.IO.FileMode.CreateNew or System.IO.FileMode.Create)
         {
             // The file is created with its owner-only list in one step, so no handle can be opened under the folder's list
-            // in between (3.7 review), then opened as asked; an existing file keeps its list when overwritten, so a second
+            // in between, then opened as asked; an existing file keeps its list when overwritten, so a second
             // Create keeps the new one and still preallocates.
             FileSystemAclExtensions.Create(new FileInfo(path), mode, System.Security.AccessControl.FileSystemRights.Write, FileShare.None, 1, FileOptions.None, OwnerOnly()).Dispose();
             settings.Mode = System.IO.FileMode.Create;
@@ -147,7 +147,7 @@ public static class PrivateFiles
     }
 
     /// <summary>
-    /// Makes an existing file readable by the user only (sprint 3.7, peer review P15): 0600 off Windows; on Windows an
+    /// Makes an existing file readable by the user only: 0600 off Windows; on Windows an
     /// access list that grants the current user full control and inherits nothing from its folder. For files HeapScope
     /// created or a capture wrote for it, such as a dump in a folder the user picked.
     /// </summary>
@@ -157,7 +157,7 @@ public static class PrivateFiles
         if (!OperatingSystem.IsWindows())
         {
             File.SetUnixFileMode(path, FileMode);
-            // Under sudo, a dump the runtime wrote as the process's user becomes the invoking user's (sprint 4.8, H17).
+            // Under sudo, a dump the runtime wrote as the process's user becomes the invoking user's.
             InvokingUser.Give(path);
             return;
         }
@@ -179,7 +179,7 @@ public static class PrivateFiles
 
     /// <summary>
     /// Creates HeapScope's own data folder <paramref name="path"/> (with its parents) owner-only, and makes it owner-only
-    /// when it exists already with a wider mode (sprint 3.7, peer review P15: a folder another user created first, or one
+    /// when it exists already with a wider mode (a folder another user created first, or one
     /// from an older build, kept its mode). Off Windows only the owner may change a mode, so a folder that is not the
     /// user's fails here instead of holding the user's files.
     /// </summary>

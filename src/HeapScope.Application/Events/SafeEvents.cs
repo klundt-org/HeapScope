@@ -27,12 +27,12 @@ namespace HeapScope.Application.Events;
 
 /// <summary>
 /// Raises an event so that a listener that throws is logged and changes nothing else: not a job's outcome, not an open,
-/// not a worker host call. Raisers call it after their state is final and outside their locks (peer review P9).
+/// not a worker host call. Raisers call it after their state is final and outside their locks.
 /// </summary>
 public static class SafeEvents
 {
     // How often each listener of each event failed: the first failure is logged with its stack, later ones at Debug with
-    // their count, so a listener that fails on every sample cannot fill the log (3.8 review).
+    // their count, so a listener that fails on every sample cannot fill the log.
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> s_failures = new(StringComparer.Ordinal);
 
     /// <summary>Calls each listener of <paramref name="handler"/> in turn; one that throws is logged as a warning.</summary>

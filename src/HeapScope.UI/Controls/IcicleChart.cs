@@ -33,7 +33,7 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// The Retainers tab's icicle chart (sprint 2.4): the focus as the top bar and its dominator children below, as wide as
+/// The Retainers tab's icicle chart: the focus as the top bar and its dominator children below, as wide as
 /// what they retain. A click selects a bar (and the path to it is highlighted); a double-click runs
 /// <see cref="FocusCommand"/> with it. One control drawn in one pass; the geometry is <see cref="IcicleGeometry"/>'s.
 /// </summary>
@@ -56,7 +56,7 @@ public sealed class IcicleChart : Control
 
     private IReadOnlyList<IcicleBar> _bars = [];
 
-    /// <summary>The bars as last drawn, in the chart's own coordinates (the screenshot run points at them, sprint 4.1).</summary>
+    /// <summary>The bars as last drawn, in the chart's own coordinates (the screenshot run points at them).</summary>
     internal IReadOnlyList<IcicleBar> Bars => _bars;
     private IcicleSegmentDto? _hovered;
 

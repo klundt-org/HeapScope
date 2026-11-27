@@ -25,8 +25,7 @@ namespace HeapScope.Capture;
 
 /// <summary>
 /// Files whose paths a target process names (its runtime folder, from its mappings): another, possibly less
-/// privileged user chose them, so HeapScope reads or copies one only when it is a regular file of a sane size (sprint 4.1
-/// review H5). A pipe would block the read and a device would never end; both report a length of 0.
+/// privileged user chose them, so HeapScope reads or copies one only when it is a regular file of a sane size. A pipe would block the read and a device would never end; both report a length of 0.
 /// </summary>
 public static class TargetFiles
 {

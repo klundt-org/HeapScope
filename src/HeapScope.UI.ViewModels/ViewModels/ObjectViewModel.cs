@@ -120,8 +120,8 @@ public sealed class ReferenceRowItem(int index) : ObservableObject, IIndexedRow,
 }
 
 /// <summary>
-/// One object (sprint 1.5): what the graph knows, its fields as a tree when the snapshot reads its dump (the capability
-/// explanation otherwise), its text when it is a string, its outgoing references and (sprint 2.1) the objects referencing
+/// One object: what the graph knows, its fields as a tree when the snapshot reads its dump (the capability
+/// explanation otherwise), its text when it is a string, its outgoing references and the objects referencing
 /// it, loaded when the Incoming tab is first shown because the first such query of a snapshot builds its reverse index;
 /// references, referrers and field links open further objects through <see cref="OpenCommand"/>.
 /// </summary>
@@ -166,13 +166,13 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
     private string? _incomingStatus;
 
     /// <summary>
-    /// The references tab shown: 0 outgoing, 1 incoming (sprint 2.1), 2 retention (sprint 2.2). Showing incoming or
+    /// The references tab shown: 0 outgoing, 1 incoming, 2 retention. Showing incoming or
     /// retention loads it once.
     /// </summary>
     [ObservableProperty]
     private int _referencesTab;
 
-    /// <summary>The object's key retention paths among the roots found (sprint 2.2).</summary>
+    /// <summary>The object's key retention paths among the roots found.</summary>
     [ObservableProperty]
     private IReadOnlyList<KeyPathItem> _keyPaths = [];
 
@@ -184,11 +184,11 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
     [ObservableProperty]
     private string? _retentionStatus;
 
-    /// <summary>Shows every framework step instead of folding runs of them (decision 4).</summary>
+    /// <summary>Shows every framework step instead of folding runs of them.</summary>
     [ObservableProperty]
     private bool _showFrameworkSteps;
 
-    /// <summary>The object's retained size in a line (sprint 2.3), its progress while computed, or why there is none.</summary>
+    /// <summary>The object's retained size in a line, its progress while computed, or why there is none.</summary>
     [ObservableProperty]
     private string? _retainedSummary;
 
@@ -210,7 +210,7 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
         Address = address;
         _logger = logger ?? NullLogger.Instance;
 
-        // A reference, a referrer, a retention node, a key path, a field link or the dominator's address (2.3.7 review M8).
+        // A reference, a referrer, a retention node, a key path, a field link or the dominator's address.
         OpenCommand = new RelayCommand<object?>(link =>
         {
             var target = link switch
@@ -235,16 +235,16 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
     /// <summary>The navigation title.</summary>
     public string Title { get; private set; } = string.Empty;
 
-    /// <summary>The object's type, once read (a bookmark's label, sprint 2.7).</summary>
+    /// <summary>The object's type, once read (a bookmark's label).</summary>
     public string? TypeName { get; private set; }
 
     /// <summary>Opens a reference row or a field link as a new subject.</summary>
     public ICommand OpenCommand { get; }
 
-    /// <summary>Shows this object in the dominator tree, on the Retainers tab (sprint 2.4).</summary>
+    /// <summary>Shows this object in the dominator tree, on the Retainers tab.</summary>
     public ICommand ShowInRetainersCommand { get; }
 
-    /// <summary>The references panel's tab (2.3.7 review M8; <see cref="ReferencesTab"/> is the view's index).</summary>
+    /// <summary>The references panel's tab (<see cref="ReferencesTab"/> is the view's index).</summary>
     public ObjectReferenceTabs ReferencesView
     {
         get => (ObjectReferenceTabs)ReferencesTab;
@@ -282,7 +282,7 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
 
     partial void OnReferencesTabChanged(int value)
     {
-        // A step that failed (the worker restarted meanwhile) runs again when its tab is shown again (peer review 4.5 M7).
+        // A step that failed (the worker restarted meanwhile) runs again when its tab is shown again.
         if (value == 1 && !_incomingStarted)
         {
             _incomingStarted = true;
@@ -352,7 +352,7 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
     }
 
     /// <summary>
-    /// The object's retained size and immediate dominator (sprint 2.3), after its paths: the first query of a snapshot
+    /// The object's retained size and immediate dominator, after its paths: the first query of a snapshot
     /// computes its dominators, so their phases show meanwhile.
     /// </summary>
     private Task LoadRetainedAsync(CancellationToken cancellationToken)
@@ -388,7 +388,7 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
         RetentionTree = [RetentionNodeItem.BuildTree(_paths.Nodes, ShowFrameworkSteps)];
     }
 
-    // The first query builds the snapshot's index in the worker: its phases replace the busy text (review M7).
+    // The first query builds the snapshot's index in the worker: its phases replace the busy text.
     private Task<bool> LoadIncomingAsync(CancellationToken cancellationToken)
     {
         IncomingStatus = "Finding referrers (the first query of a snapshot indexes its incoming references)...";
@@ -445,7 +445,7 @@ public sealed partial class ObjectViewModel : ObservableObject, INavigationSubje
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Object", ex.Message);
             Status = ex.Message;
         }

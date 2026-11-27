@@ -32,7 +32,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>instances</c> and <c>object</c> commands (sprint 1.5): the objects of a type, and one object's fields and
+/// The <c>instances</c> and <c>object</c> commands: the objects of a type, and one object's fields and
 /// references. Values come from the dump; like the other commands they go to the console only, never to the log.
 /// </summary>
 internal static partial class CliCommands

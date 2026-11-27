@@ -24,7 +24,7 @@
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// What a live trace's answer counted (sprint 4.3): the interval asked for, outward to whole stretches, which grow in a long
+/// What a live trace's answer counted: the interval asked for, outward to whole stretches, which grow in a long
 /// recording, and as of when. Questions asked within a second may be answered from one view, so it can be a little older than the
 /// trace's state.
 /// </summary>

@@ -28,7 +28,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Loaders.GcDump;
 
 /// <summary>
-/// Type names of a gcdump in the form the full dump loader writes them (sprint 1.8), as far as they can be recovered.
+/// Type names of a gcdump in the form the full dump loader writes them, as far as they can be recovered.
 /// The gcdump writer changes names in four ways: generic arguments are joined by "," without a space, "&lt;&gt;" in
 /// compiler names becomes "[]" ("[]c" for "&lt;&gt;c"), arrays above 1 KB and 10 KB get their own nodes named
 /// "T[] (Bytes &gt; 10K)", and nested types lose their declaring type ("Entry&lt;K, V&gt;[]" for
@@ -74,7 +74,7 @@ public static partial class TypeNames
             name = name[RcwPrefix.Length..^1];
         }
 
-        // The writer turned every "[" and "]" into angle brackets: "[,]" is recorded as "<,>" (review M2). No generic
+        // The writer turned every "[" and "]" into angle brackets: "[,]" is recorded as "<,>". No generic
         // argument list is commas only (open generic types have no instances).
         name = MultiDimensional().Replace(name, "[$1]");
 

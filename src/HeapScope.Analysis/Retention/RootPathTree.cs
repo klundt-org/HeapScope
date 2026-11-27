@@ -26,9 +26,9 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// Every object's shortest path from a root (sprint 2.2): one breadth-first search forward from all path roots at once,
+/// Every object's shortest path from a root: one breadth-first search forward from all path roots at once,
 /// keeping for each object the object it was first reached from. Roots are queued best first (static fields, then stacks,
-/// handles, the finalizer queue, other roots, then frozen objects; decision 1), so at equal distance the better root wins.
+/// handles, the finalizer queue, other roots, then frozen objects), so at equal distance the better root wins.
 /// Costs 4 bytes per object kept (<see cref="BytesPerObject"/>), and as many more while it is built.
 /// <see cref="BuildBytesPerObject"/> is what the worker checks against its budget first.
 /// </summary>

@@ -24,7 +24,7 @@
 namespace HeapScope.Core.Loading;
 
 /// <summary>
-/// Turns one kind of snapshot file into a <see cref="LoadResult"/> (sprint 1.8). Fails with
+/// Turns one kind of snapshot file into a <see cref="LoadResult"/>. Fails with
 /// <see cref="SnapshotFormatException"/> when the file is not one it can read, with a message that says what to do.
 /// </summary>
 public interface ISnapshotLoader
@@ -34,7 +34,7 @@ public interface ISnapshotLoader
 
     /// <summary>
     /// The version of what the loader records (capabilities, names, roots, facts). Bump it when a change makes graphs or
-    /// metadata built before it wrong: index caches from an older version are rebuilt (sprint 1.8 review M7).
+    /// metadata built before it wrong: index caches from an older version are rebuilt.
     /// </summary>
     int Version { get; }
 

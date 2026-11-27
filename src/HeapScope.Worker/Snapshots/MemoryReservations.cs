@@ -29,7 +29,7 @@ namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
 /// The worker's memory check for computations with large working arrays (the root path tree, the dominators, the
-/// retained sizes per group; sprint 2.3 decision 4, review M2). A computation reserves what it will allocate before it
+/// retained sizes per group). A computation reserves what it will allocate before it
 /// starts; the check counts what the worker commits plus what running computations have reserved, so two first uses at
 /// once (the types grid's retained column while an object's paths load) cannot both pass against the same reading. The
 /// count is conservative: a running computation's own allocations are in both. One instance per worker.
@@ -74,7 +74,7 @@ internal sealed class MemoryReservations(Func<MemoryBudget>? budget = null, Func
     }
 
     /// <summary>
-    /// Reserves <paramref name="bytes"/> for work that belongs to no snapshot (sprint 2.5: allocation traces), refusing with
+    /// Reserves <paramref name="bytes"/> for work that belongs to no snapshot (allocation traces), refusing with
     /// <paramref name="nextStep"/> as the plain-language next step.
     /// </summary>
     public IDisposable Reserve(long bytes, string what, string nextStep)
@@ -98,8 +98,8 @@ internal sealed class MemoryReservations(Func<MemoryBudget>? budget = null, Func
 
     /// <summary>
     /// Why <paramref name="needed"/> bytes do not fit (null when they do): the share of physical memory left after
-    /// <paramref name="committedBytes"/>, capped by what the machine has available (2.2 review M1). The next step depends
-    /// on the snapshot (review M11): only an in-memory snapshot with an index cache can be reopened mapped.
+    /// <paramref name="committedBytes"/>, capped by what the machine has available. The next step depends
+    /// on the snapshot: only an in-memory snapshot with an index cache can be reopened mapped.
     /// </summary>
     internal static string? Refusal(long needed, string what, MemoryBudget budget, long committedBytes, MemoryMode graphMode, bool hasCache)
     {
@@ -132,14 +132,13 @@ internal sealed class MemoryReservations(Func<MemoryBudget>? budget = null, Func
     }
 
     /// <summary>
-    /// Returns the large arrays a computation dropped to the OS, completed, failed or canceled (ARCHITECTURE.md 9, review
-    /// M3): a blocking gen2 collection that does not compact, so no live graph array is copied.
+    /// Returns the large arrays a computation dropped to the OS, completed, failed or canceled (ARCHITECTURE.md 9): a blocking gen2 collection that does not compact, so no live graph array is copied.
     /// </summary>
     public static void Collect() => GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: false);
 
     private static long CommittedBytes()
     {
-        // Its physical footprint on macOS, where private bytes read 0 (peer review 4.5 H7).
+        // Its physical footprint on macOS, where private bytes read 0.
         return HeapScope.Core.ProcessMemory.PrivateBytes();
     }
 

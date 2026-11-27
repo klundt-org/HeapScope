@@ -31,7 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>referrers</c> command (sprint 2.1): who references one object (each referrer once, with the field holding it on
+/// The <c>referrers</c> command: who references one object (each referrer once, with the field holding it on
 /// full dumps), or the objects of a type (referrers grouped by their type). The first such query of a snapshot builds its
 /// reverse references index and writes it next to the index cache; later runs reuse it.
 /// </summary>
@@ -120,7 +120,7 @@ internal static partial class CliCommands
             var result = list.Result;
             if (result.MatchedTypes == 0)
             {
-                // Like instances: a mistyped name or module must not pass a script silently (review M8).
+                // Like instances: a mistyped name or module must not pass a script silently.
                 await error.WriteLineAsync($"Error: there is no type {typeName} in module '{moduleName}' in this snapshot.").ConfigureAwait(false);
                 await ReleaseQuietlyAsync(list.Rows, ct).ConfigureAwait(false);
                 return Failure;
@@ -238,7 +238,7 @@ internal static partial class CliCommands
 
     /// <summary>
     /// Says on stderr when the incoming references index was built for this run (the slow first query) and whether it was
-    /// saved, and when the snapshot is incomplete, so referrers may be missing (review M9).
+    /// saved, and when the snapshot is incomplete, so referrers may be missing.
     /// </summary>
     private static async Task WriteIndexNoteAsync(TextWriter error, ReverseIndexInfo? index, bool completeGraph)
     {

@@ -47,7 +47,7 @@ public enum AllocationRowKind
 }
 
 /// <summary>
-/// A row of a flattened allocation tree (sprint 2.5): its key and its parent's, its depth and kind, the frame id (or -1),
+/// A row of a flattened allocation tree: its key and its parent's, its depth and kind, the frame id (or -1),
 /// its name, the sampled bytes of the stacks through it (Total), those allocated in the frame itself (Own; -1 where it
 /// has no meaning, below the first level of back traces), the samples, how many children it has, and whether it is open.
 /// </summary>
@@ -104,7 +104,7 @@ public static class AllocationTreeRows
         ArgumentNullException.ThrowIfNull(expanded);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxChildren, 1);
 
-        // Working arrays sized by the stack nodes come from the pool: every expansion is a query (the 2.5 review).
+        // Working arrays sized by the stack nodes come from the pool: every expansion is a query.
         var count = trace.StackFrames.Length;
         var own = ArrayPool<long>.Shared.Rent(Math.Max(count, 1));
         var ownSamples = ArrayPool<int>.Shared.Rent(Math.Max(count, 1));

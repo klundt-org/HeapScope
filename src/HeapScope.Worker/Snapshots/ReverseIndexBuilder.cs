@@ -28,20 +28,20 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Snapshots;
 
-/// <summary>A snapshot's reverse references index and how it was obtained (sprint 2.1).</summary>
+/// <summary>A snapshot's reverse references index and how it was obtained.</summary>
 /// <param name="FromSidecar">Opened from the sidecar next to the index cache rather than built.</param>
 /// <param name="SidecarWritten">The index is saved in its sidecar (opened from it, or built and written), so the next open reuses it.</param>
 internal sealed record ReverseIndex(ReverseReferences References, bool FromSidecar, MemoryMode Mode, bool SidecarWritten);
 
-/// <summary>Where a snapshot's reverse index is kept and in which memory mode (sprint 2.1).</summary>
+/// <summary>Where a snapshot's reverse index is kept and in which memory mode.</summary>
 /// <param name="Sidecar">The sidecar path; null when the snapshot has no index cache (the index then stays in memory).</param>
 /// <param name="BaseIdentity">The identity of the index cache the sidecar extends.</param>
 internal sealed record ReverseIndexTarget(string? Sidecar, ulong BaseIdentity, SnapshotFingerprint Fingerprint, MemoryMode Mode);
 
 /// <summary>
-/// Opens a snapshot's reverse references index from its sidecar or builds it from the graph (sprint 2.1, ARCHITECTURE.md
+/// Opens a snapshot's reverse references index from its sidecar or builds it from the graph (ARCHITECTURE.md
 /// 6.4 and 7). With a sidecar to write, the index is built straight into the mapped sidecar file and then opened in the
-/// chosen mode (sprint 2.3, from the 2.1 review M2), so a mapped index never holds a managed copy; without one, or when the
+/// chosen mode, so a mapped index never holds a managed copy; without one, or when the
 /// file cannot be written, it is built in managed arrays and stays in memory.
 /// </summary>
 internal sealed class ReverseIndexBuilder(ILogger logger, IndexCacheSigner signer)
@@ -51,7 +51,7 @@ internal sealed class ReverseIndexBuilder(ILogger logger, IndexCacheSigner signe
     private const string BuildPhase = "Indexing incoming references";
 
     /// <summary>
-    /// The memory mode for an index of <paramref name="indexBytes"/> (review M3): a forced mode wins; without a sidecar it
+    /// The memory mode for an index of <paramref name="indexBytes"/>: a forced mode wins; without a sidecar it
     /// can only be held in memory; next to a mapped graph it is mapped; next to an in-memory graph it is held in memory
     /// only when it fits both what the machine has available and what is left of the worker's share of physical memory
     /// after what the worker already commits.
@@ -98,7 +98,7 @@ internal sealed class ReverseIndexBuilder(ILogger logger, IndexCacheSigner signe
         progress?.Report(new JobProgress(BuildPhase, 0, graph.ObjectCount));
         if (target.Sidecar is not null && TryBuildIntoSidecar(target.Sidecar, target, graph, progress, cancellationToken))
         {
-            // Built straight into the file (sprint 2.3, 2.1 review M2): no managed copy exists; open it in the chosen mode.
+            // Built straight into the file: no managed copy exists; open it in the chosen mode.
             progress?.Report(new JobProgress("Opening the incoming references index", 0, null));
             if (TryOpen(target.Sidecar, target, graph, target.Mode, cancellationToken) is { } written)
             {

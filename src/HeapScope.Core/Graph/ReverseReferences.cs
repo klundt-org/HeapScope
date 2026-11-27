@@ -24,7 +24,7 @@
 namespace HeapScope.Core.Graph;
 
 /// <summary>
-/// Incoming references of a <see cref="HeapGraph"/> (sprint 2.1, ARCHITECTURE.md 6.4): a second CSR whose row for an
+/// Incoming references of a <see cref="HeapGraph"/> (ARCHITECTURE.md 6.4): a second CSR whose row for an
 /// object lists the objects that reference it, in ascending index order, one entry per reference (an object holding
 /// another in two fields appears twice). Costs 4 bytes per object and 4 per reference. Like the graph's columns, the
 /// columns are managed arrays or views of an index file; <see cref="Dispose"/> releases what owns them.
@@ -72,7 +72,7 @@ public sealed class ReverseReferences : IDisposable
 
     /// <summary>
     /// Writes the reverse CSR of <paramref name="graph"/> into <paramref name="inEdgeStarts"/> (object count plus one) and
-    /// <paramref name="inEdges"/> (edge count), for example sections of a mapped sidecar being written (sprint 2.3), in two
+    /// <paramref name="inEdges"/> (edge count), for example sections of a mapped sidecar being written, in two
     /// passes over its edges: count each object's referrers, then fill them (sources in ascending order, so each row comes
     /// out sorted). No memory beyond the two spans is used. Progress reports sources processed in the fill pass.
     /// </summary>

@@ -33,8 +33,8 @@ namespace HeapScope.Storage;
 public readonly record struct PlannedSection(IndexSection Section, int ElementSize, int ElementCount);
 
 /// <summary>
-/// Writes an index file whose sections are computed in place (sprint 2.3, the file-backed column allocator of
-/// ARCHITECTURE.md 6.3, from the 2.1 review M2): the sections are planned up front, a temporary file of the final size is
+/// Writes an index file whose sections are computed in place (the file-backed column allocator of
+/// ARCHITECTURE.md 6.3): the sections are planned up front, a temporary file of the final size is
 /// mapped read-write, and the caller fills each section through <see cref="GetSection{T}"/>. The pages written belong to
 /// the file, not to the process, so the OS can write them out under memory pressure and the computation holds no managed
 /// copy of its results. <see cref="Commit"/> unmaps the file, hashes the sections, writes the header last, flushes and
@@ -202,7 +202,7 @@ public sealed unsafe class MappedIndexFileWriter : IDisposable
         // The file ends at the last section's end (an empty last section's offset included), as a streamed file does.
         Length = position;
         // The space is reserved before mapping: a mapped write past the free space would kill the worker (SIGBUS) on Linux
-        // and macOS, where setting the length alone leaves a sparse file (sprint 2.3.6 review).
+        // and macOS, where setting the length alone leaves a sparse file.
         _stream = PrivateFiles.Open(_temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read, bufferSize: 1, preallocationSize: Length);
         _stream.SetLength(Length);
         _file = MemoryMappedFile.CreateFromFile(_stream, mapName: null, Length, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, leaveOpen: true);

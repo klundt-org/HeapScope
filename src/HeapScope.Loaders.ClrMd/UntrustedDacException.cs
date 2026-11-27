@@ -24,7 +24,7 @@
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// The only DAC matching the dumped runtime lies next to the dump, and nobody has trusted it (peer review P2). A DAC is
+/// The only DAC matching the dumped runtime lies next to the dump, and nobody has trusted it. A DAC is
 /// native code that runs in the worker; one that came with a dump is the dump maker's code. The message names the file
 /// and its SHA-256, which the user trusts (the app asks; the CLI takes <c>--trust-dac</c>) before it is loaded.
 /// </summary>
@@ -44,7 +44,7 @@ public sealed class UntrustedDacException : Exception
     {
     }
 
-    /// <param name="searched">The files the trusted folders held and why each was not used (sprint 3.6 review H3).</param>
+    /// <param name="searched">The files the trusted folders held and why each was not used.</param>
     public UntrustedDacException(string path, string sha256, string runtimeVersion, IReadOnlyList<string>? searched = null)
         : base($"The .NET {runtimeVersion} runtime's data access component (DAC) was found only next to the dump, at {path} (SHA-256 {sha256}). " +
             "A DAC is native code HeapScope runs to read the dump, and one that came with a dump runs code from whoever made it. " +

@@ -26,7 +26,7 @@ namespace HeapScope.Contracts;
 // DTOs are records of primitives, strings, arrays and Contracts enums only (ARCHITECTURE.md 4.4, ADR-016).
 // Instances, single objects and references.
 
-/// <summary>Column names of an instances result set (sprint 1.5).</summary>
+/// <summary>Column names of an instances result set.</summary>
 public static class InstanceColumns
 {
     public const string Address = "Address";
@@ -37,22 +37,22 @@ public static class InstanceColumns
     /// <summary>A string's text (when the snapshot has string contents) or an array's length.</summary>
     public const string Value = "Value";
 
-    /// <summary>The object's retained bytes (sprint 2.3, when asked for); empty for an object no root reaches.</summary>
+    /// <summary>The object's retained bytes (when asked for); empty for an object no root reaches.</summary>
     public const string Retained = "Retained";
 }
 
 /// <summary>
-/// The objects of a type (sprint 1.5): every type whose name and module file name match, the key of the summary and
+/// The objects of a type: every type whose name and module file name match, the key of the summary and
 /// diff rows (ADR-018). The filter is an address prefix (<c>0x1f2a</c>), a regular expression on the value
 /// (<c>/^Get.*Async$/</c>) or a case-insensitive substring of the value.
 /// </summary>
 /// <param name="Module">The module file name; null or empty matches types without one.</param>
 /// <param name="SortColumn">A column of <see cref="InstanceColumns"/>; null sorts by bytes.</param>
-/// <param name="Scope">Which of the type's objects (sprint 1.6): all, those on the large object heap, those still to be
+/// <param name="Scope">Which of the type's objects: all, those on the large object heap, those still to be
 /// finalized, or strings with the same text as the one at <paramref name="SameValueAs"/>.</param>
-/// <param name="IncludeRetained">Adds the <see cref="InstanceColumns.Retained"/> column (sprint 2.3), computing the
+/// <param name="IncludeRetained">Adds the <see cref="InstanceColumns.Retained"/> column, computing the
 /// snapshot's dominators on first use.</param>
-/// <param name="Set">Lists the members of this set instead (sprint 3.1): all of them when <paramref name="TypeName"/> is
+/// <param name="Set">Lists the members of this set instead: all of them when <paramref name="TypeName"/> is
 /// empty, else the members of that type; <paramref name="Scope"/> must then be <see cref="InstanceScope.All"/>.</param>
 public sealed record InstancesRequest(
     Guid SnapshotId,
@@ -66,7 +66,7 @@ public sealed record InstancesRequest(
     bool IncludeRetained = false,
     ObjectSetSpec? Set = null);
 
-/// <summary>Which objects of a type an instances query lists (sprint 1.6; inspection rows open these).</summary>
+/// <summary>Which objects of a type an instances query lists (inspection rows open these).</summary>
 public enum InstanceScope
 {
     All = 0,
@@ -77,7 +77,7 @@ public enum InstanceScope
     SameValue = 3,
 
     /// <summary>
-    /// Objects a root reaches (sprint 2.6 review H5): what a leak detector's row opens. Only part of the type, so the
+    /// Objects a root reaches: what a leak detector's row opens. Only part of the type, so the
     /// whole-type actions (Retained by set) stay off.
     /// </summary>
     Reachable = 4,
@@ -103,11 +103,11 @@ public enum ObjectFieldKindDto
     More = 6,
 }
 
-/// <summary>A field or array element of an inspected object, formatted for display (sprint 1.5).</summary>
+/// <summary>A field or array element of an inspected object, formatted for display.</summary>
 /// <param name="Address">The referenced object for references, strings and arrays; 0 otherwise.</param>
 public sealed record ObjectFieldDto(string Name, string TypeName, ObjectFieldKindDto Kind, string Value, ulong Address, IReadOnlyList<ObjectFieldDto> Children);
 
-/// <summary>Inspects one object (sprint 1.5).</summary>
+/// <summary>Inspects one object.</summary>
 public sealed record ObjectRequest(Guid SnapshotId, ulong Address);
 
 /// <summary>
@@ -126,7 +126,7 @@ public sealed record ObjectDetails(
     string? FieldsUnavailable,
     string? Text);
 
-/// <summary>Column names of a references result set (sprint 1.5).</summary>
+/// <summary>Column names of a references result set.</summary>
 public static class ReferenceColumns
 {
     /// <summary>The field path or array index holding the reference, when the snapshot has field values.</summary>
@@ -136,10 +136,10 @@ public static class ReferenceColumns
     public const string Bytes = "Bytes";
 }
 
-/// <summary>The objects one object references, in the graph's order (sprint 1.5).</summary>
+/// <summary>The objects one object references, in the graph's order.</summary>
 public sealed record ReferencesRequest(Guid SnapshotId, ulong Address);
 
-/// <summary>How the worker got a snapshot's reverse references index for a query (sprint 2.1).</summary>
+/// <summary>How the worker got a snapshot's reverse references index for a query.</summary>
 /// <param name="FromSidecar">Opened from its sidecar file next to the index cache rather than built.</param>
 /// <param name="Mode">Whether the index is held in memory or mapped from its sidecar.</param>
 /// <param name="Seconds">Time spent getting the index for this query (0 when it was already loaded).</param>
@@ -147,7 +147,7 @@ public sealed record ReferencesRequest(Guid SnapshotId, ulong Address);
 /// <param name="Saved">The index is saved next to the index cache, so the next open of the snapshot reuses it.</param>
 public sealed record ReverseIndexInfo(bool FromSidecar, SnapshotMemoryMode Mode, double Seconds, long Bytes, bool Saved);
 
-/// <summary>Column names of a referrers result set (sprint 2.1): the objects referencing one object.</summary>
+/// <summary>Column names of a referrers result set: the objects referencing one object.</summary>
 public static class ReferrerColumns
 {
     /// <summary>The referrer's field path or array index holding the object, when the snapshot has field values.</summary>
@@ -160,17 +160,17 @@ public static class ReferrerColumns
     public const string References = "References";
 }
 
-/// <summary>The objects referencing one object, each once, in address order (sprint 2.1).</summary>
+/// <summary>The objects referencing one object, each once, in address order.</summary>
 public sealed record ReferrersRequest(Guid SnapshotId, ulong Address);
 
 /// <summary>
 /// The answer to a referrers query. <see cref="ReferenceCount"/> counts references (a referrer holding the object twice
 /// counts 2); <see cref="FieldsNote"/> says why the Field column is empty when it is. <see cref="CompleteGraph"/> is false
-/// when the snapshot misses objects (a sampled gcdump, a truncated dump), so referrers may be missing (review M9).
+/// when the snapshot misses objects (a sampled gcdump, a truncated dump), so referrers may be missing.
 /// </summary>
 public sealed record ReferrersResult(ResultSetInfo Rows, long ReferenceCount, string? FieldsNote, ReverseIndexInfo Index, bool CompleteGraph);
 
-/// <summary>Column names of a type referrers result set (sprint 2.1): the objects referencing a type, by their type.</summary>
+/// <summary>Column names of a type referrers result set: the objects referencing a type, by their type.</summary>
 public static class TypeReferrerColumns
 {
     /// <summary>The referrers' type name.</summary>
@@ -194,14 +194,14 @@ public static class TypeReferrerColumns
 
 /// <summary>
 /// The objects referencing the objects of a type (name and module, like <see cref="InstancesRequest"/>), grouped by their
-/// own type (sprint 2.1).
+/// own type.
 /// </summary>
 /// <param name="SortColumn">A column of <see cref="TypeReferrerColumns"/>; null sorts by references.</param>
 public sealed record TypeReferrersRequest(Guid SnapshotId, string TypeName, string? Module, string? SortColumn = null, bool Descending = true);
 
 /// <summary>
 /// The answer to a type referrers query: the matched types, their objects and the references into them.
-/// <see cref="Index"/> is null when no type matched (the index is not built for nothing, review M8);
+/// <see cref="Index"/> is null when no type matched (the index is not built for nothing);
 /// <see cref="CompleteGraph"/> as in <see cref="ReferrersResult"/>.
 /// </summary>
 public sealed record TypeReferrersResult(ResultSetInfo Rows, int MatchedTypes, long TargetObjects, long ReferenceCount, ReverseIndexInfo? Index, bool CompleteGraph);

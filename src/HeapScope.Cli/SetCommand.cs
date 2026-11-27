@@ -30,7 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>set</c> command (sprint 3.1, ADR-030): an object set (types, a namespace, an assembly, objects by address, an
+/// The <c>set</c> command (ADR-030): an object set (types, a namespace, an assembly, objects by address, an
 /// inspection's row, or what any of these retains) and one of its views, as the app shows them.
 /// </summary>
 internal static partial class CliCommands
@@ -135,7 +135,7 @@ internal static partial class CliCommands
             if (parseResult.GetValue(types) is { Length: > 0 } names)
             {
                 var keys = new List<TypeKeyDto>();
-                // Repeat --type for several types: generic names hold commas (the 3.1 review).
+                // Repeat --type for several types: generic names hold commas.
                 foreach (var name in names)
                 {
                     var found = parseResult.GetValue(module) ?? await FindModuleAsync(session, handle, name, error, ct).ConfigureAwait(false);

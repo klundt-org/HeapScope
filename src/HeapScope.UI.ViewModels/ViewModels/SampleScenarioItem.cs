@@ -26,7 +26,7 @@ using HeapScope.Application.Tutorial;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>One scenario of the tutorial's sample, to choose before starting it (sprint 3.13).</summary>
+/// <summary>One scenario of the tutorial's sample, to choose before starting it.</summary>
 public sealed partial class SampleScenarioItem(SampleScenario scenario) : ObservableObject
 {
     [ObservableProperty]

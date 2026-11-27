@@ -30,7 +30,7 @@ namespace HeapScope.UI.ViewModels;
 
 /// <summary>
 /// An open snapshot as shown in the snapshot list and its overview. It lives as long as its handle, and says again what it
-/// shows when the handle is opened again (3.11 review M1): a new item would read as a close and an open to Compare and Trend.
+/// shows when the handle is opened again: a new item would read as a close and an open to Compare and Trend.
 /// </summary>
 public sealed class SnapshotItemViewModel(SnapshotHandle handle) : ObservableObject
 {

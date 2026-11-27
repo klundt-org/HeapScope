@@ -27,7 +27,7 @@ using System.Buffers.Binary;
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// The truncation check of a Linux or macOS core file (sprint 2.3.5 review H2), the counterpart of
+/// The truncation check of a Linux or macOS core file, the counterpart of
 /// <see cref="MinidumpHeader.IsTruncated"/>: a core cut short by a size limit (<c>ulimit -c</c>, systemd-coredump) or an
 /// interrupted copy keeps its headers but loses the memory at its end, on Linux x64 typically the thread stacks, so roots
 /// go missing without any error from ClrMD.

@@ -50,7 +50,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     private readonly ReverseIndexBuilder _reverseBuilder = new(logger, signer);
     private SnapshotOpener? _opener;
 
-    /// <summary>The memory reserved by large derived computations of every snapshot (sprint 2.3 review M2).</summary>
+    /// <summary>The memory reserved by large derived computations of every snapshot.</summary>
     private readonly MemoryReservations _reservations = new();
 
     private DominatorIndexBuilder? _dominatorBuilder;
@@ -64,7 +64,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     public int Count => _snapshots.Count;
 
     /// <summary>
-    /// The resolved object sets and detector tables of the open snapshots (sprint 3.1), within one budget over all of them.
+    /// The resolved object sets and detector tables of the open snapshots, within one budget over all of them.
     /// Closing a snapshot forgets its entries, and the cache refuses entries for snapshots that are no longer open.
     /// </summary>
     public ObjectSetCache Sets => LazyInitializer.EnsureInitialized(ref _sets, () =>
@@ -75,7 +75,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     });
 
     /// <summary>
-    /// Looks at a file without loading it (sprint 1.2 review): size, index cache state (header and fingerprint, no
+    /// Looks at a file without loading it: size, index cache state (header and fingerprint, no
     /// section hashing) and whether it is open. Application uses it to decide the memory warning.
     /// </summary>
     public SnapshotProbe Probe(string requestedPath)
@@ -89,7 +89,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
             : SnapshotCacheState.Invalid;
         var detail = failure?.Detail;
 
-        // A cache an older loader wrote is rebuilt on open, a full load: the memory warning must see it (3.12 re-review).
+        // A cache an older loader wrote is rebuilt on open, a full load: the memory warning must see it.
         if (state == SnapshotCacheState.Valid
             && IndexCacheReader.ReadMetadata(cachePath, _signer, fingerprint, out _) is { } written
             && written.LoaderVersion < _kinds.For(written.Info.Kind).LoaderVersion)
@@ -155,7 +155,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
 
     /// <summary>
     /// The type aggregation of a loaded snapshot, computed once on first use (one parallel pass over the objects) and
-    /// kept with the snapshot until it is closed (sprint 1.3). The computation is shared: it holds its own lease and runs
+    /// kept with the snapshot until it is closed. The computation is shared: it holds its own lease and runs
     /// until the snapshot closes, so a caller that cancels (a superseded query) only stops waiting. Returns null when the
     /// snapshot is not loaded or closes meanwhile.
     /// </summary>
@@ -225,7 +225,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     }
 
     /// <summary>
-    /// The DAC each runtime was created with, by the loader and later by the field reader (sprint 2.3.7 review M3). A
+    /// The DAC each runtime was created with, by the loader and later by the field reader. A
     /// download from the symbol server is a warning: it sent module identifiers to Microsoft (ADR-017).
     /// </summary>
     private static void LogDac(ILogger logger, DacChoice choice)
@@ -241,7 +241,7 @@ internal sealed partial class SnapshotStore(WorkerOptions options, IndexCacheLoc
     }
 
     /// <summary>
-    /// The DAC lookup the loads use from now on (sprint 4.8, H15), with where each value came from: the command line or the
+    /// The DAC lookup the loads use from now on, with where each value came from: the command line or the
     /// Settings page. Downloads on is a warning, as at the worker's start (ADR-017).
     /// </summary>
     private static void LogSymbols(ILogger logger, WorkerSymbols symbols) => logger.Log(

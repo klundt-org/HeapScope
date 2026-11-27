@@ -48,7 +48,7 @@ internal sealed class InspectionHandler(
                 i.Kind == InspectionKind.Leak ? InspectionKinds.Leak : InspectionKinds.Waste,
                 i.UsesBaseline))];
 
-            // Why an inspection was not offered (sprint 2.3.7 review M2): decided from capabilities and facts.
+            // Why an inspection was not offered: decided from capabilities and facts.
             foreach (var unavailable in list.Where(i => i.Unavailable is not null))
             {
                 Logger.LogInformation("Inspection {Inspection} unavailable for snapshot {Id}: {Reason}", unavailable.Name, snapshotId, unavailable.Unavailable);

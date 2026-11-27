@@ -63,7 +63,6 @@ public sealed class HeapGraphBuilder : IDisposable
     private LargeObjectSize[] _largeSizes = [];
     private AddressIndex? _addressIndex;
 
-    // Phase 2.
     private Memory<int> _edgeStarts;
     private readonly string? _edgeFolder;
     private readonly Action<string>? _edgesKeptInMemory;
@@ -104,7 +103,7 @@ public sealed class HeapGraphBuilder : IDisposable
 
     public TypeTableBuilder Types { get; }
 
-    /// <summary>Objects added so far (phase 1) or frozen (phase 2).</summary>
+    /// <summary>Objects added so far or frozen.</summary>
     public int ObjectCount => _phase == BuildPhase.Objects ? (int)_addressBuffer!.Count : _addresses.Length;
 
     /// <summary>
@@ -121,7 +120,7 @@ public sealed class HeapGraphBuilder : IDisposable
     }
 
     /// <summary>
-    /// The frozen objects' type indices, index i for object i (sprint 3.12, R4): a loader reads each object's references
+    /// The frozen objects' type indices, index i for object i: a loader reads each object's references
     /// with its type known, and skips types that hold none. Valid when <see cref="FrozenAddresses"/> is.
     /// </summary>
     public ReadOnlySpan<int> FrozenTypeIndices

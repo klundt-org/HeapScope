@@ -32,7 +32,7 @@ namespace HeapScope.Analysis.Retention;
 public readonly record struct RetentionNode(int ObjectIndex, int Child, int Depth);
 
 /// <summary>
-/// Why one object is alive (sprint 2.2): the shortest paths from up to N path roots to it, merged into one tree whose node 0
+/// Why one object is alive: the shortest paths from up to N path roots to it, merged into one tree whose node 0
 /// is the object and whose leaves are the roots (<see cref="Roots"/>, closest first, ties by root priority).
 /// </summary>
 /// <param name="Nodes">The tree's objects; each node's <see cref="RetentionNode.Child"/> leads toward node 0.</param>
@@ -43,7 +43,7 @@ public sealed record RetentionTree(IReadOnlyList<RetentionNode> Nodes, IReadOnly
 {
     /// <summary>
     /// Whether the search found a root. Without the root path tree a search that stopped early can miss one; the worker
-    /// decides reachability from the tree (review H2). What no root means depends on the snapshot's kind (review M3).
+    /// decides reachability from the tree. What no root means depends on the snapshot's kind.
     /// </summary>
     public bool IsReachable => Roots.Count > 0;
 
@@ -61,20 +61,20 @@ public sealed record RetentionTree(IReadOnlyList<RetentionNode> Nodes, IReadOnly
 }
 
 /// <summary>
-/// Finds why one object is alive (sprint 2.2): a breadth-first search backward from the object over its referrers (the
-/// reverse index, 2.1), which stops at path roots (an object held by a retaining root, or a frozen object) instead of
+/// Finds why one object is alive: a breadth-first search backward from the object over its referrers (the
+/// reverse index), which stops at path roots (an object held by a retaining root, or a frozen object) instead of
 /// passing through them, so each root found comes with its shortest path. The search finishes the distance at which it
-/// found enough roots, then keeps the closest ones, preferring better roots at equal distance (decision 1).
+/// found enough roots, then keeps the closest ones, preferring better roots at equal distance.
 /// </summary>
 public static class RetentionSearch
 {
-    /// <summary>Roots returned by default (decision 2).</summary>
+    /// <summary>Roots returned by default.</summary>
     public const int DefaultMaxRoots = 10;
 
-    /// <summary>Objects visited at most by default (decision 2).</summary>
+    /// <summary>Objects visited at most by default.</summary>
     public const int DefaultMaxVisited = 1_000_000;
 
-    /// <param name="paths">When given (review H2), referrers no root reaches are not visited: the search never wanders
+    /// <param name="paths">When given, referrers no root reaches are not visited: the search never wanders
     /// into garbage, and an object no root reaches is answered at once.</param>
     public static RetentionTree Find(
         HeapGraph graph,
@@ -173,7 +173,7 @@ public static class RetentionSearch
     }
 
     /// <summary>
-    /// The one path the root path tree knows for <paramref name="target"/> (review H2): what an object's paths fall back to
+    /// The one path the root path tree knows for <paramref name="target"/>: what an object's paths fall back to
     /// when the search stopped at its limit before reaching a root, so a live object is never reported as unreachable.
     /// Empty when no root reaches the object. The result says it stopped early: more roots may exist.
     /// </summary>

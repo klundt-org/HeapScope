@@ -26,7 +26,7 @@ using HeapScope.Contracts;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The icicle chart's geometry (sprint 2.4), independent of the UI toolkit: each bar's rectangle, the bar under a point,
+/// The icicle chart's geometry, independent of the UI toolkit: each bar's rectangle, the bar under a point,
 /// and the bars on the path from the top to a selected one.
 /// </summary>
 public static class IcicleGeometry
@@ -39,7 +39,7 @@ public static class IcicleGeometry
 
     /// <summary>
     /// The rectangle of each bar, in level order: each bar at least <see cref="MinWidth"/> wide, except that two or more neighbors under
-    /// <see cref="GroupBelow"/> with one parent are one group, which hides what lies below them (3.10 review M44). Here, not in the
+    /// <see cref="GroupBelow"/> with one parent are one group, which hides what lies below them. Here, not in the
     /// worker: how narrow a bar is depends on the window.
     /// </summary>
     public static IReadOnlyList<IcicleBar> Bars(IReadOnlyList<IcicleSegmentDto> segments, long total, double width, double rowHeight)
@@ -157,7 +157,7 @@ public static class IcicleGeometry
             return string.Create(CultureInfo.CurrentCulture, $"{segment.Name}\nKeeps {Format.Bytes(segment.Width)} alive, {share:P1} of this chart");
         }
 
-        // Level 1 sits under the chart's top bar, the focus itself: a double-click there shows the same chart (3.11 review), so
+        // Level 1 sits under the chart's top bar, the focus itself: a double-click there shows the same chart, so
         // the tree below is where they are. Deeper, the bar above is their parent, and focusing it puts them in the tree. Under
         // Group children by Type or Namespace the tree lists groups, and past 100 rows a "more" row: the text holds for both.
         // A group's width adds up its members' retained sizes; what they keep alive together is counted in the bar above.

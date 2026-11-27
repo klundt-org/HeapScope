@@ -32,7 +32,7 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// The Live page's chart (sprint 1.7): the GC heap stacked by heap kind as of the last GC (gen0, gen1, gen2, LOH, POH, in
+/// The Live page's chart: the GC heap stacked by heap kind as of the last GC (gen0, gen1, gen2, LOH, POH, in
 /// the fixed heap kind colors) and, on top, what was allocated since, over the samples' time span, with a dashed line at
 /// each snapshot. One control drawn once per change of <see cref="Version"/> (one geometry per layer, no per-point
 /// visuals), so a 30-minute window stays cheap to redraw. The geometry is <see cref="TimelineLayout"/>'s.
@@ -45,7 +45,7 @@ public sealed class TimelineChart : Control
     public static readonly StyledProperty<IReadOnlyList<DateTimeOffset>?> MarkersProperty =
         AvaloniaProperty.Register<TimelineChart, IReadOnlyList<DateTimeOffset>?>(nameof(Markers));
 
-    /// <summary>When the target was made to collect (sprint 3.4), drawn as dotted lines.</summary>
+    /// <summary>When the target was made to collect, drawn as dotted lines.</summary>
     public static readonly StyledProperty<IReadOnlyList<DateTimeOffset>?> GcMarkersProperty =
         AvaloniaProperty.Register<TimelineChart, IReadOnlyList<DateTimeOffset>?>(nameof(GcMarkers));
 

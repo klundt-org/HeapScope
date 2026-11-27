@@ -25,7 +25,7 @@ using HeapScope.Application.Snapshots;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A choice of baseline for the detectors that measure growth (sprint 2.6): another open snapshot, or none.</summary>
+/// <summary>A choice of baseline for the detectors that measure growth: another open snapshot, or none.</summary>
 public sealed record BaselineChoice(string Text, SnapshotHandle? Snapshot)
 {
     public override string ToString() => Text;

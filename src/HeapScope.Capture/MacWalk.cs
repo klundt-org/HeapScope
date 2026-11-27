@@ -25,7 +25,7 @@ using System.Globalization;
 
 namespace HeapScope.Capture;
 
-/// <summary>What a walk of a process's regions on macOS held, and how it ended (sprint 4.2 review).</summary>
+/// <summary>What a walk of a process's regions on macOS held, and how it ended.</summary>
 /// <param name="Regions">The regions read.</param>
 /// <param name="WithPath">How many had a file.</param>
 /// <param name="LastEnd">Where the last one ended.</param>

@@ -31,7 +31,7 @@ using Avalonia.Collections;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// The collection view a DataGrid uses for a data-virtualized row list (sprint 2.3.5 prototype, 2.3.6): the grid uses an
+/// The collection view a DataGrid uses for a data-virtualized row list: the grid uses an
 /// <see cref="IDataGridCollectionView"/> as it is, where it would wrap any other source in a view that copies every row
 /// into a list of its own. Reads go to the row list by index, so only the rows on screen are fetched. Sorting and
 /// filtering happen in the worker through the view model; this view never sorts, filters or groups, and its sort
@@ -75,7 +75,7 @@ public sealed class VirtualCollectionView<TRow>(IList rows) : IDataGridCollectio
 
     public CultureInfo Culture { get; set; } = CultureInfo.CurrentCulture;
 
-    // This view, not the row list, so a consumer that walks the source is counted too (sprint 2.3.6 review).
+    // This view, not the row list, so a consumer that walks the source is counted too.
     public IEnumerable SourceCollection => this;
 
     // The grid reads Filter only when CanFilter is true.

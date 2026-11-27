@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The analysis of one open snapshot (peer review 4.5 H13): its types grid, its analysis path, its inspections and its retainers,
+/// The analysis of one open snapshot: its types grid, its analysis path, its inspections and its retainers,
 /// each pointed at that snapshot once. The Snapshots page keeps one per open snapshot and shows the current one, so switching
 /// snapshots leaves every view as it was, filters, sort, steps and results included, and queries nothing again. Compare and the
 /// bookmarks stay on the page, across workspaces. Analysis tabs (several workspaces of one snapshot) build on this.

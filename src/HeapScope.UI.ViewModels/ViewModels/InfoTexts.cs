@@ -134,11 +134,11 @@ public static class InfoTexts
     public const string Jobs =
         "Lists long work such as opening a dump, capturing or recording, with its progress and how it ended. Use it to see what finished or failed, and why. Jobs appear here by themselves; press Cancel on one that is running.";
 
-    /// <summary>Settings (sprint 3.12; the DAC since sprint 4.8, a draft).</summary>
+    /// <summary>Settings (the DAC part is a draft).</summary>
     public const string Settings =
         "Choose where HeapScope finds the DAC a dump needs and what it writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
 
-    // Sprint 3.13.2 (owner, 2026-11-19): Include dump values in logs, approved by the owner on 2026-11-19 (docs/design/info-text.md).
+    // Include dump values in logs, approved by the owner on 2026-11-19 (docs/design/info-text.md).
 
     /// <summary>Settings: the Include dump values in logs check box's tooltip.</summary>
     public const string DumpValuesTip =
@@ -151,7 +151,7 @@ public static class InfoTexts
     public const string DumpValuesQuestion =
         "HeapScope's logs will hold the values it reads from your dumps: field values and string text, which can include passwords, tokens and personal data. The logs stay on this machine and are never sent anywhere, but anyone you give a log to can read them. Before you share a log, turn this off and use Purge logs.";
 
-    /// <summary>Snapshots: the status after a dump opens with everything it can show; {0} is the file's name (sprint 3.13.2).</summary>
+    /// <summary>Snapshots: the status after a dump opens with everything it can show; {0} is the file's name.</summary>
     public const string OpenedStatus =
         "Opened {0}. Its overview and types are on the Snapshot tab below; the Compare, Inspections and Retainers tabs analyze it further.";
 
@@ -166,7 +166,7 @@ public static class InfoTexts
     public const string DumpValuesOff =
         "HeapScope's logs no longer get values read from your dumps. Logs written while this was on still hold them: Purge logs deletes them.";
 
-    // Sprint 4.8 (H15): the Settings page's Dumps section; drafts for the owner (docs/design/info-text.md, Sprint 4.8 additions).
+    // The Settings page's Dumps section; drafts for the owner (docs/design/info-text.md).
 
     /// <summary>Settings: the DAC folder's tooltip.</summary>
     public const string DacFolderTip =
@@ -204,13 +204,13 @@ public static class InfoTexts
     /// <summary>Settings: the status after downloads are turned off.</summary>
     public const string SymbolServerOff = "Missing DACs are no longer downloaded: HeapScope looks on this computer only.";
 
-    // Sprint 4.8 (M5): the worker. Drafts for the owner (docs/design/info-text.md, Sprint 4.8 additions).
+    // The worker. Drafts for the owner (docs/design/info-text.md).
 
     /// <summary>Crash banner: added when the next request started a new worker before the user did.</summary>
     public const string WorkerBackOnItsOwn =
         "A new worker started for the next request, and open snapshots are read back from their saved index when next used.";
 
-    /// <summary>The status bar while the worker starts (M13: the first start after an install can take long).</summary>
+    /// <summary>The status bar while the worker starts (the first start after an install can take long).</summary>
     public const string WorkerStarting = "Worker starting: the first start after installing or updating HeapScope can take a while";
 
     /// <summary>The message at the next start after the app closed unexpectedly; {0} is the report's path.</summary>
@@ -230,7 +230,7 @@ public static class InfoTexts
     /// <summary>The status bar's Restart worker: its tooltip.</summary>
     public const string RestartWorkerTip = "Stop the worker and start a new one, for a worker that stops answering. Asks first.";
 
-    /// <summary>Learn (sprint 3.13).</summary>
+    /// <summary>Learn.</summary>
     public const string Learn =
         "Lessons that teach HeapScope on a sample process of its own, with problems planted on purpose. Use it to learn the pages hands-on before you look at your own application. Choose a lesson and press Start lesson, then follow its steps and answer its question.";
 
@@ -356,7 +356,7 @@ public static class InfoTexts
         "The chart stacks the heap areas as of the last collection, with what was allocated since then on top. A dashed line marks a snapshot and a dotted line a forced collection.\n" +
         "The line above it is the latest sample: the heap now, the heap after the last collection and its parts, bytes allocated, collections per generation, and the last collection's share of time.";
 
-    /// <summary>Live: Allocations heading (sprint 4.3).</summary>
+    /// <summary>Live: Allocations heading.</summary>
     public const string LiveAllocations =
         "What the process has allocated since the recording started, while it runs. Sizes are estimates from samples, about one for every 100 KB allocated.\n" +
         "Drag across the bars to choose an interval; a click shows the whole run again. The types are those of the interval, the 20 that allocated the most.\n" +

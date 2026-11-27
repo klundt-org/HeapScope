@@ -76,7 +76,7 @@ public sealed class TypeRowLayout
 
     public int Frozen { get; }
 
-    /// <summary>The retained bytes column (sprint 2.3); -1 when not asked for.</summary>
+    /// <summary>The retained bytes column; -1 when not asked for.</summary>
     public int Retained { get; }
 
     public int TypeName { get; }
@@ -89,7 +89,7 @@ public sealed class TypeRowLayout
 /// <summary>
 /// One row of the types grid, filled when its page arrives (data virtualization). Values are set together and announced
 /// with one "all properties changed" notification: a page fills 200 rows, and a notification per value made the grid's
-/// rebinding exceed the 100 ms dispatcher budget (sprint 1.3 smoke run).
+/// rebinding exceed the 100 ms dispatcher budget.
 /// </summary>
 public sealed class TypeRowItem(int index) : ObservableObject, IIndexedRow
 {
@@ -115,7 +115,7 @@ public sealed class TypeRowItem(int index) : ObservableObject, IIndexedRow
 
     public long Frozen { get; private set; }
 
-    /// <summary>The row's retained bytes, a lower bound (sprint 2.3); 0 when not asked for.</summary>
+    /// <summary>The row's retained bytes, a lower bound; 0 when not asked for.</summary>
     public long Retained { get; private set; }
 
     public bool IsLoaded { get; private set; }
@@ -163,7 +163,7 @@ public sealed record HeapKindShare(HeapKindDto Kind, string Label, long Objects,
 }
 
 /// <summary>
-/// The types grid of a snapshot (sprint 1.3, dotMemory's types view): grouping, type-to-filter (debounced) and sorting
+/// The types grid of a snapshot (dotMemory's types view): grouping, type-to-filter (debounced) and sorting
 /// re-query the worker; rows are virtualized; generation columns show only when the snapshot has generations.
 /// </summary>
 public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem>, INavigationSubject
@@ -178,7 +178,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
 
     /// <summary>
     /// Whether the user asked for bytes per generation: off by default (dotMemory research 7, a generations sub-view),
-    /// and the six columns were half of the grid's layout time (sprint 1.5 smoke runs).
+    /// and the six columns were half of the grid's layout time.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GenerationColumnsShown))]
@@ -195,8 +195,8 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     private IReadOnlyList<HeapKindShare> _heapKinds = [];
 
     /// <summary>
-    /// Whether the user asked for retained bytes (sprint 2.3): off by default, since the first such query of a snapshot
-    /// computes its dominators (seconds on a large dump; decision 5).
+    /// Whether the user asked for retained bytes: off by default, since the first such query of a snapshot
+    /// computes its dominators (seconds on a large dump).
     /// </summary>
     [ObservableProperty]
     private bool _showRetained;
@@ -206,7 +206,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     [NotifyPropertyChangedFor(nameof(VisibleColumnGroups))]
     private bool _retainedColumnShown;
 
-    /// <summary>The optional column groups shown (2.3.7 review M13).</summary>
+    /// <summary>The optional column groups shown.</summary>
     public IReadOnlyList<string> VisibleColumnGroups => ColumnGroups.Of((ColumnGroups.Retained, RetainedColumnShown), (ColumnGroups.Generations, GenerationColumnsShown));
 
     /// <summary>How the retained sizes were obtained and what a row's value means, or why they are not shown; null without them.</summary>
@@ -220,7 +220,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     {
     }
 
-    /// <summary>The Types view of an object set (sprint 3.1): the members only; a row opens the set's members of its type.</summary>
+    /// <summary>The Types view of an object set: the members only; a row opens the set's members of its type.</summary>
     public TypeSummaryViewModel(SnapshotSession session, IUiDispatcher dispatcher, ObjectSetQuery? set, string? setTitle, ILogger<TypeSummaryViewModel>? logger = null, INavigator? navigator = null)
         : base(TypeSummaryColumns.Bytes, dispatcher, logger)
     {
@@ -235,7 +235,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     }
 
     /// <summary>
-    /// Opens the objects no root reaches as a set (sprint 3.5): the garbage a full dump still holds. Offered as the worker
+    /// Opens the objects no root reaches as a set: the garbage a full dump still holds. Offered as the worker
     /// lists it (<see cref="CanOpenUnreachable"/>).
     /// </summary>
     public IRelayCommand OpenUnreachableCommand { get; }
@@ -255,7 +255,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         }
     }
 
-    /// <summary>The set whose members are summarized (sprint 3.1); null for the whole snapshot.</summary>
+    /// <summary>The set whose members are summarized; null for the whole snapshot.</summary>
     public ObjectSetQuery? Set { get; }
 
     /// <summary>The set's title, with <see cref="Set"/>.</summary>
@@ -271,7 +271,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     public string OptionsInfoText => IsSet ? InfoTexts.TypesOptionsInSet : InfoTexts.TypesOptions;
 
     /// <summary>
-    /// Opens the selected rows as one object set (sprint 3.1): several type rows, or one namespace or assembly row. The
+    /// Opens the selected rows as one object set: several type rows, or one namespace or assembly row. The
     /// parameter is the grid's selected rows.
     /// </summary>
     public System.Windows.Input.ICommand OpenAsSetCommand { get; }
@@ -287,7 +287,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
             return null;
         }
 
-        // A set never quietly leaves rows out (the 3.1 review): rows not loaded yet, or more types than a set takes.
+        // A set never quietly leaves rows out: rows not loaded yet, or more types than a set takes.
         if (loaded.Count < selected.Count)
         {
             Status = string.Create(CultureInfo.CurrentCulture, $"{selected.Count - loaded.Count:N0} of the selected rows are not loaded yet. Scroll through them, or filter the grid, and open the set again.");
@@ -328,10 +328,10 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         }
     }
 
-    /// <summary>A type row's group in the dominator tree, on the Retainers tab (sprint 2.4).</summary>
+    /// <summary>A type row's group in the dominator tree, on the Retainers tab.</summary>
     public System.Windows.Input.ICommand ShowInRetainersCommand { get; }
 
-    /// <summary>What a type row's objects retain together, on the Retainers tab (sprint 2.4).</summary>
+    /// <summary>What a type row's objects retain together, on the Retainers tab.</summary>
     public System.Windows.Input.ICommand RetainedBySetCommand { get; }
 
     /// <summary>The snapshot shown, if any.</summary>
@@ -344,7 +344,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     {
         if (Set is not null)
         {
-            // These follow all of a type's objects, not the set's members (sprint 3.1).
+            // These follow all of a type's objects, not the set's members.
             return;
         }
 
@@ -360,7 +360,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         }
     }
 
-    // A type row opens its objects (sprint 1.5); grouped rows have no single type.
+    // A type row opens its objects; grouped rows have no single type.
     private void OpenRow(TypeRowItem? row, INavigator? navigator)
     {
         if (row is not { IsLoaded: true } || _snapshot is not { } snapshot)
@@ -370,7 +370,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
 
         if (row.TypeName is null)
         {
-            // A namespace or assembly row opens as a set of its types (sprint 3.1); within a set, group by type.
+            // A namespace or assembly row opens as a set of its types; within a set, group by type.
             if (Set is null && SetOf([row]) is { } group)
             {
                 navigator?.Navigate(NavigationTarget.ObjectSet(snapshot, new ObjectSetQuery(group.Spec), group.Title));
@@ -406,7 +406,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         Requery(subjectChanged: true);
     }
 
-    // Everything the last answer set, so nothing of an old subject is shown (review of 4.6).
+    // Everything the last answer set, so nothing of an old subject is shown.
     protected override void OnCleared() =>
         (HeapKinds, RetainedNote, GenerationsExplanation, RetainedColumnShown, HasGenerations) = ([], null, null, false, false);
 
@@ -433,8 +433,8 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
     {
         var snapshot = _snapshot!;
         var groupBy = GroupBy;
-        // Interface rows overlap, so they have no retained lower bound (sprint 3.2); the note says so, and a sort by
-        // retained bytes falls back to bytes (the 3.2 review).
+        // Interface rows overlap, so they have no retained lower bound; the note says so, and a sort by
+        // retained bytes falls back to bytes.
         var retained = ShowRetained && Set is null && groupBy != TypeGrouping.Interface;
         var noRetainedHere = ShowRetained && Set is null && groupBy == TypeGrouping.Interface;
         var sortColumn = !retained && SortColumn == TypeSummaryColumns.Retained ? TypeSummaryColumns.Bytes : SortColumn;
@@ -450,7 +450,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         }
         catch (WorkerOperationException ex) when (retained && !cancellationToken.IsCancellationRequested)
         {
-            // Review M8: retained sizes are optional, so the rows load without them and the note says why.
+            // Retained sizes are optional, so the rows load without them and the note says why.
             retainedFailure = ex.Message;
             QueryRunner.LogShown(Logger, "Types' retained sizes", ex);
             var bytes = SortColumn == TypeSummaryColumns.Retained;
@@ -468,7 +468,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
                     ? null
                     : snapshot.Descriptor.WhyUnavailable(SnapshotFeatureIds.Generations);
                 RetainedColumnShown = result.Dominators is not null;
-                // Whether the rows are lower bounds comes with the column (sprint 2.4, 2.3.7 review M7), not from here.
+                // Whether the rows are lower bounds comes with the column, not from here.
                 var retainedBound = result.Rows.Columns.FirstOrDefault(c => c.Name == TypeSummaryColumns.Retained)?.Bound;
                 RetainedNote = result.Dominators is { } dominators
                     ? RetainedSizeTexts.Source(dominators, CultureInfo.CurrentCulture) + (retainedBound == ValueBound.LowerBound ? " " + ValueBoundTexts.LowerBound : string.Empty)

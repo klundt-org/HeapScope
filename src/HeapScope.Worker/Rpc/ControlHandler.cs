@@ -41,7 +41,7 @@ internal sealed class ControlHandler(
 
     // Peak bytes per object and per reference while building a synthetic graph: final columns (22 bytes per
     // object) plus chunked phase-one buffers, and the edge chunks and final edge array alive together (8 bytes per
-    // reference) during the copy (gc-specialist review of 0.3).
+    // reference) during the copy.
     private const double PeakBytesPerObject = 44;
     private const double PeakBytesPerReference = 8;
 
@@ -50,7 +50,7 @@ internal sealed class ControlHandler(
     /// <summary>Changes with every worker process (ARCHITECTURE.md 4.3).</summary>
     public Guid InstanceId { get; } = Guid.NewGuid();
 
-    /// <remarks>Through the guard like every method (sprint 3.12 review M17): a protocol mismatch is logged too.</remarks>
+    /// <remarks>Through the guard like every method: a protocol mismatch is logged too.</remarks>
     public Task<WorkerInfo> GetInfoAsync(int clientProtocolVersion, CancellationToken cancellationToken) =>
         GuardAsync(clientProtocolVersion, () => Task.FromResult(Info(clientProtocolVersion)), LogLevel.Debug);
 
@@ -98,7 +98,7 @@ internal sealed class ControlHandler(
             }
         });
 
-    /// <remarks>Through the guard like every method (sprint 3.12 review M17).</remarks>
+    /// <remarks>Through the guard like every method.</remarks>
     public Task ShutdownAsync(CancellationToken cancellationToken) =>
         GuardAsync(
             () =>

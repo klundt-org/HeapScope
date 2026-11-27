@@ -23,7 +23,7 @@
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The tabs of an object's references panel, in their order (2.3.7 review M8).</summary>
+/// <summary>The tabs of an object's references panel, in their order.</summary>
 public enum ObjectReferenceTabs
 {
     /// <summary>What the object references.</summary>

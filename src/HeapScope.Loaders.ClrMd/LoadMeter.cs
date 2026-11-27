@@ -28,9 +28,9 @@ using HeapScope.Core.Loading;
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// Measures a load phase by phase (sprint 3.12, R5): wall time, the process's CPU time, GC pause time and hard page faults
+/// Measures a load phase by phase: wall time, the process's CPU time, GC pause time and hard page faults
 /// (pages read from disk), so a slow load can be told apart as work, collections or reading the dump from disk. CPU, GC and
-/// faults are the whole process's: a query on another snapshot during a load counts in them (the review's M7).
+/// faults are the whole process's: a query on another snapshot during a load counts in them.
 /// </summary>
 internal sealed partial class LoadMeter
 {
@@ -61,15 +61,14 @@ internal sealed partial class LoadMeter
 
     /// <summary>
     /// The faults between two readings: Windows counts them in 32 bits, so a count that wrapped is read as the distance forward
-    /// (the review's M7); null when either reading is missing.
+    /// null when either reading is missing.
     /// </summary>
     internal static long? Delta(ulong? before, ulong? after) => before is { } b && after is { } a
         ? (a >= b ? (long)(a - b) : (long)(uint)(a - b))
         : null;
 
     /// <summary>
-    /// The process's hard page faults so far, the pages read from disk: Windows' per-process hard fault count (the review's M7:
-    /// the memory counters' page faults count soft faults too), Linux's major faults; null elsewhere or when not readable.
+    /// The process's hard page faults so far, the pages read from disk: Windows' per-process hard fault count (the memory counters' page faults count soft faults too), Linux's major faults; null elsewhere or when not readable.
     /// </summary>
     internal static ulong? HardFaults()
     {

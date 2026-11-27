@@ -23,7 +23,7 @@
 
 namespace HeapScope.Contracts;
 
-/// <summary>The contracts the worker serves on one connection, one per feature area (sprint 3.8, peer review P5).</summary>
+/// <summary>The contracts the worker serves on one connection, one per feature area.</summary>
 public static class WorkerContracts
 {
     /// <summary>Every worker contract; each is served by exactly one handler.</summary>

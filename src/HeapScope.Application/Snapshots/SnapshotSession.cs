@@ -85,7 +85,7 @@ public sealed class SnapshotHandle : IWorkerResource
 /// </summary>
 public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<PhysicalMemory>? memory = null, ILogger<SnapshotSession>? logger = null, TrustedDacs? trustedDacs = null)
 {
-    /// <summary>The DACs trusted to load from next to a dump, sent with every open (sprint 3.6); null trusts none.</summary>
+    /// <summary>The DACs trusted to load from next to a dump, sent with every open; null trusts none.</summary>
     public TrustedDacs? TrustedDacs { get; } = trustedDacs;
 
     private readonly Func<PhysicalMemory> _memory = memory ?? PhysicalMemory.Current;
@@ -111,7 +111,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// Whether opens from an index cache refuse a full dump whose DAC lies untrusted next to it (sprint 3.6): true in the
+    /// Whether opens from an index cache refuse a full dump whose DAC lies untrusted next to it: true in the
     /// app, which asks; false in the CLI, whose commands that need the DAC refuse when they read with it and name
     /// <c>--trust-dac</c>.
     /// </summary>
@@ -128,7 +128,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         var title = string.Create(CultureInfo.InvariantCulture, $"Open {System.IO.Path.GetFileName(fullPath)}");
         return jobs.Start(title, async (progress, ct) =>
         {
-            // The trusted DACs are files, read with retries under a lock: never on the caller's (the UI's) thread (peer review 4.5 H10).
+            // The trusted DACs are files, read with retries under a lock: never on the caller's (the UI's) thread.
             var trusted = await Task.Run(() =>
             {
                 LogTrustedDacs(fullPath);
@@ -144,7 +144,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
                 handle.Update(descriptor, generation);
             }
 
-            // The worker's identity line (sprint 2.3.7 review H2) has the details; this ties the front end's snapshot to it.
+            // The worker's identity line has the details; this ties the front end's snapshot to it.
             _logger.LogInformation(
                 "Snapshot {Path} opened as worker snapshot {WorkerSnapshotId} (worker generation {Generation}, {Source}, cache identity {Identity:x16}, rebuild {Rebuild}, mode {Mode})",
                 descriptor.Path,
@@ -160,7 +160,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// Says, under the open's trace id, which DACs the open trusts and who trusted each when (sprint 3.6 review H2): the
+    /// Says, under the open's trace id, which DACs the open trusts and who trusted each when: the
     /// worker's DAC choice line names the hash it loaded, this line where that trust came from.
     /// </summary>
     private void LogTrustedDacs(string path)
@@ -176,7 +176,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// rebuild) whose estimated peak exceeds the memory available now (ARCHITECTURE.md 10). The worker checks the cache
     /// where it really is (next to the dump or in the fallback folder), so UI and CLI share one rule.
     /// </summary>
-    /// <param name="reopening">The dump is open and about to be opened again in place (sprint 3.12, Trust this DAC and reopen):
+    /// <param name="reopening">The dump is open and about to be opened again in place (Trust this DAC and reopen):
     /// being open does not spare the warning then.</param>
     public async Task<string?> GetOpenWarningAsync(string path, bool rebuild, CancellationToken cancellationToken, bool reopening = false)
     {
@@ -192,7 +192,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// Closes the handle's snapshot in the worker but keeps the handle (sprint 3.12, Trust this DAC and reopen): the next open
+    /// Closes the handle's snapshot in the worker but keeps the handle (Trust this DAC and reopen): the next open
     /// of its path updates it in place, so what refers to it (Compare's pair, Trend's ticks, the selection) stays. Until then
     /// a call on it reopens it from its index cache, as after a worker restart.
     /// </summary>
@@ -272,7 +272,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// A type summary with grouping, filter and sort (sprint 1.3). The rows come back as a <see cref="ResultSetHandle"/>
+    /// A type summary with grouping, filter and sort. The rows come back as a <see cref="ResultSetHandle"/>
     /// that runs the query again (reopening the snapshot if the worker restarted) when the set is gone.
     /// </summary>
     public Task<TypeSummary> QueryTypeSummaryAsync(
@@ -286,7 +286,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         QueryTypeSummaryAsync(handle, groupBy, filter, sortColumn, descending, includeRetained: false, progress, cancellationToken);
 
     /// <summary>
-    /// A type summary, with a retained bytes column when <paramref name="includeRetained"/> is set (sprint 2.3; the first
+    /// A type summary, with a retained bytes column when <paramref name="includeRetained"/> is set (the first
     /// such query of a snapshot computes its dominators).
     /// </summary>
     public async Task<TypeSummary> QueryTypeSummaryAsync(
@@ -315,9 +315,9 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// Compares two snapshots by type (sprint 1.4, ADR-018): deltas are <paramref name="current"/> minus
+    /// Compares two snapshots by type (ADR-018): deltas are <paramref name="current"/> minus
     /// <paramref name="baseline"/>. Like the type summary, the rows re-run the query (reopening either snapshot after a
-    /// worker restart) when the set is gone. <paramref name="allocations"/> adds what was allocated between them (sprint 4.4).
+    /// worker restart) when the set is gone. <paramref name="allocations"/> adds what was allocated between them.
     /// </summary>
     public async Task<SnapshotDiff> QueryTypeDiffAsync(
         SnapshotHandle baseline,
@@ -353,7 +353,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// The objects of a type (sprint 1.5): every type with this name and module file name (the key of summary and diff
+    /// The objects of a type: every type with this name and module file name (the key of summary and diff
     /// rows). The rows re-run the query when the set is gone, reopening the snapshot after a worker restart.
     /// </summary>
     public Task<InstanceList> QueryInstancesAsync(
@@ -368,7 +368,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         QueryInstancesAsync(handle, new InstancesQuery(typeName, module, filter, sortColumn, descending), progress, cancellationToken);
 
     /// <summary>
-    /// The objects of a type within a scope (sprint 1.6: what an inspection row opens, such as the type's objects on the
+    /// The objects of a type within a scope (what an inspection row opens, such as the type's objects on the
     /// large object heap, or the strings equal to one string).
     /// </summary>
     public async Task<InstanceList> QueryInstancesAsync(SnapshotHandle handle, InstancesQuery query, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
@@ -391,14 +391,14 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The inspections for a snapshot, with why each unavailable one cannot run (sprint 1.6).</summary>
+    /// <summary>The inspections for a snapshot, with why each unavailable one cannot run.</summary>
     public Task<IReadOnlyList<InspectionInfo>> ListInspectionsAsync(SnapshotHandle handle, CancellationToken cancellationToken) =>
         UseAsync(handle, (service, id, ct) => service.ListInspectionsAsync(id, ct), cancellationToken);
 
     /// <summary>
-    /// Runs an inspection (sprint 1.6). Its rows re-run it when the set is gone, reopening the snapshot after a worker
+    /// Runs an inspection. Its rows re-run it when the set is gone, reopening the snapshot after a worker
     /// restart, like any query. <paramref name="baseline"/> is an earlier snapshot for the inspections that measure growth
-    /// (sprint 2.6); both are reopened together when needed.
+    /// both are reopened together when needed.
     /// </summary>
     public async Task<InspectionRun> RunInspectionAsync(SnapshotHandle handle, string name, IProgress<JobProgress>? progress, CancellationToken cancellationToken, SnapshotHandle? baseline = null)
     {
@@ -415,11 +415,11 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>One object's details and, when the snapshot reads its dump, its fields (sprint 1.5).</summary>
+    /// <summary>One object's details and, when the snapshot reads its dump, its fields.</summary>
     public Task<ObjectDetails> GetObjectAsync(SnapshotHandle handle, ulong address, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
         UseAsync(handle, (service, id, ct) => service.GetObjectAsync(new ObjectRequest(id, address), progress, ct), cancellationToken);
 
-    /// <summary>The objects one object references, as rows that survive eviction and worker restarts (sprint 1.5).</summary>
+    /// <summary>The objects one object references, as rows that survive eviction and worker restarts.</summary>
     public async Task<ResultSetHandle> QueryReferencesAsync(SnapshotHandle handle, ulong address, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
@@ -430,7 +430,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// The objects referencing one object (sprint 2.1), as rows that survive eviction and worker restarts. The first such
+    /// The objects referencing one object, as rows that survive eviction and worker restarts. The first such
     /// query of a snapshot builds its reverse references index, or opens it from its sidecar.
     /// </summary>
     public async Task<ReferrerList> QueryReferrersAsync(SnapshotHandle handle, ulong address, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
@@ -445,7 +445,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The objects referencing a type's objects, grouped by their own type (sprint 2.1).</summary>
+    /// <summary>The objects referencing a type's objects, grouped by their own type.</summary>
     public async Task<TypeReferrerList> QueryTypeReferrersAsync(
         SnapshotHandle handle,
         string typeName,
@@ -470,7 +470,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// The dominator tree's rows (sprint 2.4): the top level (the biggest retainers) or the tree below
+    /// The dominator tree's rows: the top level (the biggest retainers) or the tree below
     /// <paramref name="focusAddress"/>, with the <paramref name="expanded"/> rows expanded. A re-run after a worker restart
     /// keeps the expansion: the keys are addresses and group names. A node lists at most <paramref name="maxChildren"/>
     /// children before a "more" row; the answer says at which row <paramref name="revealKey"/> landed.
@@ -500,12 +500,12 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The icicle chart below <paramref name="focusAddress"/> (0 for the whole reachable heap). Sprint 2.4.</summary>
+    /// <summary>The icicle chart below <paramref name="focusAddress"/> (0 for the whole reachable heap).</summary>
     public Task<IcicleResult> QueryIcicleAsync(SnapshotHandle handle, ulong focusAddress, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
         UseAsync(handle, (service, id, ct) => service.QueryIcicleAsync(new IcicleRequest(id, focusAddress), progress, ct), cancellationToken);
 
     /// <summary>
-    /// What every object of a type retains together, exactly (sprint 2.4), by type; the totals next to the type summary's
+    /// What every object of a type retains together, exactly, by type; the totals next to the type summary's
     /// lower bound.
     /// </summary>
     public async Task<RetainedBySetAnswer> QueryRetainedBySetAsync(SnapshotHandle handle, string typeName, string? module, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
@@ -524,7 +524,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>What the members of any object set retain together, exactly (sprint 3.1), by type.</summary>
+    /// <summary>What the members of any object set retain together, exactly, by type.</summary>
     public async Task<RetainedBySetAnswer> QueryRetainedBySetAsync(SnapshotHandle handle, ObjectSetQuery set, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
@@ -542,7 +542,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The members of a set that no other member dominates, with what each retains (sprint 3.1).</summary>
+    /// <summary>The members of a set that no other member dominates, with what each retains.</summary>
     public async Task<SetDominatorsAnswer> QuerySetDominatorsAsync(SnapshotHandle handle, ObjectSetQuery set, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
@@ -561,7 +561,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// Runs <paramref name="call"/> with the snapshot's id and the set's spec bound to the current ids (sprint 3.1): a set
+    /// Runs <paramref name="call"/> with the snapshot's id and the set's spec bound to the current ids: a set
     /// with an inspection baseline uses both snapshots, so either one is reopened after a worker restart.
     /// </summary>
     private Task<T> UseWithSetAsync<T>(SnapshotHandle handle, ObjectSetQuery? set, Func<IWorkerService, Guid, ObjectSetSpec?, CancellationToken, Task<T>> call, CancellationToken cancellationToken) =>
@@ -570,31 +570,31 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             : UseAsync(handle, (service, id, ct) => call(service, id, set?.Spec, ct), cancellationToken);
 
     /// <summary>
-    /// Why one object is alive (sprint 2.2): its shortest paths from up to <paramref name="maxRoots"/> roots. The first such
+    /// Why one object is alive: its shortest paths from up to <paramref name="maxRoots"/> roots. The first such
     /// query of a snapshot builds its reverse references index, or opens it from its sidecar.
     /// </summary>
     public Task<ObjectPathsResult> QueryObjectPathsAsync(SnapshotHandle handle, ulong address, int maxRoots, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
         UseAsync(handle, (service, id, ct) => service.QueryObjectPathsAsync(new ObjectPathsRequest(id, address, maxRoots), progress, ct), cancellationToken);
 
-    /// <summary>One object's retained size and immediate dominator (sprint 2.3).</summary>
+    /// <summary>One object's retained size and immediate dominator.</summary>
     public Task<RetainedResult> QueryRetainedAsync(SnapshotHandle handle, ulong address, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
         UseAsync(handle, (service, id, ct) => service.QueryRetainedAsync(new RetainedRequest(id, address), progress, ct), cancellationToken);
 
-    /// <summary>Why the objects of a type are alive (sprint 2.2): their key retention paths, largest first.</summary>
+    /// <summary>Why the objects of a type are alive: their key retention paths, largest first.</summary>
     public Task<TypePathsResult> QueryTypePathsAsync(SnapshotHandle handle, string typeName, string? module, int maxPaths, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(typeName);
         return UseAsync(handle, (service, id, ct) => service.QueryTypePathsAsync(new TypePathsRequest(id, typeName, module, maxPaths), progress, ct), cancellationToken);
     }
 
-    /// <summary>The key paths of a set's members (sprint 3.2).</summary>
+    /// <summary>The key paths of a set's members.</summary>
     public Task<TypePathsResult> QuerySetPathsAsync(SnapshotHandle handle, ObjectSetQuery set, int maxPaths, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(set);
         return UseWithSetAsync(handle, set, (service, id, spec, ct) => service.QueryTypePathsAsync(new TypePathsRequest(id, string.Empty, null, maxPaths, spec), progress, ct), cancellationToken);
     }
 
-    /// <summary>A set's members grouped by retention pattern (sprint 3.2, ADR-031).</summary>
+    /// <summary>A set's members grouped by retention pattern (ADR-031).</summary>
     public Task<SimilarRetentionResult> QuerySimilarRetentionAsync(SnapshotHandle handle, ObjectSetQuery set, int maxGroups, IProgress<JobProgress>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(set);
@@ -602,7 +602,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     }
 
     /// <summary>
-    /// A trend across <paramref name="snapshots"/> in the order given (sprint 3.3). The rows re-run the query, reopening any
+    /// A trend across <paramref name="snapshots"/> in the order given. The rows re-run the query, reopening any
     /// snapshot after a worker restart, when the set is gone.
     /// </summary>
     public async Task<SnapshotTrend> QueryTypeTrendAsync(
@@ -651,7 +651,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
     /// <summary>
     /// Reopens a snapshot after a worker restart, from its index cache only: a reopen is cheap and silent, never a
     /// multi-minute dump load the user did not ask for. A changed file fails with
-    /// <see cref="HeapScopeErrorCode.SnapshotChanged"/> and the user opens it again (sprint 1.2 review).
+    /// <see cref="HeapScopeErrorCode.SnapshotChanged"/> and the user opens it again.
     /// </summary>
     private async Task ReopenAsync(SnapshotHandle handle, CancellationToken cancellationToken)
     {
@@ -674,7 +674,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         var (descriptor, generation) = reopened;
 
         // A cache rebuilt meanwhile (another front end, a newer loader, --rebuild) is a different graph: the handle's rows,
-        // totals and addresses would no longer match it (sprint 2.1 review M10).
+        // totals and addresses would no longer match it.
         var opened = handle.Descriptor.CacheIdentity;
         if (opened != 0 && descriptor.CacheIdentity != 0 && descriptor.CacheIdentity != opened)
         {

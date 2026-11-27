@@ -27,7 +27,7 @@ namespace HeapScope.Analysis;
 /// <summary>
 /// Compares type keys (ADR-018): a type name and its module's file name (<see cref="TypeGroups.ModuleKey"/>). Names are
 /// compared exactly; module file names in any case, as the summary groups them and the "open instances" link matches them,
-/// so the summary, the diff and the inspections agree (2.3.5 review L2, 2.3.6 review).
+/// so the summary, the diff and the inspections agree.
 /// </summary>
 public sealed class TypeKeyComparer : IEqualityComparer<(string Name, string Module)>
 {

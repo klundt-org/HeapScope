@@ -24,7 +24,7 @@
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// A row of the flattened dominator tree (sprint 2.4): its key and its parent's, its depth and kind; for an object its
+/// A row of the flattened dominator tree: its key and its parent's, its depth and kind; for an object its
 /// index (otherwise -1); a name (the type, the group, or what a "more" row stands for) and the module; the objects the
 /// row stands for, their retained and own bytes; how many children expanding it shows; whether it is expanded.
 /// </summary>

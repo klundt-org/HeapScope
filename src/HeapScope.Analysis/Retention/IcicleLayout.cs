@@ -25,7 +25,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// The icicle chart of the dominator tree (sprint 2.4): the focus (or the whole reachable heap) as the top bar, each
+/// The icicle chart of the dominator tree: the focus (or the whole reachable heap) as the top bar, each
 /// object's dominator children below it, side by side in retained order, as wide as their retained bytes. Siblings retain
 /// disjoint sets, so children always fit inside their parent; the gap at a parent's right is its own bytes and the
 /// children too small to draw. A segment narrower than <c>minShare</c> of the top bar is left out with its subtree.

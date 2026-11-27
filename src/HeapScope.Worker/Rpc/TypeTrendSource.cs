@@ -28,7 +28,7 @@ using HeapScope.Core.Graph;
 
 namespace HeapScope.Worker.Rpc;
 
-/// <summary>Trend rows (sprint 3.3): grouped, filtered and sorted once, formatted per page.</summary>
+/// <summary>Trend rows: grouped, filtered and sorted once, formatted per page.</summary>
 internal sealed class TypeTrendSource : IResultSource
 {
     private readonly TrendRow[] _rows;

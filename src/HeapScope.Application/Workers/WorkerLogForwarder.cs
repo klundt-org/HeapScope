@@ -44,7 +44,7 @@ internal static class WorkerLogForwarder
 
     /// <summary>
     /// Logs one worker line at its level, prefixed with the worker's process id and generation, so lines of a worker
-    /// that crashed and its replacement are never confused (sprint 2.3.7 review M1).
+    /// that crashed and its replacement are never confused.
     /// </summary>
     public static void Forward(ILogger logger, string? line, int workerPid = 0, int generation = 0)
     {
@@ -61,7 +61,7 @@ internal static class WorkerLogForwarder
     }
 
     /// <summary>
-    /// What a worker's exit code usually means (sprint 2.3.7 review M19), or null for codes without a known cause. Linux
+    /// What a worker's exit code usually means, or null for codes without a known cause. Linux
     /// and macOS report a signal as 128 plus its number.
     /// </summary>
     public static string? ExplainExitCode(int code) => code switch

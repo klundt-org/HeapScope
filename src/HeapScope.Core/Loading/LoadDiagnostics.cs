@@ -31,12 +31,12 @@ namespace HeapScope.Core.Loading;
 /// <param name="UnreadableObjects">Heap entries skipped because their type could not be read.</param>
 /// <param name="StaticFieldRoots">Static field roots found by enumerating statics.</param>
 /// <param name="IncompleteSegments">Heap segments whose walk covered less than their object range (missing memory).</param>
-/// <param name="Dac">The data access component that read the dump and why (full dumps only, sprint 2.3.7).</param>
-/// <param name="ProcessNameSource">Which rule chose the process name, for the log (full dumps only, sprint 3.10).</param>
-/// <param name="Handles">How the GC handles were read (full dumps only, peer review 4.5).</param>
-/// <param name="Statics">What the check of the static fields found (full dumps only, sprint 4.7).</param>
-/// <param name="Edges">Where the references were kept while the graph was built, and why if not in their file (sprint 4.7).</param>
+/// <param name="Dac">The data access component that read the dump and why (full dumps only).</param>
+/// <param name="ProcessNameSource">Which rule chose the process name, for the log (full dumps only).</param>
+/// <param name="Handles">How the GC handles were read (full dumps only).</param>
+/// <param name="Statics">What the check of the static fields found (full dumps only).</param>
+/// <param name="Edges">Where the references were kept while the graph was built, and why if not in their file.</param>
 /// <param name="EdgesFallback">
-/// Why the references went to memory instead of their file, with what to do, when they did (sprint 4.8): the snapshot's note.
+/// Why the references went to memory instead of their file, with what to do, when they did: the snapshot's note.
 /// </param>
 public sealed record LoadDiagnostics(IReadOnlyList<string> DebuggableModules, long UnreadableObjects, int StaticFieldRoots, int IncompleteSegments = 0, DacChoice? Dac = null, string? ProcessNameSource = null, HandleWalk? Handles = null, string? Statics = null, string? Edges = null, string? EdgesFallback = null);

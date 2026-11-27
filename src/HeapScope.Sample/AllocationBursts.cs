@@ -24,7 +24,7 @@
 namespace HeapScope.Sample;
 
 /// <summary>
-/// The allocation bursts scenario (sprint 4.3): one thread allocates heartbeats evenly and another builds a report every ten
+/// The allocation bursts scenario: one thread allocates heartbeats evenly and another builds a report every ten
 /// seconds, in a burst of two and a half. Over the whole run the heartbeats are the type allocated most; within a burst the report's
 /// rows are, so only an interval of the timeline shows what the burst is. Nothing is kept, so the heap stays about the same size.
 /// </summary>

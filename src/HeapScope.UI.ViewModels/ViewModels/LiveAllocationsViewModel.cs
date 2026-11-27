@@ -34,7 +34,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// What the process being watched allocates, as it does (sprint 4.3, ADR-037): the worker follows the run's allocation trace, and
+/// What the process being watched allocates, as it does (ADR-037): the worker follows the run's allocation trace, and
 /// one loop asks it a few times a second what changed, until another run takes its place. The types of the chosen interval are kept
 /// up to date in place; call stacks are looked up when asked for. The run's finished trace stays the record.
 /// </summary>

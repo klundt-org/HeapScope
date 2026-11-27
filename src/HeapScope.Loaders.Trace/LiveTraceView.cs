@@ -25,7 +25,7 @@ using HeapScope.Core.Allocations;
 
 namespace HeapScope.Loaders.Trace;
 
-/// <summary>What was read so far of a live trace (sprint 4.3), with the width its entries were added up by.</summary>
+/// <summary>What was read so far of a live trace, with the width its entries were added up by.</summary>
 /// <param name="StretchMs">How long one stretch is: an entry's time is the start of its stretch.</param>
 /// <param name="Version">The version of the trace it shows.</param>
 /// <param name="Completed">Whether it is everything there will be.</param>

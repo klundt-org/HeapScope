@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Cli;
 
-/// <summary>The <c>diff</c> command (sprint 1.4, ADR-018): growth by type between two dumps, with a CI threshold.</summary>
+/// <summary>The <c>diff</c> command (ADR-018): growth by type between two dumps, with a CI threshold.</summary>
 internal static partial class CliCommands
 {
     private static Command BuildDiffCommand(Func<IServiceProvider> services)
@@ -87,7 +87,7 @@ internal static partial class CliCommands
         AddTopOrAllValidator(command, top, all);
         command.Validators.Add(result =>
         {
-            // Interface rows overlap, so their growth adds up a type once per interface (the 3.2 review).
+            // Interface rows overlap, so their growth adds up a type once per interface.
             if (result.GetValue(failOnGrowth) is not null && result.GetValue(group) == "interface")
             {
                 result.AddError("--fail-on-growth cannot gate interface rows: a type counts under each interface it implements, so their growth adds up more than once. Gate by type, namespace or assembly.");
@@ -264,7 +264,7 @@ internal static partial class CliCommands
                 string worst = "none";
                 if (parseResult.GetValue(perRow))
                 {
-                    // Each row on its own (decision 5): its delta against its own limit, from its own baseline bytes.
+                    // Each row on its own: its delta against its own limit, from its own baseline bytes.
                     long worstDelta = long.MinValue;
                     foreach (var row in gateRows)
                     {
@@ -294,9 +294,9 @@ internal static partial class CliCommands
                 var exceeded = parseResult.GetValue(perRow) ? offenders.Count > 0 : threshold.IsExceededBy(delta, baselineBytes);
                 var limit = threshold.LimitFor(baselineBytes);
 
-                // The gate's decision in the log, so a failed CI run can be explained later (sprint 2.3.7 review M4; per row,
-                // the rows over their limits and the largest, each with its own baseline and limit, the 3.3 review). The
-                // filter's text is logged unless the user turned that off (sprint 3.12, B1); its length always is.
+                // The gate's decision in the log, so a failed CI run can be explained later (per row,
+                // the rows over their limits and the largest, each with its own baseline and limit). The
+                // filter's text is logged unless the user turned that off; its length always is.
                 var filterText = parseResult.GetValue(filter);
                 context.Get<ILoggerFactory>().CreateLogger("HeapScope.Cli.Diff").LogInformation(
                     "Growth gate {Outcome} ({Grouping} rows, growth of {GrowthOf}, {Mode}): {Decision}; limit {Threshold}; {Rows} matching rows, filter {Filter}{FilterLength} chars; baseline {Baseline} (worker snapshot {BaselineId}), current {Current} (worker snapshot {CurrentId}); exact counts {ExactCounts}",
@@ -351,7 +351,7 @@ internal static partial class CliCommands
 
     private static string SortChoices => string.Join(", ", s_sortColumns.Keys);
 
-    /// <summary>What <c>--growth-of</c> checks: null for total bytes, else a per-kind delta column (sprint 3.3).</summary>
+    /// <summary>What <c>--growth-of</c> checks: null for total bytes, else a per-kind delta column.</summary>
     private static readonly Dictionary<string, string?> s_growthColumns = new(StringComparer.Ordinal)
     {
         ["total"] = null,
@@ -368,7 +368,7 @@ internal static partial class CliCommands
             $"Baseline {result.BaselineObjects:N0} objects, {Mb(result.BaselineBytes)}; current {result.CurrentObjects:N0} objects, {Mb(result.CurrentBytes)}; delta {Signed(result.CurrentObjects - result.BaselineObjects)} objects, {Signed(result.CurrentBytes - result.BaselineBytes)} bytes ({SnapshotScopeTexts.Comparison})")).ConfigureAwait(false);
         await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
             $"{result.Rows.TotalCount:N0} of {result.UnfilteredRows:N0} rows match ({result.NewRows:N0} new, {result.GoneRows:N0} gone overall), showing {rows.Count:N0}; matching rows grew by {Signed(result.MatchingBytesDelta)} bytes")).ConfigureAwait(false);
-        // Sprint 3.3: New and Dead, and the retained delta, when the diff has them.
+        // New and Dead, and the retained delta, when the diff has them.
         var cells = new ColumnMap(columns);
         var (matched, retained, allocated) = (cells.Has(TypeDiffColumns.NewObjects), cells.Has(TypeDiffColumns.RetainedDelta), cells.Has(TypeDiffColumns.AllocatedBytes));
         var extraHeader = (matched ? $" {"New",10} {"Dead",10}" : string.Empty) + (retained ? $" {"Retained delta",16}" : string.Empty) + (allocated ? $" {"Allocated ~",16}" : string.Empty);
@@ -403,7 +403,7 @@ internal static partial class CliCommands
             BaselineKind = baseline.Descriptor.Kind.ToString(),
             CurrentKind = current.Descriptor.Kind.ToString(),
 
-            // A full dump counts dead objects not yet collected; a gcdump only the survivors of its collection (1.9). Each
+            // A full dump counts dead objects not yet collected; a gcdump only the survivors of its collection. Each
             // side says so for itself; IncludesUnreachable is true only when both do.
             BaselineIncludesUnreachable = baseline.Descriptor.Kind == SnapshotKindDto.FullDump,
             CurrentIncludesUnreachable = current.Descriptor.Kind == SnapshotKindDto.FullDump,

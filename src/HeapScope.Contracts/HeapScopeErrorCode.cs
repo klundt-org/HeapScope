@@ -54,14 +54,14 @@ public enum HeapScopeErrorCode
     /// <summary>A reopen that requires the index cache found it missing or invalid: the file changed since it was opened.</summary>
     SnapshotChanged = 1011,
 
-    /// <summary>The allocation trace is not open in the worker: closed, or the worker restarted (sprint 2.5).</summary>
+    /// <summary>The allocation trace is not open in the worker: closed, or the worker restarted.</summary>
     TraceNotLoaded = 1012,
 
-    /// <summary>An allocation trace's file changed since it was opened, so it is not read again silently (the 2.5 review).</summary>
+    /// <summary>An allocation trace's file changed since it was opened, so it is not read again silently.</summary>
     TraceChanged = 1013,
 
     /// <summary>
-    /// The only matching DAC lies next to the dump and is not trusted (sprint 3.6, peer review P2); the error data is a
+    /// The only matching DAC lies next to the dump and is not trusted; the error data is a
     /// <see cref="DacTrustDetails"/>.
     /// </summary>
     DacNotTrusted = 1014,

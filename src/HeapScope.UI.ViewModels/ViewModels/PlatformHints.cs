@@ -25,14 +25,14 @@ namespace HeapScope.UI.ViewModels;
 
 /// <summary>
 /// Next steps that depend on whether this system can reach a running process: Windows, Linux and macOS can; elsewhere
-/// dumps come from dotnet-dump (ADR-025). The pages' own banners give the same reason (sprint 3.10 review M20).
+/// dumps come from dotnet-dump (ADR-025). The pages' own banners give the same reason.
 /// </summary>
 public static class PlatformHints
 {
-    /// <summary>Whether this system can capture, as the capture layer says (4.1 review M6).</summary>
+    /// <summary>Whether this system can capture, as the capture layer says.</summary>
     public static bool CanCapture => HeapScope.Application.Sessions.RightsTexts.CanCapture;
 
-    /// <summary>The Processes page's banner for a process HeapScope needs more rights to reach, per system (sprint 4.1).</summary>
+    /// <summary>The Processes page's banner for a process HeapScope needs more rights to reach, per system.</summary>
     public static string ElevationHint => HeapScope.Application.Sessions.RightsTexts.Hint;
 
     /// <summary>The Learn page's note on who can capture whom, on Linux and macOS; null elsewhere.</summary>
@@ -41,10 +41,10 @@ public static class PlatformHints
     /// <summary>Whether this system has a <see cref="LearnNote"/> (the page shows its box only then).</summary>
     public static bool HasLearnNote => LearnNote is not null;
 
-    /// <summary>The Processes page's Elevation column tooltip, per system (sprint 4.1).</summary>
+    /// <summary>The Processes page's Elevation column tooltip, per system.</summary>
     public static string ElevationColumnTip => HeapScope.Application.Sessions.RightsTexts.ColumnTip;
 
-    /// <summary>The label of the check box that lists the processes hidden because they need more rights (sprint 4.1.1).</summary>
+    /// <summary>The label of the check box that lists the processes hidden because they need more rights.</summary>
     public static string ShowHidden => HeapScope.Application.Sessions.RightsTexts.ShowHidden;
 
     /// <summary>The tooltip of <see cref="ShowHidden"/>.</summary>

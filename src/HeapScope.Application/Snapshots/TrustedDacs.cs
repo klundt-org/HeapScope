@@ -35,13 +35,13 @@ namespace HeapScope.Application.Snapshots;
 public sealed record TrustedDac(string Sha256, string Path, DateTimeOffset TrustedUtc, string Reason);
 
 /// <summary>
-/// The DACs (data access components) trusted to load from next to a dump (sprint 3.6, peer review P2, ADR-035), by
+/// The DACs (data access components) trusted to load from next to a dump (ADR-035), by
 /// SHA-256. A DAC is native code the worker runs; one that came with a dump is the dump maker's code, so it is loaded only
 /// once it is trusted here: by the user (the app's question), for one run (the CLI's <c>--trust-dac</c>), or because
 /// HeapScope's own capture copied it from the target's installed runtime.
 /// <para>
 /// The kept entries live in <c>trusted-dacs.json</c> in the user's own HeapScope data folder, never beside a configured
-/// session root, which could be shared (review). The file follows the session document's protocol: a change takes
+/// session root, which could be shared. The file follows the session document's protocol: a change takes
 /// <c>trusted-dacs.lock</c> across processes, reads share read, write and delete and retry briefly, and the replace retries.
 /// A file this build cannot read (damaged, another format) trusts nothing and is never overwritten silently: it is kept
 /// as <c>.bak</c> before a change writes a new one, and the log says so. Thread-safe.
@@ -64,7 +64,7 @@ public sealed class TrustedDacs
     /// <param name="folder">The folder of the file; null for HeapScope's own data folder in the user's profile.</param>
     public TrustedDacs(string? folder = null, ILogger<TrustedDacs>? logger = null)
     {
-        // Run with sudo, root's own list, never the invoking user's, which that user could write (sprint 4.8 review H1).
+        // Run with sudo, root's own list, never the invoking user's, which that user could write.
         Path = System.IO.Path.Combine(folder ?? Core.InvokingUser.TrustFolder ?? Bookmarks.BookmarkStore.DefaultFolder, FileName);
         _logger = logger ?? (ILogger)NullLogger.Instance;
     }
@@ -100,7 +100,7 @@ public sealed class TrustedDacs
     }
 
     /// <summary>
-    /// Who trusted each hash and when, for the log line of every open (sprint 3.6 review H2): the worker's DAC choice line
+    /// Who trusted each hash and when, for the log line of every open: the worker's DAC choice line
     /// names the hash it loaded, and this line, under the same trace id, says where that trust came from.
     /// </summary>
     public string Describe(int max = 20)
@@ -247,7 +247,7 @@ public sealed class TrustedDacs
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Held or denied: trusting nothing is the safe reading, but the list itself is fine, so a change must not
-                // start a new one over it (re-review): it is refused instead.
+                // start a new one over it: it is refused instead.
                 _logger.LogWarning(ex, "{Path} could not be read; no kept DAC is trusted", Path);
                 return ([], null, ex);
             }

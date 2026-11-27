@@ -23,7 +23,7 @@
 
 namespace HeapScope.Application.Workers;
 
-/// <summary>Lifecycle state of the analysis worker (ARCHITECTURE.md 4.2, 4.3).</summary>
+/// <summary>Lifecycle state of the analysis worker (ARCHITECTURE.md 4.2).</summary>
 public enum WorkerState
 {
     NotStarted,

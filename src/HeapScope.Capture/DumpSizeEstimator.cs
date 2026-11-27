@@ -24,12 +24,12 @@
 namespace HeapScope.Capture;
 
 /// <summary>
-/// Estimates the size of a full dump (sprint 1.1 review). A full dump holds every committed, readable page of the
+/// Estimates the size of a full dump. A full dump holds every committed, readable page of the
 /// process: private memory, loaded images and mapped files. Walking the address space with <c>VirtualQueryEx</c> sums
 /// exactly those pages; when the walk is not allowed, the estimate falls back to private bytes plus a fixed part for
-/// images and mapped files (measured on the samples: 250 to 660 MB outside the GC heap). On Linux (sprint 4.1) the readable
+/// images and mapped files (measured on the samples: 250 to 660 MB outside the GC heap). On Linux the readable
 /// mappings in <c>/proc/&lt;pid&gt;/maps</c> are summed instead (<see cref="ProcText.ReadableBytes"/>), with the same fallback
-/// when another user's maps cannot be read. On macOS (sprint 4.2, untested) the regions libproc gives are summed, and the
+/// when another user's maps cannot be read. On macOS (untested) the regions libproc gives are summed, and the
 /// shared cache, which that walk leaves out, is added (<see cref="Choose"/>).
 /// </summary>
 public static class DumpSizeEstimator

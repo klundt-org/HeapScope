@@ -28,7 +28,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// A one-click finding about common memory waste (sprint 1.6, ADR-020): a name for the CLI, a title, the cause and the
+/// A one-click finding about common memory waste (ADR-020): a name for the CLI, a title, the cause and the
 /// fix in one line each, the snapshot capabilities it needs, and a run over the graph and, when it needs dump values,
 /// the typed reader. Inspections are stateless; <see cref="InspectionCatalog"/> lists them.
 /// </summary>
@@ -48,19 +48,19 @@ public interface IInspection
     /// <summary>Capabilities the snapshot must have; without them the inspection is unavailable, never silently empty.</summary>
     SnapshotCapabilities Requires { get; }
 
-    /// <summary>Facts the loader must have recorded (sprint 1.6 review); none for most inspections.</summary>
+    /// <summary>Facts the loader must have recorded; none for most inspections.</summary>
     SnapshotFacts RequiresFacts => SnapshotFacts.None;
 
     /// <summary>
     /// The rule's version: raised whenever what the inspection counts or its thresholds change, so a result disputed
-    /// after an upgrade is traced to the rule that produced it (sprint 2.3.7 review M5). Logged with every result.
+    /// after an upgrade is traced to the rule that produced it. Logged with every result.
     /// </summary>
     int Version => 1;
 
     /// <summary>The thresholds the rule uses, as <c>Name=value</c> pairs for the log; empty when it has none.</summary>
     string Parameters => string.Empty;
 
-    /// <summary>Memory waste (sprint 1.6) or a leak detector (sprint 2.6), which the front ends show in their own group.</summary>
+    /// <summary>Memory waste or a leak detector, which the front ends show in their own group.</summary>
     InspectionKind Kind => InspectionKind.Waste;
 
     /// <summary>Whether a baseline snapshot changes the answer (growth since it); the front ends offer one.</summary>
@@ -76,15 +76,14 @@ public interface IInspection
     bool UsesReachable => false;
 
     /// <summary>
-    /// The bytes this inspection may hold while it runs, reserved before it starts so it cannot push the worker out of memory (peer
-    /// review 4.5 H6, sprint 4.7): by default a byte per object (flags or a visited mark); one that holds more says so.
+    /// The bytes this inspection may hold while it runs, reserved before it starts so it cannot push the worker out of memory: by default a byte per object (flags or a visited mark); one that holds more says so.
     /// </summary>
     long WorkingBytes(HeapGraph graph) => graph.ObjectCount;
 
     InspectionResult Run(InspectionContext context);
 }
 
-/// <summary>What an inspection finds (sprint 2.6).</summary>
+/// <summary>What an inspection finds.</summary>
 public enum InspectionKind
 {
     /// <summary>Memory spent for little (duplicate strings, empty collections...).</summary>
@@ -95,7 +94,7 @@ public enum InspectionKind
 }
 
 /// <summary>
-/// An earlier snapshot of the same process, for growth (sprint 2.6); objects are matched by stable keys, never addresses
+/// An earlier snapshot of the same process, for growth; objects are matched by stable keys, never addresses
 /// (ADR-018). <see cref="Reachable"/> is set when the inspection asked for reachable objects.
 /// </summary>
 public sealed record InspectionBaseline(HeapGraph Graph, SnapshotInfo Info, IObjectReader? Reader, Reachability? Reachable = null);
@@ -103,7 +102,7 @@ public sealed record InspectionBaseline(HeapGraph Graph, SnapshotInfo Info, IObj
 /// <summary>
 /// What an inspection runs over. <see cref="Reader"/> is set when the snapshot has a typed reader; <see cref="Baseline"/>
 /// when the user chose an earlier snapshot and the inspection uses one; <see cref="Referrers"/> and <see cref="Reachable"/>
-/// when it asked for them (sprint 2.6, ADR-020's derived data). The host computes each once per snapshot and keeps it.
+/// when it asked for them (ADR-020's derived data). The host computes each once per snapshot and keeps it.
 /// </summary>
 public sealed record InspectionContext(
     HeapGraph Graph,
@@ -124,10 +123,10 @@ public sealed record InspectionProgress(string Phase, long Done, long Total);
 /// An inspection's answer: how many findings, the bytes they cover, the bytes they waste (null when "waste" does not
 /// apply, as for the large object heap's contents), a note on what could not be measured, and the rows.
 /// <paramref name="Basis"/> says what the answer rests on (objects scanned, skipped, groups compared), for the log
-/// only: it backs up a disputed result without any value from the dump (sprint 2.3.7 review H3).
+/// only: it backs up a disputed result without any value from the dump.
 /// </summary>
-/// <paramref name="Counts"/> (sprint 3.12, B7) is the same for every inspection: what it scanned, what it left out (unread,
-/// excluded by a rule) and the cap on rows its log line lists. <paramref name="Unread"/> (peer review 4.5) is what it could not read.
+/// <paramref name="Counts"/> is the same for every inspection: what it scanned, what it left out (unread,
+/// excluded by a rule) and the cap on rows its log line lists. <paramref name="Unread"/> is what it could not read.
 public sealed record InspectionResult(long Count, long Bytes, long? WastedBytes, string? Note, InspectionTable Rows, string? Basis = null, InspectionCounts? Counts = null, InspectionUnread? Unread = null);
 
 /// <summary>Kinds of inspection columns (mirrored by the worker's result columns).</summary>
@@ -141,7 +140,7 @@ public enum InspectionColumnKind
 }
 
 /// <param name="IsKey">The column that identifies a row (an object's address, or a type's name).</param>
-/// <param name="HasValues">The column carries the target's data, such as a duplicate string's text (sprint 2.7, ADR-026).</param>
+/// <param name="HasValues">The column carries the target's data, such as a duplicate string's text (ADR-026).</param>
 public sealed record InspectionColumn(string Name, InspectionColumnKind Kind, bool IsKey = false, bool HasValues = false);
 
 /// <summary>
@@ -174,7 +173,7 @@ public static class InspectionColumns
     public const string Module = "Module";
     public const string Scope = "Scope";
 
-    // The leak detectors' columns (sprint 2.6).
+    // The leak detectors' columns.
     public const string Field = "Field";
     public const string Baseline = "Baseline";
     public const string Growth = "Growth";
@@ -193,7 +192,7 @@ public static class InspectionScopes
     public const string Finalizable = "Finalizable";
     public const string SameValue = "SameValue";
 
-    /// <summary>The objects a root reaches: what a leak detector's row opens (sprint 2.6 review H5).</summary>
+    /// <summary>The objects a root reaches: what a leak detector's row opens.</summary>
     public const string Reachable = "Reachable";
 }
 
@@ -210,7 +209,7 @@ public abstract class InspectionTable
     public abstract void FormatRow(int index, string?[] cells);
 
     /// <summary>
-    /// The objects a row counted (sprint 3.1, a leak detector's row opened as a set), as object indices; null when the
+    /// The objects a row counted (a leak detector's row opened as a set), as object indices; null when the
     /// row's hidden columns say what it opens (a type in a scope, or one object).
     /// </summary>
     public virtual IReadOnlyList<int>? MembersOf(int index) => null;
@@ -226,7 +225,7 @@ public sealed class RowTable<TRow>(IReadOnlyList<InspectionColumn> columns, TRow
 
     public override int Count => rows.Length;
 
-    /// <summary>The rows, and the member lists of rows that keep them (the 3.1 review: counted, so caches see them).</summary>
+    /// <summary>The rows, and the member lists of rows that keep them (counted, so caches see them).</summary>
     public override long EstimatedBytes => ((long)rows.Length * bytesPerRow) + (members is null ? 0 : rows.Sum(r => 4L * (members(r)?.Count ?? 0)));
 
     /// <summary>Whether rows list the objects they counted.</summary>

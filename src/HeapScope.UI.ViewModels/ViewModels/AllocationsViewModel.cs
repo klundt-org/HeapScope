@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Allocations page (sprint 2.5, ADR-028): the allocation traces open in this session, one tab each. Traces come from
+/// The Allocations page (ADR-028): the allocation traces open in this session, one tab each. Traces come from
 /// Record allocations on the Processes page or from a <c>.nettrace</c> file.
 /// </summary>
 public sealed partial class AllocationsViewModel : ObservableObject
@@ -106,7 +106,7 @@ public sealed partial class AllocationsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Allocations", ex.Message);
             Status = ex.Message;
         }
@@ -132,7 +132,7 @@ public sealed partial class AllocationsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The trace of a file for another page (Compare, sprint 4.4): its tab is added when it has none, without switching to this page,
+    /// The trace of a file for another page (Compare): its tab is added when it has none, without switching to this page,
     /// so the user can look at it and close it here. Read in the worker as a tracked job when it is not open yet.
     /// </summary>
     public async Task<DiffAllocations> OpenBesideAsync(string path, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken)

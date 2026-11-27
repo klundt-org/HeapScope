@@ -33,7 +33,7 @@ using HeapScope.Storage;
 namespace HeapScope.Worker;
 
 /// <summary>
-/// The versions of every rule and format the worker's results depend on, logged once at start (sprint 2.3.7 review M5):
+/// The versions of every rule and format the worker's results depend on, logged once at start:
 /// the protocol, the loaders, the index cache format, the retention semantics, the inspections and the ClrMD library.
 /// </summary>
 internal static class WorkerVersions

@@ -26,7 +26,7 @@ using HeapScope.Application.Sessions;
 namespace HeapScope.Application.Settings;
 
 /// <summary>
-/// What Purge all would delete (sprint 3.12, B1): the library's sessions, and with them every file below, or why it is
+/// What Purge all would delete: the library's sessions, and with them every file below, or why it is
 /// refused now. Nothing is deleted by making the plan.
 /// </summary>
 /// <param name="Sessions">The sessions in the library, the current one included.</param>

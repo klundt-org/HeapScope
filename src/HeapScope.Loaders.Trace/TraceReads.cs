@@ -35,8 +35,8 @@ namespace HeapScope.Loaders.Trace;
 /// <summary>
 /// What the reader asks TraceEvent of an opened trace, each call in a method of its own that is never inlined: an
 /// error thrown here, or in TraceEvent's own code, comes from the file, and one thrown anywhere else is HeapScope's and
-/// never reads as a bad file (the rule of the gcdump loader, 3.7 review H5). Without it the JIT may inline TraceEvent's
-/// accessors into the reader, and its errors would look like HeapScope's (as the gcdump loader's did, 4.2.1).
+/// never reads as a bad file (the rule of the gcdump loader). Without it the JIT may inline TraceEvent's
+/// accessors into the reader, and its errors would look like HeapScope's (as the gcdump loader's did).
 /// </summary>
 internal static class TraceReads
 {
@@ -133,7 +133,7 @@ internal static class TraceReads
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static int Lost(EventPipeEventSource source) => source.EventsLost;
 
-    /// <summary>What a live trace is read for (sprint 4.3): its ticks, its methods' code and names, and how far it got.</summary>
+    /// <summary>What a live trace is read for: its ticks, its methods' code and names, and how far it got.</summary>
     public static void Subscribe(EventPipeEventSource source, Action<TraceEvent, LiveSample>? tick, Action<ulong, uint, string> method, Action<ulong>? unload, Action<LiveEvent>? any)
     {
         if (tick is not null)

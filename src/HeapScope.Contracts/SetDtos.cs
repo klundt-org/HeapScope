@@ -24,7 +24,7 @@
 namespace HeapScope.Contracts;
 
 // DTOs are records of primitives, strings, arrays and Contracts enums only (ARCHITECTURE.md 4.4, ADR-016).
-// Object sets (sprint 3.1, ADR-030).
+// Object sets (ADR-030).
 
 /// <summary>What an <see cref="ObjectSetSpec"/> selects.</summary>
 public enum ObjectSetKind
@@ -48,13 +48,13 @@ public enum ObjectSetKind
     RetainedBy = 5,
 
     /// <summary>
-    /// Every object of the types implementing an interface (sprint 3.2; <see cref="ObjectSetSpec.Name"/> as the interface
+    /// Every object of the types implementing an interface (<see cref="ObjectSetSpec.Name"/> as the interface
     /// rows name it, or <see cref="TypeSummaryColumns.NoInterface"/>). Full dumps only.
     /// </summary>
     Interface = 6,
 
     /// <summary>
-    /// The members of a Similar Retention group of <see cref="ObjectSetSpec.Inner"/> (sprint 3.2): the group whose pattern
+    /// The members of a Similar Retention group of <see cref="ObjectSetSpec.Inner"/>: the group whose pattern
     /// has the fingerprint <see cref="ObjectSetSpec.Name"/> (<see cref="RetentionGroupDto.Key"/>); <see cref="ObjectSetSpec.Row"/>
     /// is the rank it was listed at, for the log and as a hint.
     /// </summary>
@@ -62,13 +62,13 @@ public enum ObjectSetKind
 
     /// <summary>
     /// The members of <see cref="ObjectSetSpec.Inner"/> that are new, dead or survived (<see cref="ObjectSetSpec.Change"/>)
-    /// against the other snapshot <see cref="ObjectSetSpec.Baseline"/>, matched by address and type (sprint 3.3, ADR-032).
+    /// against the other snapshot <see cref="ObjectSetSpec.Baseline"/>, matched by address and type (ADR-032).
     /// New and survived objects live in the later snapshot, dead ones in the earlier: the set is queried there.
     /// </summary>
     Compared = 8,
 
     /// <summary>
-    /// The objects no root reaches (sprint 3.5): garbage a full dump still holds because no collection has removed it yet.
+    /// The objects no root reaches: garbage a full dump still holds because no collection has removed it yet.
     /// The roots are the retention views' (ADR-024), the finalizer queue included, so no member has a retention path or
     /// retains anything; objects waiting for their finalizer are not members. Full dumps with a complete graph only.
     /// </summary>
@@ -92,7 +92,7 @@ public enum ObjectChange
 public sealed record TypeKeyDto(string Name, string? Module);
 
 /// <summary>
-/// An object set (sprint 3.1, ADR-030): what it selects, not its members. The client keeps it (the analysis path replays
+/// An object set (ADR-030): what it selects, not its members. The client keeps it (the analysis path replays
 /// it) and sends it with each query; the worker resolves it into the members of one snapshot and caches them. Use the
 /// factory methods.
 /// </summary>
@@ -105,7 +105,7 @@ public sealed record TypeKeyDto(string Name, string? Module);
 /// <param name="Row">The inspection row's index, in the order the inspection lists its rows; a Similar Retention group's rank.</param>
 /// <param name="Baseline">
 /// The other snapshot: an inspection row's baseline (a detector that uses one), or what a <see cref="ObjectSetKind.Compared"/>
-/// set is compared with (sprint 3.3, the 3.1 review's M6).
+/// set is compared with.
 /// </param>
 /// <param name="Change">What a <see cref="ObjectSetKind.Compared"/> set selects.</param>
 /// <param name="Inner">The set whose retained objects <see cref="ObjectSetKind.RetainedBy"/> selects, or whose Similar Retention group <see cref="ObjectSetKind.RetentionGroup"/> selects.</param>
@@ -136,11 +136,11 @@ public sealed record ObjectSetSpec(
 
     public static ObjectSetSpec OfInterface(string name) => new(ObjectSetKind.Interface, Name: name);
 
-    /// <summary>The <paramref name="change"/> objects of <paramref name="inner"/> against <paramref name="other"/> (sprint 3.3).</summary>
+    /// <summary>The <paramref name="change"/> objects of <paramref name="inner"/> against <paramref name="other"/>.</summary>
     public static ObjectSetSpec ComparedOf(ObjectSetSpec inner, ObjectChange change, Guid? other = null) =>
         new(ObjectSetKind.Compared, Baseline: other, Inner: inner, Change: change);
 
-    /// <summary>The objects no root reaches (sprint 3.5).</summary>
+    /// <summary>The objects no root reaches.</summary>
     public static ObjectSetSpec OfUnreachable() => new(ObjectSetKind.Unreachable);
 
     public static ObjectSetSpec RetentionGroupOf(ObjectSetSpec inner, RetentionGroupDto group) =>
@@ -149,7 +149,7 @@ public sealed record ObjectSetSpec(
 }
 
 /// <summary>
-/// Texts computed from an <see cref="ObjectSetSpec"/> (sprint 3.1 review): kept off the record, as extension members, so
+/// Texts computed from an <see cref="ObjectSetSpec"/>: kept off the record, as extension members, so
 /// the JSON-RPC formatter never sends them (ADR-016: DTOs are plain data).
 /// </summary>
 public static class ObjectSetSpecs
@@ -200,7 +200,7 @@ public static class ObjectSetSpecs
 
         /// <summary>
         /// A key equal for equal specs (lists compare by value), for caches. Every kind has its own arm: a kind without one
-        /// is refused, so two sets of a new kind never share a key (the 3.1 review).
+        /// is refused, so two sets of a new kind never share a key.
         /// </summary>
         public string CacheKey => spec.Kind switch
         {
@@ -235,7 +235,7 @@ public static class ObjectSetLimits
 /// <summary>How big a resolved set is: its members, their bytes and how many distinct types they have.</summary>
 public sealed record ObjectSetInfo(long Objects, long Bytes, int Types);
 
-/// <summary>Column names of a set's dominators result set (sprint 3.1).</summary>
+/// <summary>Column names of a set's dominators result set.</summary>
 public static class SetDominatorColumns
 {
     public const string Address = "Address";
@@ -249,7 +249,7 @@ public static class SetDominatorColumns
     public const string Members = "Members";
 }
 
-/// <summary>The members of a set that no other member dominates (sprint 3.1): what the set's retention divides into.</summary>
+/// <summary>The members of a set that no other member dominates: what the set's retention divides into.</summary>
 public sealed record SetDominatorsRequest(Guid SnapshotId, ObjectSetSpec Set);
 
 /// <summary>

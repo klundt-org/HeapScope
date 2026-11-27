@@ -36,11 +36,11 @@ public sealed partial class SnapshotsViewModel
     public bool CanTrustDac => Selected?.Handle.Descriptor.UntrustedDac is not null && _session.TrustedDacs is not null && !IsOpening;
 
     /// <summary>
-    /// Trusts the DAC that came with the selected dump and opens the dump again (sprint 3.12, owner 2026-11-13): after a "no",
+    /// Trusts the DAC that came with the selected dump and opens the dump again (owner 2026-11-13): after a "no",
     /// or an open that never asked (an older index cache in place of a rebuild), the way to field values without closing and
     /// opening it by hand. It asks the open's own question first, so the risk is said the same way every time, and the memory
     /// question of a load before anything is closed. The snapshot opens again in place (its handle stays), so Compare's pair,
-    /// Trend's ticks and the selection keep it (3.12 re-review).
+    /// Trend's ticks and the selection keep it.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanTrustDac))]
     private async Task TrustDacAndReopenAsync()
@@ -82,7 +82,7 @@ public sealed partial class SnapshotsViewModel
         }
         catch (Exception ex) when (ex is WorkerException)
         {
-            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            // What the user was shown, beside the worker's line with its id.
             _logger?.LogInformation("{Section} shown as: {Message}", "Snapshot open", ex.Message);
             Status = ex.Message;
         }
@@ -119,7 +119,7 @@ public sealed partial class SnapshotsViewModel
         TrustDacAndReopenCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>The question asked before a DAC that came with a dump is loaded (sprint 3.6).</summary>
+    /// <summary>The question asked before a DAC that came with a dump is loaded.</summary>
     internal static string TrustQuestion(DacTrustDetails dac) =>
         $"The .NET {dac.RuntimeVersion} runtime's data access component (DAC) was found only next to the dump:\n\n{dac.Path}\nSHA-256 {dac.Sha256}\n\n" +
         "A DAC is native code HeapScope runs to read the dump. One that came with a dump runs code from whoever made it, " +

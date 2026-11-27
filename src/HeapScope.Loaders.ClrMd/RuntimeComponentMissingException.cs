@@ -43,7 +43,7 @@ public sealed class RuntimeComponentMissingException : Exception
     {
     }
 
-    /// <param name="hint">What to do first when installing the runtime would not help (sprint 2.3.5), or null.</param>
+    /// <param name="hint">What to do first when installing the runtime would not help, or null.</param>
     public RuntimeComponentMissingException(string runtimeVersion, string fileName, IReadOnlyList<string> searched, string? hint = null)
         : base(BuildMessage(runtimeVersion, fileName, searched, hint))
     {
@@ -52,7 +52,7 @@ public sealed class RuntimeComponentMissingException : Exception
         Searched = searched;
     }
 
-    /// <summary>A DAC not found locally that the symbol server did not give either (sprint 3.12): why, and what to do.</summary>
+    /// <summary>A DAC not found locally that the symbol server did not give either: why, and what to do.</summary>
     public RuntimeComponentMissingException(string runtimeVersion, string fileName, string message, Exception? innerException)
         : base(message, innerException)
     {
@@ -68,14 +68,14 @@ public sealed class RuntimeComponentMissingException : Exception
 
     private static string BuildMessage(string runtimeVersion, string fileName, IReadOnlyList<string> searched, string? hint)
     {
-        // ClrMD reads some core files' runtime version as 0.0 (sprint 2.3.5); such a version is not named.
+        // ClrMD reads some core files' runtime version as 0.0; such a version is not named.
         var known = !runtimeVersion.StartsWith("0.0", StringComparison.Ordinal);
         var runtime = known ? $".NET {runtimeVersion}" : "a .NET runtime whose version it does not record";
         return $"This dump was taken from {runtime}, and the matching {fileName} was not found on this machine. " +
             (hint is null ? "" : hint + " ") +
             $"Install {(known ? $"the .NET {runtimeVersion} runtime" : "that runtime")}, or copy {fileName} from that runtime's folder into the DAC folder (on the Settings page in the app, or --dac-folder on the command line); a copy next to the dump is used once you trust it. " +
             "Downloading it from Microsoft's symbol server is off by default: turn on Download missing DACs from Microsoft on the Settings page, or add --allow-symbol-server on the command line. " +
-            // Run with sudo, a folder or opt-in saved in the app is ignored (sprint 4.8 review H1), so the command line is the way.
+            // Run with sudo, a folder or opt-in saved in the app is ignored, so the command line is the way.
             (HeapScope.Core.InvokingUser.Current is null ? string.Empty : "Run with sudo, HeapScope ignores a DAC folder and a download choice saved in the app: give --dac-folder or --allow-symbol-server. ") +
             $"Searched: {(searched.Count == 0 ? "nothing" : string.Join("; ", searched))}.";
     }

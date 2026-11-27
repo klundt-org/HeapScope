@@ -27,7 +27,7 @@ using HeapScope.Contracts;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Where a link leads (sprint 2.4, 2.3.7 review M8): every cross-link of the app (a type row, a diff row, an inspection
+/// Where a link leads: every cross-link of the app (a type row, a diff row, an inspection
 /// row, a reference, a dominator node) is one of these, handed to <see cref="INavigator.Navigate"/>, which picks the tab
 /// and the subject. Use the factory methods.
 /// </summary>
@@ -69,18 +69,18 @@ public sealed record NavigationTarget(
     public static NavigationTarget RetainedBySet(SnapshotHandle snapshot, string typeName, string? module) =>
         new(NavigationKind.RetainedBySet, snapshot, TypeName: typeName, Module: module);
 
-    /// <summary>What the members of any object set retain together (sprint 3.1), on the Retainers tab.</summary>
+    /// <summary>What the members of any object set retain together, on the Retainers tab.</summary>
     public static NavigationTarget RetainedBySet(SnapshotHandle snapshot, ObjectSetQuery set, string title) =>
         new(NavigationKind.RetainedBySet, snapshot, Set: set, SetTitle: title);
 
     /// <summary>
-    /// An object set with its views (sprint 3.1), titled <paramref name="title"/> in the analysis path, showing
-    /// <paramref name="view"/> first (sprint 3.2).
+    /// An object set with its views, titled <paramref name="title"/> in the analysis path, showing
+    /// <paramref name="view"/> first.
     /// </summary>
     public static NavigationTarget ObjectSet(SnapshotHandle snapshot, ObjectSetQuery set, string title, SetViews view = SetViews.Types) =>
         new(NavigationKind.Set, snapshot, Set: set, SetTitle: title, SetView: view);
 
-    /// <summary>The members of a set (of one type when <paramref name="typeName"/> is given), as instances (sprint 3.1).</summary>
+    /// <summary>The members of a set (of one type when <paramref name="typeName"/> is given), as instances.</summary>
     public static NavigationTarget SetInstances(SnapshotHandle snapshot, ObjectSetQuery set, string title, string? typeName = null, string? module = null) =>
         new(NavigationKind.Instances, snapshot, TypeName: typeName ?? string.Empty, Module: module, Set: set, SetTitle: title);
 }

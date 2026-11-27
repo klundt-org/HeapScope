@@ -30,12 +30,12 @@ using HeapScope.Worker.Snapshots;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Matching two snapshots' objects by address (sprint 3.3, ADR-032), and why two snapshots cannot be matched, for a
+/// Matching two snapshots' objects by address (ADR-032), and why two snapshots cannot be matched, for a
 /// diff's new and dead objects and for compared sets.
 /// </summary>
 internal sealed class IdentityMatcher(SnapshotStore snapshots)
 {
-    /// <summary>Why two snapshots' objects cannot be matched by address (decision 1), or null when they can.</summary>
+    /// <summary>Why two snapshots' objects cannot be matched by address, or null when they can.</summary>
     public static string? WhyNoIdentity(ISnapshot baseline, ISnapshot current)
     {
         const string still = " Comparing by type still works.";
@@ -69,7 +69,7 @@ internal sealed class IdentityMatcher(SnapshotStore snapshots)
     }
 
     /// <summary>
-    /// Why a match says the dumps are not of one run of the process (the 3.3 review): frozen objects never move or die
+    /// Why a match says the dumps are not of one run of the process: frozen objects never move or die
     /// in one run, so most of them must be at their addresses. A process id reused by another run (a container's pid 1)
     /// fails here. Null when the match looks like one run.
     /// </summary>

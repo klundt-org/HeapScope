@@ -24,7 +24,7 @@
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// One lesson of the Learn page (sprint 3.13, ADR-042): the sample's scenarios it starts, the page it starts on, its steps, and
+/// One lesson of the Learn page (ADR-042): the sample's scenarios it starts, the page it starts on, its steps, and
 /// a question whose answer is the planted type of <paramref name="AnswerScenario"/> (read from the sample's catalog, so the
 /// lesson and the sample never disagree). The check does not watch what the user clicks: whatever pages they use, the answer
 /// is the type they found. A new feature's lesson is one entry in <see cref="LessonCatalog"/>.
@@ -46,7 +46,7 @@ public sealed record Lesson(
     public const int DecoyCount = 3;
 
     /// <summary>
-    /// The choices for <paramref name="answerType"/> (review M1): the answer scenario's own decoys first, its other types
+    /// The choices for <paramref name="answerType"/>: the answer scenario's own decoys first, its other types
     /// that the steps rule out, then the planted types of other scenarios, up to <see cref="DecoyCount"/>; every choice is one
     /// of the sample's types, so the answer cannot be told from its name. The order depends on the lesson only.
     /// </summary>

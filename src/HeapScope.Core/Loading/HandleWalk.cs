@@ -24,7 +24,7 @@
 namespace HeapScope.Core.Loading;
 
 /// <summary>
-/// How a full dump's GC handles were read (peer review 4.5), for the log and the snapshot's notes.
+/// How a full dump's GC handles were read, for the log and the snapshot's notes.
 /// </summary>
 /// <param name="Heaps">GC heaps the process had when it was dumped.</param>
 /// <param name="Tables">Handle tables walked.</param>

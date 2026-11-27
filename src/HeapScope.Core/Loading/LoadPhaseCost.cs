@@ -26,10 +26,10 @@ using System.Globalization;
 namespace HeapScope.Core.Loading;
 
 /// <summary>
-/// What one load phase cost besides its wall time (sprint 3.12, R5): the process's CPU time (every thread: a load is one
+/// What one load phase cost besides its wall time: the process's CPU time (every thread: a load is one
 /// thread plus the GC's), the time the runtime was paused for collections, and the hard page faults, the pages read from disk
 /// (a memory-mapped dump not in the file cache faults its pages in; null where the system does not say). All three are the
-/// whole process's: work on another snapshot during the load counts in them (the review's M7).
+/// whole process's: work on another snapshot during the load counts in them.
 /// </summary>
 public sealed record LoadPhaseCost(string Phase, TimeSpan Elapsed, TimeSpan Cpu, TimeSpan GcPause, long? HardFaults)
 {

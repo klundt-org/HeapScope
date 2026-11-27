@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Snapshots;
 
-/// <summary>A snapshot's dominators and how they were obtained (sprint 2.3).</summary>
+/// <summary>A snapshot's dominators and how they were obtained.</summary>
 /// <param name="FromSidecar">Opened from the sidecar rather than computed.</param>
 /// <param name="Saved">Saved in the sidecar (opened from it, or computed into it), so the next open reuses them.</param>
 /// <param name="Reachable">Objects a root reaches.</param>
@@ -62,7 +62,7 @@ internal sealed record DominatorIndex(Dominators Dominators, bool FromSidecar, M
     }
 }
 
-/// <summary>Where a snapshot's dominators are kept, and the snapshot's memory mode (sprint 2.3).</summary>
+/// <summary>Where a snapshot's dominators are kept, and the snapshot's memory mode.</summary>
 /// <param name="Sidecar">The sidecar path; null when the snapshot has no index cache (the dominators then stay in memory).</param>
 /// <param name="BaseIdentity">The identity of the index cache the sidecar extends.</param>
 /// <param name="GraphMode">The graph's memory mode.</param>
@@ -70,18 +70,18 @@ internal sealed record DominatorIndex(Dominators Dominators, bool FromSidecar, M
 internal sealed record DominatorTarget(string? Sidecar, ulong BaseIdentity, SnapshotFingerprint Fingerprint, MemoryMode GraphMode, MemoryMode? Forced);
 
 /// <summary>
-/// Opens a snapshot's dominators from their sidecar or computes them (sprint 2.3, ARCHITECTURE.md 6.4; split from the
-/// snapshot store for its tests, review M9). With a sidecar to write they are computed straight into it (decision 3), the
+/// Opens a snapshot's dominators from their sidecar or computes them (ARCHITECTURE.md 6.4; split from the
+/// snapshot store for its tests). With a sidecar to write they are computed straight into it, the
 /// working arrays are returned to the OS, and the file is opened in the mode chosen then, with the memory committed at
 /// that moment; when the write fails, a sidecar another process just wrote is used, and only then are they computed in
-/// managed arrays. Every computation reserves its memory first (decision 4, review M1), and every exit collects the
-/// working arrays (review M3).
+/// managed arrays. Every computation reserves its memory first, and every exit collects the
+/// working arrays.
 /// </summary>
 internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations reservations, IndexCacheSigner signer)
 {
     private readonly IndexCacheSigner _signer = signer;
 
-    /// <summary>The dominators sidecar's layout under this build's rules (decision 2).</summary>
+    /// <summary>The dominators sidecar's layout under this build's rules.</summary>
     public static IndexFileLayout Layout { get; } = IndexFileLayout.ForDominators(DominatorTree.SemanticsVersion);
 
     private const string What = "Computing retained sizes";
@@ -89,7 +89,7 @@ internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations r
     /// <summary>
     /// What computing needs at its peak: the working arrays, and with managed outputs the larger of two moments: the
     /// working arrays beside the immediate dominators and retained sizes (12 bytes per object), or, once the working
-    /// arrays are collected, everything kept (the children added; sprint 2.4 review, DenseHeap in memory passed the budget
+    /// arrays are collected, everything kept (the children added; DenseHeap in memory passed the budget
     /// while the working arrays were still uncollected garbage).
     /// </summary>
     public static long NeededBytes(int objectCount, bool managedOutputs) => managedOutputs
@@ -99,7 +99,7 @@ internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations r
     /// <summary>The immediate dominator (4) and the retained size (8), allocated before the working arrays.</summary>
     private const int ComputedBytesPerObject = 12;
 
-    /// <summary>The mode for the kept columns: as the reverse index chooses (review M3 of 2.1), with the memory committed now.</summary>
+    /// <summary>The mode for the kept columns: as the reverse index chooses, with the memory committed now.</summary>
     public static MemoryMode ChooseMode(int objectCount, DominatorTarget target, MemoryBudget budget, long committedBytes) =>
         ReverseIndexBuilder.ChooseMode((long)DominatorTree.KeptBytesPerObject * objectCount, target.GraphMode, target.Forced, target.Sidecar is not null, budget, committedBytes);
 
@@ -159,13 +159,13 @@ internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations r
             }
             else if (TryOpenFile(graph, target, mode, cancellationToken) is { } other)
             {
-                // Another process (the UI and the CLI on one dump) wrote the same sidecar meanwhile (review M1).
+                // Another process (the UI and the CLI on one dump) wrote the same sidecar meanwhile.
                 logger.LogInformation("Dominators sidecar {Path} could not be written, but another process wrote it; using that one", sidecar);
                 return new DominatorIndex(other, FromSidecar: true, mode, Saved: true, 0, 0).WithUnreachable(graph);
             }
         }
 
-        // No sidecar, or it failed: managed outputs, checked again with them counted (review M1).
+        // No sidecar, or it failed: managed outputs, checked again with them counted.
         using (reservations.Reserve(NeededBytes(graph.ObjectCount, managedOutputs: true), What, target.GraphMode, hasCache))
         {
             try
@@ -174,7 +174,7 @@ internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations r
                 var retained = GC.AllocateUninitializedArray<ulong>(graph.ObjectCount);
                 var reachable = DominatorTree.Compute(graph, reverse, idom, retained, phases, cancellationToken);
 
-                // The working arrays are garbage now: collect them before the children are allocated (the 2.4 review).
+                // The working arrays are garbage now: collect them before the children are allocated.
                 MemoryReservations.Collect();
                 var starts = new int[graph.ObjectCount + 2];
                 var children = new int[graph.ObjectCount];
@@ -209,7 +209,7 @@ internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations r
             var retained = writer.GetSection<ulong>(IndexSection.RetainedSizes);
             reachable = DominatorTree.Compute(graph, reverse, idom, retained, phases, cancellationToken);
 
-            // The tree's children (sprint 2.4, ADR-027), in object index order (each query orders what it shows, `RetainedOrder`), so expanding a node is a slice read.
+            // The tree's children (ADR-027), in object index order (each query orders what it shows, `RetainedOrder`), so expanding a node is a slice read.
             phases.Children();
             DominatorTree.BuildChildren(idom, writer.GetSection<int>(IndexSection.DominatorChildStarts), writer.GetSection<int>(IndexSection.DominatorChildren), cancellationToken);
             phases.Saving();
@@ -257,7 +257,7 @@ internal sealed class DominatorIndexBuilder(ILogger logger, MemoryReservations r
 
     private static long CommittedBytes()
     {
-        // Its physical footprint on macOS, where private bytes read 0 (peer review 4.5 H7).
+        // Its physical footprint on macOS, where private bytes read 0.
         return HeapScope.Core.ProcessMemory.PrivateBytes();
     }
 

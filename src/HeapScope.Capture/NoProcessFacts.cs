@@ -26,7 +26,7 @@ using System.Diagnostics;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// The facts on a system HeapScope has no reader for (sprint 4.2): none. Capture refuses there
+/// The facts on a system HeapScope has no reader for: none. Capture refuses there
 /// (<see cref="CapturePlatform.EnsureSupported()"/>) before any is asked for.
 /// </summary>
 internal sealed class NoProcessFacts : IProcessFacts

@@ -70,7 +70,7 @@ internal readonly record struct RootClass(RootKind Kind, RootFlags Flags, string
 
             // A dependent handle's value lives while its key does. The gcdump writes the value only when the key was
             // alive and drops the key, and every object in a gcdump survived its collection, so the value is recorded as
-            // retained (review M11): a non-retaining root would make it look like garbage to reachability analyses.
+            // retained: a non-retaining root would make it look like garbage to reachability analyses.
             "[Dependent Handles]" => new(RootKind.Other, RootFlags.Retaining, "dependent handle value (key not recorded)"),
             "[other Handles]" => new(RootKind.Other, RootFlags.Retaining, "handle"),
             _ => inherited,
@@ -81,7 +81,7 @@ internal readonly record struct RootClass(RootKind Kind, RootFlags Flags, string
 
     /// <summary>
     /// "Type.field" as the writer names a static: the type is the field's own type (the runtime's static root event carries
-    /// the value's type, not the declaring type), so the detail reads "field (Type)" (sprint 1.8 review M12).
+    /// the value's type, not the declaring type), so the detail reads "field (Type)".
     /// </summary>
     internal static string StaticDetail(string recorded)
     {

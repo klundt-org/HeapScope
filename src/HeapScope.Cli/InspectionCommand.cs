@@ -30,7 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>inspect</c> command (sprint 1.6, ADR-020): the simple inspections of a dump. Without a name it runs every
+/// The <c>inspect</c> command (ADR-020): the simple inspections of a dump. Without a name it runs every
 /// inspection and prints one summary line each; with a name it prints that inspection's cause, fix and rows.
 /// </summary>
 internal static partial class CliCommands

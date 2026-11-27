@@ -33,7 +33,7 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// The allocations timeline (sprint 2.5): sampled bytes per stretch of the trace as bars; dragging selects an interval
+/// The allocations timeline: sampled bytes per stretch of the trace as bars; dragging selects an interval
 /// (<see cref="Selection"/>), a click without a drag selects the whole trace again. The geometry is
 /// <see cref="AllocationTimelineGeometry"/>'s.
 /// </summary>

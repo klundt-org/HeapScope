@@ -33,17 +33,16 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Worker.Traces;
 
 /// <summary>
-/// The allocation traces open in the worker (sprint 2.5, ADR-028), next to the snapshots and under the same memory
+/// The allocation traces open in the worker (ADR-028), next to the snapshots and under the same memory
 /// budget: a read reserves its working memory. An open trace's arrays are part of the worker's committed memory, which
-/// every later reservation counts, so they hold no reservation of their own (that would count them twice, the 2.5
-/// re-review); the open line logs what they keep.
+/// every later reservation counts, so they hold no reservation of their own (that would count them twice); the open line logs what they keep.
 /// A trace is read once and kept as compact arrays; the TraceEvent data used to read it is dropped.
 /// </summary>
 internal sealed class TraceStore
 {
     /// <summary>
     /// The working memory reserved while reading: a fixed part for TraceEvent and the runtime's names, plus a part per
-    /// byte of the trace file (TraceEvent's conversion and stack index, and the samples kept). The 2.5 review measured
+    /// byte of the trace file (TraceEvent's conversion and stack index, and the samples kept). Measured
     /// growth with the worker's GC settings (12 heaps): 40 MB for a 5.6 MB trace, 131 MB for 26 MB, 227 MB for 72 MB,
     /// about 76 MB plus 2.1 bytes per file byte; this leaves a margin on each (ARCHITECTURE.md 10).
     /// </summary>
@@ -67,7 +66,7 @@ internal sealed class TraceStore
         _logger = logger;
         _etlx = options.Folders.Etlx;
 
-        // Files a killed worker left behind (the 2.5 review); off the starting thread.
+        // Files a killed worker left behind; off the starting thread.
         _ = Task.Run(() =>
         {
             try
@@ -111,7 +110,7 @@ internal sealed class TraceStore
             }
             catch (Exception ex) when (ex is SnapshotFormatException or InsufficientMemoryException)
             {
-                // Which file, as it was, with which rules (4.2.1 review H1): a contested refusal is matched to this line.
+                // Which file, as it was, with which rules: a contested refusal is matched to this line.
                 _logger.LogInformation(
                     "Refused allocation trace {Path} ({FileBytes} bytes, written {Written:O}) with reader {Reader}, check {Check}, TraceEvent {TraceEvent}, {Reserved} bytes reserved: {Reason} {Detail}",
                     path,
@@ -145,8 +144,8 @@ internal sealed class TraceStore
                 info.Checked ?? "not checked",
                 info.ConversionIssues,
                 string.Join(" | ", info.FirstIssues ?? []));
-            // Any of these leaves no sample: another profile, a process that allocated too little (the 2.5 re-review), or a file
-            // that ends, or could not be read, before the first one (4.2.1 review).
+            // Any of these leaves no sample: another profile, a process that allocated too little, or a file
+            // that ends, or could not be read, before the first one.
             var incomplete = info.IsIncomplete ? ", or the file is incomplete" : "";
             throw new SnapshotFormatException($"{path} has no allocation samples: it was recorded with another profile, or the process allocated less than about 100 KB per heap while recording{incomplete}. Record with Record allocations on the Processes page (or 'heapscope-cli trace --profile allocations') while the application is busy, or for longer.");
         }
@@ -156,7 +155,7 @@ internal sealed class TraceStore
         var id = Add(open);
         var seconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
 
-        // The trace's identity and what reading it found (the 2.5 review): a disputed figure is matched to this line.
+        // The trace's identity and what reading it found: a disputed figure is matched to this line.
         _logger.LogInformation(
             "Opened allocation trace {Id} ({Path}, {FileBytes} bytes, written {Written:O}) with reader {Reader} in {Seconds:N2} s: process {ProcessId} {ProcessName} (from its first allocation tick), recording started {Start:O}, {Duration:N1} s recorded, {Samples} samples of {Bytes} bytes in {Types} types, {Frames} frames, {Nodes} stack nodes, {Lost} lost events, {NoStack} samples without a stack, {Unresolved} samples with unresolved frames, rundown {Rundown}, {Issues} conversion problems {FirstIssues}; {Checked}; keeps {Kept} bytes",
             id,
@@ -210,7 +209,7 @@ internal sealed class TraceStore
         return id;
     }
 
-    /// <summary>Follows a trace while it is recorded (sprint 4.3, ADR-037).</summary>
+    /// <summary>Follows a trace while it is recorded (ADR-037).</summary>
     public LiveTraceDescriptor OpenLive(OpenLiveTraceRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

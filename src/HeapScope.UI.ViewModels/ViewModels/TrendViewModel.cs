@@ -42,7 +42,7 @@ public sealed partial class TrendSnapshotItem(SnapshotItemViewModel snapshot) : 
 }
 
 /// <summary>
-/// A trend across several open snapshots (sprint 3.3, decision 4): each row's objects and bytes in every ticked snapshot,
+/// A trend across several open snapshots: each row's objects and bytes in every ticked snapshot,
 /// ordered by capture time (open order when a time is only a file's), the change first to last and the steps it grew in.
 /// </summary>
 public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
@@ -103,7 +103,7 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         }
     }
 
-    /// <summary>A ticked snapshot was opened again as a new worker snapshot: the trend runs again (3.11 review).</summary>
+    /// <summary>A ticked snapshot was opened again as a new worker snapshot: the trend runs again.</summary>
     public void Reopened(SnapshotItemViewModel item)
     {
         if (Choices.Any(c => c.Snapshot == item && c.IsIncluded))
@@ -112,7 +112,7 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         }
     }
 
-    // Everything the last answer set, so nothing of an old set of snapshots is shown (review of 4.6).
+    // Everything the last answer set, so nothing of an old set of snapshots is shown.
     protected override void OnCleared()
     {
         (Columns, Ordered, OrderNote) = ([], [], null);
@@ -157,7 +157,7 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         Changed();
     }
 
-    /// <summary>Whether the trend is shown: hidden, a change waits until it is (peer review 4.5 M7). True until Compare says otherwise.</summary>
+    /// <summary>Whether the trend is shown: hidden, a change waits until it is. True until Compare says otherwise.</summary>
     public bool IsActive
     {
         get => _isActive;
@@ -197,7 +197,7 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
 
     protected override async Task<GridQuery<CellRowItem>> RunQueryAsync(CancellationToken cancellationToken)
     {
-        // Capture time orders the snapshots unless one only has its file's time (2.3.5 review M4): then open order.
+        // Capture time orders the snapshots unless one only has its file's time: then open order.
         var included = Choices.Where(c => c.IsIncluded).Select(c => c.Snapshot).ToList();
         var byOpenOrder = included.Any(s => s.Handle.Descriptor.CaptureTimeFromFile || s.Handle.Descriptor.CapturedAtUtc is null);
         var ordered = byOpenOrder ? included : [.. included.OrderBy(s => s.Handle.Descriptor.CapturedAtUtc)];
@@ -211,7 +211,7 @@ public sealed partial class TrendViewModel : TypeGridViewModel<CellRowItem>
         OrderNote = byOpenOrder ? "A snapshot records no capture time (only its file's), so the trend runs in the order the snapshots were opened." : null;
         var finished = false;
         var progress = new Progress<JobProgress>(p => Status = finished || cancellationToken.IsCancellationRequested ? Status : ReferrersText.Progress(p));
-        // A snapshot's column that is gone (one of the snapshots was unticked or closed) sorts by the change instead (peer review 4.5 H4).
+        // A snapshot's column that is gone (one of the snapshots was unticked or closed) sorts by the change instead.
         var sortColumn = SortColumn is { } asked && !Exists(asked, ordered.Count) ? TypeTrendColumns.BytesDelta : SortColumn;
         if (sortColumn != SortColumn)
         {

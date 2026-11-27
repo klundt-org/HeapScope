@@ -31,20 +31,20 @@ namespace HeapScope.Contracts;
 public interface IRetentionService
 {
     /// <summary>
-    /// Why one object is alive (sprint 2.2): its shortest paths from up to N roots, merged into one tree, with fields named
+    /// Why one object is alive: its shortest paths from up to N roots, merged into one tree, with fields named
     /// on full dumps. Uses the snapshot's reverse references index (built on first use). An address with no object fails
     /// with <see cref="HeapScopeErrorCode.InvalidArgument"/>.
     /// </summary>
     Task<ObjectPathsResult> QueryObjectPathsAsync(ObjectPathsRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Why the objects of a type are alive (sprint 2.2): their key retention paths. The first such query of a snapshot builds
+    /// Why the objects of a type are alive: their key retention paths. The first such query of a snapshot builds
     /// its root path tree (one pass over the graph, kept with the snapshot); a type that matches nothing gives no paths.
     /// </summary>
     Task<TypePathsResult> QueryTypePathsAsync(TypePathsRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// One object's retained size and immediate dominator (sprint 2.3). The first retained query of a snapshot computes its
+    /// One object's retained size and immediate dominator. The first retained query of a snapshot computes its
     /// dominators (after its reverse references index), or opens them from their sidecar; later queries reuse them. An
     /// address with no object fails with <see cref="HeapScopeErrorCode.InvalidArgument"/>; dominators that would not fit the
     /// worker's memory budget fail with <see cref="HeapScopeErrorCode.InsufficientMemory"/>.
@@ -52,7 +52,7 @@ public interface IRetentionService
     Task<RetainedResult> QueryRetainedAsync(RetainedRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The dominator tree as a flattened, paged list (sprint 2.4, ADR-027): its top level (the biggest retainers) or the
+    /// The dominator tree as a flattened, paged list (ADR-027): its top level (the biggest retainers) or the
     /// tree below a focus object, with the requested rows expanded and each node's children as objects or groups. Computes
     /// or opens the dominators on first use like <see cref="QueryRetainedAsync"/>. A focus with no object, or one no root
     /// reaches, fails with <see cref="HeapScopeErrorCode.InvalidArgument"/>.
@@ -60,27 +60,27 @@ public interface IRetentionService
     Task<DominatorTreeResult> QueryDominatorTreeAsync(DominatorTreeRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The objects every object of a type retains together, exactly (sprint 2.4): one reachability pass from the roots that
+    /// The objects every object of a type retains together, exactly: one reachability pass from the roots that
     /// skips the set. Computes or opens the dominators on first use like <see cref="QueryRetainedAsync"/>. A type that
     /// matches nothing fails with <see cref="HeapScopeErrorCode.InvalidArgument"/> before anything is computed.
     /// </summary>
     Task<RetainedBySetResult> QueryRetainedBySetAsync(RetainedBySetRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The members of an object set that no other member dominates, with what each retains (sprint 3.1, ADR-030). Computes
+    /// The members of an object set that no other member dominates, with what each retains (ADR-030). Computes
     /// or opens the dominators on first use like <see cref="QueryRetainedAsync"/>. A set that selects nothing fails with
     /// <see cref="HeapScopeErrorCode.InvalidArgument"/>.
     /// </summary>
     Task<SetDominatorsResult> QuerySetDominatorsAsync(SetDominatorsRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// A set's members grouped by retention pattern (sprint 3.2, ADR-031). Builds the root path tree and the reverse
+    /// A set's members grouped by retention pattern (ADR-031). Builds the root path tree and the reverse
     /// references on first use. A set that selects nothing fails with <see cref="HeapScopeErrorCode.InvalidArgument"/>.
     /// </summary>
     Task<SimilarRetentionResult> QuerySimilarRetentionAsync(SimilarRetentionRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The icicle chart below a focus object or the whole reachable heap (sprint 2.4). Fails like
+    /// The icicle chart below a focus object or the whole reachable heap. Fails like
     /// <see cref="QueryDominatorTreeAsync"/> for a focus with no object or none a root reaches.
     /// </summary>
     Task<IcicleResult> QueryIcicleAsync(IcicleRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);

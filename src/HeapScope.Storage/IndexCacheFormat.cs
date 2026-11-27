@@ -28,7 +28,7 @@ namespace HeapScope.Storage;
 /// <summary>Constants of the index cache file format (ARCHITECTURE.md 7). Any layout change bumps <see cref="Version"/>.</summary>
 public static class IndexCacheFormat
 {
-    /// <summary>Current format version. 2 (sprint 2.2): the base cache records the dependent-handle edges.</summary>
+    /// <summary>Current format version. 2: the base cache records the dependent-handle edges.</summary>
     public const int Version = 2;
 
     /// <summary>"HSIDX" followed by three zero bytes, little-endian.</summary>
@@ -64,35 +64,35 @@ public enum IndexSection
     Strings = 16,
     Metadata = 17,
 
-    /// <summary>The dependent handles merged into the CSR as edges (sprint 2.2, format version 2).</summary>
+    /// <summary>The dependent handles merged into the CSR as edges (format version 2).</summary>
     DependentHandles = 20,
 
-    /// <summary>Reverse references sidecar (sprint 2.1): CSR row offsets of each object's referrers.</summary>
+    /// <summary>Reverse references sidecar: CSR row offsets of each object's referrers.</summary>
     InEdgeStarts = 18,
 
-    /// <summary>Reverse references sidecar (sprint 2.1): referrer object index per reference.</summary>
+    /// <summary>Reverse references sidecar: referrer object index per reference.</summary>
     InEdges = 19,
 
-    /// <summary>Dominators sidecar (sprint 2.3): each object's immediate dominator (an object index, or a marker).</summary>
+    /// <summary>Dominators sidecar: each object's immediate dominator (an object index, or a marker).</summary>
     ImmediateDominators = 21,
 
-    /// <summary>Dominators sidecar (sprint 2.3): each object's retained size in bytes.</summary>
+    /// <summary>Dominators sidecar: each object's retained size in bytes.</summary>
     RetainedSizes = 22,
 
-    /// <summary>Dominators sidecar (sprint 2.4): the dominator tree's row offsets, one per object plus two (the virtual root's and the end).</summary>
+    /// <summary>Dominators sidecar: the dominator tree's row offsets, one per object plus two (the virtual root's and the end).</summary>
     DominatorChildStarts = 23,
 
-    /// <summary>Dominators sidecar (sprint 2.4): the dominator tree's children, each vertex's largest retained size first.</summary>
+    /// <summary>Dominators sidecar: the dominator tree's children, each vertex's largest retained size first.</summary>
     DominatorChildren = 24,
 }
 
 /// <summary>
-/// The sections an index file of one kind holds, with their element sizes (sprint 2.1). Every listed section must be
+/// The sections an index file of one kind holds, with their element sizes. Every listed section must be
 /// present and no other may appear. The base cache and each optional index (a sidecar next to it) have their own layout.
 /// </summary>
 /// <param name="Name">The file's kind in messages ("reverse references").</param>
 /// <param name="SemanticsVersion">
-/// The version of the rules a sidecar's contents were computed under (sprint 2.3, from the 2.1 review): a file written
+/// The version of the rules a sidecar's contents were computed under: a file written
 /// under another version is refused and rebuilt, like a cache from an older loader. 0 for the base cache and the reverse
 /// references.
 /// </param>
@@ -121,7 +121,7 @@ public sealed record IndexFileLayout(string Name, IReadOnlyDictionary<IndexSecti
         [IndexSection.DependentHandles] = 8,
     });
 
-    /// <summary>The reverse references sidecar (<c>.rev.hsidx</c>, sprint 2.1).</summary>
+    /// <summary>The reverse references sidecar (<c>.rev.hsidx</c>).</summary>
     public static IndexFileLayout ReverseReferences { get; } = new("reverse references", new Dictionary<IndexSection, int>
     {
         [IndexSection.InEdgeStarts] = sizeof(int),
@@ -129,7 +129,7 @@ public sealed record IndexFileLayout(string Name, IReadOnlyDictionary<IndexSecti
     });
 
     /// <summary>
-    /// The dominators sidecar (<c>.dom.hsidx</c>, sprint 2.3) computed under the rules of <paramref name="semanticsVersion"/>
+    /// The dominators sidecar (<c>.dom.hsidx</c>) computed under the rules of <paramref name="semanticsVersion"/>
     /// (a factory, so no caller can forget the version; review L).
     /// </summary>
     public static IndexFileLayout ForDominators(int semanticsVersion) => new("dominators", new Dictionary<IndexSection, int>
@@ -141,7 +141,7 @@ public sealed record IndexFileLayout(string Name, IReadOnlyDictionary<IndexSecti
     }, semanticsVersion);
 }
 
-/// <summary>The fixed part of the header, at offset 0. 64 bytes. Sidecars use the same header (sprint 2.1).</summary>
+/// <summary>The fixed part of the header, at offset 0. 64 bytes. Sidecars use the same header.</summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8)]
 internal struct FileHeader
 {
@@ -150,7 +150,7 @@ internal struct FileHeader
     public int HeaderRegionLength;
     public int SectionCount;
 
-    /// <summary>The version of the rules a sidecar was computed under (sprint 2.3); 0 otherwise (reserved and 0 before).</summary>
+    /// <summary>The version of the rules a sidecar was computed under; 0 otherwise (reserved and 0 before).</summary>
     public int SemanticsVersion;
     public long SourceLength;
     public long SourceLastWriteUtcTicks;
@@ -158,7 +158,7 @@ internal struct FileHeader
 
     /// <summary>XxHash3 over the header (with this field zero) and the section directory.</summary>
     public ulong HeaderChecksum;
-    /// <summary>The identity of the base cache a sidecar extends (sprint 2.1); 0 in a base cache (reserved and 0 before).</summary>
+    /// <summary>The identity of the base cache a sidecar extends; 0 in a base cache (reserved and 0 before).</summary>
     public ulong BaseIdentity;
 }
 

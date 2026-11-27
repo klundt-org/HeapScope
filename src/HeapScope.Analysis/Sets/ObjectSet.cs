@@ -28,7 +28,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Sets;
 
 /// <summary>
-/// The members of an object set in one snapshot (sprint 3.1, ADR-030): their object indices in ascending order, a bit per
+/// The members of an object set in one snapshot (ADR-030): their object indices in ascending order, a bit per
 /// object of the graph for membership tests, and their totals. Immutable; the worker caches it per snapshot.
 /// </summary>
 public sealed class ObjectSet
@@ -93,7 +93,7 @@ public sealed class ObjectSet
         return FromMask(graph, mask);
     }
 
-    /// <summary>The objects no root reaches (sprint 3.5): the complement of <paramref name="reachable"/>.</summary>
+    /// <summary>The objects no root reaches: the complement of <paramref name="reachable"/>.</summary>
     public static ObjectSet Unreachable(HeapGraph graph, Reachability reachable, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(graph);
@@ -144,7 +144,7 @@ public sealed class ObjectSet
         };
     }
 
-    /// <summary>The objects at <paramref name="indices"/> (any order, repeats allowed), without copying them (the 3.1 review).</summary>
+    /// <summary>The objects at <paramref name="indices"/> (any order, repeats allowed), without copying them.</summary>
     public static ObjectSet OfIndices(HeapGraph graph, ReadOnlySpan<int> indices)
     {
         ArgumentNullException.ThrowIfNull(graph);

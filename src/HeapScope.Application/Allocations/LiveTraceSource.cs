@@ -25,7 +25,7 @@ using HeapScope.Contracts;
 
 namespace HeapScope.Application.Allocations;
 
-/// <summary>What a live trace's handle remembers, to follow it again after a worker restart (sprint 4.3, ADR-037).</summary>
+/// <summary>What a live trace's handle remembers, to follow it again after a worker restart (ADR-037).</summary>
 internal sealed class LiveTraceSource(string? namesPath)
 {
     public string? NamesPath { get; } = namesPath;

@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Collections a static field holds directly that only grow (sprint 2.6): with a baseline snapshot, those that grew by at
+/// Collections a static field holds directly that only grow: with a baseline snapshot, those that grew by at
 /// least <see cref="MinGrowth"/> elements and <see cref="MinGrowthShare"/>; without one, those of at least
 /// <see cref="MinLarge"/> elements (large; growth unknown). Matched across snapshots by the static field's name.
 /// </summary>
@@ -61,7 +61,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
     public SnapshotCapabilities Requires => SnapshotCapabilities.FieldValues | SnapshotCapabilities.RootDetails;
 
     // It finds collections by the static fields that hold them: on a dump whose statics could not be read it would find none and
-    // say nothing (the review of 4.7, H5), so it is refused there.
+    // say nothing, so it is refused there.
     public SnapshotFacts RequiresFacts => SnapshotFacts.StaticsChecked;
 
     public InspectionKind Kind => InspectionKind.Leak;
@@ -80,7 +80,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         var current = Collections(context.Graph, Readers.Of(context), ct, skipped, out var unread, out var countable);
         var baselineSkipped = new Exclusions();
 
-        // The worker refuses a baseline it cannot read (review H8): one without a reader here is a caller's mistake.
+        // The worker refuses a baseline it cannot read: one without a reader here is a caller's mistake.
         var baseline = context.Baseline is { } b
             ? Collections(b.Graph, b.Reader ?? throw new InvalidOperationException("The baseline snapshot has no field values; choose a full dump."), ct, baselineSkipped, out _, out _)
             : null;
@@ -103,7 +103,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
                 continue;
             }
 
-            // A count the baseline could not read is no growth from 0 (review of 4.6): not checked, and said so.
+            // A count the baseline could not read is no growth from 0: not checked, and said so.
             if (baselineSkipped.Has("count unreadable", field))
             {
                 unread++;
@@ -130,7 +130,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
             : BaselineWarning(context.Info, context.Baseline!.Info);
         if (unnamed > 0)
         {
-            // Peer review 4.5 H3: statics of closed generic types are in the runtime's storage, but no static field names them.
+            // Statics of closed generic types are in the runtime's storage, but no static field names them.
             var notChecked = string.Create(CultureInfo.InvariantCulture, $"{unnamed:N0} collections in the runtime's storage of static fields, large enough to report, have no field HeapScope can name (such as statics of generic types), so they were not checked.");
             note = note is null ? notChecked : note + " " + notChecked;
         }
@@ -156,7 +156,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
             basis, Counts: new(current.Count, skipped.Total, ListsRows: true), Unread: new(unread, countable, "static collections"));
     }
 
-    /// <summary>Why a growth comparison may mislead (review M8): a baseline captured later, or from another process.</summary>
+    /// <summary>Why a growth comparison may mislead: a baseline captured later, or from another process.</summary>
     internal static string? BaselineWarning(SnapshotInfo current, SnapshotInfo baseline)
     {
         if (current.CapturedAtUtc is { } now && baseline.CapturedAtUtc is { } then && then > now)
@@ -220,7 +220,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
     private const string StaticStorage = "static storage";
 
     /// <summary>The collections static fields hold, by "DeclaringType.field", with their element counts.</summary>
-    /// <param name="unread">Static collections of a counted type whose count could not be read (review of 4.6): not checked.</param>
+    /// <param name="unread">Static collections of a counted type whose count could not be read: not checked.</param>
     /// <param name="countable">Static collections of a counted type.</param>
     internal static Dictionary<string, Collection> Collections(HeapGraph graph, IObjectReader reader, CancellationToken cancellationToken, Exclusions skipped, out long unread, out long countable)
     {
@@ -263,7 +263,7 @@ internal sealed class GrowingStaticCollectionsDetector : IInspection
         return found;
     }
 
-    /// <summary>The collection object and the arrays it holds directly; a ConcurrentDictionary's through its tables (review M10).</summary>
+    /// <summary>The collection object and the arrays it holds directly; a ConcurrentDictionary's through its tables.</summary>
     private static long Bytes(HeapGraph graph, IObjectReader reader, int obj, string type)
     {
         var bytes = (long)graph.GetSize(obj);

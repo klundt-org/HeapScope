@@ -35,7 +35,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Inspections tab (sprint 1.6, dotMemory's inspections overview): a tile per inspection with its finding, cause and
+/// The Inspections tab (dotMemory's inspections overview): a tile per inspection with its finding, cause and
 /// fix, fragmentation bars, and the selected inspection's rows. The inspections of a snapshot run once, one at a time,
 /// the first time the tab is shown for it; double-clicking a row opens its objects on the Snapshot tab.
 /// </summary>
@@ -50,7 +50,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
     private Task _runAll = Task.CompletedTask;
     private bool _started;
 
-    /// <summary>Whether the run or one of its inspections failed, so Try again is offered (peer review 4.5 M7).</summary>
+    /// <summary>Whether the run or one of its inspections failed, so Try again is offered.</summary>
     [ObservableProperty]
     private bool _canTryAgain;
 
@@ -70,13 +70,13 @@ public sealed partial class InspectionsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    /// <summary>The baseline the growth detectors compare with (sprint 2.6); "None" by default unless an earlier snapshot of the same process is open.</summary>
+    /// <summary>The baseline the growth detectors compare with; "None" by default unless an earlier snapshot of the same process is open.</summary>
     [ObservableProperty]
     private BaselineChoice? _baseline;
 
     private bool _choosingBaseline;
 
-    // The person chose the baseline (None included), so a refresh keeps it while it stays open (2.6 review M12).
+    // The person chose the baseline (None included), so a refresh keeps it while it stays open.
     private bool _baselineChosen;
 
     public InspectionsViewModel(SnapshotSession session, ILogger? logger = null, INavigator? navigator = null)
@@ -104,14 +104,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
     /// <summary>The run in progress (tests and smoke runs await it).</summary>
     public Task RunTask { get; private set; } = Task.CompletedTask;
 
-    // Where a row leads: the Snapshots page, which picks the tab (2.3.7 review M8).
+    // Where a row leads: the Snapshots page, which picks the tab.
     private readonly INavigator? _navigator;
 
     /// <summary>Shows <paramref name="snapshot"/>'s inspections (null clears); they run when the tab is active.</summary>
     public void Show(SnapshotHandle? snapshot) => Show(snapshot, keepBaseline: false);
 
     /// <param name="keepBaseline">Whether a chosen baseline that is still open stays chosen (Try again).</param>
-    /// <param name="keepAnyBaseline">Whether the baseline in place stays, chosen or the default (a suspended run, H13).</param>
+    /// <param name="keepAnyBaseline">Whether the baseline in place stays, chosen or the default (a suspended run).</param>
     private void Show(SnapshotHandle? snapshot, bool keepBaseline, bool keepAnyBaseline = false)
     {
         var (kept, wasChosen) = (Baseline?.Snapshot, _baselineChosen);
@@ -138,7 +138,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         ChooseBaselines(snapshot);
         if (keepBaseline && (wasChosen || keepAnyBaseline) && kept is not null && BaselineChoices.FirstOrDefault(c => c.Snapshot == kept) is { } same)
         {
-            // Before the run starts, so its growth tiles run with it (the second review).
+            // Before the run starts, so its growth tiles run with it.
             _choosingBaseline = true;
             Baseline = same;
             _choosingBaseline = false;
@@ -152,7 +152,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Stops a run that has not finished, for a workspace that is no longer shown (peer review 4.5 H13): the worker's time goes to
+    /// Stops a run that has not finished, for a workspace that is no longer shown: the worker's time goes to
     /// the snapshot shown, and the inspections run again when this one is shown. A finished run is kept as it is.
     /// </summary>
     public void Suspend()
@@ -172,7 +172,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
     {
         _logger.LogInformation("Inspections: tried again for {Snapshot}, baseline {Baseline}", Snapshot?.Path, Baseline?.Snapshot?.Path ?? "none");
 
-        // The baseline chosen stays chosen (review of 4.6).
+        // The baseline chosen stays chosen.
         Show(Snapshot, keepBaseline: true);
     }
 
@@ -208,9 +208,9 @@ public sealed partial class InspectionsViewModel : ObservableObject
             return;
         }
 
-        // A leak detector's row of a type opens the objects behind it, as a set (sprint 3.1, 2.6 review M24), and so does one
-        // with no type or address (a timer's static method, the finalizer backlog's other types: 3.10 review M26). A row that
-        // names one object (a growing collection) still opens that object (the 3.1 review).
+        // A leak detector's row of a type opens the objects behind it, as a set, and so does one
+        // with no type or address (a timer's static method, the finalizer backlog's other types). A row that
+        // names one object (a growing collection) still opens that object.
         if (Selected is { IsDetector: true } && TargetOf(row) is null or { TypeName: not null } && SetOf(row) is { } set)
         {
             _navigator?.Navigate(NavigationTarget.ObjectSet(snapshot, set.Query, set.Title));
@@ -228,7 +228,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
             : NavigationTarget.Object(snapshot, target.Address));
     }
 
-    /// <summary>Opens a row's objects as a set with all its views (sprint 3.1): what it counted, or what it opens.</summary>
+    /// <summary>Opens a row's objects as a set with all its views: what it counted, or what it opens.</summary>
     [RelayCommand]
     private void OpenAsSet(CellRowItem? row)
     {
@@ -239,7 +239,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A row of the selected inspection as a set (sprint 3.1): its inspection, its number and the baseline it ran with,
+    /// A row of the selected inspection as a set: its inspection, its number and the baseline it ran with,
     /// titled by the inspection and the row's key.
     /// </summary>
     public (ObjectSetQuery Query, string Title)? SetOf(CellRowItem row)
@@ -255,7 +255,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         return (new ObjectSetQuery(spec, tile.RanWith), $"{tile.Title}: {key}");
     }
 
-    /// <summary>A row's object (when it names one), or its type's group, in the dominator tree (sprint 2.4).</summary>
+    /// <summary>A row's object (when it names one), or its type's group, in the dominator tree.</summary>
     [RelayCommand]
     private void ShowInRetainers(CellRowItem? row)
     {
@@ -268,9 +268,8 @@ public sealed partial class InspectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// What a row's objects retain together (sprint 2.4): a whole type's row as that type; any other row (some of a type's
-    /// objects, such as the empty collections, or a detector's counted objects) through its own set (sprint 3.1, the 2.4
-    /// review M14), so it never gets the whole type's answer.
+    /// What a row's objects retain together: a whole type's row as that type; any other row (some of a type's
+    /// objects, such as the empty collections, or a detector's counted objects) through its own set, so it never gets the whole type's answer.
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasObjects))]
     private void RetainedBySet(CellRowItem? row)
@@ -290,7 +289,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
     }
 
-    // A detector's row with no type or address still has members, as opening it does (3.10 review M26, M32).
+    // A detector's row with no type or address still has members, as opening it does.
     private bool HasObjects(CellRowItem? row) => row is { IsLoaded: true } && (TargetOf(row) is not null || Selected is { IsDetector: true });
 
     /// <summary>What a row opens: its hidden type, module and scope, or its address alone (ADR-020).</summary>
@@ -329,7 +328,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
                 return;
             }
 
-            // Detectors first, each group under its heading (sprint 2.6).
+            // Detectors first, each group under its heading.
             string? group = null;
             foreach (var info in inspections.OrderBy(i => i.Kind == InspectionKinds.Leak ? 0 : 1))
             {
@@ -359,7 +358,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
 
             Selected ??= Tiles.FirstOrDefault(t => t.Run is not null);
 
-            // A baseline chosen while the tiles ran (review H6): the growth tiles run with an older one run again, until
+            // A baseline chosen while the tiles ran: the growth tiles run with an older one run again, until
             // no other was chosen meanwhile.
             BaselineChoice? chosen;
             do
@@ -375,14 +374,14 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException)
         {
-            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            // What the user was shown, beside the worker's line with its id.
             _logger.LogInformation("{Section} shown as: {Message}", "Inspections", ex.Message);
             Status = ex.Message;
             CanTryAgain = true;
         }
         catch (Exception ex)
         {
-            // The run is not awaited by anyone: its failure must be logged and shown, never lost (review of 1.6).
+            // The run is not awaited by anyone: its failure must be logged and shown, never lost.
             _logger.LogError(ex, "Running the inspections failed");
             Status = "The inspections could not be run. Details are in the log; press Try again.";
             CanTryAgain = true;
@@ -444,7 +443,7 @@ public sealed partial class InspectionsViewModel : ObservableObject
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
-            // Not left "Running..." (review H6): a rerun or another snapshot replaces it.
+            // Not left "Running...": a rerun or another snapshot replaces it.
             tile.Status = tile.Run is null ? "Waiting" : null;
             throw;
         }
@@ -453,12 +452,12 @@ public sealed partial class InspectionsViewModel : ObservableObject
             _logger.LogWarning(ex, "The {Inspection} inspection failed", tile.Info.Name);
             tile.Status = ex.Message;
 
-            // A refusal is the same answer again (review of 4.6): only a failure is offered another try.
+            // A refusal is the same answer again: only a failure is offered another try.
             CanTryAgain |= ex is WorkerCrashedException || (ex is WorkerOperationException { ErrorCode: var code } && code is not (HeapScopeErrorCode.InvalidArgument or HeapScopeErrorCode.CapabilityNotSupported));
         }
         catch (InvalidOperationException ex)
         {
-            // A result this build cannot show (a column missing) fails its own tile only (sprint 3.12, B6): it used to end
+            // A result this build cannot show (a column missing) fails its own tile only: it used to end
             // the whole run, and every inspection after it reported as failed.
             _logger.LogError(ex, "The {Inspection} inspection's result could not be shown", tile.Info.Name);
             tile.Status = "This result could not be shown: " + ex.Message;

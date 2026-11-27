@@ -27,7 +27,7 @@ using HeapScope.Loaders.ClrMd;
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// The words for a full dump whose DAC cannot be used (sprint 3.12, owner's wording of 2026-11-13): the reason value reads are
+/// The words for a full dump whose DAC cannot be used (owner's wording of 2026-11-13): the reason value reads are
 /// refused, and the cause an older index cache's note names. Short, with the next step that works while the snapshot is open;
 /// the full detail (paths, hashes, folders searched) is in the log line of the refusal.
 /// </summary>
@@ -54,6 +54,6 @@ internal static class DacRefusals
         _ => "the dump's DAC (Data Access Component) cannot be used on this machine",
     };
 
-    // ClrMD reads some core files' runtime version as 0.0 (sprint 2.3.5); such a version is not named.
+    // ClrMD reads some core files' runtime version as 0.0; such a version is not named.
     private static string Runtime(string version) => version.StartsWith("0.0", StringComparison.Ordinal) ? ".NET" : ".NET " + version;
 }

@@ -29,7 +29,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HeapScope.Cli;
 
-/// <summary>The <c>trace</c> command (sprint 1.5): an EventPipe trace of a .NET process, without dotnet-trace.</summary>
+/// <summary>The <c>trace</c> command: an EventPipe trace of a .NET process, without dotnet-trace.</summary>
 internal static partial class CliCommands
 {
     private static Command BuildTraceCommand(Func<IServiceProvider> services)

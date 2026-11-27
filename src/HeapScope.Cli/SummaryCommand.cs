@@ -162,12 +162,12 @@ internal static partial class CliCommands
             result.TotalTypes,
             Kind = kind.ToString(),
 
-            // A full dump counts dead objects not yet collected; a gcdump only the survivors of its collection (1.9).
+            // A full dump counts dead objects not yet collected; a gcdump only the survivors of its collection.
             IncludesUnreachable = kind == SnapshotKindDto.FullDump,
             result.UnfilteredRows,
             MatchingRows = result.Rows.TotalCount,
             HeapKinds = result.HeapKinds.Select(k => new { Kind = k.Kind.ToString(), k.Objects, k.Bytes }),
-            // From the column itself (sprint 2.4, 2.3.7 review M7).
+            // From the column itself.
             RetainedIsLowerBound = result.Dominators is null ? (bool?)null : result.Rows.Columns.FirstOrDefault(c => c.Name == TypeSummaryColumns.Retained)?.Bound == ValueBound.LowerBound,
             result.Dominators,
             Rows = JsonRows(columns, rows),

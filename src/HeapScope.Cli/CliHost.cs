@@ -50,11 +50,11 @@ internal static class CliHost
         builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
         builder.Logging.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(level => level >= LogLevel.Warning);
 
-        // The worker's own lines go to the file log only (sprint 3.12 review M16): its error line holds the exception's text,
-        // its stack and the request, filter text included, which the user is not shown (B5) and CI logs would keep.
+        // The worker's own lines go to the file log only: its error line holds the exception's text,
+        // its stack and the request, filter text included, which the user is not shown and CI logs would keep.
         builder.Logging.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>("Worker", LogLevel.None);
         var fileLog = builder.Services.AddHeapScopeFileLog(builder.Configuration, "cli");
-        // Said once on stderr when the log cannot be written (sprint 4.8, M13): the log cannot say it itself.
+        // Said once on stderr when the log cannot be written: the log cannot say it itself.
         fileLog.BecameUnavailable += message => Console.Error.WriteLine("Note: " + message);
         builder.Logging.Configure(o => o.ActivityTrackingOptions = ActivityTrackingOptions.TraceId);
         if (fileLog.MinimumLevel < LogLevel.Information)

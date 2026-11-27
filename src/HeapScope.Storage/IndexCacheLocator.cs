@@ -47,13 +47,13 @@ public sealed class IndexCacheLocator
     public string GetCachePath(string snapshotPath)
     {
         ArgumentException.ThrowIfNullOrEmpty(snapshotPath);
-        // The names are Core's (IndexCachePaths), so deleting a snapshot finds them (sprint 3.4).
+        // The names are Core's (IndexCachePaths), so deleting a snapshot finds them.
         var full = Path.GetFullPath(snapshotPath);
         return _canWrite(Path.GetDirectoryName(full)!) ? IndexCachePaths.Beside(full) : IndexCachePaths.InFallback(full, FallbackRoot);
     }
 
     /// <summary>
-    /// The sidecar of an optional index next to the base cache at <paramref name="cachePath"/> (sprint 2.1):
+    /// The sidecar of an optional index next to the base cache at <paramref name="cachePath"/>:
     /// <c>app.dmp.hsidx</c> and <c>rev</c> give <c>app.dmp.rev.hsidx</c>.
     /// </summary>
     public static string GetSidecarPath(string cachePath, string kind)

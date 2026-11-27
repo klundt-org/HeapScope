@@ -27,7 +27,7 @@ using System.Runtime.InteropServices;
 namespace HeapScope.Core;
 
 /// <summary>
-/// The machine's memory as the system says it now (peer review 4.5 H7, sprint 4.7): Windows' GlobalMemoryStatusEx, Linux's
+/// The machine's memory as the system says it now: Windows' GlobalMemoryStatusEx, Linux's
 /// <c>/proc/meminfo</c> (MemAvailable) capped by the process's cgroup limit and use, macOS's <c>sysctl</c> counts (untested). Only
 /// when none can be read is it the runtime's reading at the last collection, 0 before the first, which <see cref="Source"/> says.
 /// The worker's budget and the front ends' open warning both read it.
@@ -80,7 +80,7 @@ public readonly partial record struct SystemMemory(long TotalBytes, long Availab
         var usage = ReadValue(usageFile);
         if (usage is { } used && usageFile is not null && Path.Combine(Path.GetDirectoryName(usageFile)!, "memory.stat") is var stat && File.Exists(stat))
         {
-            // Page cache the kernel gives back counts as use: the mapped dump being read would shrink what is left (the review of 4.7).
+            // Page cache the kernel gives back counts as use: the mapped dump being read would shrink what is left.
             usage = Math.Max(0, used - InactiveFile(File.ReadAllText(stat)));
         }
 

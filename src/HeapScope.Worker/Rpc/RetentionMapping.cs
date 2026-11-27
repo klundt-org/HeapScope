@@ -30,18 +30,18 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Retention results on the wire (sprint 2.2): roots in plain language, fields named from the dump (full dumps, within the
-/// referrers' element budget), steps through dependent handles marked, framework steps flagged (decision 4).
+/// Retention results on the wire: roots in plain language, fields named from the dump (full dumps, within the
+/// referrers' element budget), steps through dependent handles marked, framework steps flagged.
 /// </summary>
 internal static class RetentionMapping
 {
     /// <summary>Steps whose holding field is looked up at most per query (a path can be a long list).</summary>
     public const int MaxNamedSteps = 1_000;
 
-    /// <summary>Segments kept per path; a longer path keeps its two ends around one gap node (review H1).</summary>
+    /// <summary>Segments kept per path; a longer path keeps its two ends around one gap node.</summary>
     public const int MaxPathSegments = 64;
 
-    /// <summary>Nodes of one object's tree at most; roots whose paths would pass it are left out (review H1).</summary>
+    /// <summary>Nodes of one object's tree at most; roots whose paths would pass it are left out.</summary>
     public const int MaxNodes = 2_000;
 
     /// <summary>Steps of a key path at most; a longer one keeps its ends around one "(N steps not shown)" step.</summary>
@@ -169,7 +169,7 @@ internal static class RetentionMapping
     }
 
     /// <summary>
-    /// Builds the wire tree of an object's paths (review H1), root by root: each path, from the object outward, is cut into
+    /// Builds the wire tree of an object's paths, root by root: each path, from the object outward, is cut into
     /// segments where a run of objects of one type (a linked list, nested nodes) is one segment with a folded count; a path
     /// of more than <see cref="MaxPathSegments"/> segments keeps its two ends around one gap node; segments shared with an
     /// earlier path merge into its nodes. Stops before passing <see cref="MaxNodes"/> nodes. Fields are named per segment
@@ -179,7 +179,7 @@ internal static class RetentionMapping
     {
         private readonly List<Draft> _nodes = [new Draft(tree.Nodes[0].ObjectIndex, -1, null, 0, false, 0, null, 0)];
         // Segments merge only when they are the same objects (first, last and count), so two paths that branch inside a run
-        // of one type show the shared object twice rather than a holder on the wrong object (H1 confirmation).
+        // of one type show the shared object twice rather than a holder on the wrong object.
         private readonly Dictionary<(int Child, int First, int Last, int Count), int> _children = [];
         private long _elementBudget = ReferrersSource.MaxNamedElementsPerQuery;
         private int _named;

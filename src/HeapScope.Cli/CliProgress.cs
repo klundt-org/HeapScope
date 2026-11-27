@@ -77,7 +77,7 @@ internal static partial class CliCommands
     }
 
     /// <summary>
-    /// Prints a worker call's progress phases to stderr (sprint 2.3: computing dominators takes seconds), each phase once
+    /// Prints a worker call's progress phases to stderr (computing dominators takes seconds), each phase once
     /// and its percentage at most every few seconds, so piped output stays readable. A command calls <see cref="Stop"/>
     /// once the call returns: a report can arrive after the result, and must not land inside the output printed next.
     /// </summary>

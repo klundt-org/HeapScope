@@ -24,7 +24,7 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// A request the worker understood and refused for a reason the user can act on (sprint 3.12, B5): an unknown column or
+/// A request the worker understood and refused for a reason the user can act on: an unknown column or
 /// inspection, a filter that is not a valid expression, a baseline that is the snapshot itself. Its message is shown as it is.
 /// Any other <see cref="ArgumentException"/> that reaches the worker's boundary is a bug: logged as an error with its stack,
 /// and the user sees a fixed message with the id that finds it in the log.

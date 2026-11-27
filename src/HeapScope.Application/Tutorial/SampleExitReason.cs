@@ -23,7 +23,7 @@
 
 namespace HeapScope.Application.Tutorial;
 
-/// <summary>Why a sample ended (sprint 3.13 review H5).</summary>
+/// <summary>Why a sample ended.</summary>
 public enum SampleExitReason
 {
     /// <summary>This HeapScope stopped it.</summary>

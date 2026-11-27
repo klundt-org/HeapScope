@@ -23,7 +23,7 @@
 
 namespace HeapScope.Core;
 
-/// <summary>What the logs may hold after a change of the settings (sprint 3.13.2).</summary>
+/// <summary>What the logs may hold after a change of the settings.</summary>
 /// <param name="IncludeFilterText">Filter and search text.</param>
 /// <param name="IncludeDumpValues">Values read from a dump.</param>
 public readonly record struct LogPrivacyChange(bool IncludeFilterText, bool IncludeDumpValues)

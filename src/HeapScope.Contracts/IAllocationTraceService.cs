@@ -31,14 +31,14 @@ namespace HeapScope.Contracts;
 public interface IAllocationTraceService
 {
     /// <summary>
-    /// Reads the sampled allocations of an EventPipe trace (sprint 2.5, ADR-028). A file that is not a trace fails with
+    /// Reads the sampled allocations of an EventPipe trace (ADR-028). A file that is not a trace fails with
     /// <see cref="HeapScopeErrorCode.SnapshotFormat"/>; one too large for the memory budget with
     /// <see cref="HeapScopeErrorCode.InsufficientMemory"/>.
     /// </summary>
     Task<TraceDescriptor> OpenTraceAsync(OpenTraceRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Follows a trace while it is recorded (sprint 4.3, ADR-037): answers at once, and the queries below answer for what was read
+    /// Follows a trace while it is recorded (ADR-037): answers at once, and the queries below answer for what was read
     /// so far, but for the tree: its keys would not hold while stacks are folded again, so it is refused with
     /// <see cref="HeapScopeErrorCode.InvalidArgument"/>. Fails with <see cref="HeapScopeErrorCode.SnapshotFormat"/> when the file cannot be opened and with
     /// <see cref="HeapScopeErrorCode.InsufficientMemory"/> when following it does not fit the memory budget.

@@ -162,7 +162,7 @@ public sealed class TrackedJob<T> : TrackedJob
 /// <summary>Tracks long-running jobs, their progress and cancellation (ARCHITECTURE.md 4.5). UI-agnostic.</summary>
 public sealed class JobTracker(TimeProvider timeProvider, ILogger<JobTracker>? logger = null)
 {
-    /// <summary>The activity each job runs under: its trace id is a scope of every log line the job causes, in this process and, through StreamJsonRpc, in the worker (sprint 2.3.7 review M1).</summary>
+    /// <summary>The activity each job runs under: its trace id is a scope of every log line the job causes, in this process and, through StreamJsonRpc, in the worker.</summary>
     public const string ActivityName = "HeapScope.Job";
 
     private readonly ILogger _logger = logger ?? (ILogger)NullLogger.Instance;
@@ -217,7 +217,7 @@ public sealed class JobTracker(TimeProvider timeProvider, ILogger<JobTracker>? l
         }
     }
 
-    // Every job's start and end are logged with its id, title, time and outcome (sprint 2.3.7 review H4): opening, capturing
+    // Every job's start and end are logged with its id, title, time and outcome: opening, capturing
     // and running an inspection all go through here. The message shown to the user is logged as it was shown.
     private async Task<T> RunAsync<T>(TrackedJob<T> job, Func<IProgress<JobProgress>, CancellationToken, Task<T>> work, IProgress<JobProgress> progress)
     {
@@ -255,7 +255,7 @@ public sealed class JobTracker(TimeProvider timeProvider, ILogger<JobTracker>? l
         }
 
         // The outcome is final before anyone hears of it: a listener that throws cannot turn a completed job into a
-        // failed one (peer review P9).
+        // failed one.
         job.Finish(JobStatus.Completed, null);
         _logger.LogInformation("Job {JobId} completed in {Seconds:N2} s: {Title}", job.Id, Stopwatch.GetElapsedTime(started).TotalSeconds, job.Title);
         SafeEvents.Raise(JobChanged, this, job, _logger, nameof(JobChanged));

@@ -35,7 +35,7 @@ public sealed partial class InspectionsViewModel
     /// <summary>
     /// The baseline choices for <paramref name="snapshot"/>: none, and the other open snapshots, latest first. The latest
     /// one of the same process captured earlier is chosen (a growth detector needs the earlier dump; ADR-018). With
-    /// <paramref name="keep"/>, a chosen baseline that is still open stays chosen (snapshots opened or closed, 2.7).
+    /// <paramref name="keep"/>, a chosen baseline that is still open stays chosen (snapshots opened or closed).
     /// </summary>
     private void ChooseBaselines(SnapshotHandle? snapshot, bool keep = false)
     {
@@ -75,7 +75,7 @@ public sealed partial class InspectionsViewModel
     }
 
     /// <summary>
-    /// Rebuilds the baseline choices after snapshots opened or closed (2.6 review M12): a baseline the person chose stays
+    /// Rebuilds the baseline choices after snapshots opened or closed: a baseline the person chose stays
     /// chosen while it is open; otherwise the default is chosen again (an earlier capture of the process may have opened),
     /// and the growth detectors run again when it changed.
     /// </summary>
@@ -96,9 +96,9 @@ public sealed partial class InspectionsViewModel
 
     /// <summary>
     /// Whether <paramref name="candidate"/> is an earlier capture of the process of <paramref name="mine"/>: the same
-    /// process id when both dumps record one, else the same process name (2.6 review M12; dumps record no start time, and
+    /// process id when both dumps record one, else the same process name (dumps record no start time, and
     /// an earlier capture time rules out most reused ids). A time that is only a file's time (a copied dump) orders
-    /// nothing, as on the Compare tab, so no default is chosen then (2.7 review).
+    /// nothing, as on the Compare tab, so no default is chosen then.
     /// </summary>
     internal static bool IsEarlierOfSameProcess(SnapshotDescriptor candidate, SnapshotDescriptor mine) =>
         !candidate.CaptureTimeFromFile && !mine.CaptureTimeFromFile
@@ -128,7 +128,7 @@ public sealed partial class InspectionsViewModel
 
         _logger.LogInformation("Inspections: baseline {Baseline} {How} for {Snapshot}", value?.Snapshot?.Path ?? "none", how, snapshot.Path);
 
-        // While the first run goes on, it reruns the stale growth tiles when it ends (review H6): it is not cancelled.
+        // While the first run goes on, it reruns the stale growth tiles when it ends: it is not cancelled.
         if (!_runAll.IsCompleted || _running is not { } running)
         {
             return;
@@ -158,7 +158,7 @@ public sealed partial class InspectionsViewModel
                 }
                 finally
                 {
-                    // The worker keeps a replaced result set and its lease until released (review M5).
+                    // The worker keeps a replaced result set and its lease until released.
                     if (!ReferenceEquals(previous, tile.Run))
                     {
                         Release(previous);
@@ -178,7 +178,7 @@ public sealed partial class InspectionsViewModel
         }
         catch (Exception ex)
         {
-            // Not awaited by anyone (review M5): logged and shown, never lost.
+            // Not awaited by anyone: logged and shown, never lost.
             _logger.LogError(ex, "Running the growth detectors again failed");
             Status = "The growth detectors could not be run again. Details are in the log; press Try again.";
             CanTryAgain = true;

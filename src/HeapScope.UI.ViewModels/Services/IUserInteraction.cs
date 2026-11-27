@@ -26,32 +26,32 @@ namespace HeapScope.UI.Services;
 
 /// <summary>
 /// Dialogs a view model needs, behind an interface so view models stay testable without a window. Asynchronous: the
-/// UI thread keeps running while a dialog is open (sprint 2.3.6, Avalonia has no blocking dialogs).
+/// UI thread keeps running while a dialog is open (Avalonia has no blocking dialogs).
 /// </summary>
 public interface IUserInteraction
 {
     /// <summary>Asks for a dump file; null when the user cancels.</summary>
     Task<string?> PickDumpFileAsync();
 
-    /// <summary>Asks for an allocation trace (.nettrace, sprint 2.5); null when the user cancels.</summary>
+    /// <summary>Asks for an allocation trace (.nettrace); null when the user cancels.</summary>
     Task<string?> PickTraceFileAsync() => Task.FromResult<string?>(null);
 
-    /// <summary>Asks for a folder (the Settings page's DAC folder, sprint 4.8); null when the user cancels.</summary>
+    /// <summary>Asks for a folder (the Settings page's DAC folder); null when the user cancels.</summary>
     Task<string?> PickFolderAsync(string title) => Task.FromResult<string?>(null);
 
     /// <summary>Asks a yes or no question; true for yes.</summary>
     Task<bool> ConfirmAsync(string title, string message);
 
-    /// <summary>Asks a question whose buttons say what they do (Purge all's "Delete everything", sprint 3.12); true for <paramref name="confirm"/>.</summary>
+    /// <summary>Asks a question whose buttons say what they do (Purge all's "Delete everything"); true for <paramref name="confirm"/>.</summary>
     Task<bool> ConfirmAsync(string title, string message, string confirm, string cancel) => ConfirmAsync(title, message);
 
-    /// <summary>Puts text on the clipboard (the About page's details for support, sprint 2.3.7); nothing where there is none.</summary>
+    /// <summary>Puts text on the clipboard (the About page's details for support); nothing where there is none.</summary>
     Task CopyTextAsync(string text) => Task.CompletedTask;
 
-    /// <summary>Asks where to save a file (a grid's CSV export, sprint 2.7); null when the user cancels.</summary>
+    /// <summary>Asks where to save a file (a grid's CSV export); null when the user cancels.</summary>
     Task<string?> PickSaveFileAsync(string title, string suggestedName) => Task.FromResult<string?>(null);
 
-    /// <summary>Tells the user something that needs no answer (sprint 2.7).</summary>
+    /// <summary>Tells the user something that needs no answer.</summary>
     Task ShowMessageAsync(string title, string message) => Task.CompletedTask;
 
     /// <summary>Opens a file in the system's app for its type (the Live timeline); false when nothing could open it.</summary>

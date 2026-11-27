@@ -25,7 +25,7 @@
 namespace HeapScope.Contracts;
 
 /// <summary>
-/// The sampled allocations a diff counted (sprint 4.4). Sizes are estimates: what the runtime's samples stand for.
+/// The sampled allocations a diff counted. Sizes are estimates: what the runtime's samples stand for.
 /// </summary>
 /// <param name="FromSeconds">The start of what was counted, in seconds since the recording started.</param>
 /// <param name="ToSeconds">Its end.</param>

@@ -29,7 +29,7 @@ using Microsoft.Diagnostics.Runtime;
 namespace HeapScope.Loaders.ClrMd;
 
 /// <summary>
-/// Names the generic interfaces a type implements (sprint 3.2 review): ClrMD names a type's own non-generic interfaces
+/// Names the generic interfaces a type implements: ClrMD names a type's own non-generic interfaces
 /// but leaves out instantiations (<c>IEquatable&lt;T&gt;</c>, <c>IList&lt;T&gt;</c>). Their InterfaceImpl rows are read from
 /// the module's metadata and decoded with the concrete type's generic arguments, in ClrMD's naming
 /// (<c>System.IEquatable&lt;App.Order&gt;</c>). The metadata comes from the dump when it holds the module's image, else
@@ -51,7 +51,7 @@ public sealed class InterfaceNames(DataTarget target)
         }
 
         // Metadata that does not match the dump's module (a rebuilt file) fails the type's read: the caller counts the
-        // type as unread rather than show made-up rows (the 3.2 re-review).
+        // type as unread rather than show made-up rows.
         var names = new List<string>();
         try
         {
@@ -141,7 +141,7 @@ public sealed class InterfaceNames(DataTarget target)
         }
 
         // The file must be the image the process loaded: its time stamp and size as the dump records them (the index a
-        // symbol server would use; the 3.2 re-review).
+        // symbol server would use).
         _images ??= target.EnumerateModules().GroupBy(m => m.ImageBase).ToDictionary(g => g.Key, g => g.First());
         if (!_images.TryGetValue(module.ImageBase, out var image) || image.IndexTimeStamp == 0)
         {
@@ -167,7 +167,7 @@ public sealed class InterfaceNames(DataTarget target)
 
     /// <summary>
     /// The generic arguments of a ClrMD type name, of every generic segment in order, since a nested type has its outer
-    /// types' parameters first (<c>A&lt;X, Y&lt;Z&gt;&gt;+B&lt;W&gt;</c> gives X, Y&lt;Z&gt; and W; the 3.2 re-review).
+    /// types' parameters first (<c>A&lt, X, Y&lt, Z&gt, &gt, +B&lt, W&gt, </c> gives X, Y&lt, Z&gt, and W).
     /// </summary>
     public static IReadOnlyList<string> GenericArguments(string? name)
     {

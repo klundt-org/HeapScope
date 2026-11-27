@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
-/// Opens one snapshot (sprint 3.12, moved out of <see cref="SnapshotStore"/>, which keeps the open snapshots): reuses a valid
+/// Opens one snapshot (moved out of <see cref="SnapshotStore"/>, which keeps the open snapshots): reuses a valid
 /// index cache or loads the dump and writes the cache, picks the memory mode (ADR-015), and describes and logs the result. It
 /// logs under the store's category. The store serializes opens; nothing here outlives one open but the test hooks.
 /// </summary>
@@ -67,8 +67,8 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         };
 
         // Only a dump load (or a failed one) leaves large garbage behind; a cache hit allocates exactly its graph, so
-        // the clean-up collection, which pauses queries on other snapshots, is skipped then (sprint 1.2 review). Set only
-        // once a load starts: a refusal before it allocated nothing (sprint 3.12 review of task 9).
+        // the clean-up collection, which pauses queries on other snapshots, is skipped then. Set only
+        // once a load starts: a refusal before it allocated nothing.
         var collect = false;
         try
         {
@@ -81,9 +81,9 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             Exception? dacProblem = null;
             if (!request.Rebuild)
             {
-                // A full dump about to open from a valid cache loads no DAC now, but its field reader will (review H1): the
-                // DAC is checked first, before the cache is read (re-review), so a refusal costs no graph. One that needs
-                // trust is refused when the front end can ask; otherwise, and when the DAC is missing (sprint 3.12), the
+                // A full dump about to open from a valid cache loads no DAC now, but its field reader will: the
+                // DAC is checked first, before the cache is read, so a refusal costs no graph. One that needs
+                // trust is refused when the front end can ask; otherwise, and when the DAC is missing, the
                 // graph opens and value reads are refused from the start, with the reason.
                 if (IndexCacheReader.Probe(cachePath, _signer, fingerprint) is null && SnapshotFileSignature.Detect(path) is { } kind)
                 {
@@ -100,7 +100,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             if (cached is null && request.RequireCache)
             {
                 // A snapshot that opened from an older cache in place of a rebuild has one still, but a reopen does not use it:
-                // its own message, so "changed" is not blamed (sprint 3.12 review of task 9; owner's wording, 2026-11-13).
+                // its own message, so "changed" is not blamed (owner's wording, 2026-11-13).
                 throw new SnapshotChangedException(older is not null
                     ? $"{Path.GetFileName(path)} was opened from an older index cache because its DAC could not be used, so it was not reopened automatically after the analysis worker restarted. Open it again."
                     : $"{path} changed since it was opened, or its index cache is gone or out of date, so it was not reopened automatically. Open it again to load the dump.");
@@ -123,7 +123,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 mode = cached.Mode;
                 identity = cached.Identity;
 
-                // Reads the DAC would refuse are not offered (sprint 3.12, B2): refused from the start, with the reason.
+                // Reads the DAC would refuse are not offered: refused from the start, with the reason.
                 if (dacProblem is not null)
                 {
                     refused = Refuse(path, dacProblem, notes);
@@ -135,7 +135,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 {
                     (graph, metadata, mode, writtenCache, identity) = LoadDump(path, cachePath, fingerprint, forced, notes, rebuildReason is not null, throttled, cancellationToken);
 
-                    // Only now is it known: "rebuilt" is true only when the load wrote its cache (3.10 review M39).
+                    // Only now is it known: "rebuilt" is true only when the load wrote its cache.
                     if (rebuildReason is not null)
                     {
                         notes.Add((writtenCache is not null ? "The index cache was rebuilt: " : "The index cache was not used: ") + rebuildReason);
@@ -143,16 +143,16 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 }
                 catch (Exception ex) when (older is not null && LacksDac(ex))
                 {
-                    // A cancel that raced the failure is a cancel, not a reason to open the older cache (review of task 9).
+                    // A cancel that raced the failure is a cancel, not a reason to open the older cache.
                     cancellationToken.ThrowIfCancellationRequested();
 
                     // The rebuild cannot reach the DAC it needs (gone after a runtime update, declined, or the symbol server
-                    // failed): the older cache opens instead, so the dump stays readable (sprint 3.12, the 3.10 review M14).
+                    // failed): the older cache opens instead, so the dump stays readable.
                     throttled.Report(new JobProgress("Opening the older index cache", 0, null));
                     var fallback = OpenOlder(older, fingerprint, forced, ex, cancellationToken);
                     if (fallback is null)
                     {
-                        // OpenOlder collected already (3.12 re-review: not twice).
+                        // OpenOlder collected already (not twice).
                         collect = false;
                         throw;
                     }
@@ -186,7 +186,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 AddDataQualityNotes(graph, metadata, notes);
 
                 // The snapshot is the file that was opened: a dump moved or copied together with its index cache keeps a
-                // valid fingerprint, but the cache records the path of its first load (sprint 1.2 review).
+                // valid fingerprint, but the cache records the path of its first load.
                 var info = metadata.Info with { SourcePath = path };
                 snapshot = _kinds.For(info.Kind).Open(info, metadata.Capabilities, graph, path, () => EnsureUnchanged(path, fingerprint), refused);
                 descriptor = Describe(snapshot, mode, fromCache, writtenCache, identity, stopwatch.Elapsed, notes) with
@@ -218,8 +218,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
     }
 
     /// <summary>
-    /// One line that ties the worker's snapshot id to the file and everything a later result rests on (sprint 2.3.7 review
-    /// H2): every other line names the snapshot by its id. Paths, sizes, versions, flags and notes only, never dump
+    /// One line that ties the worker's snapshot id to the file and everything a later result rests on: every other line names the snapshot by its id. Paths, sizes, versions, flags and notes only, never dump
     /// contents (ARCHITECTURE.md 11 and 12).
     /// </summary>
     private void LogIdentity(SnapshotDescriptor descriptor, ISnapshot snapshot, IndexCacheMetadata metadata, SnapshotFingerprint fingerprint, OpenSnapshotRequest request, OlderCache? older, bool fromCache, MemoryMode mode)
@@ -229,7 +228,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             : fromCache ? "index cache" : request.Rebuild ? "dump, rebuild requested" : "dump";
         source += request.CheckDac ? ", DAC question allowed" : ", DAC question not asked";
 
-        // A full dump's cache written before 2.3.7 has no diagnostics or DAC: its zeros are not facts (2.3.7 review, H2 confirmation).
+        // A full dump's cache of an older format has no diagnostics or DAC: its zeros are not facts.
         var recorded = info.Kind != SnapshotKind.FullDump || metadata.Dac is not null;
         string Recorded(long value) => recorded ? value.ToString(CultureInfo.InvariantCulture) : "not recorded";
         logger.LogInformation(
@@ -278,7 +277,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
     /// <summary>
     /// Field values and strings are read at the graph's addresses, so they must come from the dump the graph was built
-    /// from: the reader opens the dump lazily, possibly hours after the snapshot opened (sprint 1.5 review H5).
+    /// from: the reader opens the dump lazily, possibly hours after the snapshot opened.
     /// </summary>
     private static void EnsureUnchanged(string path, SnapshotFingerprint opened)
     {
@@ -309,7 +308,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         var required = IndexCacheReader.GetInMemoryBytes(cachePath, _signer, out var unusable);
         if (required is null)
         {
-            // An untrusted, foreign or damaged cache is rebuilt, and the log and the snapshot's notes say why (3.7 review H3).
+            // An untrusted, foreign or damaged cache is rebuilt, and the log and the snapshot's notes say why.
             if (unusable is { Reason: not IndexCacheInvalidReason.Missing })
             {
                 logger.LogInformation("Index cache {Path} not used: {Reason} ({Detail})", cachePath, unusable.Reason, unusable.Detail);
@@ -319,8 +318,8 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             return null;
         }
 
-        // The loader version from the metadata alone (sprint 3.12, the 3.10 review M31): an older cache's graph is not read
-        // only to be dropped before the rebuild. Nor is one whose metadata cannot be read (3.12 re-review): it is rebuilt.
+        // The loader version from the metadata alone: an older cache's graph is not read
+        // only to be dropped before the rebuild. Nor is one whose metadata cannot be read: it is rebuilt.
         var written = IndexCacheReader.ReadMetadata(cachePath, _signer, fingerprint, out var metadataFailure);
         if (written is null && metadataFailure is { Reason: not IndexCacheInvalidReason.Missing })
         {
@@ -333,7 +332,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             && _kinds.For(written.Info.Kind) is var handler
             && written.LoaderVersion < handler.LoaderVersion)
         {
-            // Built by an older loader whose answers are now known to be wrong in some cases (review M7).
+            // Built by an older loader whose answers are now known to be wrong in some cases.
             var fallback = written.LoaderVersion >= handler.OldestFallbackLoaderVersion;
             logger.LogInformation(
                 "Index cache {Path} not used: loader version {Old}, current {New}; it {Fallback}",
@@ -379,7 +378,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             return (kept, metadata, MemoryMode.InMemory, keptCache, identity);
         }
 
-        // Switch to mapped mode (ADR-015), in this frame (sprint 4.8, task 11): LoadAndDecide has returned and disposed the built
+        // Switch to mapped mode (ADR-015), in this frame: LoadAndDecide has returned and disposed the built
         // arrays, so nothing on its stack holds them. Its frame kept the whole graph alive through this collection before (the
         // 2 GB dump's 698 MB of GC heap after the drop). Compact once so the memory really returns to the OS, then reopen the
         // cache as views.
@@ -400,7 +399,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         return (mapped.Graph!, mapped.Metadata!, MemoryMode.Mapped, cachePath, mapped.Identity);
     }
 
-    /// <summary>The note on a snapshot whose load kept its references in memory (sprint 4.8, a draft in info-text.md).</summary>
+    /// <summary>The note on a snapshot whose load kept its references in memory (a draft in info-text.md).</summary>
     internal static string EdgesFallbackNote(string why) =>
         $"While this dump loaded, its references were kept in the worker's memory instead of a temporary file, so the load needed about 4 bytes per reference more memory than usual. Why: {why.TrimEnd('.')}.";
 
@@ -467,7 +466,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 Describe(diagnostics.Handles, metadata.Info.Kind),
                 diagnostics.Edges ?? "in memory");
 
-            // Sprint 4.8 (task 11, F12): the load needed more memory than usual, and the user can do something about it.
+            // The load needed more memory than usual, and the user can do something about it.
             if (diagnostics.EdgesFallback is { } why)
             {
                 notes.Add(EdgesFallbackNote(why));
@@ -480,13 +479,13 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             var written = identity != 0;
 
             // Decide the mode after the load's garbage is gone, counting the graph's own memory as available: if the
-            // snapshot moved to mapped mode, that memory would be freed (sprint 1.2 review). No LOH compaction here: it
+            // snapshot moved to mapped mode, that memory would be freed. No LOH compaction here: it
             // would copy the live graph's arrays; an aggressive collection already returns the freed regions.
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             var budget = MemoryBudget.Current(forced: forced);
-            // All the columns, as a later open from the cache counts them (sprint 4.8 review M4): reopened in memory, the references
+            // All the columns, as a later open from the cache counts them: reopened in memory, the references
             // are read into the worker's memory, so a first load that left them out would choose otherwise than the reopen. The log
-            // gives the private and file-backed parts (F13).
+            // gives the private and file-backed parts.
             var privateBytes = graph.PrivateColumnBytes;
             budget = budget with { AvailableBytes = budget.AvailableBytes + graph.ColumnBytes };
             var mode = MemoryModeSelector.Select(graph.ColumnBytes, budget);
@@ -522,7 +521,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
     }
 
     /// <summary>
-    /// The worker's own check of a first load of a full dump (peer review 4.5 H5): its estimate, less the worker's own idle memory, is
+    /// The worker's own check of a first load of a full dump: its estimate, less the worker's own idle memory, is
     /// reserved while it loads, so no other work takes that memory meanwhile, and the log says the estimate against what the load used.
     /// A load that does not fit is not refused here (the worker is not told whether the user accepted the front end's warning, and
     /// heapscope-cli open --no-overcommit refuses before asking); it is logged.
@@ -537,8 +536,8 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         var dumpBytes = new FileInfo(path).Length;
         var estimate = FirstLoadEstimate.PeakBytes(dumpBytes);
         var held = ProcessMemory.PrivateBytes();
-        // The estimate is one load's cost, the worker's own idle memory included; snapshots already open are not part of it (the GC
-        // review of 4.7): only that idle part, at most, is already held.
+        // The estimate is one load's cost, the worker's own idle memory included; snapshots already open are not part of it:
+        // only that idle part, at most, is already held.
         var growth = Math.Max(0, estimate - Math.Min(held, FirstLoadEstimate.WorkerIdleBytes));
         try
         {
@@ -595,7 +594,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
     /// <summary>
     /// The snapshot's note when it opened from an older loader's cache because a rebuild could not reach its DAC (owner's
     /// wording, 2026-11-13; reworded for loader version 5, a draft for the owner). Version 4 changed only the process name, which is read again
-    /// from the dump; version 5 reads GC handles and references that an older cache lacks; version 7 checks the static fields, which an older cache did not (the review of 4.7).
+    /// from the dump; version 5 reads GC handles and references that an older cache lacks; version 7 checks the static fields, which an older cache did not.
     /// </summary>
     internal static string OlderCacheNote(string cause) =>
         $"Opened from the index cache an older version of HeapScope wrote, because a new one could not be built: {cause}. "
@@ -604,7 +603,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
     /// <summary>
     /// The metadata with the process name this loader reads from the dump (no DAC needed): the one answer loader version 4
-    /// changed (ClrMdDumpLoader, sprint 3.10), which Compare and the static collections detector match on. Kept as cached
+    /// changed (ClrMdDumpLoader), which Compare and the static collections detector match on. Kept as cached
     /// when the dump cannot be read for it.
     /// </summary>
     private IndexCacheMetadata WithCurrentProcessName(string path, IndexCacheMetadata metadata)
@@ -625,7 +624,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Any failure of the data target: the graph is fine without it (3.12 re-review: nothing may leak the graph here).
+            // Any failure of the data target: the graph is fine without it (nothing may leak the graph here).
             logger.LogWarning("Process name of {Path} could not be read again from the dump ({Error}: {Message}); the older index cache's is kept", path, ex.GetType().Name, ex.Message);
             return metadata;
         }
@@ -634,7 +633,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
     /// <summary>
     /// The older cache, opened after a rebuild failed for want of a DAC, or null when it cannot be opened any more (the caller
     /// then reports the rebuild's failure). The failed load's memory is returned to the system first, so the two never stack
-    /// (the 3.10 review M31). The warning backs up a contested result: it names both loader versions and why.
+    /// The warning backs up a contested result: it names both loader versions and why.
     /// </summary>
     private IndexCacheOpenResult? OpenOlder(OlderCache older, SnapshotFingerprint fingerprint, MemoryMode? forced, Exception failure, CancellationToken cancellationToken)
     {
@@ -643,7 +642,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         var mode = MemoryModeSelector.Select(required ?? long.MaxValue, MemoryBudget.Current(forced: forced));
         var result = IndexCacheReader.Open(older.Path, _signer, fingerprint, mode, cancellationToken);
 
-        // Still an older cache at or above the floor: another process may have replaced it meanwhile (3.12 re-review).
+        // Still an older cache at or above the floor: another process may have replaced it meanwhile.
         if (result.Success
             && (result.Metadata!.LoaderVersion < _kinds.For(result.Metadata.Info.Kind).OldestFallbackLoaderVersion || result.Metadata.LoaderVersion >= older.CurrentVersion))
         {
@@ -725,7 +724,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
         _kinds.For(metadata.Info.Kind).AddNotes(metadata, notes);
 
-        // A runtime the known answers are not checked on (sprint 4.7, peer review 4.5 H1).
+        // A runtime the known answers are not checked on.
         if (metadata.Info.Kind == SnapshotKind.FullDump && TestedRuntimes.Major(metadata.Info.RuntimeVersion) is null)
         {
             logger.LogInformation("The dump {Path} records no runtime version HeapScope can read, so it is not said whether its answers are checked", metadata.Info.SourcePath);
@@ -773,7 +772,7 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
 
     private sealed class LoadProgressAdapter(Rpc.ThrottledProgress<JobProgress> target, bool rebuilding) : IProgress<LoadProgress>
     {
-        // A rebuild's wait says why, while the user waits (sprint 3.10 review M18).
+        // A rebuild's wait says why, while the user waits.
         public void Report(LoadProgress value) =>
             target.Report(new JobProgress(rebuilding ? "Rebuilding the index cache: " + value.Phase : value.Phase, value.Completed, value.Total));
     }
@@ -785,7 +784,7 @@ internal sealed record OlderCache(string Path, int LoaderVersion, int CurrentVer
 /// <summary>A snapshot just opened, with what the store keeps about its index cache.</summary>
 internal sealed record OpenedSnapshot(ISnapshot Snapshot, SnapshotDescriptor Descriptor, IndexState Index);
 
-/// <summary>Where a snapshot's index cache is and what it is; optional indices name it (sprint 2.1).</summary>
+/// <summary>Where a snapshot's index cache is and what it is; optional indices name it.</summary>
 /// <param name="CachePath">The index cache the snapshot was opened from or wrote; null when none was written.</param>
 /// <param name="Identity">The cache's identity; 0 when none was written.</param>
 /// <param name="Forced">The memory mode the open request forced, if any; optional indices follow it too.</param>

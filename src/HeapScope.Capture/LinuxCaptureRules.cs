@@ -27,7 +27,7 @@ using System.Text;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// What <c>/proc</c> says about a process that was asked for by pid and not found (sprint 4.1, review H3, H6 and M1), as
+/// What <c>/proc</c> says about a process that was asked for by pid and not found, as
 /// read: null where a file could not be read.
 /// </summary>
 /// <param name="Running">Whether its <c>/proc</c> folder and <c>status</c> could be read (false once it exited).</param>
@@ -50,10 +50,10 @@ internal sealed record LinuxTarget(
     string OwnTempFolder);
 
 /// <summary>
-/// Why Linux refuses a capture, and what to do (sprint 4.1 task 5). HeapScope never changes system settings such as
+/// Why Linux refuses a capture, and what to do. HeapScope never changes system settings such as
 /// <c>ptrace_scope</c> or a container's capabilities; it says what to change. The rules take what was read, so they are
 /// tested on every system; the readers below read <c>/proc</c>. Each decision comes with the evidence it rests on, which
-/// the log keeps (review H6), and never with a variable's value other than <c>TMPDIR</c>.
+/// the log keeps, and never with a variable's value other than <c>TMPDIR</c>.
 /// </summary>
 internal sealed class LinuxCaptureRules : ICaptureRules
 {
@@ -65,7 +65,7 @@ internal sealed class LinuxCaptureRules : ICaptureRules
         return new NotFoundExplanation(WhyNoDiagnostics(target), Evidence(target));
     }
 
-    /// <summary>Review H2: what createdump reported decides first; the ptrace rule and the container only explain a ptrace failure.</summary>
+    /// <summary>What createdump reported decides first; the ptrace rule and the container only explain a ptrace failure.</summary>
     public WriteFailureExplanation WhyNotWritten(string message, string account, string directory)
     {
         var scope = PtraceScope();
@@ -93,7 +93,7 @@ internal sealed class LinuxCaptureRules : ICaptureRules
     };
 
     /// <summary>
-    /// Why the runtime's createdump could not write a dump on Linux (review H2), from what it reported, before the system's
+    /// Why the runtime's createdump could not write a dump on Linux, from what it reported, before the system's
     /// settings: a full disk and a folder the target's account cannot write are named as such, and the ptrace rule or the
     /// container only when createdump reported that it could not examine the process, or when nothing can (scope 3). Null
     /// when nothing explains it. <paramref name="rule"/> names the rule that decided, for the log.
@@ -132,8 +132,7 @@ internal sealed class LinuxCaptureRules : ICaptureRules
         $"ptrace_scope {(ptraceScope is { } scope ? scope.ToString(CultureInfo.InvariantCulture) : "not present")}; container {(inContainer ? "yes" : "no")}; rule: {rule}");
 
     /// <summary>
-    /// Why a full dump of another user's process cannot go into HeapScope's own folders while HeapScope runs as root (review
-    /// H1): the runtime writes the dump as the process's own user, and HeapScope's folders are root's alone.
+    /// Why a full dump of another user's process cannot go into HeapScope's own folders while HeapScope runs as root: the runtime writes the dump as the process's own user, and HeapScope's folders are root's alone.
     /// </summary>
     public static string RootLibraryRefusal(string name, int processId) => string.Create(
         CultureInfo.InvariantCulture,
@@ -193,7 +192,7 @@ internal sealed class LinuxCaptureRules : ICaptureRules
         return null;
     }
 
-    /// <summary>What a not-found decision rests on, for the log (review H6): ids, readable files, folders and the runtime.</summary>
+    /// <summary>What a not-found decision rests on, for the log: ids, readable files, folders and the runtime.</summary>
     public static string Evidence(LinuxTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);

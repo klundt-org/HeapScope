@@ -24,5 +24,5 @@
 
 namespace HeapScope.Application.Allocations;
 
-/// <summary>The allocations a comparison shows (sprint 4.4): an open trace and the interval between the two heaps.</summary>
+/// <summary>The allocations a comparison shows: an open trace and the interval between the two heaps.</summary>
 public sealed record DiffAllocations(AllocationSession Session, TraceHandle Trace, DateTimeOffset FromUtc, DateTimeOffset ToUtc);

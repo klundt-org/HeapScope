@@ -23,7 +23,7 @@
 
 namespace HeapScope.Contracts;
 
-/// <summary>Opens an EventPipe trace's sampled allocations in the worker (sprint 2.5, ADR-028).</summary>
+/// <summary>Opens an EventPipe trace's sampled allocations in the worker (ADR-028).</summary>
 public sealed record OpenTraceRequest(string Path);
 
 /// <summary>An opened allocation trace.</summary>
@@ -31,7 +31,7 @@ public sealed record OpenTraceRequest(string Path);
 /// <param name="SampledBytes">What all samples stand for: an estimate of the bytes allocated while recording.</param>
 /// <param name="LostEvents">Events the runtime dropped, of any kind: an upper bound on lost samples, whose bytes are lost too.</param>
 /// <param name="SamplesWithoutStack">Samples the trace recorded no stack for; trees show them under one frame.</param>
-/// <param name="FileBytes">The trace file's size when read; with <paramref name="FileWriteUtc"/>, its identity (the 2.5 review).</param>
+/// <param name="FileBytes">The trace file's size when read; with <paramref name="FileWriteUtc"/>, its identity.</param>
 /// <param name="FileWriteUtc">The trace file's last write time when read.</param>
 /// <param name="SamplesWithUnresolvedFrames">Samples whose stack has a frame the trace does not name.</param>
 /// <param name="HasRundown">Whether the trace ends with the runtime's rundown, which names every method still loaded.</param>
@@ -176,7 +176,7 @@ public static class AllocationRowKinds
 }
 
 /// <summary>
-/// The allocation trees' row keys (sprint 2.5): the top level's list key is <c>root</c>; a call tree row's key is
+/// The allocation trees' row keys: the top level's list key is <c>root</c>; a call tree row's key is
 /// <c>n:</c> and its stack node; a back-trace row's is <c>b:</c> and its frame for the first level, then its parent's key,
 /// <c>/</c> and its frame; a "more" row's is its list's key, <c>|m:</c> and how many rows precede it. Contracts owns the
 /// format; the analysis mirrors it (ADR-016, a test checks every form).
@@ -216,11 +216,11 @@ public static class AllocationTreeLimits
 
     public const double MaxBucketSeconds = 3_600;
 
-    /// <summary>The most stretches one timeline answer holds (the 2.5 review: the answer is not paged).</summary>
+    /// <summary>The most stretches one timeline answer holds (the answer is not paged).</summary>
     public const int MaxBuckets = 10_000;
 }
 
-/// <summary>What sampled sizes mean, said the same way by every front end (sprint 2.5).</summary>
+/// <summary>What sampled sizes mean, said the same way by every front end.</summary>
 public static class AllocationTexts
 {
     /// <summary>The note for sampled bytes.</summary>

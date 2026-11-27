@@ -27,8 +27,8 @@ using HeapScope.UI.Services;
 namespace HeapScope.UI.Smoke;
 
 /// <summary>
-/// The measured stretches of a smoke run (sprint 3.12, R3): each begins with the watchdog cleared and ends with its maxima
-/// and its slow operations kept, so the checked maxima, the cold costs and the count of slow first shows (task 5's ceiling)
+/// The measured stretches of a smoke run: each begins with the watchdog cleared and ends with its maxima
+/// and its slow operations kept, so the checked maxima, the cold costs and the count of slow first shows (which has a ceiling)
 /// come from one place, and every phase's log line says them the same way.
 /// </summary>
 internal sealed class SmokePhases
@@ -83,12 +83,12 @@ internal sealed class SmokePhases
     }
 }
 
-/// <summary>One measured stretch of a smoke run (sprint 3.12, R3).</summary>
+/// <summary>One measured stretch of a smoke run.</summary>
 /// <param name="Cold">A first show, logged and counted but not checked against the budget.</param>
 /// <param name="SlowOperations">UI operations over the 100 ms budget in it.</param>
 internal sealed record SmokePhase(string Name, bool Cold, TimeSpan MaxLag, TimeSpan MaxOperation, int SlowOperations)
 {
-    /// <summary>The phase's measures as every smoke log line has said them since sprint 1.2 (the A/B script reads them).</summary>
+    /// <summary>The phase's measures as every smoke log line says them (the A/B script reads them).</summary>
     public string Measured => string.Create(
         CultureInfo.InvariantCulture,
         $"maximum dispatcher lag {MaxLag.TotalMilliseconds:N0} ms, longest dispatcher operation at most {MaxOperation.TotalMilliseconds:N0} ms");

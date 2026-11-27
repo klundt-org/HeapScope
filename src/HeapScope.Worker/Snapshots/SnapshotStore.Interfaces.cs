@@ -29,11 +29,11 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.Worker.Snapshots;
 
-/// <summary>The interfaces of each snapshot's types (sprint 3.2, ADR-031).</summary>
+/// <summary>The interfaces of each snapshot's types (ADR-031).</summary>
 internal sealed partial class SnapshotStore
 {
     /// <summary>
-    /// Each type's interfaces, read once from the dump and kept with the snapshot (the 3.2 review: a derived slot with its
+    /// Each type's interfaces, read once from the dump and kept with the snapshot (a derived slot with its
     /// own lease, shared progress and cancellation, dropped on close). Returns null when the snapshot is not loaded or
     /// closes meanwhile. The caller checks the snapshot has a dump reader.
     /// </summary>
@@ -58,7 +58,7 @@ internal sealed partial class SnapshotStore
                 var table = TypeInterfaces.Read(graph, reader, failures, new PhaseProgress(throttled, phase, graph.Types.Count), lifetime);
                 throttled.Flush();
 
-                // The types left unread are named (metadata), so a row of the grid can be explained (the 3.2 review).
+                // The types left unread are named (metadata), so a row of the grid can be explained.
                 logger.LogInformation(
                     "Interfaces of snapshot {Id}: {Types} type entries, {Unread} not read in {Seconds:0.00} s{Failures}",
                     entry.Descriptor.SnapshotId,

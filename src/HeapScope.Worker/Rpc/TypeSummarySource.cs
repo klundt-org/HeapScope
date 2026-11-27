@@ -32,8 +32,8 @@ namespace HeapScope.Worker.Rpc;
 /// <summary>
 /// Summary rows (per type, namespace or assembly) held as compact arrays and formatted only for the requested page
 /// (ARCHITECTURE.md 4.6). Columns: name (key), objects, bytes, percent of all bytes, then bytes per heap kind when the
-/// snapshot has generations (sprint 1.3), then in Type grouping the hidden type name and module that open a row's
-/// instances (sprint 1.5). Sorting takes any column by name.
+/// snapshot has generations, then in Type grouping the hidden type name and module that open a row's
+/// instances. Sorting takes any column by name.
 /// </summary>
 internal sealed class TypeSummarySource : IResultSource
 {
@@ -92,7 +92,6 @@ internal sealed class TypeSummarySource : IResultSource
 
     /// <summary>
     /// Checks <paramref name="request"/>'s grouping and sort column before the worker computes the dominators for it
-    /// (sprint 2.3 review M7).
     /// </summary>
     /// <exception cref="ArgumentException">The grouping or the sort column is unknown.</exception>
     public static void Validate(TypeSummaryRequest request, bool generations)
@@ -108,7 +107,7 @@ internal sealed class TypeSummarySource : IResultSource
 
     /// <summary>
     /// Groups, filters and sorts <paramref name="aggregation"/> as <paramref name="request"/> asks. With
-    /// <paramref name="retainedByGroup"/> (sprint 2.3; numbered as <see cref="TypeGroups.GroupOfType"/>) the rows carry a
+    /// <paramref name="retainedByGroup"/> (numbered as <see cref="TypeGroups.GroupOfType"/>) the rows carry a
     /// retained bytes column.
     /// </summary>
     public static TypeSummarySource Create(HeapGraph graph, TypeAggregation aggregation, TypeSummaryRequest request, bool generations, ulong[]? retainedByGroup = null, TypeInterfaces? interfaces = null)

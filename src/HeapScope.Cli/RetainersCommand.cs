@@ -30,7 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>retainers</c> and <c>retained-by</c> commands (sprint 2.4): the dominator tree from its top (the biggest
+/// The <c>retainers</c> and <c>retained-by</c> commands: the dominator tree from its top (the biggest
 /// retainers) or below an object, expanded to a depth; and what every object of a type keeps alive together, exactly.
 /// The first query of a snapshot computes its dominators and saves them next to the index cache.
 /// </summary>
@@ -97,7 +97,7 @@ internal static partial class CliCommands
             var perLevel = parseResult.GetValue(top);
 
             // Each level expands the rows of the one above it (the tree is flattened by the worker; keys survive re-runs). It
-            // stops when the tree is cut or the open keys would pass the worker's limit, and says so (the 2.4 review).
+            // stops when the tree is cut or the open keys would pass the worker's limit, and says so.
             var expanded = new List<string>();
             DominatorTreeAnswer answer;
             List<IReadOnlyList<string?>> rows;
@@ -182,7 +182,7 @@ internal static partial class CliCommands
                     break;
             }
 
-            // Every format: a cut tree must not pass for a whole one (the 2.4 review).
+            // Every format: a cut tree must not pass for a whole one.
             if (result.Truncated)
             {
                 await error.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
@@ -280,7 +280,7 @@ internal static partial class CliCommands
         return command;
     }
 
-    /// <summary>A column's index by name (cells are read by name, the 2.4 review).</summary>
+    /// <summary>A column's index by name (cells are read by name).</summary>
     private static int At(IReadOnlyList<ResultColumn> columns, string name)
     {
         for (var i = 0; i < columns.Count; i++)
@@ -294,7 +294,7 @@ internal static partial class CliCommands
         throw new InvalidOperationException($"The worker's result has no {name} column. The worker and the CLI are from different builds.");
     }
 
-    /// <summary>Whether a column's values are exact or lower bounds, as the worker says (2.3.7 review M7).</summary>
+    /// <summary>Whether a column's values are exact or lower bounds, as the worker says.</summary>
     private static ValueBound Bound(IReadOnlyList<ResultColumn> columns, string name) => columns[At(columns, name)].Bound;
 
     /// <summary>The tree's rows by column name.</summary>

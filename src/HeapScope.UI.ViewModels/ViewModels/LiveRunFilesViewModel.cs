@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The files of the run the Live page shows (split from <see cref="LiveViewModel"/> in sprint 4.3): its timeline, its allocation
+/// The files of the run the Live page shows (a part of <see cref="LiveViewModel"/>): its timeline, its allocation
 /// trace and its snapshots. Files are looked at off the UI thread.
 /// </summary>
 public sealed partial class LiveRunFilesViewModel : ObservableObject
@@ -73,7 +73,7 @@ public sealed partial class LiveRunFilesViewModel : ObservableObject
 
     private bool CanOpenTrace() => TracePath is not null && _allocations is not null;
 
-    /// <summary>Opens the run's allocation trace on the Allocations page (sprint 3.4).</summary>
+    /// <summary>Opens the run's allocation trace on the Allocations page.</summary>
     [RelayCommand(CanExecute = nameof(CanOpenTrace))]
     private async Task OpenTraceAsync()
     {

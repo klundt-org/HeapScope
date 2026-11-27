@@ -31,7 +31,7 @@ namespace HeapScope.Worker.Rpc;
 /// per page. Least recently used sets are evicted when either the set count or the estimated byte budget is
 /// exceeded, so a client that never releases cannot grow the worker without bound. A set may carry an owner
 /// (for example a snapshot lease) that is disposed when the set is released or evicted, or, when a page is being
-/// formatted at that moment, after that page: sources read the graph and the dump while formatting (sprint 1.5 review).
+/// formatted at that moment, after that page: sources read the graph and the dump while formatting.
 /// A set names the snapshot it came from; once the client says which snapshot its window shows (<see cref="Show"/>), the
 /// sets of the others are evicted first, so the workspace on screen keeps its rows while hidden ones give way (ADR-044).
 /// </summary>

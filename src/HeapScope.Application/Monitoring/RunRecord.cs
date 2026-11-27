@@ -27,7 +27,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Application.Monitoring;
 
 /// <summary>
-/// A monitoring run's record in its session (sprint 3.4, split from the run in 3.8, peer review P11): the session folder
+/// A monitoring run's record in its session (a part of the run): the session folder
 /// fixed at the start, marked in use so it cannot be deleted while the run writes into it, and the run's entry in
 /// <c>session.json</c>, written at the start and at the end.
 /// </summary>

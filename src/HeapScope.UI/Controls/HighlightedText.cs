@@ -74,7 +74,7 @@ public static class HighlightedText
                 inlines.Add(new Run(text[position..start]));
             }
 
-            // Ranges never overlap (NameFilter merges them); never draw a character twice even if they did (2.7 review H2).
+            // Ranges never overlap (NameFilter merges them); never draw a character twice even if they did.
             var from = Math.Max(start, position);
             if (start + length > from)
             {

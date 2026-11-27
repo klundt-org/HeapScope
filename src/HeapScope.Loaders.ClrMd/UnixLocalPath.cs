@@ -28,7 +28,7 @@ namespace HeapScope.Loaders.ClrMd;
 public sealed record MountPoint(string Path, DriveType Type, string Format);
 
 /// <summary>
-/// The local path rule of ADR-017 on Linux and macOS (sprint 2.3.5 review H1). Every absolute path there has the root
+/// The local path rule of ADR-017 on Linux and macOS. Every absolute path there has the root
 /// <c>/</c>, so the rule looks at the mount that holds the path: it walks the path one component at a time, resolving
 /// symbolic links, and requires every step to lie on a local disk (a fixed file system, container overlays included, or
 /// <c>tmpfs</c>). Network mounts (NFS, SMB, autofs, FUSE), <c>/proc</c>, <c>/sys</c> and <c>/dev</c> are refused, and
@@ -46,7 +46,7 @@ public static class UnixLocalPath
     /// <summary>
     /// The file systems mounted on this machine; one that cannot be described is kept as not local. On Linux the
     /// types are read as text from <c>/proc/self/mountinfo</c>: <see cref="DriveInfo"/> asks each mount with statfs, which
-    /// a hung network mount answers never (review of the H1 fix).
+    /// a hung network mount answers never.
     /// </summary>
     public static IReadOnlyList<MountPoint> CurrentMounts()
     {

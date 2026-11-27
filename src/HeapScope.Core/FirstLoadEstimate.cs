@@ -24,10 +24,9 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// The worker's peak memory for a first load of a dump (ARCHITECTURE.md 10): the front ends warn with it before they ask, and since
-/// sprint 4.7 the worker reserves it while it loads and logs it against what the load used (peer review 4.5 H5). Refitted in sprint
-/// 4.7, when a load's references went to a mapped file (budgets.md): above every first load peak measured (ClrMD cache capped at
-/// 512 MB), the highest per dump byte being sprint 3.10's Medium (3,984 MB dump, 2,470 MB, before the file) and, after it, an 8 GB
+/// The worker's peak memory for a first load of a dump (ARCHITECTURE.md 10): the front ends warn with it before they ask, and
+/// the worker reserves it while it loads and logs it against what the load used. Refitted when a load's references went to a mapped file (budgets.md): above every first load peak measured (ClrMD cache capped at
+/// 512 MB), the highest per dump byte being the Medium sample (3,984 MB dump, 2,470 MB, before the file) and, after it, an 8 GB
 /// DenseHeap dump (9,054 MB, 3,569 MB) and a 2 GB one (3,145 MB, 1,161 MB).
 /// </summary>
 public static class FirstLoadEstimate

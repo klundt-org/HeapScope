@@ -36,10 +36,10 @@ namespace HeapScope.Capture;
 public sealed record ForcedGc(bool Completed, int GcNumber, TimeSpan Elapsed);
 
 /// <summary>
-/// Forces a full blocking garbage collection in a .NET process (sprint 3.4, decision 1): an EventPipe session with the
+/// Forces a full blocking garbage collection in a .NET process: an EventPipe session with the
 /// runtime's GC and GC heap collect keywords makes the runtime run an induced full collection, as a gcdump capture does,
 /// without walking the heap. Needs a .NET 5 or later target with a diagnostics port. The runtime runs the collection
-/// while it enables the session, so the timeout covers the session's start too (review of 3.4).
+/// while it enables the session, so the timeout covers the session's start too.
 /// </summary>
 public static class GcTrigger
 {
@@ -110,7 +110,7 @@ public static class GcTrigger
             await Task.WhenAny(completed.Task, processing, Task.Delay(Timeout.Infinite, deadline.Token)).ConfigureAwait(false);
             var finished = completed.Task.IsCompleted;
 
-            // Bounded, so a target frozen after its session started does not keep the gate (peer review 4.5 H9).
+            // Bounded, so a target frozen after its session started does not keep the gate.
             await SessionStop.StopAsync(session).ConfigureAwait(false);
 
             await Task.WhenAny(processing, Task.Delay(TimeSpan.FromSeconds(10), CancellationToken.None)).ConfigureAwait(false);

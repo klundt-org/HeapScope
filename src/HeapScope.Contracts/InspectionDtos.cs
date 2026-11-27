@@ -26,20 +26,20 @@ namespace HeapScope.Contracts;
 // DTOs are records of primitives, strings, arrays and Contracts enums only (ARCHITECTURE.md 4.4, ADR-016).
 // The simple inspections.
 
-/// <summary>An inspection the worker offers for a snapshot (sprint 1.6).</summary>
+/// <summary>An inspection the worker offers for a snapshot.</summary>
 /// <param name="Name">The CLI name (<c>duplicate-strings</c>).</param>
 /// <param name="Unavailable">Why it cannot run on this snapshot (a missing capability), or null.</param>
-/// <param name="Kind">One of <see cref="InspectionKinds"/>: memory waste or a leak detector (sprint 2.6).</param>
+/// <param name="Kind">One of <see cref="InspectionKinds"/>: memory waste or a leak detector.</param>
 /// <param name="UsesBaseline">Whether a baseline snapshot changes its answer (growth since it).</param>
 public sealed record InspectionInfo(string Name, string Title, string Cause, string Fix, string? Unavailable, string Kind = InspectionKinds.Waste, bool UsesBaseline = false);
 
 /// <summary>
-/// Runs one inspection on a snapshot (sprint 1.6). <paramref name="BaselineSnapshotId"/> is an earlier open snapshot of
-/// the same process (sprint 2.6), used by inspections that measure growth and ignored by the others.
+/// Runs one inspection on a snapshot. <paramref name="BaselineSnapshotId"/> is an earlier open snapshot of
+/// the same process, used by inspections that measure growth and ignored by the others.
 /// </summary>
 public sealed record InspectionRequest(Guid SnapshotId, string Name, Guid? BaselineSnapshotId = null);
 
-/// <summary>The kinds of inspection (<see cref="InspectionInfo.Kind"/>, sprint 2.6); Analysis mirrors them.</summary>
+/// <summary>The kinds of inspection (<see cref="InspectionInfo.Kind"/>); Analysis mirrors them.</summary>
 public static class InspectionKinds
 {
     /// <summary>Memory spent for little: duplicate strings, empty collections, the large object heap...</summary>
@@ -53,7 +53,7 @@ public static class InspectionKinds
 /// An inspection's answer: findings, the bytes they cover, the bytes they waste (null when waste does not apply or is
 /// unknown), a note on what could not be measured, and the rows (columns in <see cref="InspectionColumns"/>).
 /// </summary>
-/// <param name="BaselineSnapshotId">The baseline the answer used (sprint 2.6), or null.</param>
+/// <param name="BaselineSnapshotId">The baseline the answer used, or null.</param>
 public sealed record InspectionResultDto(string Name, long Count, long Bytes, long? WastedBytes, string? Note, ResultSetInfo Rows, double ElapsedSeconds, Guid? BaselineSnapshotId = null);
 
 /// <summary>
@@ -79,7 +79,7 @@ public static class InspectionColumns
     public static bool IsHidden(string column) => column is TypeName or Module or Scope;
 }
 
-/// <summary>Names of inspections that front ends present in their own way (sprint 1.6).</summary>
+/// <summary>Names of inspections that front ends present in their own way.</summary>
 public static class InspectionNames
 {
     /// <summary>Per heap kind rows (live, free, pinned) shown as bars as well as a grid.</summary>

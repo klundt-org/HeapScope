@@ -33,14 +33,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.Application.Tutorial;
 
 /// <summary>
-/// The tutorial's sample (sprint 3.13, ADR-042): reads the shipped sample's scenario catalog, starts a sample with the chosen
+/// The tutorial's sample (ADR-042): reads the shipped sample's scenario catalog, starts a sample with the chosen
 /// scenarios as the user, marks its process as a sample and stops it. Refused while this process runs elevated (the sample would
 /// be elevated too) and above <see cref="MaxRunning"/> at once in this process; every sample exits with the process that
 /// started it (it watches this process's pid), and the ones still running are stopped when this service is disposed.
 /// Each running sample has a record in the data folder (<c>samples/&lt;pid&gt;.json</c>, with its start time), so
-/// <see cref="StopRecorded"/> can stop one that another HeapScope process started, on any system (review H4).
-/// A sample that cannot be started or read is refused with a next step, never an unexpected failure (review H2), and every
-/// start, refusal, stop and exit is logged with what support needs to back it up (review H5).
+/// <see cref="StopRecorded"/> can stop one that another HeapScope process started, on any system.
+/// A sample that cannot be started or read is refused with a next step, never an unexpected failure, and every
+/// start, refusal, stop and exit is logged with what support needs to back it up.
 /// </summary>
 public sealed class SampleService : IDisposable
 {
@@ -87,7 +87,7 @@ public sealed class SampleService : IDisposable
 
     /// <summary>
     /// What to do when the sample is missing or broken: update the command line's dotnet tool, or reinstall the release
-    /// (review M8: one sentence was wrong for the tool).
+    /// (one sentence was wrong for the tool).
     /// </summary>
     public static string RepairStep => WorkerHostOptions.RunningDotnetHost() is not null
         ? "Update HeapScope's command line: dotnet tool update -g HeapScope.Cli"
@@ -233,7 +233,7 @@ public sealed class SampleService : IDisposable
             }
         }
 
-        // Review M10: a slot is taken before the start and given back when it fails, so two starts at once cannot pass the limit.
+        // A slot is taken before the start and given back when it fails, so two starts at once cannot pass the limit.
         lock (_gate)
         {
             if (_running.Count + _pending >= MaxRunning)
@@ -381,7 +381,7 @@ public sealed class SampleService : IDisposable
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(_readyTimeout);
 
-            // Review M11: the timeout kills the sample, which ends the read whether or not the pipe honors cancellation.
+            // The timeout kills the sample, which ends the read whether or not the pipe honors cancellation.
             await using var killOnTimeout = timeout.Token.Register(() => KillQuietly(process)).ConfigureAwait(false);
             while (await process.ReadLineAsync(timeout.Token).ConfigureAwait(false) is { } line)
             {
@@ -454,7 +454,7 @@ public sealed class SampleService : IDisposable
         return sample;
     }
 
-    // A kill a timer fires (peer review 4.5 M8): a process exiting meanwhile must not end HeapScope, so its failure is logged, not thrown.
+    // A kill a timer fires: a process exiting meanwhile must not end HeapScope, so its failure is logged, not thrown.
     private void KillQuietly(ISampleProcess process)
     {
         try
@@ -467,7 +467,7 @@ public sealed class SampleService : IDisposable
         }
     }
 
-    // Review H3 and L17: an exit is reported when it happens, the process released, and the reason told apart.
+    // An exit is reported when it happens, the process released, and the reason told apart.
     private void OnExited(Entry entry)
     {
         if (!entry.TryReport())
@@ -494,7 +494,7 @@ public sealed class SampleService : IDisposable
     }
 
     // The exit event can come before the last lines of its standard error are read (a crash's message is those lines), so
-    // the report waits for them, briefly (review H5).
+    // the report waits for them, briefly.
     private async Task ReportExitAsync(Entry entry, SampleExitReason reason)
     {
         try
@@ -523,7 +523,7 @@ public sealed class SampleService : IDisposable
         entry.Exit.TrySetResult(exit);
     }
 
-    // Review H2: a sample that cannot be started (blocked, missing, not executable) is a refusal with a next step.
+    // A sample that cannot be started (blocked, missing, not executable) is a refusal with a next step.
     private ISampleProcess StartProcess(SampleLaunch launch, IReadOnlyList<string> arguments)
     {
         try
@@ -537,7 +537,7 @@ public sealed class SampleService : IDisposable
         }
     }
 
-    // Review M11: its standard error is read to the end before it is reported.
+    // Its standard error is read to the end before it is reported.
     private async Task<(int? Code, string Error)> ExitOfAsync(ISampleProcess process)
     {
         try

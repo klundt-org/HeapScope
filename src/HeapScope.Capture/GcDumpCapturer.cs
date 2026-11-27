@@ -49,7 +49,7 @@ public enum GcDumpFailure
     Canceled = 4,
 
     /// <summary>
-    /// The heap has more objects than the gcdump writer keeps (10 million nodes, review H3): the file would silently hold a
+    /// The heap has more objects than the gcdump writer keeps (10 million nodes): the file would silently hold a
     /// part of the heap, so none is written.
     /// </summary>
     TooLarge = 5,
@@ -59,7 +59,7 @@ public enum GcDumpFailure
 /// <param name="Reason">The first line of the error, when <paramref name="Failure"/> is <see cref="GcDumpFailure.Error"/>.</param>
 public sealed record GcDumpWriteResult(GcDumpFailure Failure, string? Reason = null)
 {
-    /// <summary>When the runtime walked the heap, in the target's pause (sprint 4.4); null when its events did not say.</summary>
+    /// <summary>When the runtime walked the heap, in the target's pause; null when its events did not say.</summary>
     public DateTimeOffset? HeapUtc { get; init; }
 
     public static GcDumpWriteResult Succeeded { get; } = new(GcDumpFailure.None);
@@ -120,7 +120,7 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
             var lines = log.Lines;
             if (success && lines.Any(l => l.Contains(NodeCapWarning, StringComparison.Ordinal)))
             {
-                // The vendored writer stops at its node cap and still reports success (review H3).
+                // The vendored writer stops at its node cap and still reports success.
                 return new GcDumpWriteResult(GcDumpFailure.TooLarge);
             }
 
@@ -129,7 +129,7 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
         catch (OperationCanceledException)
         {
             // The vendored code ends its session when it sees the cancellation; wait a little for that, so the target is not
-            // left with an open session, but never hang the caller on it (sprint 1.8 review H1).
+            // left with an open session, but never hang the caller on it.
             if (await Task.WhenAny(work, Task.Delay(CancelGrace, CancellationToken.None)).ConfigureAwait(false) != work)
             {
                 _logger.LogWarning("The canceled gcdump session of pid {Pid} did not close within {Seconds} s", processId, CancelGrace.TotalSeconds);
@@ -139,7 +139,7 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
         }
         finally
         {
-            // Sprint 4.4: whether the type table was flushed, and how long it took, to tell a gcdump whose types have no name.
+            // Whether the type table was flushed, and how long it took, to tell a gcdump whose types have no name.
             _logger.LogInformation("gcdump pid {Pid}: {Flush}; heap walked at {At}", processId, string.Join(", ", log.Lines.Where(static l => l.Contains("lushing the type table", StringComparison.Ordinal)).Select(static l => l.Trim())), walked?.ToString("O", CultureInfo.InvariantCulture) ?? "no time");
             foreach (var line in log.Lines)
             {
@@ -213,7 +213,7 @@ public sealed class EventPipeGcDumpWriter(ILogger<EventPipeGcDumpWriter>? logger
 }
 
 /// <summary>
-/// Captures a gcdump (sprint 1.8): the managed object graph only, a fraction of a full dump's size, with no field values
+/// Captures a gcdump: the managed object graph only, a fraction of a full dump's size, with no field values
 /// or string text. The target is not paused for a file write, but it runs one full blocking garbage collection, so
 /// garbage is gone from the snapshot and the process's counters show an induced GC. Writes to a temporary name and
 /// renames it only on success; a failed or canceled capture leaves no file.
@@ -234,7 +234,7 @@ public sealed class GcDumpCapturer(IElevationProbe? elevation = null, IGcDumpWri
     /// (<see cref="DefaultTimeout"/> when null) for the runtime. Throws <see cref="ElevationRequiredException"/>,
     /// <see cref="DumpFileExistsException"/>, <see cref="TargetUnavailableException"/>,
     /// <see cref="DumpWriteFailedException"/> or <see cref="OperationCanceledException"/>. Returns when the runtime walked the heap,
-    /// when its events said (sprint 4.4): seconds before the file is done.
+    /// when its events said: seconds before the file is done.
     /// </summary>
     public async Task<HeapTime?> CaptureAsync(DotNetProcess process, string path, IProgress<CaptureProgress>? progress, TimeSpan? timeout, CancellationToken cancellationToken)
     {

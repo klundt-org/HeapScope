@@ -63,7 +63,7 @@ public sealed class DiffRowItem(int index) : ObservableObject, IIndexedRow
     /// <summary>The module file name of <see cref="TypeName"/> (empty when none).</summary>
     public string? Module { get; private set; }
 
-    /// <summary>Current objects not at their address in the baseline (sprint 3.3), when matched.</summary>
+    /// <summary>Current objects not at their address in the baseline, when matched.</summary>
     public long? NewObjects { get; private set; }
 
     /// <summary>Baseline objects not at their address in the current snapshot, when matched.</summary>
@@ -85,7 +85,7 @@ public sealed class DiffRowItem(int index) : ObservableObject, IIndexedRow
 
     public long? PohDelta { get; private set; }
 
-    /// <summary>Sampled bytes allocated between the snapshots (sprint 4.4, an estimate); null without a sample.</summary>
+    /// <summary>Sampled bytes allocated between the snapshots (an estimate); null without a sample.</summary>
     public long? AllocatedBytes { get; private set; }
 
     public long? AllocatedSamples { get; private set; }

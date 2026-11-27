@@ -29,9 +29,9 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// Event handler leaks (sprint 2.6): an event of a publisher type holding at least <see cref="MinSubscribers"/>
+/// Event handler leaks: an event of a publisher type holding at least <see cref="MinSubscribers"/>
 /// subscribers across its publishers. A subscriber is a delegate whose target the event keeps alive; a multicast event
-/// holds its subscribers in an invocation list. Only field-like events count (review H3): the delegate is held by a field
+/// holds its subscribers in an invocation list. Only field-like events count: the delegate is held by a field
 /// named like an event (the event's backing field), by a reachable publisher that is not the subscriber's own target, a
 /// compiler-generated type or, unless through a multicast, a framework type (their callback fields are not events).
 /// Delegates held by arrays or collections are not events (the growing collections detector names those); timers' events
@@ -73,7 +73,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
 
     /// <summary>
     /// A field that holds an event: a field-like event's backing field, named as the event is (PascalCase, no prefix); or,
-    /// for a multicast delegate, any field of the publisher's own (a hand-written event's <c>_changed</c>; re-review).
+    /// for a multicast delegate, any field of the publisher's own (a hand-written event's <c>_changed</c>).
     /// </summary>
     internal static bool IsEventField(string field, bool multicast) =>
         field.Length > 0
@@ -107,7 +107,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
         var candidates = DetectorGraph.TypeMask(graph, t => perType[t] >= MinSubscribers);
         var reachable = DetectorGraph.Reachable(context);
 
-        // Subscribers by publisher: each publisher's fields are read once, so two events of one delegate type stay apart (review H2).
+        // Subscribers by publisher: each publisher's fields are read once, so two events of one delegate type stay apart.
         var pending = new Dictionary<int, List<Pending>>();
         var holders = new List<(int Value, int Publisher, bool Multicast)>();
         long read = 0;
@@ -165,7 +165,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
             }
         }
 
-        // Only publishers of types whose subscribers can reach the threshold are read (re-review N3): each read is a full
+        // Only publishers of types whose subscribers can reach the threshold are read: each read is a full
         // read of the publisher's fields.
         var perPublisherType = new Dictionary<int, long>();
         foreach (var (publisher, subscribers) in pending)
@@ -218,7 +218,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
 
                 found.Publishers.Add(publisher);
                 found.Subscribers++;
-                // The objects whose bytes the row counts (sprint 3.1 review H1): the subscriber delegate (never the shared
+                // The objects whose bytes the row counts: the subscriber delegate (never the shared
                 // multicast delegate holding it) and its target.
                 found.Members.Add(subscriber.Subscriber);
                 if (subscriber.Target >= 0)
@@ -322,7 +322,7 @@ internal sealed class EventHandlerLeaksDetector : IInspection
 
         public Dictionary<string, long> TargetTypes { get; } = new(StringComparer.Ordinal);
 
-        /// <summary>The subscriber delegates and their targets counted (sprint 3.1): what the row opens as a set.</summary>
+        /// <summary>The subscriber delegates and their targets counted: what the row opens as a set.</summary>
         public List<int> Members { get; } = [];
     }
 }

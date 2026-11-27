@@ -28,7 +28,7 @@ using HeapScope.Core;
 namespace HeapScope.Analysis;
 
 /// <summary>
-/// One row of a trend (sprint 3.3): a type, namespace, assembly or interface with its objects and bytes in each snapshot,
+/// One row of a trend: a type, namespace, assembly or interface with its objects and bytes in each snapshot,
 /// in order. In Type grouping <see cref="TypeName"/> and <see cref="Module"/> open the row's objects.
 /// </summary>
 public sealed record TrendRow(string Name, long[] Counts, ulong[] Bytes, string? TypeName = null, string? Module = null)
@@ -57,7 +57,7 @@ public sealed record TrendRow(string Name, long[] Counts, ulong[] Bytes, string?
 }
 
 /// <summary>
-/// Per-row totals across several snapshots (sprint 3.3): rows matched by type name and module file (ADR-018) as each
+/// Per-row totals across several snapshots: rows matched by type name and module file (ADR-018) as each
 /// snapshot names its types, like a diff of each consecutive pair.
 /// </summary>
 public static class TypeTrend

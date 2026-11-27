@@ -26,7 +26,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Application.Workers;
 
 /// <summary>
-/// The one reopen protocol for what the worker holds for a client (peer review P5): a call runs with the current worker
+/// The one reopen protocol for what the worker holds for a client: a call runs with the current worker
 /// ids of its resources; a resource from an earlier worker generation is reopened first, and every resource once more
 /// when the worker answers <c>notLoaded</c>. Concurrent callers reopen a resource once: a caller that finds it reopened
 /// since it asked uses the new id. A closed resource is never reopened.
@@ -80,7 +80,7 @@ internal sealed class WorkerResources<T>(
 
     /// <summary>
     /// Runs <paramref name="call"/>, which asks the worker itself, with the resource's worker id: for a question about resources of
-    /// two kinds (sprint 4.4). Reopened before and once after <c>notLoaded</c>, as in <see cref="UseAsync"/>. What fails about the
+    /// two kinds. Reopened before and once after <c>notLoaded</c>, as in <see cref="UseAsync"/>. What fails about the
     /// resource itself is thrown as <paramref name="unavailable"/> makes it.
     /// </summary>
     public async Task<TResult> UseIdAsync<TResult>(T resource, Func<Guid, CancellationToken, Task<TResult>> call, Func<WorkerException, Exception> unavailable, CancellationToken cancellationToken)

@@ -25,7 +25,7 @@ using HeapScope.Core.Graph;
 
 namespace HeapScope.Core.Loading;
 
-/// <summary>The outcome of loading a snapshot file (sprint 1.8: shared by every loader). Owns the graph until it is handed on.</summary>
+/// <summary>The outcome of loading a snapshot file (shared by every loader). Owns the graph until it is handed on.</summary>
 public sealed class LoadResult(HeapGraph graph, SnapshotInfo info, SnapshotCapabilities capabilities, LoadDiagnostics diagnostics, LoadTimings timings)
 {
     public HeapGraph Graph { get; } = graph ?? throw new ArgumentNullException(nameof(graph));

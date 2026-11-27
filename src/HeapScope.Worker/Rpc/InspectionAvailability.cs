@@ -28,14 +28,14 @@ using HeapScope.Core;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// Whether an inspection can run on a snapshot, and why not (sprint 1.6, ADR-020): a missing capability is explained as
+/// Whether an inspection can run on a snapshot, and why not (ADR-020): a missing capability is explained as
 /// for any feature; a missing loader fact on a full dump means its index cache predates the fact.
 /// </summary>
 internal static class InspectionAvailability
 {
     /// <summary>
     /// Why <paramref name="inspection"/> cannot run on <paramref name="snapshot"/>, or null when it can. A missing capability
-    /// is worded by the feature rules, as the descriptor's list is (sprint 3.12: an inspection that reads fields of a dump
+    /// is worded by the feature rules, as the descriptor's list is (an inspection that reads fields of a dump
     /// whose DAC was declined used to be listed as runnable).
     /// </summary>
     public static string? Explain(IInspection inspection, ISnapshot snapshot)
@@ -55,7 +55,7 @@ internal static class InspectionAvailability
             return null;
         }
 
-        // A full dump whose statics could not be read is not an older cache: say what it lacks (the review of 4.7, H5).
+        // A full dump whose statics could not be read is not an older cache: say what it lacks.
         if (facts.HasFlag(SnapshotFacts.StaticsChecked) && Snapshots.SnapshotKinds.Describe(info.Kind).Unchecked(info) is { } roots && roots != Snapshots.UncheckedRoots.Handles)
         {
             return $"{inspection.Title} finds collections by the static fields that hold them, and {Snapshots.UncheckedRoots.Statics.Reason} (see its notes, which say what to capture instead).";

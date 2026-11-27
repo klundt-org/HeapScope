@@ -25,7 +25,7 @@
 namespace HeapScope.Core.Loading;
 
 /// <summary>
-/// Which data access component (DAC) read a full dump, and why it was trusted (sprint 2.3.7 review M3): a wrong DAC is
+/// Which data access component (DAC) read a full dump, and why it was trusted: a wrong DAC is
 /// the main way a dump is misread, and a download from the symbol server is a privacy-relevant event (ADR-017).
 /// </summary>
 /// <param name="DumpPath">The dump it reads.</param>

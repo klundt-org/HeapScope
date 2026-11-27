@@ -23,7 +23,7 @@
 
 namespace HeapScope.Analysis.Retention;
 
-/// <summary>How a dominator tree node's children are shown (sprint 2.4).</summary>
+/// <summary>How a dominator tree node's children are shown.</summary>
 public enum DominatorGrouping
 {
     /// <summary>Each child object on its own row.</summary>

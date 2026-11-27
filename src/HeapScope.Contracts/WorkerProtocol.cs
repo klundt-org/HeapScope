@@ -37,8 +37,7 @@ public static class WorkerProtocol
 
     /// <summary>
     /// Prefix of worker pipe names; the rest is 24 random hex digits. Off Windows a pipe is a Unix domain socket in the
-    /// temp folder, whose path macOS limits to 104 characters with a long temp folder, so the name stays short (sprint
-    /// 2.3.5).
+    /// temp folder, whose path macOS limits to 104 characters with a long temp folder, so the name stays short.
     /// </summary>
     public const string PipeNamePrefix = "HeapScope.W.";
 }

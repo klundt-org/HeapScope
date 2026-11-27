@@ -32,10 +32,10 @@ namespace HeapScope.UI.Services;
 /// Measures UI responsiveness (ARCHITECTURE.md 8, budget: no UI thread block over 100 ms). A background thread posts two
 /// probes every probe interval: one at input priority, whose delay is how long input would have waited
 /// (<see cref="MaxLag"/>), and one at the highest priority, which waits only for the operation already running. Avalonia's
-/// dispatcher has no operation hooks (sprint 2.3.6), so operations are not timed exactly: that wait is the part of an
+/// dispatcher has no operation hooks, so operations are not timed exactly: that wait is the part of an
 /// operation left when a probe was posted (<see cref="MaxOperation"/>, a lower bound). The operation started after the
 /// previous highest-priority probe ran (that probe ran first), so it lasted at most from that run to this probe's run
-/// (<see cref="MaxOperationBound"/>, an upper bound, sprint 2.3.6 review). Lags over the budget are logged; the maxima are
+/// (<see cref="MaxOperationBound"/>, an upper bound). Lags over the budget are logged; the maxima are
 /// kept for the smoke runs.
 /// </summary>
 public sealed class DispatcherWatchdog : IDisposable
@@ -83,7 +83,7 @@ public sealed class DispatcherWatchdog : IDisposable
     /// <summary>An upper bound of the longest single UI operation: the longest time from one highest-priority probe's run to the next one's.</summary>
     public TimeSpan MaxOperationBound => TimeSpan.FromSeconds((double)_operations.MaxBound / Stopwatch.Frequency);
 
-    /// <summary>UI operations over <see cref="Budget"/> since start or <see cref="Reset"/> (sprint 3.12: the smoke run's ceiling).</summary>
+    /// <summary>UI operations over <see cref="Budget"/> since start or <see cref="Reset"/> (the smoke run's ceiling).</summary>
     public int SlowOperations => Volatile.Read(ref _slowOperations);
 
     /// <summary>Clears the maxima and the slow operations; probes posted before the reset do not count toward the new maximum.</summary>

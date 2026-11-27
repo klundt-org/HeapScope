@@ -34,7 +34,7 @@ namespace HeapScope.Loaders.ClrMd;
 internal readonly record struct LeftOutHandle(ulong Address, ClrHandleKind Kind, ulong Object, ulong Dependent, bool IsStrong);
 
 /// <summary>
-/// The GC handles of a Server GC process whose heap count changed (peer review 4.5). The runtime keeps one handle table per
+/// The GC handles of a Server GC process whose heap count changed. The runtime keeps one handle table per
 /// processor and the debugging library walks one per heap the process has at that moment; since DATAS (on by default in .NET 9 and 10
 /// with Server GC) the heap count goes up and down, so a handle made while there were more heaps was left out, with everything only
 /// it holds (a quarter of 12,000, measured at 18 of 24 heaps). The walk is repeated with a reader that shows a larger heap count for

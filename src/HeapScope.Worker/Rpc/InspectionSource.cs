@@ -27,7 +27,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// An inspection's rows as a result set (sprint 1.6). The rows read the graph while formatting, so the set holds a
+/// An inspection's rows as a result set. The rows read the graph while formatting, so the set holds a
 /// snapshot lease as its owner, like the instances source.
 /// </summary>
 internal sealed class InspectionSource(InspectionTable table) : IResultSource

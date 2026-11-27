@@ -29,7 +29,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// What a set retains, by type (sprint 2.4): one row per type with retained objects, largest first, with the hidden type
+/// What a set retains, by type: one row per type with retained objects, largest first, with the hidden type
 /// name and module that open the type's instances (<see cref="RetainedBySetColumns"/>).
 /// </summary>
 internal sealed class RetainedBySetSource : IResultSource

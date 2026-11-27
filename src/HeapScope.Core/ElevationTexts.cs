@@ -24,7 +24,7 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// The words for a process HeapScope needs more rights to reach, per system (sprint 4.1): on Windows, run HeapScope as
+/// The words for a process HeapScope needs more rights to reach, per system: on Windows, run HeapScope as
 /// administrator; on Linux, run it as the process's own user or as root; on macOS, as that user (the capture layer's UnixElevationProbe).
 /// Each text has an <c>On</c> form taking the system, so all are tested everywhere (info-text.md).
 /// </summary>
@@ -68,7 +68,7 @@ public static class ElevationTexts
         : "\"Needs administrator\" means you must run HeapScope as administrator to capture this process. \"Elevated\" means it runs elevated and HeapScope does too.";
 
     public static string CliNoteOn(HostSystem system) => HostSystems.RightsGoByUser(system)
-        // Sprint 4.8 (H17): the full path, since sudo's secure_path drops the user's PATH, where a dotnet tool lives.
+        // The full path, since sudo's secure_path drops the user's PATH, where a dotnet tool lives.
         ? $"Processes marked elevated run as another user: run heapscope-cli as that user{OrRoot(system, ", or as root with its full path, since sudo does not keep your PATH (sudo \"$(command -v heapscope-cli)\" capture --pid <pid> --out /tmp/app.dmp),")} to capture them."
         : "Processes marked elevated can only be captured when HeapScope runs as administrator.";
 
@@ -76,7 +76,7 @@ public static class ElevationTexts
         ? "HeapScope runs as root, so the sample would too. Start HeapScope as your own user to run it."
         : "HeapScope runs as administrator, so the sample would too. Start HeapScope without administrator rights to run it.";
 
-    /// <summary>The label of the check box that lists the processes hidden because they need more rights (sprint 4.1.1).</summary>
+    /// <summary>The label of the check box that lists the processes hidden because they need more rights.</summary>
     public static string ShowHidden => ShowHiddenOn(s_system);
 
     /// <summary>The tooltip of <see cref="ShowHidden"/>.</summary>
@@ -88,14 +88,14 @@ public static class ElevationTexts
         ? $"Also lists the processes of other users. HeapScope can capture them only when it runs as that user{OrRoot(system, " or as root (sudo)")}."
         : "Also lists the processes that run elevated or as another user. HeapScope can capture them only when it runs as administrator.";
 
-    /// <summary>The note in place of <see cref="Hint"/> while <paramref name="count"/> processes are hidden (sprint 4.1.1).</summary>
+    /// <summary>The note in place of <see cref="Hint"/> while <paramref name="count"/> processes are hidden.</summary>
     public static string HiddenNote(int count) => HiddenNoteOn(count, s_system);
 
     public static string HiddenNoteOn(int count, HostSystem system)
     {
         var n = count.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
         var them = count == 1 ? "it" : "them";
-        // The box's own label, so the two cannot drift; on Windows the set the banner names (review: elevated or another user's).
+        // The box's own label, so the two cannot drift; on Windows the set the banner names (elevated or another user's).
         var box = ShowHiddenOn(system);
         return HostSystems.RightsGoByUser(system)
             ? (count == 1 ? "1 process of another user is hidden" : $"{n} processes of other users are hidden")
@@ -104,7 +104,7 @@ public static class ElevationTexts
                 + $": HeapScope cannot capture {them} unless it runs as administrator. Check '{box}' to list {them}.";
     }
 
-    /// <summary>The Learn page's note on who can capture whom, where rights go by user (sprint 4.1 task 8); null elsewhere.</summary>
+    /// <summary>The Learn page's note on who can capture whom, where rights go by user; null elsewhere.</summary>
     public static string? LearnNote => LearnNoteOn(s_system);
 
     public static string? LearnNoteOn(HostSystem system) => system switch
@@ -115,7 +115,7 @@ public static class ElevationTexts
     };
 
     /// <summary>
-    /// The note on a full dump opened while HeapScope runs as administrator or root (sprint 4.8, peer review 4.5 M3): reading a
+    /// The note on a full dump opened while HeapScope runs as administrator or root: reading a
     /// full dump runs the dumped runtime's DAC, native code, with HeapScope's rights. A draft (docs/design/info-text.md).
     /// </summary>
     public static string ElevatedDumpNote => ElevatedDumpNoteOn(s_system);
@@ -131,7 +131,7 @@ public static class ElevationTexts
 
     /// <summary>
     /// Root as the other way, on Linux. Not on macOS: each user has their own temp folder there and sudo does not keep it, so
-    /// HeapScope run with sudo would look in a folder that holds no one's sockets (4.2 review).
+    /// HeapScope run with sudo would look in a folder that holds no one's sockets.
     /// </summary>
     private static string OrRoot(HostSystem system, string text) => system == HostSystem.Linux ? text : string.Empty;
 }

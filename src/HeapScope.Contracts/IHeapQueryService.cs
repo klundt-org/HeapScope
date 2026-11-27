@@ -31,51 +31,51 @@ namespace HeapScope.Contracts;
 public interface IHeapQueryService
 {
     /// <summary>
-    /// A type summary with grouping, filter and sort, plus totals (sprint 1.3). The first query of a snapshot aggregates
+    /// A type summary with grouping, filter and sort, plus totals. The first query of a snapshot aggregates
     /// all objects once; later queries reuse that aggregation. Unknown snapshots fail with
     /// <see cref="HeapScopeErrorCode.SnapshotNotLoaded"/>.
     /// </summary>
     Task<TypeSummaryResult> QueryTypeSummaryAsync(TypeSummaryRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Compares the per-type totals of two loaded snapshots (sprint 1.4, ADR-018), reusing each snapshot's aggregation.
+    /// Compares the per-type totals of two loaded snapshots (ADR-018), reusing each snapshot's aggregation.
     /// Unknown snapshots fail with <see cref="HeapScopeErrorCode.SnapshotNotLoaded"/>, an unknown sort column with
     /// <see cref="HeapScopeErrorCode.InvalidArgument"/>.
     /// </summary>
     Task<TypeDiffResult> QueryTypeDiffAsync(TypeDiffRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Rows of several snapshots side by side (sprint 3.3): objects and bytes per snapshot in the order given, the change
+    /// Rows of several snapshots side by side: objects and bytes per snapshot in the order given, the change
     /// first to last and the steps it grew in. 2 to <see cref="TypeTrendColumns.MaxSnapshots"/> snapshots.
     /// </summary>
     Task<TypeTrendResult> QueryTypeTrendAsync(TypeTrendRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The objects of a type as a result set (sprint 1.5). Unknown snapshots fail with
+    /// The objects of a type as a result set. Unknown snapshots fail with
     /// <see cref="HeapScopeErrorCode.SnapshotNotLoaded"/>; an invalid filter or sort column with
     /// <see cref="HeapScopeErrorCode.InvalidArgument"/>.
     /// </summary>
     Task<InstancesResult> QueryInstancesAsync(InstancesRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// One object's details and, when the snapshot has field values, its fields (sprint 1.5). An address with no object
+    /// One object's details and, when the snapshot has field values, its fields. An address with no object
     /// fails with <see cref="HeapScopeErrorCode.InvalidArgument"/>. The first inspection of a snapshot opens its dump,
     /// which can take seconds: <paramref name="progress"/> says so.
     /// </summary>
     Task<ObjectDetails> GetObjectAsync(ObjectRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
-    /// <summary>The objects one object references, as a result set (sprint 1.5); naming them walks up to a million array elements.</summary>
+    /// <summary>The objects one object references, as a result set; naming them walks up to a million array elements.</summary>
     Task<ResultSetInfo> QueryReferencesAsync(ReferencesRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The objects referencing one object, each once, as a result set (sprint 2.1). The first referrers query of a
+    /// The objects referencing one object, each once, as a result set. The first referrers query of a
     /// snapshot builds its reverse references index (or opens it from its sidecar); later queries reuse it. An address
     /// with no object fails with <see cref="HeapScopeErrorCode.InvalidArgument"/>.
     /// </summary>
     Task<ReferrersResult> QueryReferrersAsync(ReferrersRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The objects referencing a type's objects, grouped by their own type, as a result set (sprint 2.1). An unknown sort
+    /// The objects referencing a type's objects, grouped by their own type, as a result set. An unknown sort
     /// column fails with <see cref="HeapScopeErrorCode.InvalidArgument"/>; a type with no objects gives no rows.
     /// </summary>
     Task<TypeReferrersResult> QueryTypeReferrersAsync(TypeReferrersRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);

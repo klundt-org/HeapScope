@@ -29,7 +29,7 @@ using HeapScope.Core;
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// Checks that what a trace file states fits in it, before TraceEvent reads it (4.2.1): the size of each block, and the
+/// Checks that what a trace file states fits in it, before TraceEvent reads it: the size of each block, and the
 /// fields each event description states. Walks the block headers and reads only the description blocks, so a long trace
 /// costs little. It follows TraceEvent's own reading of nettrace version 4, the one the .NET runtime writes, tag by tag:
 /// where TraceEvent stops (a file cut short, another tag) the walk stops, and what it accepts here it has been shown to fit.
@@ -87,7 +87,7 @@ internal static class TraceFileCheck
 
     /// <summary>
     /// The walk over a trace, one object (a block, or the start) at a time, so that a file that still grows is checked as it does
-    /// (sprint 4.3, ADR-028): an object the file ends inside is walked again once there is more of it.
+    /// (ADR-028): an object the file ends inside is walked again once there is more of it.
     /// </summary>
     internal sealed class Walk(string path)
     {
@@ -410,7 +410,7 @@ internal static class TraceFileCheck
 
     /// <summary>
     /// The types version 4 has, and no other: what TraceEvent does at one it does not know, or at one of a later version, decides
-    /// where it reads next, so such a description is refused (the runtime writes none; 4.2.1 review).
+    /// where it reads next, so such a description is refused (the runtime writes none).
     /// </summary>
     private static void CheckType(ref Reader reader, bool sized, int depth, ref int budget)
     {

@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The rule both process lists follow (sprint 4.1.1, owner 2026-11-20): a process HeapScope cannot capture as it runs now
+/// The rule both process lists follow (owner 2026-11-20): a process HeapScope cannot capture as it runs now
 /// (<see cref="ProcessRow.NeedsAdministrator"/>: elevated or another user's, while HeapScope is not elevated or root) is
 /// hidden unless <see cref="ShowHidden"/>. Run elevated, HeapScope can capture them all, so no row needs more and nothing
 /// is hidden. The rows keep their Elevation mark, so a shown one says what it needs.
@@ -60,7 +60,7 @@ public sealed class ProcessListFilter
     }
 
     /// <summary>
-    /// Logs what <paramref name="page"/> lists and hides, so "my process is not in the list" can be backed up (review H1, M1):
+    /// Logs what <paramref name="page"/> lists and hides, so "my process is not in the list" can be backed up:
     /// after a listing only when that changed since the last line (a page is listed each time it is shown), and on every
     /// toggle of the check box. Pids only, 200 at most.
     /// </summary>

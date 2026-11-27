@@ -24,5 +24,5 @@
 
 namespace HeapScope.Core.Allocations;
 
-/// <summary>The method tables of a trace's samples (sprint 4.4): the distinct ones, and for each sample which.</summary>
+/// <summary>The method tables of a trace's samples: the distinct ones, and for each sample which.</summary>
 public sealed record AllocationMethodTables(ulong[] Distinct, int[] Samples);

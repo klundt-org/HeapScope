@@ -26,7 +26,7 @@ using System.Text.Json;
 namespace HeapScope.Core;
 
 /// <summary>
-/// The user's settings, shared by every HeapScope process on this machine (sprint 3.12): <c>settings.json</c> in the data
+/// The user's settings, shared by every HeapScope process on this machine: <c>settings.json</c> in the data
 /// folder's root (<see cref="HeapScopeFolders.Root"/>). The app writes it from its Settings page; the app, the worker and the
 /// command line read it. A missing file means the defaults, and a member a newer build wrote is kept on save; a file that cannot
 /// be read is the defaults for <see cref="Read"/>, and <see cref="TryRead"/> says so.
@@ -36,15 +36,15 @@ namespace HeapScope.Core;
 /// stay on this machine; owner, 2026-11-12). Off, the logs keep a filter's shape only: its length and its terms.
 /// </param>
 /// <param name="IncludeDumpValuesInLogs">
-/// Whether values read from a dump (field values, string text) are written into the logs (sprint 3.13.2; owner, 2026-11-19):
+/// Whether values read from a dump (field values, string text) are written into the logs (owner, 2026-11-19):
 /// off by default, turned on only after the user confirms. Off, the logs keep a value's length only.
 /// </param>
 /// <param name="DacFolder">
-/// A folder of this computer searched for a dump's data access component (sprint 4.8, H15; ADR-017): the Settings page's DAC
+/// A folder of this computer searched for a dump's data access component (ADR-017): the Settings page's DAC
 /// folder. A <c>--dac-folder</c> on the command line, or <c>Symbols:DacFolder</c> in appsettings, wins over it. Null: none.
 /// </param>
 /// <param name="AllowMicrosoftSymbolServer">
-/// Whether a DAC no folder of this computer has may be downloaded from Microsoft's symbol server (sprint 4.8, ADR-017 amended):
+/// Whether a DAC no folder of this computer has may be downloaded from Microsoft's symbol server (ADR-017 amended):
 /// off by default, turned on only after the user confirms, since a download sends the runtime module's identifiers.
 /// </param>
 public sealed record HeapScopeSettings(
@@ -68,13 +68,13 @@ public sealed record HeapScopeSettings(
     /// <summary>
     /// Reads the settings in <paramref name="folders"/>: true with them, or with the defaults when there is no file; false when
     /// a file is there and cannot be read now (in use, damaged, not this user's), with the defaults in <paramref name="settings"/>.
-    /// A caller that must not fail open on a setting (the logs' privacy, sprint 3.12 review H5) tells the two apart.
+    /// A caller that must not fail open on a setting (the logs' privacy) tells the two apart.
     /// </summary>
-    /// <param name="wait">Whether to wait while another process holds the file (a save does; the log's privacy check does not, review of 4.6).</param>
+    /// <param name="wait">Whether to wait while another process holds the file (a save does, the log's privacy check does not).</param>
     public static bool TryRead(HeapScopeFolders folders, out HeapScopeSettings settings, bool wait = true)
     {
         ArgumentNullException.ThrowIfNull(folders);
-        // Through the one helper (review of 4.6): a file held for a moment is read again.
+        // Through the one helper: a file held for a moment is read again.
         var (read, outcome, _) = PrivateJsonFile.Read<HeapScopeSettings>(PathIn(folders), s_json, wait);
         settings = read ?? new HeapScopeSettings();
         return outcome is JsonFileRead.Read or JsonFileRead.Missing;

@@ -29,7 +29,7 @@ namespace HeapScope.UI.ViewModels;
 public readonly record struct TimelineBar(double X, double Y, double Width, double Height, AllocationBucketDto Bucket);
 
 /// <summary>
-/// Where the allocations timeline draws its bars and how a pointer maps to seconds (sprint 2.5), apart from the control
+/// Where the allocations timeline draws its bars and how a pointer maps to seconds, apart from the control
 /// so it is tested without a window. The trace's duration spans the width; a bar's height is its share of the largest.
 /// </summary>
 public static class AllocationTimelineGeometry

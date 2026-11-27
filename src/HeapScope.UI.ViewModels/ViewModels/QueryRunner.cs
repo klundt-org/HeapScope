@@ -29,7 +29,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Runs a view model's query (sprint 3.8, peer review P8: one runner instead of a copy per view): under an activity whose
+/// Runs a view model's query (one runner instead of a copy per view): under an activity whose
 /// trace id the worker's answer lines carry; the query's progress phases show in the status until the answer arrives;
 /// leaving the view while it loads ends it quietly (an answer that arrives anyway is discarded); a worker refusal shows its
 /// message, which is logged as shown; any other failure is logged with its stack and summarized. Grids run theirs through
@@ -37,7 +37,7 @@ namespace HeapScope.UI.ViewModels;
 /// </summary>
 internal static class QueryRunner
 {
-    /// <returns>Whether an answer was shown: false after a failure, which a view may let the user try again (peer review 4.5 M7).</returns>
+    /// <returns>Whether an answer was shown: false after a failure, which a view may let the user try again.</returns>
     public static async Task<bool> RunAsync<T>(
         string section,
         Func<IProgress<JobProgress>, CancellationToken, Task<T>> query,

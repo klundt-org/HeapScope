@@ -26,13 +26,13 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Retention;
 
 /// <summary>
-/// Where a retention path starts (sprint 2.2, ARCHITECTURE.md 6.1): an object held by a retaining root, or a frozen object,
+/// Where a retention path starts (ARCHITECTURE.md 6.1): an object held by a retaining root, or a frozen object,
 /// which is never collected. <see cref="IsFrozen"/> is true for a frozen object with no retaining root;
 /// <see cref="Root"/> is then default.
 /// </summary>
 public readonly record struct PathRoot(int ObjectIndex, GcRoot Root, bool IsFrozen);
 
-/// <summary>The rules that decide where paths start and which root explains an object (sprint 2.2).</summary>
+/// <summary>The rules that decide where paths start and which root explains an object.</summary>
 public static class PathRoots
 {
     /// <summary>Priority values: lower explains better. Frozen objects come after every root.</summary>
@@ -40,13 +40,13 @@ public static class PathRoots
 
     /// <summary>
     /// The version of these rules (which objects start paths, in which order). Anything computed from them and kept, such
-    /// as 2.3's dominators in a sidecar, records it and is rebuilt when it changes (review M2).
+    /// as the dominators in a sidecar, records it and is rebuilt when it changes.
     /// </summary>
     public const int SemanticsVersion = 1;
 
     /// <summary>
-    /// Every path root's object, each once, best first (review M2): objects held by a retaining root in priority order,
-    /// then frozen objects. The one definition of what is alive by itself, shared by the root path tree and, in 2.3, the
+    /// Every path root's object, each once, best first: objects held by a retaining root in priority order,
+    /// then frozen objects. The one definition of what is alive by itself, shared by the root path tree and the
     /// dominators' virtual root.
     /// </summary>
     public static IEnumerable<int> Sources(HeapGraph graph)
@@ -76,7 +76,7 @@ public static class PathRoots
     }
 
     /// <summary>
-    /// How well a root kind explains an object when several are equally close (decision 1): a static field names the code
+    /// How well a root kind explains an object when several are equally close: a static field names the code
     /// that keeps it, so it beats the runtime's storage handle for the same value; then stacks, handles, the finalizer queue
     /// and other roots.
     /// </summary>
@@ -130,7 +130,7 @@ public static class PathRoots
     public static int Priority(PathRoot root) => root.IsFrozen ? FrozenPriority : Priority(root.Root.Kind);
 
     /// <summary>
-    /// A path root in plain language (sprint 2.2): what keeps the object alive and, where it helps, what usually puts it
+    /// A path root in plain language: what keeps the object alive and, where it helps, what usually puts it
     /// there. <paramref name="detail"/> is the root's detail string (a static field's name, a thread).
     /// </summary>
     public static string Describe(PathRoot root, string? detail)
@@ -155,7 +155,7 @@ public static class PathRoots
     }
 
     /// <summary>
-    /// How roots are grouped in key paths (decision 3, review L8): by kind, and by detail where it names code (a static
+    /// How roots are grouped in key paths: by kind, and by detail where it names code (a static
     /// field, a handle's purpose), never by thread: a stack or a thread static held on several threads is one group.
     /// </summary>
     public static string GroupKey(PathRoot root, string? detail)

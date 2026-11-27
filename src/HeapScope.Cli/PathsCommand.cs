@@ -30,7 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>paths</c> command (sprint 2.2): why an object is alive (its shortest paths from up to N roots, merged into one
+/// The <c>paths</c> command: why an object is alive (its shortest paths from up to N roots, merged into one
 /// tree from the object toward its roots) or why the objects of a type are alive (their key retention paths). Runs of
 /// framework steps are folded unless <c>--expand</c>.
 /// </summary>
@@ -193,9 +193,9 @@ internal static partial class CliCommands
     }
 
     /// <summary>
-    /// Prints the tree below <paramref name="child"/> depth first (review H3): each holder, then its own holders, before the
+    /// Prints the tree below <paramref name="child"/> depth first: each holder, then its own holders, before the
     /// next holder of the same node, closest root first. Folds runs of framework steps; the worker already folded runs of
-    /// one type and cut long paths (review H1), so the depth stays small.
+    /// one type and cut long paths, so the depth stays small.
     /// </summary>
     internal static async Task WriteHoldersAsync(TextWriter output, ILookup<int, RetentionNodeDto> holders, int child, int depth, bool fold)
     {

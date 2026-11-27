@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The query lifecycle every worker-backed grid shares (sprint 1.3, split in 1.5): a debounced filter and column-name
+/// The query lifecycle every worker-backed grid shares: a debounced filter and column-name
 /// sorting re-query the worker; only the latest query owns the view (an older query's result, error or page is dropped);
 /// a replaced result set is released. <see cref="TypeGridViewModel{TRow}"/> adds grouping for the type grids.
 /// </summary>
@@ -59,7 +59,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     private string? _totals;
 
     /// <summary>
-    /// Whether a query runs now, for the grid's busy bar (sprint 3.13.2, owner 2026-11-19: a first Retained sizes took about a
+    /// Whether a query runs now, for the grid's busy bar (owner 2026-11-19: a first Retained sizes took about a
     /// minute with nothing moving on screen).
     /// </summary>
     [ObservableProperty]
@@ -81,8 +81,8 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     }
 
     /// <summary>
-    /// The UI dispatcher: a query yields to it before binding its rows (sprint 2.3.6; the immediate one, as in tests,
-    /// continues at once). Required, so no grid can lose the yield by being created without it (sprint 2.3.6 review).
+    /// The UI dispatcher: a query yields to it before binding its rows (the immediate one, as in tests,
+    /// continues at once). Required, so no grid can lose the yield by being created without it.
     /// </summary>
     public IUiDispatcher UiDispatcher { get; }
 
@@ -109,7 +109,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     /// <summary>Text when a query returns no rows.</summary>
     protected virtual string EmptyText => string.IsNullOrWhiteSpace(Filter) ? "Nothing to show." : "Nothing matches the filter.";
 
-    /// <summary>Whether the last query failed (shown in the status), so a view may run it again when shown (peer review 4.5 M7).</summary>
+    /// <summary>Whether the last query failed (shown in the status), so a view may run it again when shown.</summary>
     protected bool LastQueryFailed { get; private set; }
 
     /// <summary>Releases the grid's current set (the grid left the navigation history).</summary>
@@ -123,7 +123,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
 
     /// <summary>
     /// Runs the query again with the current settings (a no-op when there is nothing to query). With
-    /// <paramref name="subjectChanged"/> (another snapshot, pair or set of snapshots; peer review 4.5 H4) nothing of the old subject is
+    /// <paramref name="subjectChanged"/> (another snapshot, pair or set of snapshots) nothing of the old subject is
     /// shown meanwhile, nor after the new query fails: a filter or sort change keeps the rows until the answer comes.
     /// </summary>
     protected void Requery(bool subjectChanged = false)
@@ -158,7 +158,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
     }
 
     /// <summary>
-    /// Runs once a query's rows are bound (sprint 2.4 review): what must refer to the new rows, such as selecting one,
+    /// Runs once a query's rows are bound: what must refer to the new rows, such as selecting one,
     /// happens here, not in the query's apply step, which runs while the old rows are still shown.
     /// </summary>
     protected virtual void OnRowsApplied()
@@ -244,7 +244,7 @@ public abstract partial class GridQueryViewModel<TRow> : ObservableObject
             await rows.PreloadAsync();
 
             // Let a pending render (the page or panel that started this query appearing) run first, so its layout and the
-            // grid's rows are two dispatcher operations rather than one twice as long (sprint 1.5 smoke runs).
+            // grid's rows are two dispatcher operations rather than one twice as long.
             await UiDispatcher.YieldToRenderAsync();
             if (cancellationToken.IsCancellationRequested)
             {

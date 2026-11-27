@@ -53,7 +53,7 @@ public sealed class WorkerCrashedException : WorkerException
     public int? ExitCode { get; }
 
     /// <summary>
-    /// The message of a call that a restart the user asked for ended (sprint 4.8 review H3): not "stopped unexpectedly", which would
+    /// The message of a call that a restart the user asked for ended: not "stopped unexpectedly", which would
     /// send the user and support after a crash that did not happen. A draft (docs/design/info-text.md).
     /// </summary>
     public const string EndedByRestartMessage = "This stopped because the worker was restarted (Restart worker) or HeapScope is closing. Run it again.";
@@ -91,7 +91,7 @@ public sealed class WorkerOperationException : WorkerException
 
     public HeapScopeErrorCode ErrorCode { get; } = HeapScopeErrorCode.Unknown;
 
-    /// <summary>With <see cref="HeapScopeErrorCode.DacNotTrusted"/>: the DAC next to the dump the user may trust (sprint 3.6).</summary>
+    /// <summary>With <see cref="HeapScopeErrorCode.DacNotTrusted"/>: the DAC next to the dump the user may trust.</summary>
     public DacTrustDetails? DacTrust { get; init; }
 }
 

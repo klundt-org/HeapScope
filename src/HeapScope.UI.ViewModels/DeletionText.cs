@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// What a deletion shows before it asks and writes to the log after (sprint 3.4 review H4): the files by path, never
+/// What a deletion shows before it asks and writes to the log after: the files by path, never
 /// their contents, so support can tell exactly what a confirmed deletion removed, what failed and what was kept.
 /// </summary>
 internal static class DeletionText

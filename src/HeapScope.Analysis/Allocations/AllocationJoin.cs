@@ -30,7 +30,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Analysis.Allocations;
 
 /// <summary>
-/// Joins the sampled allocations of a trace to the types of two snapshots of the same process (sprint 4.4, ADR-028): by the
+/// Joins the sampled allocations of a trace to the types of two snapshots of the same process (ADR-028): by the
 /// tick's method table to a full dump's types, where the name there is the tick's (an unloaded type's address may be another's later),
 /// and by name to a gcdump's, which has no method tables and records names as the runtime's events do. Only a name that the whole
 /// trace has for one method table is joined by name: of two types of one name a collection may leave objects of one. The caller

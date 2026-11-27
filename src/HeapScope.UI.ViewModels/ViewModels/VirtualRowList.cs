@@ -43,12 +43,12 @@ public static class VirtualRowList
     /// <summary>Rows per page fetched from the worker.</summary>
     public const int PageSize = 200;
 
-    /// <summary>Pages kept loaded (10,000 rows); farther pages are dropped and fetched again when needed (sprint 1.5).</summary>
+    /// <summary>Pages kept loaded (10,000 rows); farther pages are dropped and fetched again when needed.</summary>
     public const int MaxPages = 50;
 }
 
 /// <summary>
-/// A list of a result set's rows for a virtualizing grid (sprint 1.3, generic since 1.4): the count is known up front,
+/// A list of a result set's rows for a virtualizing grid (generic since 1.4): the count is known up front,
 /// rows are created when the grid asks for them and filled by fetching their page from the worker. At most
 /// <see cref="VirtualRowList.MaxPages"/> pages stay loaded: the pages farthest from the last one asked for are dropped
 /// (rows on screen are always near it), so a list of millions of instances holds a few thousand rows. <see cref="Cancel"/> ends the list when a newer query replaces it: page requests in flight
@@ -107,7 +107,7 @@ public sealed class VirtualRowList<TRow> : IList, INotifyCollectionChanged, IGri
 
     public object SyncRoot => this;
 
-    /// <summary>The result's columns; empty for an empty list (sprint 2.7, exports).</summary>
+    /// <summary>The result's columns; empty for an empty list (exports).</summary>
     public IReadOnlyList<ResultColumn> Columns => _rows?.Info.Columns ?? [];
 
     int IGridExport.RowCount => Count;
@@ -115,7 +115,7 @@ public sealed class VirtualRowList<TRow> : IList, INotifyCollectionChanged, IGri
     Guid? IGridExport.ResultSetId => _rows?.Info.Id;
 
     /// <summary>
-    /// Writes every row of the result set, fetched from the worker apart from the grid's own pages (sprint 2.7). A newer
+    /// Writes every row of the result set, fetched from the worker apart from the grid's own pages. A newer
     /// query that releases the set ends the export with <see cref="ObjectDisposedException"/>.
     /// </summary>
     public Task<long> WriteCsvAsync(TextWriter output, bool includeValues, CancellationToken cancellationToken) =>
@@ -157,7 +157,7 @@ public sealed class VirtualRowList<TRow> : IList, INotifyCollectionChanged, IGri
 
     /// <summary>
     /// Fetches the first page before a grid shows the list, so its rows are laid out once, already filled, instead of
-    /// laid out empty and again when the page arrives (sprint 1.5: the second pass doubled the work after a query).
+    /// laid out empty and again when the page arrives (the second pass doubled the work after a query).
     /// </summary>
     public Task PreloadAsync()
     {

@@ -30,7 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeapScope.Cli;
 
 /// <summary>
-/// The <c>allocations</c> command (sprint 2.5): the types and the call stacks that allocated the most in an interval of
+/// The <c>allocations</c> command: the types and the call stacks that allocated the most in an interval of
 /// an allocations trace (<c>trace --profile allocations</c>). Sizes are estimated from samples.
 /// </summary>
 internal static partial class CliCommands
@@ -100,13 +100,13 @@ internal static partial class CliCommands
                 result.AddError("CSV holds one table: add --view types or --view stacks.");
             }
 
-            // The types view lists every type of the interval; a type narrows the call stacks only (the 2.5 review).
+            // The types view lists every type of the interval; a type narrows the call stacks only.
             if (shown == "types" && result.GetValue(type) is not null)
             {
                 result.AddError("--type narrows the call stacks; the types view lists every type. Use --view stacks or summary with --type.");
             }
 
-            // Only an explicit --types 0: left at its default, it has no value here (the 2.5 re-review).
+            // Only an explicit --types 0: left at its default, it has no value here.
             if (shown == "types" && result.GetResult(types) is { Implicit: false } && result.GetValue(types) == 0)
             {
                 result.AddError("The types view needs --types 1 or more.");

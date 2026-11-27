@@ -23,7 +23,7 @@
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The tabs of the Snapshots page, in their order (2.3.7 review M8: no bare tab numbers).</summary>
+/// <summary>The tabs of the Snapshots page, in their order (no bare tab numbers).</summary>
 public enum SnapshotTabs
 {
     Snapshot = 0,

@@ -25,7 +25,7 @@
 namespace HeapScope.Sample;
 
 /// <summary>
-/// The churn scenario (sprint 4.4): exchange rates allocated all the time, of which only the latest are kept, and trades kept as they
+/// The churn scenario: exchange rates allocated all the time, of which only the latest are kept, and trades kept as they
 /// come. Between two snapshots the trades grow and the rates do not, yet nearly everything allocated is rates: what a comparison of
 /// heaps cannot show and the allocations between them do.
 /// </summary>

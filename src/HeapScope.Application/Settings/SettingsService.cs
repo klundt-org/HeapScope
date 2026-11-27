@@ -36,7 +36,7 @@ using Microsoft.Extensions.Options;
 namespace HeapScope.Application.Settings;
 
 /// <summary>
-/// The Settings page's work (sprint 3.12, B1; owner, 2026-11-12): the user's settings (<see cref="HeapScopeSettings"/>, shared
+/// The Settings page's work (owner, 2026-11-12): the user's settings (<see cref="HeapScopeSettings"/>, shared
 /// by the app, the worker and the command line), and deleting HeapScope's logs or everything it keeps. Purge all deletes the
 /// logs, every session of the library (the current one too) with HeapScope's own caches of their dumps, and the bookmarks.
 /// It never touches a dump outside the library or that dump's caches, and keeps the trusted DACs and the index cache key.
@@ -90,14 +90,14 @@ public sealed class SettingsService
 
     /// <summary>
     /// Whether the saved settings allow filter text in the log, read from the file now: for a line written without a host (a failed start, a
-    /// crash), and off when the file cannot be read (review of 4.6).
+    /// crash), and off when the file cannot be read.
     /// </summary>
     public static bool FilterTextInLogsSaved => HeapScopeSettings.TryRead(HeapScopeFolders.Default, out var settings) && settings.IncludeFilterTextInLogs;
 
-    /// <summary>What this process may write into its log now, for its start line: "filter text on, dump values off" (sprint 3.13.2).</summary>
+    /// <summary>What this process may write into its log now, for its start line: "filter text on, dump values off".</summary>
     public static string LogPrivacyFollowed => LogPrivacy.Current.Describe();
 
-    /// <summary>The settings file this process follows, for its start line (sprint 3.12 review M19).</summary>
+    /// <summary>The settings file this process follows, for its start line.</summary>
     public static string SettingsFileFollowed => LogPrivacy.Current.SettingsFile;
 
     /// <summary>The settings file, for the log and the page.</summary>
@@ -113,7 +113,7 @@ public sealed class SettingsService
     /// <exception cref="IOException">The settings file could not be written.</exception>
     public void SetIncludeFilterTextInLogs(bool include)
     {
-        // Under the settings file's lock, so two processes that change a setting each keep the other's (peer review 4.5 M6).
+        // Under the settings file's lock, so two processes that change a setting each keep the other's.
         using (PrivateJsonFile.Lock(SettingsPath))
         {
             (ReadForSave() with { IncludeFilterTextInLogs = include }).Save(_folders);
@@ -122,7 +122,7 @@ public sealed class SettingsService
         _logger.LogInformation("Setting saved to {File}: include filter text in logs {State}", SettingsPath, include ? "on" : "off");
     }
 
-    /// <summary>Include dump values in logs, as saved (off when nothing is saved; sprint 3.13.2).</summary>
+    /// <summary>Include dump values in logs, as saved (off when nothing is saved).</summary>
     public bool IncludeDumpValuesInLogs => HeapScopeSettings.Read(_folders).IncludeDumpValuesInLogs;
 
     /// <summary>
@@ -149,15 +149,15 @@ public sealed class SettingsService
 
         if (!include && _logs?.StartNewPart() is { } part)
         {
-            // The review's H1: the part that holds the values is closed, so Purge logs can delete it.
+            // The part that holds the values is closed, so Purge logs can delete it.
             _logger.LogInformation("This log goes on in {Part}; Purge logs deletes this process's earlier parts, which may hold values read from dumps", part);
         }
     }
 
-    /// <summary>Whether this process runs with sudo, when saved DAC settings are ignored (the 4.8 review's H1).</summary>
+    /// <summary>Whether this process runs with sudo, when saved DAC settings are ignored.</summary>
     public static bool UnderSudo => InvokingUser.Current is not null;
 
-    /// <summary>The DAC folder saved on the Settings page (sprint 4.8, H15), or null.</summary>
+    /// <summary>The DAC folder saved on the Settings page, or null.</summary>
     public string? DacFolder => HeapScopeSettings.Read(_folders).DacFolder is { Length: > 0 } folder ? folder : null;
 
     /// <summary>
@@ -203,7 +203,7 @@ public sealed class SettingsService
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(text));
         if (OperatingSystem.IsWindows() && NotOnALocalFixedDisk(full) is { } why)
         {
-            // The DAC search's own rule (DacLocator.IsLocalFixedPath, sprint 4.8 review H2): a folder it would leave out is refused here.
+            // The DAC search's own rule (DacLocator.IsLocalFixedPath): a folder it would leave out is refused here.
             throw new ArgumentException($"{full} is {why}, which HeapScope never searches for a DAC. Copy the DAC into a folder on a local disk of this computer and choose that one.");
         }
 
@@ -241,7 +241,7 @@ public sealed class SettingsService
         }
     }
 
-    /// <summary>Whether downloads from Microsoft's symbol server are on, as saved (off when nothing is saved; sprint 4.8).</summary>
+    /// <summary>Whether downloads from Microsoft's symbol server are on, as saved (off when nothing is saved).</summary>
     public bool AllowMicrosoftSymbolServer => HeapScopeSettings.Read(_folders).AllowMicrosoftSymbolServer;
 
     /// <summary>Whether this process's configuration turns downloads on whatever is saved (appsettings, or <c>--allow-symbol-server</c>).</summary>
@@ -286,7 +286,7 @@ public sealed class SettingsService
             Thread.Sleep(wait);
         }
 
-        // Logged in the new part, which the purge keeps (the 3.13.2 re-review: a purge must not delete its own record).
+        // Logged in the new part, which the purge keeps (a purge must not delete its own record).
         if (_logs.StartNewPart() is { } part)
         {
             _logger.LogInformation(
@@ -296,14 +296,14 @@ public sealed class SettingsService
         }
     }
 
-    // The sprint 3.13.2 review's H2: a file that is there but cannot be read is never replaced by the defaults.
+    // A file that is there but cannot be read is never replaced by the defaults.
     private HeapScopeSettings ReadForSave() => HeapScopeSettings.TryRead(_folders, out var settings)
         ? settings
         : throw new IOException($"{SettingsPath} could not be read, so nothing was saved. Close any program that has it open, or delete it to go back to the defaults.");
 
     /// <summary>
     /// The log files Purge logs would delete: every HeapScope log but those a running HeapScope process writes now, this one's
-    /// included (the review's M5: another window or a command line run keeps its log), which are listed as kept.
+    /// included (another window or a command line run keeps its log), which are listed as kept.
     /// </summary>
     public Deletion PlanPurgeLogs()
     {
@@ -313,7 +313,7 @@ public sealed class SettingsService
 
     /// <summary>
     /// Deletes HeapScope's log files but those running HeapScope processes write now (kept until they close). This process's
-    /// own log goes on in a new part first, so all it wrote before the purge is deleted too (the 3.13.2 re-review): values a
+    /// own log goes on in a new part first, so all it wrote before the purge is deleted too: values a
     /// worker wrote in the moment before it saw dump values turned off, or while another process had them on, go with it.
     /// </summary>
     public Deletion PurgeLogs()
@@ -369,7 +369,7 @@ public sealed class SettingsService
         files.AddRange(logs);
         if (refused is not null)
         {
-            // Logged where it is decided (the review's M13): the page shows it without asking.
+            // Logged where it is decided: the page shows it without asking.
             _logger.LogInformation("Purge all refused: {Reason}", refused);
         }
 
@@ -385,14 +385,14 @@ public sealed class SettingsService
     /// <exception cref="Workers.WorkerException">A snapshot or trace could not be closed: nothing was deleted.</exception>
     public async Task<(PurgePlan Plan, Deletion Deleted)> PurgeAllAsync(CancellationToken cancellationToken)
     {
-        // The library's listing and sizes off the caller's thread (the review's M9: the page awaited it on the UI thread).
+        // The library's listing and sizes off the caller's thread (the page awaited it on the UI thread).
         var plan = await Task.Run(PlanPurgeAll, cancellationToken).ConfigureAwait(false);
         if (plan.Refused is { } refused)
         {
             throw new InvalidOperationException(refused);
         }
 
-        // Before its first line, so its record stays in the part it keeps (the 3.13.2 re-review); the question it answered
+        // Before its first line, so its record stays in the part it keeps; the question it answered
         // was logged in the earlier part, so the start line says it was confirmed.
         await Task.Run(StartNewLogPart, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
@@ -418,7 +418,7 @@ public sealed class SettingsService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // The outcome of the start line above (the review's M10, M14): what was closed stays closed, nothing was deleted.
+            // The outcome of the start line above: what was closed stays closed, nothing was deleted.
             _logger.LogWarning(ex, "Purge all stopped before deleting anything: a snapshot or trace could not be closed");
             throw;
         }
@@ -443,7 +443,7 @@ public sealed class SettingsService
                 bytes += deletion.Bytes;
                 failed.AddRange(deletion.Failed ?? []);
 
-                // Each session, which files it held and which dumps it recorded outside its folder were kept (the review's M14).
+                // Each session, which files it held and which dumps it recorded outside its folder were kept.
                 if (logged++ < Listing)
                 {
                     _logger.LogInformation(
@@ -489,7 +489,7 @@ public sealed class SettingsService
 
     private bool IsInLibrary(string path) => HeapScope.Contracts.PathIdentity.IsUnder(Path.GetFullPath(path), Path.GetFullPath(_library.Root));
 
-    // The most entries a purge's log line lists one by one; the rest are counted (as inspections list rows, sprint 3.12, B7).
+    // The most entries a purge's log line lists one by one; the rest are counted (as inspections list rows).
     private const int Listing = 50;
 
     private static string Listed(IReadOnlyCollection<string> items) => items.Count == 0
@@ -498,7 +498,7 @@ public sealed class SettingsService
 
     /// <summary>
     /// The log files to delete, and those kept: this process's own, and any whose name (<c>heapscope-date-app-pid.log</c>) is
-    /// a running process's, which still writes into it (the review's M5). A pid reused by another program keeps an old log
+    /// a running process's, which still writes into it. A pid reused by another program keeps an old log
     /// until the next purge, which is the safe way to be wrong.
     /// </summary>
     private (List<string> Delete, List<string> Kept) LogFiles()
@@ -516,7 +516,7 @@ public sealed class SettingsService
         {
             var mine = current is not null && HeapScope.Contracts.PathIdentity.Same(Path.GetFullPath(file), Path.GetFullPath(current));
 
-            // An earlier part of this process's log (the review's H1): closed, so it goes, values and all.
+            // An earlier part of this process's log: closed, so it goes, values and all.
             var earlierPartOfMine = !mine && writer is not null && Writer(file) == writer;
             (mine || (!earlierPartOfMine && WrittenByRunningProcess(file)) ? kept : delete).Add(file);
         }
@@ -527,7 +527,7 @@ public sealed class SettingsService
     /// <summary>
     /// The running HeapScope process that wrote a log file (pid from its name, the file's creation time), or null: the app, the
     /// command line, or the dotnet host running the command line's tool, started before the file was created. A pid reused
-    /// since belongs to a later process, so an old log never blocks a purge (the review: a long-lived dotnet build server took
+    /// since belongs to a later process, so an old log never blocks a purge (a long-lived dotnet build server took
     /// one). Tests replace it.
     /// </summary>
     internal Func<int, DateTime, string?> RunningHeapScope { get; init; } = HeapScopeProcessName;
@@ -586,7 +586,7 @@ public sealed class SettingsService
 
     /// <summary>
     /// Another running HeapScope (an app or a command line run, by the pid in its log's name), whose captures, recordings and
-    /// open snapshots this process cannot see (the review's M20): Purge all waits for it to close.
+    /// open snapshots this process cannot see: Purge all waits for it to close.
     /// </summary>
     private string? OtherHeapScope()
     {
@@ -599,7 +599,7 @@ public sealed class SettingsService
         {
             if (RunningWriter(file) is { } writer && writer.Pid != Environment.ProcessId)
             {
-                // Which log and which process, so a refusal can be checked (the review).
+                // Which log and which process, so a refusal can be checked.
                 _logger.LogInformation("Another HeapScope runs: {File} is written by process {Pid} ({Process})", file, writer.Pid, writer.Process);
                 var name = writer.App == "cli" ? "a HeapScope command line run" : "another HeapScope window";
                 return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{char.ToUpperInvariant(name[0])}{name[1..]} (pid {writer.Pid}) is running; close it first.");

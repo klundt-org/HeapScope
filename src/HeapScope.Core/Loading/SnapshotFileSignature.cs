@@ -26,7 +26,7 @@ using System.Buffers.Binary;
 namespace HeapScope.Core.Loading;
 
 /// <summary>
-/// Tells snapshot files apart by their first bytes, never by their extension (sprint 1.8): a minidump starts with
+/// Tells snapshot files apart by their first bytes, never by their extension: a minidump starts with
 /// <c>MDMP</c>; a gcdump is a FastSerialization stream (a length-prefixed <c>!FastSerialization.1</c>) whose first object
 /// is a <c>GCHeapDump</c>.
 /// </summary>
@@ -73,14 +73,13 @@ public static class SnapshotFileSignature
     }
 
     /// <summary>
-    /// True for a Windows minidump (<c>MDMP</c>); false for a Linux or macOS core file, which is also a full dump (sprint
-    /// 2.3.5) but has no minidump header.
+    /// True for a Windows minidump (<c>MDMP</c>); false for a Linux or macOS core file, which is also a full dump but has no minidump header.
     /// </summary>
     public static bool IsMinidump(ReadOnlySpan<byte> start) => start.StartsWith(s_minidump);
 
     /// <summary>
     /// True for a core file of a Linux process (64-bit little-endian ELF, type ET_CORE) or a macOS one (64-bit Mach-O, type MH_CORE), which
-    /// <c>dotnet-dump</c> and <c>createdump</c> write there (sprint 2.3.5).
+    /// <c>dotnet-dump</c> and <c>createdump</c> write there.
     /// </summary>
     public static bool IsCoreFile(ReadOnlySpan<byte> start)
     {

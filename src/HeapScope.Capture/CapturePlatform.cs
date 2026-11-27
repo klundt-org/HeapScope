@@ -25,7 +25,7 @@ using HeapScope.Core;
 
 namespace HeapScope.Capture;
 
-/// <summary>Capture on the system HeapScope runs on (sprint 2.3.5).</summary>
+/// <summary>Capture on the system HeapScope runs on.</summary>
 public static class CapturePlatform
 {
     /// <summary>The elevation probe of this system.</summary>
@@ -35,10 +35,10 @@ public static class CapturePlatform
     internal static IElevationProbe ElevationProbe(HostSystem system) =>
         system == HostSystem.Windows ? WindowsElevationProbe.Instance : new UnixElevationProbe(ProcessFacts(system));
 
-    /// <summary>What this system lets HeapScope read about a process (sprint 4.1).</summary>
+    /// <summary>What this system lets HeapScope read about a process.</summary>
     internal static IProcessFacts ProcessFacts() => ProcessFacts(HostSystems.Current);
 
-    /// <summary><see cref="ProcessFacts()"/> of <paramref name="system"/> (tests): one without a reader gives nothing (4.1 review M6).</summary>
+    /// <summary><see cref="ProcessFacts()"/> of <paramref name="system"/> (tests): one without a reader gives nothing.</summary>
     internal static IProcessFacts ProcessFacts(HostSystem system) => system switch
     {
         HostSystem.Windows => WindowsProcessFacts.Instance,
@@ -47,7 +47,7 @@ public static class CapturePlatform
         _ => NoProcessFacts.Instance,
     };
 
-    /// <summary>Why this system refuses or fails a capture (sprint 4.2).</summary>
+    /// <summary>Why this system refuses or fails a capture.</summary>
     internal static ICaptureRules Rules() => Rules(HostSystems.Current);
 
     /// <summary><see cref="Rules()"/> of <paramref name="system"/> (tests).</summary>
@@ -60,7 +60,7 @@ public static class CapturePlatform
     };
 
     /// <summary>
-    /// The user a process acts as (its effective user id) where rights go by user, for the log (sprint 4.1 review H6): the
+    /// The user a process acts as (its effective user id) where rights go by user, for the log: the
     /// rule that marks another user's process rests on it. Null on Windows, or when the process exited.
     /// </summary>
     public static int? EffectiveUserId(int processId) => ProcessFacts().EffectiveUserId(processId);
@@ -76,7 +76,7 @@ public static class CapturePlatform
     /// <summary>How every read does on HeapScope's own process, for the log, on a system where nobody has run them; null elsewhere.</summary>
     public static string? SelfCheck() => ProcessFacts().SelfCheck();
 
-    /// <summary>Whether capture is built for this system: Windows, Linux (sprint 4.1) and macOS (sprint 4.2, untested).</summary>
+    /// <summary>Whether capture is built for this system: Windows, Linux and macOS (untested).</summary>
     public static bool IsSupported { get; } = IsSupportedOn(HostSystems.Current);
 
     /// <summary><see cref="IsSupported"/> of <paramref name="system"/> (tests).</summary>
@@ -97,7 +97,7 @@ public static class CapturePlatform
         }
     }
 
-    /// <summary>Why capture is not available on this system, or null where it is (sprint 2.3.6: views say so first).</summary>
+    /// <summary>Why capture is not available on this system, or null where it is (views say so first).</summary>
     public static string? UnsupportedReason() => UnsupportedReason(IsSupported);
 
     /// <summary><see cref="UnsupportedReason()"/> for a system that does or does not support capture (tests).</summary>

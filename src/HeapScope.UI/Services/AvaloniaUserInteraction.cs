@@ -31,7 +31,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.Services;
 
 /// <summary>
-/// The system's file picker and HeapScope's own question window (sprint 2.3.6: Avalonia has no message box). Both are
+/// The system's file picker and HeapScope's own question window (Avalonia has no message box). Both are
 /// asynchronous: the UI thread keeps running while they are open.
 /// </summary>
 public sealed class AvaloniaUserInteraction(Func<Window?> owner, ILogger<AvaloniaUserInteraction>? logger = null) : IUserInteraction
@@ -148,7 +148,7 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner, ILogger<Avaloni
         {
             // Explorer and Finder select the file; elsewhere the folder opens. Explorer's exit code means nothing, so it
             // is not awaited. The path is one argument (Windows paths hold no quotes). Both programs by their full paths: a bare name
-            // is looked for in the current folder first, where a file of that name may lie beside a dump (peer review 4.5).
+            // is looked for in the current folder first, where a file of that name may lie beside a dump.
             // Without a Windows folder the path would be the bare name.
             if (OperatingSystem.IsWindows() && Environment.GetFolderPath(Environment.SpecialFolder.Windows) is { Length: > 0 } windows)
             {

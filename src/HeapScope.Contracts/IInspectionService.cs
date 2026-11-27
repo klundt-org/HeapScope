@@ -30,13 +30,13 @@ namespace HeapScope.Contracts;
 /// </summary>
 public interface IInspectionService
 {
-    /// <summary>The inspections for a snapshot, with why each unavailable one cannot run (sprint 1.6).</summary>
+    /// <summary>The inspections for a snapshot, with why each unavailable one cannot run.</summary>
     Task<IReadOnlyList<InspectionInfo>> ListInspectionsAsync(Guid snapshotId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Runs one inspection; its rows are a result set. An unknown name fails with
     /// <see cref="HeapScopeErrorCode.InvalidArgument"/>, an unavailable one with
-    /// <see cref="HeapScopeErrorCode.CapabilityNotSupported"/> (sprint 1.6).
+    /// <see cref="HeapScopeErrorCode.CapabilityNotSupported"/>.
     /// </summary>
     Task<InspectionResultDto> RunInspectionAsync(InspectionRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken);
 }

@@ -27,7 +27,7 @@ namespace HeapScope.UI.ViewModels;
 
 /// <summary>
 /// A subject of the Snapshot tab's history (the types grid, instances, an object, referrers, retention paths): a title for
-/// the breadcrumb, its snapshot, and closing (its result sets are released). Sprint 2.4, 2.3.7 review M8.
+/// the breadcrumb, its snapshot, and closing (its result sets are released).
 /// </summary>
 public interface INavigationSubject
 {

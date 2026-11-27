@@ -25,13 +25,13 @@ namespace HeapScope.UI.ViewModels;
 
 /// <summary>
 /// A row or node that opens an object (a reference, a referrer, a retention node, a key path, a field): one interface
-/// instead of a switch over every row type (sprint 2.4, 2.3.7 review M8).
+/// instead of a switch over every row type.
 /// </summary>
 public interface IObjectLink
 {
     /// <summary>The object it opens; 0 when it opens nothing (not loaded yet, or not a reference).</summary>
     ulong LinkAddress { get; }
 
-    /// <summary>The object's type, when the row knows it (a bookmark's label, sprint 2.7).</summary>
+    /// <summary>The object's type, when the row knows it (a bookmark's label).</summary>
     string? LinkTypeName => null;
 }

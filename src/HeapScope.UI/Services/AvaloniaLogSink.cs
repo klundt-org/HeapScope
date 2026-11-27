@@ -28,8 +28,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.Services;
 
 /// <summary>
-/// Sends Avalonia's warnings and errors (binding failures, platform problems) to the HeapScope log (sprint 2.3.7 review
-/// M18); before the host exists they go to the debug trace. Only the area, the message template and the source's type
+/// Sends Avalonia's warnings and errors (binding failures, platform problems) to the HeapScope log; before the host exists they go to the debug trace. Only the area, the message template and the source's type
 /// are written: Avalonia's property values can be a bound cell's text, which may come from a dump (ARCHITECTURE.md 12).
 /// </summary>
 public sealed class AvaloniaLogSink : ILogSink

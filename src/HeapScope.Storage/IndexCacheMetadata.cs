@@ -30,19 +30,19 @@ namespace HeapScope.Storage;
 /// <param name="Capabilities">What the snapshot can answer (service-backed capabilities need the original file).</param>
 /// <param name="WriterVersion">Version of the HeapScope build that wrote the cache.</param>
 /// <param name="DebuggableModules">
-/// Modules of the captured process compiled as debuggable code (their stack roots can be missing). Added in 1.2 as an
+/// Modules of the captured process compiled as debuggable code (their stack roots can be missing). Added as an
 /// optional JSON field: caches written before it read as null, so the format version does not change.
 /// </param>
 /// <param name="UnreadableObjects">Heap entries the loader skipped because their type could not be read.</param>
 /// <param name="LoaderVersion">
-/// The <see cref="Core.Loading.ISnapshotLoader.Version"/> of the loader that built the graph (sprint 1.8 review M7): a
+/// The <see cref="Core.Loading.ISnapshotLoader.Version"/> of the loader that built the graph: a
 /// cache from an older version of the loader's semantics is rebuilt. Optional in the JSON; older caches read 0.
 /// </param>
-/// <param name="StaticFieldRoots">Static field roots the loader found (sprint 2.3.7: kept so a reopen from the cache can still say it).</param>
-/// <param name="IncompleteSegments">Heap segments the loader could not walk completely: why a snapshot is not complete (sprint 2.3.7).</param>
-/// <param name="Dac">The data access component that read the dump and why (full dumps, sprint 2.3.7).</param>
-/// <param name="ProcessNameSource">The rule that chose the process name, so a reopen from the cache can still say it (full dumps, sprint 3.10). Optional in the JSON.</param>
-/// <param name="Handles">How the GC handles were read (full dumps, peer review 4.5). Optional in the JSON.</param>
+/// <param name="StaticFieldRoots">Static field roots the loader found (kept so a reopen from the cache can still say it).</param>
+/// <param name="IncompleteSegments">Heap segments the loader could not walk completely: why a snapshot is not complete.</param>
+/// <param name="Dac">The data access component that read the dump and why (full dumps).</param>
+/// <param name="ProcessNameSource">The rule that chose the process name, so a reopen from the cache can still say it (full dumps). Optional in the JSON.</param>
+/// <param name="Handles">How the GC handles were read (full dumps). Optional in the JSON.</param>
 public sealed record IndexCacheMetadata(
     SnapshotInfo Info,
     SnapshotCapabilities Capabilities,

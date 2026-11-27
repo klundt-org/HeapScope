@@ -37,7 +37,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The comparison grid (sprint 1.4, dotMemory's comparison view, ADR-018): two pickers over the open snapshots (the
+/// The comparison grid (dotMemory's comparison view, ADR-018): two pickers over the open snapshots (the
 /// earlier capture is the default baseline), per-type deltas, sorting by any column, the shared grouping and filter.
 /// </summary>
 public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
@@ -59,20 +59,20 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     [ObservableProperty]
     private SnapshotItemViewModel? _current;
 
-    /// <summary>Asks for New and Dead objects by address (sprint 3.3; two snapshots of one process).</summary>
+    /// <summary>Asks for New and Dead objects by address (two snapshots of one process).</summary>
     [ObservableProperty]
     private bool _matchObjects;
 
-    /// <summary>Asks for each row's retained lower bound in both snapshots (sprint 3.3).</summary>
+    /// <summary>Asks for each row's retained lower bound in both snapshots.</summary>
     [ObservableProperty]
     private bool _showRetained;
 
-    /// <summary>Shows the per-generation byte deltas when both snapshots have generations (sprint 3.3).</summary>
+    /// <summary>Shows the per-generation byte deltas when both snapshots have generations.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VisibleColumnGroups))]
     private bool _showGenerations;
 
-    /// <summary>Asks for the sampled allocations between the snapshots (sprint 4.4; two of one recorded monitoring run).</summary>
+    /// <summary>Asks for the sampled allocations between the snapshots (two of one recorded monitoring run).</summary>
     [ObservableProperty]
     private bool _showAllocated;
 
@@ -131,7 +131,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     /// <summary>The open snapshots the pickers offer.</summary>
     public ObservableCollection<SnapshotItemViewModel> Snapshots { get; }
 
-    /// <summary>The trend across several snapshots, shown instead of the pair when <see cref="IsTrendShown"/> (sprint 3.3).</summary>
+    /// <summary>The trend across several snapshots, shown instead of the pair when <see cref="IsTrendShown"/>.</summary>
     public TrendViewModel Trend { get; }
 
     [ObservableProperty]
@@ -140,7 +140,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     /// <summary>The optional column groups shown: New and Dead, retained bytes, per-generation deltas.</summary>
     public IReadOnlyList<string> VisibleColumnGroups => ColumnGroups.Of((ColumnGroups.Identity, IdentityShown), (ColumnGroups.Retained, RetainedShown), (ColumnGroups.Generations, ShowGenerations && HasGenerations), (ColumnGroups.Allocated, AllocatedShown));
 
-    /// <summary>Opens a row's new objects (current snapshot) as a set (sprint 3.3).</summary>
+    /// <summary>Opens a row's new objects (current snapshot) as a set.</summary>
     public System.Windows.Input.ICommand OpenNewCommand { get; }
 
     /// <summary>Opens a row's dead objects (in the baseline) as a set.</summary>
@@ -167,8 +167,8 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     {
         (_allocated, AllocatedShown, AllocatedNote, _untickedNote) = (null, false, null, null);
 
-        // Everything the last answer set, so nothing of an old pair is shown (review of 4.6).
-        // Not HasGenerations: the next query's sort depends on it (the second review), and its answer sets it again.
+        // Everything the last answer set, so nothing of an old pair is shown.
+        // Not HasGenerations: the next query's sort depends on it, and its answer sets it again.
         (IdentityNote, IdentityShown, RetainedNote, RetainedShown) = (null, false, null, false);
         base.OnCleared();
     }
@@ -176,7 +176,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     /// <summary>Whether the app has allocation traces at all (a smoke or test shell may not).</summary>
     public bool OffersAllocated => _allocations is not null;
 
-    /// <summary>Shows the interval of the allocations on the Allocations page, narrowed to a row's type (sprint 4.4).</summary>
+    /// <summary>Shows the interval of the allocations on the Allocations page, narrowed to a row's type.</summary>
     public System.Windows.Input.ICommand ShowWhereAllocatedCommand { get; }
 
     partial void OnIsTrendShownChanged(bool value)
@@ -207,7 +207,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         : ByOpenOrder ? "A Linux or macOS core dump records no capture time (its file's time is shown), so the snapshot opened first is the baseline. Swap if that is the later one."
         : null;
 
-    // Sprint 2.3.6 (2.3.5 review M4): a capture time that is only the file's time can be changed by a copy, so it does not
+    // A capture time that is only the file's time can be changed by a copy, so it does not
     // decide which snapshot is the baseline.
     private bool ByOpenOrder => Snapshots.Any(s => s.Handle.Descriptor.CaptureTimeFromFile);
 
@@ -334,20 +334,20 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
     [RelayCommand]
     private void Swap() => SetPair(Current, Baseline, "swapped by the user");
 
-    /// <summary>A diff row's group in the current snapshot's dominator tree (sprint 2.4).</summary>
+    /// <summary>A diff row's group in the current snapshot's dominator tree.</summary>
     public System.Windows.Input.ICommand ShowInRetainersCommand { get; }
 
-    /// <summary>What a diff row's objects in the current snapshot retain together (sprint 2.4).</summary>
+    /// <summary>What a diff row's objects in the current snapshot retain together.</summary>
     public System.Windows.Input.ICommand RetainedBySetCommand { get; }
 
     /// <summary>
-    /// Opens the selected rows' types as one object set in the current snapshot (sprint 3.1), or in the baseline when none
+    /// Opens the selected rows' types as one object set in the current snapshot, or in the baseline when none
     /// of them is in the current one. The parameter is the grid's selected rows.
     /// </summary>
     public System.Windows.Input.ICommand OpenAsSetCommand { get; }
 
     /// <summary>
-    /// <paramref name="item"/> was opened again as a new worker snapshot, maybe of a rebuilt cache (3.11 review): a pair that holds
+    /// <paramref name="item"/> was opened again as a new worker snapshot, maybe of a rebuilt cache: a pair that holds
     /// it runs again, logged with its new id, and so does a trend that ticks it. Their rows came from the earlier snapshot, and a
     /// page fetched later would run the old query against the new one, mixing two graphs in one grid. A silent reopen after a
     /// worker restart does not come here: its graph is the same.
@@ -363,7 +363,7 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         Trend.Reopened(item);
     }
 
-    // How the pair was chosen, for the log line that backs up a disputed comparison (sprint 2.3.7 review H3).
+    // How the pair was chosen, for the log line that backs up a disputed comparison.
     private void OnPairChanged(string reason = "picked by the user")
     {
         _untickedNote = null;
@@ -389,13 +389,13 @@ public sealed partial class CompareViewModel : TypeGridViewModel<DiffRowItem>
         }
         else
         {
-            // Hidden, nothing is computed (peer review 4.5 M7): the comparison runs when the tab is shown.
+            // Hidden, nothing is computed: the comparison runs when the tab is shown.
             ClearResults();
             _pending = CanQuery;
         }
     }
 
-    /// <summary>Whether the Compare tab is shown: hidden, a new pair waits (peer review 4.5 M7). True until a tab is chosen.</summary>
+    /// <summary>Whether the Compare tab is shown: hidden, a new pair waits. True until a tab is chosen.</summary>
     public bool IsActive
     {
         get => _isActive;

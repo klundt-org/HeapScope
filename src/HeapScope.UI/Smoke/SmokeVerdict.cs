@@ -26,15 +26,14 @@ using HeapScope.UI.Services;
 namespace HeapScope.UI.Smoke;
 
 /// <summary>
-/// A smoke run's exit code (ARCHITECTURE.md 8), apart from the run itself so the gate's rules are unit tested (sprint
-/// 2.3.7 review M11).
+/// A smoke run's exit code (ARCHITECTURE.md 8), apart from the run itself so the gate's rules are unit tested.
 /// </summary>
 internal static class SmokeVerdict
 {
     /// <summary>
     /// A phase's code: it failed (<see cref="SmokeRunner.SmokeJobFailed"/>), or the longest operation's upper bound passed the
     /// 100 ms budget or the lag passed twice the budget (<see cref="SmokeRunner.SmokeLagExceeded"/>), or 0. The operation is
-    /// checked hard; lag, which also holds OS scheduling noise, at the 2x gate (sprint 0.3 decision 10).
+    /// checked hard; lag, which also holds OS scheduling noise, at the 2x gate.
     /// </summary>
     public static int Phase(bool completed, TimeSpan operation, TimeSpan lag) =>
         !completed ? SmokeRunner.SmokeJobFailed
@@ -43,7 +42,7 @@ internal static class SmokeVerdict
 
     /// <summary>
     /// A passing run with more slow UI operations than <paramref name="ceiling"/> fails with
-    /// <see cref="SmokeRunner.SmokeSlowOperations"/> (sprint 3.12, task 5); a failed run keeps its code, and headless runs (CI,
+    /// <see cref="SmokeRunner.SmokeSlowOperations"/>; a failed run keeps its code, and headless runs (CI,
     /// software drawing on a shared runner) are not held to it, as they are not to the lag gate.
     /// </summary>
     public static int Ceiling(int result, int slowOperations, int ceiling, bool headless) =>
@@ -51,7 +50,7 @@ internal static class SmokeVerdict
 
     /// <summary>
     /// The run's code from its phases' result: a whole-list grid walk fails a passing run (exit 6); headless runs (CI) do
-    /// not gate lag, since a shared runner drawing in software measures the machine (decision 11 of 2.3.6); a passing run
+    /// not gate lag, since a shared runner drawing in software measures the machine; a passing run
     /// whose first window took longer than <see cref="SmokeRunner.FirstWindowLimit"/> fails with 5 (not checked headless).
     /// </summary>
     public static int Final(int result, long enumerations, bool headless, TimeSpan? firstWindow)

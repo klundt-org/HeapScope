@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// The shell's view models, wired once for the app and the UI tests (sprint 2.3.7 review M15): a new dependency is added
+/// The shell's view models, wired once for the app and the UI tests: a new dependency is added
 /// here, not in two places. The host supplies the Application services, an <see cref="IUiDispatcher"/> and an
 /// <see cref="IUserInteraction"/>.
 /// </summary>

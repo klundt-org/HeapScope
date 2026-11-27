@@ -24,14 +24,14 @@
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Every lesson of the Learn page (sprint 3.13, ADR-042), one per scenario of the sample. A feature a user would learn adds its
+/// Every lesson of the Learn page (ADR-042), one per scenario of the sample. A feature a user would learn adds its
 /// lesson here (or a reason in <see cref="NoLesson"/>), with its texts approved in docs/design/info-text.md; tests keep the
 /// lessons and the sample's scenarios consistent, and an integration test follows each lesson's steps on a real sample
-/// (review H1: the steps must lead to the answer they check).
+/// (the steps must lead to the answer they check).
 /// </summary>
 public static class LessonCatalog
 {
-    /// <summary>The catalog's version (review M4): raised when a lesson is added or its steps or question change.</summary>
+    /// <summary>The catalog's version: raised when a lesson is added or its steps or question change.</summary>
     public const int Version = 4;
 
     private const string Capture = "On the Processes page, select the sample's row (it says Sample in the Kind column) and choose Capture dump (leave As gcdump unticked). When it asks to open the dump, say yes: the dump opens on the Snapshots page.";

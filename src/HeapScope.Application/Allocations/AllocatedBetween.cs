@@ -30,7 +30,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Application.Allocations;
 
 /// <summary>
-/// The allocation trace that lies between two snapshots (sprint 4.4): that of the monitoring run during which both were captured,
+/// The allocation trace that lies between two snapshots: that of the monitoring run during which both were captured,
 /// from their session's record. Either <see cref="TracePath"/> or <see cref="Reason"/> is set.
 /// </summary>
 /// <param name="FromUtc">When the earlier heap was as its snapshot holds it.</param>

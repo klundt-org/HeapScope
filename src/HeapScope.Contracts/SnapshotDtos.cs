@@ -44,17 +44,16 @@ public enum SnapshotMemoryMode
 /// <param name="Rebuild">Ignore an existing index cache and load the dump again.</param>
 /// <param name="Mode">Memory mode; <see cref="SnapshotMemoryMode.Auto"/> follows the memory budget.</param>
 /// <param name="RequireCache">Open only from a valid index cache (lazy reopens after a worker restart).</param>
-/// <param name="TrustedDacs">SHA-256 hashes (lower-case hex) of DACs the user trusts to load from next to a dump (sprint
-/// 3.6, peer review P2); the worker keeps them for its lifetime.</param>
+/// <param name="TrustedDacs">SHA-256 hashes (lower-case hex) of DACs the user trusts to load from next to a dump; the worker keeps them for its lifetime.</param>
 /// <param name="CheckDac">Whether an open from the index cache refuses a full dump whose DAC lies untrusted next to it
-/// (sprint 3.6), so the app can ask. False opens the graph anyway, and reads that need the DAC (field values, strings) are
-/// refused from the start with the reason (sprint 3.12): after the user declined to trust it, and on the command line. A
+/// so the app can ask. False opens the graph anyway, and reads that need the DAC (field values, strings) are
+/// refused from the start with the reason: after the user declined to trust it, and on the command line. A
 /// missing DAC is refused that way whatever this says.</param>
 public sealed record OpenSnapshotRequest(string Path, bool Rebuild = false, SnapshotMemoryMode Mode = SnapshotMemoryMode.Auto, bool RequireCache = false, IReadOnlyList<string>? TrustedDacs = null, bool CheckDac = true);
 
 /// <summary>
 /// The error data of <see cref="HeapScopeErrorCode.DacNotTrusted"/>: the DAC found next to the dump, which the user may
-/// trust by its hash (sprint 3.6).
+/// trust by its hash.
 /// </summary>
 public sealed record DacTrustDetails(string Path, string Sha256, string RuntimeVersion);
 
@@ -70,15 +69,15 @@ public enum SnapshotCacheState
 public sealed record SnapshotProbe(string Path, long FileBytes, SnapshotCacheState CacheState, string CachePath, string? CacheDetail, bool IsOpen);
 
 /// <summary>A loaded snapshot. <see cref="Notes"/> are plain-language data quality notes for the user.</summary>
-/// <param name="CacheIdentity">The identity of the index cache the snapshot was opened from or wrote (sprint 2.1, from the
-/// 1.2 review); 0 when none was written. Optional indices next to the cache record it.</param>
+/// <param name="CacheIdentity">The identity of the index cache the snapshot was opened from or wrote; 0
+/// when none was written. Optional indices next to the cache record it.</param>
 /// <param name="CaptureTimeFromFile">True when <paramref name="CapturedAtUtc"/> is the file's write time, not a time the
-/// snapshot recorded (sprint 2.3.6: Linux and macOS core dumps record none), so a copy of the file can change it.</param>
+/// snapshot recorded (Linux and macOS core dumps record none), so a copy of the file can change it.</param>
 /// <param name="Availability">Each optional feature (<see cref="SnapshotFeatureIds"/>) with null when the snapshot offers
 /// it, or the reason it does not; the worker refuses the feature with that same reason. Read it through
 /// <see cref="SnapshotAvailability"/>, which counts a feature missing from the list as unavailable.</param>
 /// <param name="UntrustedDac">The DAC next to the dump that was not trusted, when that is why field values and strings are
-/// refused (sprint 3.12): the app offers to trust it and open the dump again. Null otherwise.</param>
+/// refused: the app offers to trust it and open the dump again. Null otherwise.</param>
 public sealed record SnapshotDescriptor(
     Guid SnapshotId,
     string Path,

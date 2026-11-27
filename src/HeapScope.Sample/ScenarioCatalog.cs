@@ -31,7 +31,7 @@ namespace HeapScope.Sample;
 internal sealed record ScenarioOptions(int Count, int Payload);
 
 /// <summary>
-/// One problem the sample can plant (sprint 3.13, ADR-042): its name (what the app and the lessons use), its title, what it
+/// One problem the sample can plant (ADR-042): its name (what the app and the lessons use), its title, what it
 /// plants, the known answer in fixtures/KnownAnswers that describes it (null for the sample's own scenarios), the type a
 /// lesson's answer names, the scenarios it cannot run with and why, and its decoys: other types of the sample that a lesson's
 /// steps rule out.
@@ -58,7 +58,7 @@ internal sealed record Scenario(
 /// </summary>
 internal static class ScenarioCatalog
 {
-    /// <summary>The catalog's version (sprint 3.13 review M4): raised when a scenario is added or changes what it plants.</summary>
+    /// <summary>The catalog's version: raised when a scenario is added or changes what it plants.</summary>
     public const int Version = 3;
 
     private const string FinalizerConflict = "both block the finalizer thread";

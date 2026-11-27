@@ -27,7 +27,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Application.Allocations;
 
 /// <summary>
-/// Traces followed while they are recorded (sprint 4.3, ADR-037): the worker tails the file, and the queries of a finished trace
+/// Traces followed while they are recorded (ADR-037): the worker tails the file, and the queries of a finished trace
 /// answer for what it read so far. A live trace is the Live page's own: it is not among <see cref="Traces"/>.
 /// </summary>
 public sealed partial class AllocationSession

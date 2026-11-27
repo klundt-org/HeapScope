@@ -27,7 +27,7 @@ using System.Runtime.InteropServices;
 namespace HeapScope.Core;
 
 /// <summary>
-/// The user who ran HeapScope with sudo, on Linux (sprint 4.8, peer review 4.5 H17): HeapScope run as root to reach another
+/// The user who ran HeapScope with sudo, on Linux: HeapScope run as root to reach another
 /// user's process keeps that user's data folder (sessions, logs, settings) instead of root's, and gives what it writes (its
 /// folders and files, and a dump a capture wrote for it) to that user, so the dump of a service is the user's to read and
 /// delete afterwards. Known from <c>SUDO_UID</c>, <c>SUDO_GID</c> and the user's home in <c>/etc/passwd</c>; null when HeapScope
@@ -48,13 +48,13 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
         : null;
 
     /// <summary>
-    /// The folder of what a run with sudo must not take from the invoking user (sprint 4.8 review H1): the trusted DACs and their
+    /// The folder of what a run with sudo must not take from the invoking user: the trusted DACs and their
     /// private copies, which decide what native code the root worker loads. Root's own HeapScope data folder, from the password
     /// file's entry for root; null when HeapScope does not run with sudo.
     /// </summary>
     public static string? TrustFolder { get; } = Current is null ? null : Path.Combine(RootHome(s_passwd), ".local", "share", "HeapScope");
 
-    // Root's home, under which nothing is ever given to the invoking user (the review's H1 re-check): the trust folder and the
+    // Root's home, under which nothing is ever given to the invoking user: the trust folder and the
     // folders above it that HeapScope creates stay root's.
     private static readonly string? s_rootHome = Current is null ? null : RootHome(s_passwd);
 
@@ -126,7 +126,7 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
     }
 
     /// <summary>
-    /// Whether <paramref name="path"/> is root's home or under it (sprint 4.8 review H1): what decides which DAC root loads lives there,
+    /// Whether <paramref name="path"/> is root's home or under it: what decides which DAC root loads lives there,
     /// and a folder or file of it given to the user would let the user choose that code.
     /// </summary>
     internal static bool IsRoots(string path, string? rootHome)

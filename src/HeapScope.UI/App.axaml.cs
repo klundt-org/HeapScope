@@ -93,7 +93,7 @@ public sealed partial class App : Avalonia.Application
             var startLogger = _host.Services.GetRequiredService<ILogger<App>>();
             Services.AvaloniaLogSink.Target = startLogger;
 
-            // What this run was started with (sprint 2.3.7 review H4); the log file's header names the build and system.
+            // What this run was started with; the log file's header names the build and system.
             startLogger.LogInformation(
                 "{Product} {Version} desktop app starting: arguments {Arguments}; headless {Headless}; log folder {LogFolder}, level {LogLevel}; logs hold {LogPrivacy} ({SettingsFile})",
                 ProductName,
@@ -123,8 +123,8 @@ public sealed partial class App : Avalonia.Application
 
             window.Show();
 
-            // Builds the pages at idle priority, so after the first window renders (sprint 3.12, task 4); never faults. A close
-            // stops it at once, not after the host's stop (the review's M12: it went on against a disposed shell).
+            // Builds the pages at idle priority, so after the first window renders; never faults. A close
+            // stops it at once, not after the host's stop (it went on against a disposed shell).
             _prewarmStop = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
             window.Closing += (_, _) => _prewarmStop.Cancel();
             _ = _host.Services.GetRequiredService<ViewPrewarmer>().RunAsync(window, _prewarmStop.Token);
@@ -149,10 +149,10 @@ public sealed partial class App : Avalonia.Application
         catch (Exception ex)
         {
             // Every exception of this fire-and-forget start is handled here. A smoke run is unattended: no dialog, it fails
-            // with its exit code and the log says why (sprint 1.5 review).
+            // with its exit code and the log says why.
             if (_host is null)
             {
-                // Building the host failed (a bad option, a configuration error): no logger exists yet (review H4).
+                // Building the host failed (a bad option, a configuration error): no logger exists yet.
                 Program.LogFatalStart(_args, ex);
             }
             else
@@ -173,11 +173,11 @@ public sealed partial class App : Avalonia.Application
 
     private const string ProductName = "HeapScope";
 
-    // Sprint 4.8 (M13): the report of an earlier run that closed unexpectedly, offered once the window is up.
+    // The report of an earlier run that closed unexpectedly, offered once the window is up.
     private static Task OfferCrashReportsAsync(IServiceProvider services) =>
         services.GetRequiredService<ShellViewModel>().OfferCrashReportsAsync(services.GetRequiredService<Application.Logging.FileLoggerProvider>().Directory);
 
-    // Stops the background build of the pages when the window closes (sprint 3.12 review M12).
+    // Stops the background build of the pages when the window closes.
     private CancellationTokenSource? _prewarmStop;
 
     /// <summary>Logs the cold start cost: process start to the first frame of the main window (backlog: UI cold start).</summary>
@@ -217,7 +217,7 @@ public sealed partial class App : Avalonia.Application
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             logger.LogCritical(e.ExceptionObject as Exception, "Unhandled exception; HeapScope is terminating");
-            // Offered at the next start (sprint 4.8, M13): the log may not be at hand for the user, the report is one file.
+            // Offered at the next start: the log may not be at hand for the user, the report is one file.
             if (e.ExceptionObject is Exception ex && !smoke)
             {
                 Application.Logging.CrashReport.Write(logs.Directory, "ui", ex, "unhandled, HeapScope closed", DateTimeOffset.Now);
@@ -239,7 +239,7 @@ public sealed partial class App : Avalonia.Application
 
     /// <summary>
     /// Cancels running jobs and waits for them (bounded): a capture canceled here still lets the runtime finish writing
-    /// and then deletes the dump, which must happen before the process exits (sprint 1.1 review H1).
+    /// and then deletes the dump, which must happen before the process exits.
     /// </summary>
     private async Task CancelRunningJobsAsync(IServiceProvider services)
     {
@@ -266,7 +266,7 @@ public sealed partial class App : Avalonia.Application
         await Task.WhenAny(Task.WhenAll(running.Select(j => j.Completion)), Task.Delay(TimeSpan.FromMinutes(5)));
         if (running.Where(static j => !j.Completion.IsCompleted).ToList() is { Count: > 0 } left)
         {
-            // A canceled capture still running may leave its dump behind: said (review of 4.6).
+            // A canceled capture still running may leave its dump behind: said.
             logger?.LogWarning("Closing: {Count} jobs still running after 5 minutes: {Jobs}", left.Count, string.Join(", ", left.Select(static j => $"{j.Id} {j.Title}")));
         }
     }
@@ -288,7 +288,7 @@ public sealed partial class App : Avalonia.Application
         var host = _host;
         try
         {
-            // Monitoring first: once stopped, no rule starts a capture after the jobs are canceled (review of 1.7).
+            // Monitoring first: once stopped, no rule starts a capture after the jobs are canceled.
             host.Services.GetService<ShellViewModel>()?.Live?.StopCommand.Execute(null);
             await CancelRunningJobsAsync(host.Services);
             host.Services.GetService<ShellViewModel>()?.Dispose();
@@ -307,7 +307,7 @@ public sealed partial class App : Avalonia.Application
             var logger = host.Services.GetService<ILogger<App>>();
             try
             {
-                // Bounded (peer review 4.5 H9): a run whose target does not answer must not keep HeapScope running without a window.
+                // Bounded: a run whose target does not answer must not keep HeapScope running without a window.
                 var disposing = host is IAsyncDisposable asyncDisposable ? asyncDisposable.DisposeAsync().AsTask() : Task.Run(host.Dispose);
                 if (await Task.WhenAny(disposing, Task.Delay(s_disposeTimeout)) != disposing)
                 {
@@ -320,7 +320,7 @@ public sealed partial class App : Avalonia.Application
             }
             catch (Exception ex)
             {
-                // A failing dispose must not keep the process alive without a window (sprint 2.3.6 review); the file
+                // A failing dispose must not keep the process alive without a window; the file
                 // logger may already be gone, so the message can be lost.
                 logger?.LogError(ex, "Host dispose failed");
             }

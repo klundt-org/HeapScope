@@ -31,7 +31,7 @@ namespace HeapScope.UI.Controls;
 /// <summary>
 /// The Attribution Notice's text (ADDITIONAL-TERMS.md 1.1 to 1.3): real selectable text, in which the run with the
 /// <c>link</c> class links to <see cref="LinkUri"/>, opened in the default browser on a click (when no text is being
-/// selected) or with Enter. Avalonia has no inline hyperlink, so the run is found by hit testing (sprint 2.3.6).
+/// selected) or with Enter. Avalonia has no inline hyperlink, so the run is found by hit testing.
 /// </summary>
 public sealed class AttributionText : SelectableTextBlock
 {
@@ -53,7 +53,7 @@ public sealed class AttributionText : SelectableTextBlock
         set => SetValue(LinkUriProperty, value);
     }
 
-    /// <summary>Opens a link: the window's launcher (the default browser); tests set their own (sprint 2.3.6 review).</summary>
+    /// <summary>Opens a link: the window's launcher (the default browser); tests set their own.</summary>
     internal Func<Uri, Task> Launch { get; set; }
 
     protected override Type StyleKeyOverride => typeof(SelectableTextBlock);
@@ -124,7 +124,7 @@ public sealed class AttributionText : SelectableTextBlock
         var hit = TextLayout.HitTestPoint(new Avalonia.Point(point.X - Padding.Left, point.Y - Padding.Top));
 
         // The character under the pointer, not the caret position (which moves to the next character past a character's
-        // middle, sprint 2.3.6 review).
+        // middle).
         var index = hit.CharacterHit.FirstCharacterIndex;
         return hit.IsInside && index >= link.Start && index < link.Start + link.Length;
     }

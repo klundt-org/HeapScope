@@ -28,7 +28,7 @@ namespace HeapScope.Storage;
 /// <summary>
 /// Signs index caches and their sidecars, and checks the signature on open (ADR-036). Every reader and writer takes one
 /// explicitly: the worker the user's key (<see cref="ForThisUser"/>), a tool or test that reads only caches it wrote itself
-/// <see cref="None"/>, written out, so a missing key can never quietly turn the check off (3.7 review M11). The HMAC-SHA256 of
+/// <see cref="None"/>, written out, so a missing key can never quietly turn the check off. The HMAC-SHA256 of
 /// the header region (the header and the section directory, which carries every section's checksum) sits in the
 /// region's last 32 bytes.
 /// </summary>
@@ -58,7 +58,7 @@ public sealed class IndexCacheSigner
     /// <summary>
     /// This user's key from <paramref name="folder"/>, created on first use. When the key file can be neither read nor
     /// created (a folder of another user, a full disk), a random key for this process: caches are still signed and
-    /// checked, only rebuilt on the next run (3.7 review H4). Never <see cref="None"/>.
+    /// checked, only rebuilt on the next run. Never <see cref="None"/>.
     /// </summary>
     public static (IndexCacheSigner Signer, IndexCacheKeyOutcome Outcome) ForThisUser(string folder)
     {

@@ -25,7 +25,7 @@ using System.Globalization;
 
 namespace HeapScope.Application.Monitoring;
 
-/// <summary>What a size rule does after it fired (sprint 1.7).</summary>
+/// <summary>What a size rule does after it fired.</summary>
 public enum RearmMode
 {
     /// <summary>Never fires again.</summary>
@@ -38,7 +38,7 @@ public enum RearmMode
     Step = 2,
 }
 
-/// <summary>A rule that takes a snapshot while a process is monitored (sprint 1.7, dotMemory's "get snapshot on condition").</summary>
+/// <summary>A rule that takes a snapshot while a process is monitored (dotMemory's "get snapshot on condition").</summary>
 public abstract record SnapshotRule
 {
     /// <summary>Names the rule in snapshot labels and the timeline ("above 500 MB").</summary>
@@ -58,7 +58,7 @@ public sealed record EveryRule(TimeSpan Interval) : SnapshotRule
 /// <summary>A snapshot when the heap after a GC exceeds <see cref="Bytes"/>.</summary>
 public sealed record AboveRule(long Bytes, RearmMode Rearm = RearmMode.Below) : SnapshotRule
 {
-    /// <summary>A zero threshold would capture back to back (review of 1.7).</summary>
+    /// <summary>A zero threshold would capture back to back.</summary>
     public long Bytes { get; } = Bytes > 0 ? Bytes : throw new ArgumentOutOfRangeException(nameof(Bytes), "The size must be more than zero.");
 
     public override string Label => "above " + Megabytes(Bytes);
@@ -67,7 +67,7 @@ public sealed record AboveRule(long Bytes, RearmMode Rearm = RearmMode.Below) : 
 /// <summary>A snapshot when the heap after a GC grew by <see cref="Bytes"/> or by <see cref="Percent"/> over the baseline.</summary>
 public sealed record GrowthRule(long? Bytes = null, double? Percent = null, RearmMode Rearm = RearmMode.Below) : SnapshotRule
 {
-    /// <summary>A zero growth would capture back to back (review of 1.7).</summary>
+    /// <summary>A zero growth would capture back to back.</summary>
     public long? Bytes { get; } = Bytes is null or > 0 ? Bytes : throw new ArgumentOutOfRangeException(nameof(Bytes), "The growth must be more than zero.");
 
     public double? Percent { get; } = Percent is null or > 0 ? Percent : throw new ArgumentOutOfRangeException(nameof(Percent), "The growth must be more than zero.");
@@ -84,11 +84,10 @@ public sealed record MonitorRules(IReadOnlyList<SnapshotRule> Rules, int? MaxSna
 }
 
 /// <summary>
-/// Decides, sample by sample, whether a rule takes a snapshot (sprint 1.7, decisions 2 and 3). Times are the samples'
+/// Decides, sample by sample, whether a rule takes a snapshot (decisions 2 and 3). Times are the samples'
 /// own, so the engine needs no clock. While a capture runs, rules wait and keep their state; one rule fires per sample,
 /// the first in order. The rule metric is the heap after the last GC (<see cref="HeapSample.HeapAfterGcBytes"/>): the
-/// heap now rises and falls with garbage between collections, which would fire and re-arm rules on garbage (review of
-/// 1.7); before the first GC it is the heap now (<see cref="HeapSample.RuleBytes"/>). A rule re-arms below 90 percent of
+/// heap now rises and falls with garbage between collections, which would fire and re-arm rules on garbage; before the first GC it is the heap now (<see cref="HeapSample.RuleBytes"/>). A rule re-arms below 90 percent of
 /// its threshold. The baseline is the first sample's metric.
 /// </summary>
 public sealed class SnapshotRuleEngine
@@ -121,7 +120,7 @@ public sealed class SnapshotRuleEngine
 
     /// <summary>
     /// Why the last rule fired: the metric and its source, the threshold actually used (after steps), the baseline and
-    /// the rearm mode (sprint 2.3.7 review M4). "Above 500 MB" can fire at 1.5 GB after two steps, and the log says so.
+    /// the rearm mode. "Above 500 MB" can fire at 1.5 GB after two steps, and the log says so.
     /// </summary>
     public RuleDecision? LastDecision { get; private set; }
 
@@ -136,7 +135,7 @@ public sealed class SnapshotRuleEngine
 
     /// <summary>
     /// The rule that was due at the last <see cref="Evaluate"/> but did not fire because a capture of the process was
-    /// running (sprint 3.4 review H5: logged, and it fires at the next sample after the capture ends).
+    /// running (logged, and it fires at the next sample after the capture ends).
     /// </summary>
     public SnapshotRule? Deferred { get; private set; }
 
@@ -144,8 +143,7 @@ public sealed class SnapshotRuleEngine
     public long LastMetric { get; private set; }
 
     /// <summary>
-    /// Undoes a rule's firing whose capture was refused because another capture of the process started first (sprint 3.4
-    /// review H5): a once rule is not used up, a timed rule is due again at the next sample.
+    /// Undoes a rule's firing whose capture was refused because another capture of the process started first: a once rule is not used up, a timed rule is due again at the next sample.
     /// </summary>
     public void Missed(SnapshotRule rule)
     {
@@ -319,7 +317,7 @@ public sealed class SnapshotRuleEngine
 }
 
 /// <summary>
-/// Why a rule fired (sprint 2.3.7 review M4): the rule, the metric and whether it was the heap after the last GC or the
+/// Why a rule fired: the rule, the metric and whether it was the heap after the last GC or the
 /// heap now (no GC yet), the threshold it fired at after <paramref name="Step"/> steps, the growth baseline, the rearm
 /// mode, and for a timed rule when it was due.
 /// </summary>

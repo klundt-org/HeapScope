@@ -34,7 +34,7 @@ internal sealed class PathSignatures(HeapGraph graph, RootPathTree tree)
     private readonly List<(int Previous, int Type, PathRoot Root, string RootKey)> _entries = [];
     private readonly Dictionary<(int Previous, int Type), int> _steps = [];
     private readonly Dictionary<(string RootKey, int Type), int> _roots = [];
-    /// <summary>Objects whose signature is remembered at most (review M5); later ones are walked again instead.</summary>
+    /// <summary>Objects whose signature is remembered at most; later ones are walked again instead.</summary>
     public const int MaxRemembered = 8_000_000;
 
     private readonly Dictionary<int, int> _ofObject = [];
@@ -103,7 +103,7 @@ internal sealed class PathSignatures(HeapGraph graph, RootPathTree tree)
 
     /// <summary>
     /// Memory the signatures of a graph of <paramref name="objects"/> objects may take: the memo at its cap (about 45 bytes
-    /// per entry at a resize, old and new tables together; the 3.2 review). The interned entries are few beside it.
+    /// per entry at a resize, old and new tables together). The interned entries are few beside it.
     /// </summary>
     public static long WorkingBytes(long objects) => 48L * Math.Min(objects, MaxRemembered);
 
@@ -141,8 +141,7 @@ internal sealed class PathSignatures(HeapGraph graph, RootPathTree tree)
     }
 
     /// <summary>
-    /// Steps two signatures share from the root on (0 when their roots differ): how alike two paths are (sprint 3.2,
-    /// the most different paths of a Similar Retention group).
+    /// Steps two signatures share from the root on (0 when their roots differ): how alike two paths are (the most different paths of a Similar Retention group).
     /// </summary>
     public int SharedSteps(int first, int second)
     {

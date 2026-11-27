@@ -36,19 +36,19 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// Home page: open a dump (sprint 1.2) and recent sessions with their snapshots (sprint 1.1, dotMemory's workspace list). The
-/// synthetic diagnostic job (sprint 0.3) lives here too, and the About page shows it.
+/// Home page: open a dump and recent sessions with their snapshots (dotMemory's workspace list). The
+/// synthetic diagnostic job lives here too, and the About page shows it.
 /// </summary>
 public sealed partial class HomeViewModel(WorkerOperations operations, SnapshotsViewModel? snapshots = null, SessionLibrary? library = null, IUserInteraction? interaction = null, Microsoft.Extensions.Logging.ILogger<HomeViewModel>? logger = null) : ObservableObject
 {
     private readonly WorkerOperations _operations = operations ?? throw new ArgumentNullException(nameof(operations));
 
-    /// <summary>Sessions not opened for this many days are offered by "Clean up old sessions" (sprint 3.4).</summary>
+    /// <summary>Sessions not opened for this many days are offered by "Clean up old sessions".</summary>
     [ObservableProperty]
     private int _cleanupDays = 30;
 
     /// <summary>
-    /// Deletes a session with its snapshots and their caches (sprint 3.4, decision 6), after the user confirms the files;
+    /// Deletes a session with its snapshots and their caches, after the user confirms the files;
     /// refused for the current session, one with an open snapshot, and one something writes into. Every step is logged.
     /// </summary>
     [RelayCommand]
@@ -93,7 +93,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
 
     /// <summary>
     /// Proposes the sessions not opened for <see cref="CleanupDays"/> days, each with its size, and deletes them after
-    /// confirmation (sprint 3.4); the cutoff, what was proposed, what was kept and why, and the answer are logged.
+    /// confirmation; the cutoff, what was proposed, what was kept and why, and the answer are logged.
     /// </summary>
     [RelayCommand]
     private async Task CleanUpAsync()
@@ -219,7 +219,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             logger?.LogInformation("{Section} shown as: {Message}", "Sessions", ex.Message);
             SessionStatus = "Sessions could not be read: " + ex.Message;
         }
@@ -242,7 +242,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             logger?.LogInformation("{Section} shown as: {Message}", "Sessions", ex.Message);
             SessionStatus = $"The session {summary.Name} could not be opened: {ex.Message}";
             return;
@@ -260,7 +260,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
             return;
         }
 
-        // A received session may name a network path: it is never opened (3.7 review H1).
+        // A received session may name a network path: it is never opened.
         if (session.PathOf(latest) is var path && !Session.IsLocal(path))
         {
             logger?.LogInformation("Opening session {Folder} refused: its latest snapshot {Path} is not on this machine", session.Folder, path);
@@ -305,7 +305,7 @@ public sealed partial class HomeViewModel(WorkerOperations operations, Snapshots
         }
         catch (Exception ex) when (ex is WorkerException)
         {
-            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            // What the user was shown, beside the worker's line with its id.
             logger?.LogInformation("{Section} shown as: {Message}", "Synthetic job", ex.Message);
             LastResult = ex.Message;
         }
@@ -333,7 +333,6 @@ public sealed partial class JobsPageViewModel(ObservableCollection<JobViewModel>
 
 /// <summary>
 /// About page: product and worker versions, what HeapScope runs on and where its logs are, with a copy action for support
-/// (sprint 2.3.7 review M16).
 /// </summary>
 public sealed partial class AboutViewModel(WorkerOperations operations, IUserInteraction? interaction = null, string? logFolder = null, Microsoft.Extensions.Logging.ILogger<AboutViewModel>? logger = null) : ObservableObject
 {
@@ -351,7 +350,7 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
     /// <summary>The synthetic job, shown under Diagnostics; set by the shell, as it runs on the Home page's view model.</summary>
     public HomeViewModel? Diagnostics { get; set; }
 
-    /// <summary>The keyboard shortcuts (sprint 2.7), set by the shell, which knows the pages.</summary>
+    /// <summary>The keyboard shortcuts, set by the shell, which knows the pages.</summary>
     public IReadOnlyList<Shortcut> Shortcuts { get; set; } = [];
 
     /// <summary>The details above as one text, for a support request.</summary>
@@ -360,7 +359,7 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
 
     /// <summary>
     /// What Copy details copies: the version and system, the log folder, the worker, and the id of the last unexpected failure
-    /// this run (sprint 4.8, M13), which finds its lines in the log.
+    /// this run, which finds its lines in the log.
     /// </summary>
     public string Details => string.Join(
         System.Environment.NewLine,
@@ -381,7 +380,7 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
-            // What About shows, for the log (sprint 4.8 review M3).
+            // What About shows, for the log.
             logger?.LogInformation("{Section} shown as: {Message}", "About, the worker", ex.Message);
             WorkerDetails = ex.Message;
         }

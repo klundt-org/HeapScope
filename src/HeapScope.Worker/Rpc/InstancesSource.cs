@@ -33,7 +33,7 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// The objects of a type (sprint 1.5): object indices only, formatted per page. String values are read from the dump
+/// The objects of a type: object indices only, formatted per page. String values are read from the dump
 /// for the page asked for; a value filter reads and tests them one at a time, and only a sort by value keeps them
 /// (shortened to <see cref="ValueLength"/> characters, at most <see cref="MaxValueSort"/>). The source holds a snapshot
 /// lease (the result set's owner) because it reads the graph and the dump while paging.
@@ -90,7 +90,7 @@ internal sealed class InstancesSource : IResultSource
     public int MatchedTypes { get; }
 
     /// <summary>
-    /// What the filter could not test (sprint 2.3.7 review M10): strings that could not be read and regular expression
+    /// What the filter could not test: strings that could not be read and regular expression
     /// matches that timed out are left out; null when nothing was.
     /// </summary>
     public string? Note { get; }
@@ -99,14 +99,14 @@ internal sealed class InstancesSource : IResultSource
     /// Lists the objects of the types keyed by <paramref name="request"/>, filtered and sorted. Memory stays at one
     /// <see cref="int"/> per listed object plus, while sorting, one <see cref="ulong"/> key each; string values are read
     /// and tested one at a time and kept only for a sort by value, which is limited to <see cref="MaxValueSort"/>
-    /// strings (sprint 1.5 review H3).
+    /// strings.
     /// </summary>
     /// <exception cref="ArgumentException">The filter is not a valid regular expression, the sort column is unknown, or a
     /// sort by value covers too many strings.</exception>
     /// <exception cref="CapabilityNotSupportedException">The filter or sort needs string text and there is no reader.</exception>
     /// <summary>
     /// Checks <paramref name="request"/>'s sort column and filter, and whether any type matches, before the worker computes
-    /// the dominators for it (sprint 2.3 review M7: a typo must not cost seconds of dominators). Returns false when no
+    /// the dominators for it (a typo must not cost seconds of dominators). Returns false when no
     /// type matches, so the retained column is not worth computing.
     /// </summary>
     /// <exception cref="ArgumentException">The sort column is unknown or the filter is not a valid regular expression.</exception>
@@ -137,7 +137,7 @@ internal sealed class InstancesSource : IResultSource
     }
 
     /// <summary>
-    /// The objects of a type in a scope, in address order (sprint 3.1): what an inspection row without its own member list
+    /// The objects of a type in a scope, in address order: what an inspection row without its own member list
     /// opens as a set, the same objects its instances list shows. <paramref name="reachable"/> is the snapshot's
     /// <see cref="Reachability.Compute"/>, needed for the reachable scope only.
     /// </summary>
@@ -147,7 +147,7 @@ internal sealed class InstancesSource : IResultSource
         var matches = TypeGroups.MatchTypes(graph, typeName, module, out _);
         var types = graph.TypeIndices.Span;
 
-        // Count first, then fill an exact array (the 3.1 review: no doubling list of per-object data).
+        // Count first, then fill an exact array (no doubling list of per-object data).
         var count = 0;
         for (var i = 0; i < types.Length; i++)
         {
@@ -173,8 +173,8 @@ internal sealed class InstancesSource : IResultSource
             : Scoped(graph, reader, objects, new InstancesRequest(Guid.Empty, typeName, module, Scope: scope, SameValueAs: sameValueAs), reachable, cancellationToken);
     }
 
-    /// <param name="dominators">The snapshot's dominators, for the retained bytes column (sprint 2.3); null without it.</param>
-    /// <param name="set">The resolved <see cref="InstancesRequest.Set"/> (sprint 3.1): its members are listed instead of a type's objects.</param>
+    /// <param name="dominators">The snapshot's dominators, for the retained bytes column; null without it.</param>
+    /// <param name="set">The resolved <see cref="InstancesRequest.Set"/>: its members are listed instead of a type's objects.</param>
     /// <param name="reachable">The snapshot's reachable objects (<see cref="Reachability.Compute"/>), for the reachable scope.</param>
     public static InstancesSource Create(HeapGraph graph, IObjectReader? reader, InstancesRequest request, CancellationToken cancellationToken, IProgress<JobProgress>? progress = null, Dominators? dominators = null, ObjectSet? set = null, Reachability? reachable = null)
     {
@@ -193,7 +193,7 @@ internal sealed class InstancesSource : IResultSource
             throw new RequestRefusedException("The set has not been resolved.", nameof(set));
         }
 
-        // A set's members (all, or those of one type) take the place of a type's objects (sprint 3.1).
+        // A set's members (all, or those of one type) take the place of a type's objects.
         var matches = set is not null && string.IsNullOrEmpty(request.TypeName)
             ? MembersTypes(graph, set)
             : TypeGroups.MatchTypes(graph, request.TypeName, request.Module, out _);
@@ -242,7 +242,7 @@ internal sealed class InstancesSource : IResultSource
             }
         }
 
-        // A scope (sprint 1.6, what an inspection row opens) narrows the set first; totals then describe the scope.
+        // A scope (what an inspection row opens) narrows the set first; totals then describe the scope.
         if (request.Scope != InstanceScope.All)
         {
             objects = Scoped(graph, reader, objects, request, reachable, cancellationToken);
@@ -255,7 +255,7 @@ internal sealed class InstancesSource : IResultSource
         }
 
         // Filter in place: the kept objects move to the front, still in address order. Strings that cannot be read are
-        // counted, so a filter that silently missed them says so (sprint 2.3.7 review M10).
+        // counted, so a filter that silently missed them says so.
         var kept = total;
         var unreadable = 0;
         if (filter.IsActive)
@@ -341,7 +341,7 @@ internal sealed class InstancesSource : IResultSource
                 }
 
                 // Equal text means equal size: only strings of the model's size are read, and compared by the same
-                // streamed hash duplicate strings groups by (no text is built, review H2).
+                // streamed hash duplicate strings groups by (no text is built).
                 var size = graph.GetSize(model);
                 var candidates = objects.Where(o => graph.GetSize(o) == size).ToArray();
                 var hashes = HeapScope.Analysis.Inspections.StringHashes.Compute(reader, [.. candidates.Select(o => graph.Addresses[o])], out var valid, cancellationToken);
@@ -530,7 +530,7 @@ internal sealed class InstancesSource : IResultSource
                 if (!hex.All(Uri.IsHexDigit))
                 {
                     // The filter's text stays out of the message: the worker logs refusals, and a filter may be a value
-                    // copied from the dump (sprint 2.3.7 review M6).
+                    // copied from the dump.
                     throw new RequestRefusedException("The filter starts with 0x but is not a hexadecimal address.");
                 }
 

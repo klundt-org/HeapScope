@@ -37,7 +37,7 @@ internal static class NativeMethods
     /// <summary>
     /// Opts this process out of execution speed throttling (EcoQoS): Windows then keeps its threads on performance cores
     /// even when its window is not in the foreground. On a hybrid CPU the UI thread on an efficiency core took 2.5 to 5
-    /// times as long for the same layout (sprint 1.5 smoke runs). Returns false where Windows does not support it.
+    /// times as long for the same layout. Returns false where Windows does not support it.
     /// </summary>
     public static bool DisableExecutionSpeedThrottling()
     {

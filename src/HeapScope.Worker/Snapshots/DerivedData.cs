@@ -28,8 +28,7 @@ namespace HeapScope.Worker.Snapshots;
 
 /// <summary>
 /// A caller waiting for a shared derived computation (<see cref="DerivedData"/>). Disposing it leaves; when the last
-/// caller leaves a computation that is still running, the computation is canceled after a short grace period (the 2.3
-/// review M13), unless another caller joins meanwhile.
+/// caller leaves a computation that is still running, the computation is canceled after a short grace period, unless another caller joins meanwhile.
 /// </summary>
 internal sealed class DerivedWaiter<T>(Task<T> task, Action leave) : IDisposable
 {
@@ -49,12 +48,11 @@ internal sealed class DerivedWaiter<T>(Task<T> task, Action leave) : IDisposable
 
 /// <summary>
 /// Data computed from a loaded snapshot on first use and dropped with it in one step when the snapshot closes
-/// (sprint 1.3: the type aggregation; sprint 2.1: the reverse references index; sprint 2.2: the root path tree; sprint
-/// 2.3: the dominators and the retained sizes per grouping; the two reachable sets and the dominator tree's group tables;
-/// later detector results get their slots here). Each slot holds
+/// (the type aggregation; the reverse references index; the root path tree; the dominators and the retained sizes per
+/// grouping; the two reachable sets and the dominator tree's group tables; later detector results get their slots here). Each slot holds
 /// one shared computation for the callers waiting for it: it keeps running while any caller waits (a caller that cancels
 /// only stops waiting), and is canceled when the last one leaves before it finishes and nobody joins within the grace
-/// period (2.3 review M13), or when the snapshot closes. The next caller then starts it again. Indices that own memory or
+/// period, or when the snapshot closes. The next caller then starts it again. Indices that own memory or
 /// a mapping are attached to the graph, which releases them after the last lease, so dropping a slot here never frees
 /// data a query still reads.
 /// </summary>
@@ -88,22 +86,22 @@ internal sealed class DerivedData(TimeSpan? grace = null)
     /// <summary>Joins the reverse references index, starting it when there is none (or it failed or was canceled).</summary>
     public DerivedWaiter<ReverseIndex> JoinReverseReferences(Func<CancellationToken, Task<ReverseIndex>> compute) => Join(_reverse, compute);
 
-    /// <summary>Progress of the reverse references computation, sent to every caller waiting for it (review M7).</summary>
+    /// <summary>Progress of the reverse references computation, sent to every caller waiting for it.</summary>
     public SharedProgress<Contracts.JobProgress> ReverseProgress { get; } = new();
 
-    /// <summary>Joins the root path tree (sprint 2.2), starting it when there is none (or it failed or was canceled).</summary>
+    /// <summary>Joins the root path tree, starting it when there is none (or it failed or was canceled).</summary>
     public DerivedWaiter<RootPathTree> JoinRootPaths(Func<CancellationToken, Task<RootPathTree>> compute) => Join(_rootPaths, compute);
 
     /// <summary>Progress of the root path tree computation, sent to every caller waiting for it.</summary>
     public SharedProgress<Contracts.JobProgress> RootPathProgress { get; } = new();
 
-    /// <summary>Joins the dominators (sprint 2.3), starting them when there are none (or they failed or were canceled).</summary>
+    /// <summary>Joins the dominators, starting them when there are none (or they failed or were canceled).</summary>
     public DerivedWaiter<DominatorIndex> JoinDominators(Func<CancellationToken, Task<DominatorIndex>> compute) => Join(_dominators, compute);
 
     /// <summary>Progress of the dominators computation, sent to every caller waiting for it.</summary>
     public SharedProgress<Contracts.JobProgress> DominatorProgress { get; } = new();
 
-    /// <summary>Joins the types' interfaces (sprint 3.2), reading them when there are none (or the read failed or was canceled).</summary>
+    /// <summary>Joins the types' interfaces, reading them when there are none (or the read failed or was canceled).</summary>
     public DerivedWaiter<TypeInterfaces> JoinInterfaces(Func<CancellationToken, Task<TypeInterfaces>> compute) => Join(_interfaces, compute);
 
     /// <summary>Progress of the interface read, sent to every caller waiting for it.</summary>
@@ -115,7 +113,7 @@ internal sealed class DerivedData(TimeSpan? grace = null)
     /// <summary>Joins the objects the retention views count as alive (<see cref="Reachability.ComputeFromPathRoots"/>), walking them when there are none.</summary>
     public DerivedWaiter<Reachability> JoinPathRootReachable(Func<CancellationToken, Task<Reachability>> compute) => Join(_pathRootReachable, compute);
 
-    /// <summary>Joins the retained sizes per group of one grouping (sprint 2.3), each computed once.</summary>
+    /// <summary>Joins the retained sizes per group of one grouping, each computed once.</summary>
     public DerivedWaiter<ulong[]> JoinGroupRetention(GroupKey grouping, Func<CancellationToken, Task<ulong[]>> compute) =>
         Join(Keyed(_groupRetention, grouping), compute);
 

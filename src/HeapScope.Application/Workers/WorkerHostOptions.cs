@@ -66,14 +66,13 @@ public sealed class WorkerHostOptions
     public bool AllowMicrosoftSymbolServer { get; set; }
 
     /// <summary>
-    /// Whether a load walks the GC handles of a Server GC process a second time (<c>Worker:SecondHandleWalk</c>, default on; peer
-    /// review 4.5). Off is for a dump that ends the worker there: its handles then count as not checked.
+    /// Whether a load walks the GC handles of a Server GC process a second time (<c>Worker:SecondHandleWalk</c>, default on). Off is for a dump that ends the worker there: its handles then count as not checked.
     /// </summary>
     public bool SecondHandleWalk { get; set; } = true;
 
     /// <summary>
     /// Server GC heaps (and GC threads) of the worker (<c>Worker:GcHeapCount</c>). Default: half the logical processors,
-    /// so the worker's blocking collections cannot occupy every core and starve the UI thread (measured in sprint 1.3:
+    /// so the worker's blocking collections cannot occupy every core and starve the UI thread (measured:
     /// 550 to 760 ms of input lag while a Medium snapshot opened with 24 heaps on 24 cores, under 200 ms with 12, at the
     /// same load time). A <c>DOTNET_GCHeapCount</c> already in the environment wins.
     /// </summary>
@@ -86,12 +85,12 @@ public sealed class WorkerHostOptions
     public bool EnableTestHooks { get; set; }
 
     /// <summary>
-    /// With <see cref="EnableTestHooks"/>: the worker takes no DAC from an installed runtime (tests only, sprint 3.12).
-    /// Internal, so configuration binding never sets it: only test code can (3.12 re-review).
+    /// With <see cref="EnableTestHooks"/>: the worker takes no DAC from an installed runtime (tests only).
+    /// Internal, so configuration binding never sets it: only test code can.
     /// </summary>
     internal bool HideInstalledDacsForTests { get; set; }
 
-    /// <summary>The lowest level the worker logs; the front ends set their file log's level (sprint 2.3.7).</summary>
+    /// <summary>The lowest level the worker logs; the front ends set their file log's level.</summary>
     public Microsoft.Extensions.Logging.LogLevel WorkerLogLevel { get; set; } = Microsoft.Extensions.Logging.LogLevel.Information;
 
     /// <summary>Protocol version the client announces in the handshake. Tests override it to exercise mismatches.</summary>
@@ -99,11 +98,11 @@ public sealed class WorkerHostOptions
 
     /// <summary>
     /// The worker's executable name on this system: <c>HeapScope.Worker.exe</c> on Windows, <c>HeapScope.Worker</c>
-    /// elsewhere, where .NET's application host has no extension (sprint 2.3.5).
+    /// elsewhere, where .NET's application host has no extension.
     /// </summary>
     public static string WorkerExecutableName => OperatingSystem.IsWindows() ? "HeapScope.Worker.exe" : "HeapScope.Worker";
 
-    /// <summary>The worker's assembly, which the CLI's dotnet tool ships without an executable (sprint 3.9, ADR-039).</summary>
+    /// <summary>The worker's assembly, which the CLI's dotnet tool ships without an executable (ADR-039).</summary>
     public const string WorkerAssemblyName = "HeapScope.Worker.dll";
 
     /// <summary>The worker executable's path: <see cref="WorkerPath"/>, or the worker/ folder next to the executable.</summary>
@@ -118,7 +117,7 @@ public sealed class WorkerHostOptions
     /// How to start the worker: its executable, or its assembly through <paramref name="dotnetHost"/> (the dotnet host of
     /// a framework-dependent process) where no executable ships, as in the CLI's dotnet tool (ADR-039). A configured
     /// <see cref="WorkerPath"/> ending in <c>.dll</c> is an assembly too. When it cannot, the exception says which case it
-    /// is and what to do (3.9 review M1), and refuses a 32-bit host: the worker is 64-bit (ARCHITECTURE.md 2, review M3).
+    /// is and what to do, and refuses a 32-bit host: the worker is 64-bit (ARCHITECTURE.md 2).
     /// </summary>
     internal WorkerLaunch ResolveWorkerLaunch(string baseDirectory, string? dotnetHost, bool is64BitProcess, Func<string, bool> exists)
     {

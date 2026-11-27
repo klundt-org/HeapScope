@@ -58,7 +58,7 @@ internal static class Collections
 
     /// <summary>
     /// Every covered collection with its count, capacity and backing storage, read through the typed reader; <paramref name="counts"/>
-    /// counts the covered collections and those whose count could not be read (sprint 3.12, B7).
+    /// counts the covered collections and those whose count could not be read.
     /// </summary>
     public static IEnumerable<Shape> Shapes(InspectionContext context, ShapeCounts counts)
     {
@@ -199,9 +199,9 @@ internal sealed class OversizedCollectionsInspection : IInspection
 }
 
 /// <summary>
-/// 64-bit XxHash3 of strings' full UTF-16 text, streamed from the dump in pieces (sprint 1.6 review H2): no string is
+/// 64-bit XxHash3 of strings' full UTF-16 text, streamed from the dump in pieces: no string is
 /// built, so a group of large equal-size strings costs one pooled buffer, not their text. Equal hashes of strings of
-/// equal size are treated as equal text (decision 3; a collision would merge two values, odds negligible).
+/// equal size are treated as equal text (a collision would merge two values, odds negligible).
 /// </summary>
 public static class StringHashes
 {
@@ -235,7 +235,7 @@ public static class StringHashes
 }
 
 /// <summary>
-/// Strings with the same text held more than once (decision 3 of 1.6): strings are grouped by size first (equal text
+/// Strings with the same text held more than once: strings are grouped by size first (equal text
 /// means equal size), then the text of each group of two or more is hashed (64-bit XxHash3 of the UTF-16 text, plus the
 /// size, as the key), one size group at a time, so memory stays at the largest group. Each copy after the first is
 /// wasted.
@@ -246,7 +246,7 @@ internal sealed class DuplicateStringsInspection : IInspection
     public const int ShownLength = 100;
 
     /// <summary>
-    /// The values listed, those that waste the most (peer review 4.5 H6: 20M strings in pairs made 10M rows, 1.3 to 2.8 GB); the totals
+    /// The values listed, those that waste the most (20M strings in pairs made 10M rows, 1.3 to 2.8 GB); the totals
     /// count every duplicate, and the note says how many more there were.
     /// </summary>
     public const int MostRows = 10_000;
@@ -269,8 +269,8 @@ internal sealed class DuplicateStringsInspection : IInspection
 
     public string Name => "duplicate-strings";
 
-    // Version 2 (sprint 2.3.7): unreadable strings are counted and named in the note; the note says unreachable strings
-    // are included. Version 3 (sprint 4.7): the rows are the values that waste the most, at most MostRows, and the note says how many
+    // Version 2: unreadable strings are counted and named in the note; the note says unreachable strings
+    // are included. Version 3: the rows are the values that waste the most, at most MostRows, and the note says how many
     // more there were.
     public int Version => 3;
 
@@ -361,7 +361,7 @@ internal sealed class DuplicateStringsInspection : IInspection
             .OrderByDescending(r => r.Wasted).ThenBy(r => r.Representative)
             .ToArray();
         // Every string in the dump counts, reachable or not: a full dump also holds garbage the next collection frees, the
-        // likeliest reason a figure here is disputed (sprint 2.3.7 review H3); unreadable strings are left out, and said so.
+        // likeliest reason a figure here is disputed; unreadable strings are left out, and said so.
         var note = unreadable > 0
             ? $"{unreadable:N0} strings could not be read from the dump and were left out. Unreachable strings are included."
             : "Unreachable strings (garbage the next collection would free) are included.";

@@ -35,12 +35,12 @@ using HeapScope.Core;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// A request or a result as one log line (sprint 2.3.7 review H3): what was asked and what was answered, so a disputed
+/// A request or a result as one log line: what was asked and what was answered, so a disputed
 /// result can be traced to its inputs. Numbers, flags, enums, ids, times and the names below are written as they are;
 /// lists by their count; any other text by its length only, so field values and string contents never reach the log
 /// (ARCHITECTURE.md 11 and 12). The user's filter text is written, quoted, unless the user turned that off on the Settings
-/// page (sprint 3.12, B1); its shape always is. Only when the user turned on Include dump values in logs, and confirmed it
-/// (sprint 3.13.2; owner, 2026-11-19), is any other text written too, quoted (its first <see cref="MaxValueChars"/>
+/// page; its shape always is. Only when the user turned on Include dump values in logs, and confirmed it
+/// (owner, 2026-11-19), is any other text written too, quoted (its first <see cref="MaxValueChars"/>
 /// characters, and its length), and a list's first <see cref="MaxListItems"/> items, each described.
 /// </summary>
 internal static class Provenance
@@ -68,7 +68,7 @@ internal static class Provenance
     private static readonly JsonSerializerOptions s_quoted = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <summary>
-    /// Where a retention path starts, for the log (sprint 2.3.7 review H3, the "held by a static field" case): the root's
+    /// Where a retention path starts, for the log (the "held by a static field" case): the root's
     /// kind and HeapScope's description of it, built from metadata names (a static field's name, a thread), never values.
     /// </summary>
     public static string Describe(PathRootDto root) =>
@@ -80,7 +80,7 @@ internal static class Provenance
         $"[{Describe(path.Root)}] {string.Join(" > ", path.Steps.Select(s => s.TypeName))}{(path.Steps.Count > 0 ? " > " : string.Empty)}{path.TargetType} ({path.Objects} objects, {path.Bytes} bytes)");
 
     /// <summary>
-    /// A Similar Retention group for the log (sprint 3.2): its number as shown, pattern key, objects, bytes, types and paths
+    /// A Similar Retention group for the log: its number as shown, pattern key, objects, bytes, types and paths
     /// (roots and type names; the paths overlap, each holding the whole group).
     /// </summary>
     public static string Describe(RetentionGroupDto group)
@@ -149,11 +149,11 @@ internal static class Provenance
                 text.Append(formattable.ToString(null, CultureInfo.InvariantCulture));
                 return;
             case ObjectSetSpec set:
-                // A set by its shape (sprint 3.1 review): kind, names and counts, never addresses or its cache key.
+                // A set by its shape: kind, names and counts, never addresses or its cache key.
                 text.Append("ObjectSetSpec {").Append(set.Shape).Append('}');
                 return;
             case ICollection { Count: > 0 } collection when privacy.IncludeDumpValues:
-                // Each item at the list's own depth, so a list of fields shows each field's value (sprint 3.13.2).
+                // Each item at the list's own depth, so a list of fields shows each field's value.
                 text.Append('[').Append(collection.Count.ToString(CultureInfo.InvariantCulture)).Append(':');
                 var shown = 0;
                 foreach (var item in collection)
@@ -203,8 +203,8 @@ internal static class Provenance
             }
             else if (property.Name == "Filter" && propertyValue is string { Length: > 0 } filter)
             {
-                // The filter's shape (2.7 review): "why is my type missing?" needs to know that an exclusion or a module term
-                // was there; its text too, unless the user turned that off (sprint 3.12, B1, owner 2026-11-12).
+                // The filter's shape: "why is my type missing?" needs to know that an exclusion or a module term
+                // was there; its text too, unless the user turned that off (owner 2026-11-12).
                 if (privacy.IncludeFilterText)
                 {
                     text.Append(JsonSerializer.Serialize(filter, s_quoted)).Append(' ');

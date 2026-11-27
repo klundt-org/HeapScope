@@ -34,7 +34,7 @@ namespace HeapScope.UI.Smoke;
 /// <summary>
 /// The unattended smoke runs (`--smoke-synthetic`, `--smoke-open`, `--smoke-live`, ARCHITECTURE.md 8): each drives the
 /// real window through its view models, checks the dispatcher budget and returns the process exit code (0 ok,
-/// <see cref="SmokeLagExceeded"/>, <see cref="SmokeJobFailed"/>). Moved out of <see cref="App"/> in sprint 1.9.
+/// <see cref="SmokeLagExceeded"/>, <see cref="SmokeJobFailed"/>).
 /// </summary>
 internal sealed class SmokeRunner(IServiceProvider services)
 {
@@ -46,7 +46,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
 
     /// <summary>
     /// Regression gate of the smoke run: twice the 100 ms budget. Breaches of the budget itself are logged by
-    /// <see cref="DispatcherWatchdog"/>; see SPRINTS.md sprint 0.3 decision 10.
+    /// <see cref="DispatcherWatchdog"/>; probe lag also holds the system's scheduling noise, hence twice the budget.
     /// </summary>
     public static readonly TimeSpan SmokeLagLimit = DispatcherWatchdog.Budget * 2;
 
@@ -56,7 +56,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     public const int SmokeColdStartExceeded = 5;
 
     /// <summary>
-    /// Gross regression check of the cold start (sprint 2.3.6, decision 8): process start to the main window's first frame.
+    /// Gross regression check of the cold start: process start to the main window's first frame.
     /// Measured 2.2 s warm for a Release build on the development machine (WPF the same), and 8 to 15 s for the first launch
     /// after a build while its files are scanned, so the limit only catches a start that hangs. Not checked headless.
     /// </summary>
@@ -64,15 +64,15 @@ internal sealed class SmokeRunner(IServiceProvider services)
 
     /// <summary>
     /// Smoke mode exit code: a grid walked a whole row list (<see cref="Controls.VirtualCollectionViews.Enumerations"/>),
-    /// which makes a row per index (sprint 2.3.6 review).
+    /// which makes a row per index.
     /// </summary>
     public const int SmokeGridEnumerated = 6;
 
-    /// <summary>Smoke mode exit code: more UI operations over 100 ms than <see cref="SlowOperationCeiling"/> (sprint 3.12, task 5).</summary>
+    /// <summary>Smoke mode exit code: more UI operations over 100 ms than <see cref="SlowOperationCeiling"/>.</summary>
     public const int SmokeSlowOperations = 7;
 
     /// <summary>
-    /// The ceiling on slow first shows (sprint 3.12, task 5): UI operations over the 100 ms budget in a whole open run, cold
+    /// The ceiling on slow first shows: UI operations over the 100 ms budget in a whole open run, cold
     /// first shows included. Measured on 2026-11-13 with the published build on the demo dumps: 0 to 4 on the development
     /// machine, 5 to 10 with four more cores busy (budgets.md); the ceiling sits above that, so a regression that adds slow
     /// first shows fails the run, and the ordinary spread does not. Not checked headless.
@@ -116,7 +116,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     }
 
     /// <summary>
-    /// Waits for the background build of the pages (sprint 3.12, task 4), so the run measures what a user meets after it,
+    /// Waits for the background build of the pages, so the run measures what a user meets after it,
     /// and logs its slow operations apart: no page is shown while it runs, so they are not first shows and not in the ceiling.
     /// </summary>
     private async Task WaitForPrewarmAsync()
@@ -173,13 +173,13 @@ internal sealed class SmokeRunner(IServiceProvider services)
             lag.TotalMilliseconds,
             operation.TotalMilliseconds);
 
-        // The budget's subject (a single dispatcher work item, its upper bound since sprint 2.3.6) is checked hard at
-        // 100 ms; probe lag, which also contains OS scheduling noise, is checked at the 2x gate (sprint 0.3 decision 10).
+        // The budget's subject (a single dispatcher work item, its upper bound) is checked hard at
+        // 100 ms; probe lag, which also contains OS scheduling noise, is checked at the 2x gate.
         return SmokeVerdict.Phase(completed, operation, lag);
     }
 
     /// <summary>
-    /// Charts <paramref name="count"/> made-up samples on the Live page at 200 a second (sprint 1.7): the page's first
+    /// Charts <paramref name="count"/> made-up samples on the Live page at 200 a second: the page's first
     /// show is logged as a cold cost; the feed, every sample a redraw of up to 30 minutes of history, is checked.
     /// </summary>
     private async Task<int> RunSmokeLiveAsync(int count)
@@ -225,7 +225,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     private static readonly TimeSpan s_liveProcessTime = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Watches a real process on the Live page while it records the process's allocations (sprint 4.3): its samples, the live
+    /// Watches a real process on the Live page while it records the process's allocations: its samples, the live
     /// allocations and their call stacks, checked against the dispatcher budget. Records into a session, so only under a data folder
     /// that was moved: nothing is left in the user's own.
     /// </summary>
@@ -292,7 +292,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
 
     /// <summary>
     /// Opens a dump through the Snapshots page, waits for its overview, checks the dispatcher budget like
-    /// <see cref="RunSmokeAsync"/> and closes the app with a result code (sprint 1.2).
+    /// <see cref="RunSmokeAsync"/> and closes the app with a result code.
     /// </summary>
     private async Task<int> RunSmokeOpenAsync(string dump)
     {
@@ -303,7 +303,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
         var snapshots = services.GetRequiredService<SnapshotsViewModel>();
 
         // Warm-up as in RunSmokeAsync, so one-time cold costs are not counted: a tiny job, then the Snapshots page shown
-        // once (pages are built on first show and kept, sprint 1.5). The cold first show is logged, not checked.
+        // once (pages are built on first show and kept). The cold first show is logged, not checked.
         home.ObjectCount = 10_000;
         await home.RunSyntheticCommand.ExecuteAsync(null);
         await IdleAsync();
@@ -317,14 +317,14 @@ internal sealed class SmokeRunner(IServiceProvider services)
         logger.LogInformation("Smoke warm-up: Snapshots page first shown (cold): {Measured}", phases.End("snapshots first show", cold: true).Measured);
         phases.Begin();
 
-        // --smoke-trace records this process from here to the end of the run (sprint 1.5), for diagnosing lags.
+        // --smoke-trace records this process from here to the end of the run, for diagnosing lags.
         using var traceStop = new CancellationTokenSource();
         var trace = services.GetRequiredService<UiOptions>().SmokeTracePath is { } tracePath
             ? services.GetRequiredService<HeapScope.Application.Sessions.TraceService>()
                 .RecordAsync(Environment.ProcessId, tracePath, HeapScope.Application.Sessions.TraceKind.Cpu, TimeSpan.FromMinutes(10), traceStop.Token)
             : null;
 
-        // The trace stops however the run ends: a failing step must not leave it recording (sprint 1.5 review).
+        // The trace stops however the run ends: a failing step must not leave it recording.
         VirtualRowList<TypeRowItem> rows;
         bool completed;
         try
@@ -337,8 +337,8 @@ internal sealed class SmokeRunner(IServiceProvider services)
             await TouchRowsAsync(rows);
             completed = snapshots.Selected is not null && rows.Count > 0 && rows.GetRow(0).IsLoaded;
 
-            // The largest types as shown, for checks of the known answers in CI (sprint 2.3.6). A contract: ci.yml matches
-            // "Smoke open types: ... <type> <count>"; keep the wording (sprint 2.3.7 review M11).
+            // The largest types as shown, for checks of the known answers in CI. A contract: ci.yml matches
+            // "Smoke open types: ... <type> <count>"; keep the wording.
             logger.LogInformation(
                 "Smoke open types: {Types}",
                 string.Join("; ", Enumerable.Range(0, Math.Min(rows.Count, 50)).Select(rows.GetRow).Where(r => r.IsLoaded).Select(r => $"{r.Name} {r.Objects}")));
@@ -417,7 +417,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     }
 
     /// <summary>
-    /// Drills down as a user would (sprint 1.5): the largest type's objects, the largest object, its references. The first
+    /// Drills down as a user would: the largest type's objects, the largest object, its references. The first
     /// showing of each view is logged as a cold cost; a re-sort of the objects and a second object are the checked part.
     /// Returns whether every step showed its data.
     /// </summary>
@@ -448,13 +448,13 @@ internal sealed class SmokeRunner(IServiceProvider services)
         await first.LoadTask;
         await first.ReferenceRows.WhenLoadedAsync();
 
-        // Sprint 2.1, cold: the object's referrers (the first query of a snapshot builds its reverse index in the worker
+        // Cold: the object's referrers (the first query of a snapshot builds its reverse index in the worker
         // while the window stays responsive) and who references the type's objects, each view shown for the first time.
         first.ReferencesView = ObjectReferenceTabs.Incoming;
         await first.IncomingTask;
         await first.IncomingRows.WhenLoadedAsync();
 
-        // Sprint 2.2, cold: why the object is alive, and why the type's objects are. Sprint 2.3, cold: its retained size,
+        // Cold: why the object is alive, and why the type's objects are. Then, cold: its retained size,
         // after the paths (the first such query computes the snapshot's dominators, or opens them from their sidecar).
         first.ReferencesView = ObjectReferenceTabs.Retention;
         await first.RetentionTask;
@@ -496,7 +496,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
             typePaths.Paths.Count,
             phases.End("drill first show", cold: true).Measured);
 
-        // Checked part: back to the objects, a re-sort, retained sizes (sprint 2.3, the dominators warm), and another object
+        // Checked part: back to the objects, a re-sort, retained sizes (the dominators warm), and another object
         // with its referrers and retention (the views and the indices warm). The caller ends it.
         phases.Begin();
         navigator.BackCommand.Execute(null);
@@ -521,7 +521,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
         second.ReferencesView = ObjectReferenceTabs.Retention;
         await second.RetentionTask;
         await second.RetainedTask;
-        // Each check by name, so a red run says which view did not show its data (sprint 2.3.7 review M11).
+        // Each check by name, so a red run says which view did not show its data.
         (string Check, bool Passed)[] checks =
         [
             ("first object read", first.Status is null),
@@ -559,7 +559,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     }
 
     /// <summary>
-    /// Shows the Inspections tab (sprint 1.6): every inspection runs in the worker while the tab stays responsive; the
+    /// Shows the Inspections tab: every inspection runs in the worker while the tab stays responsive; the
     /// rows of the selected one are fetched as the grid would. Returns whether every available inspection finished.
     /// </summary>
     private static async Task<bool> RunSmokeInspectionsAsync(SnapshotsViewModel snapshots, SmokePhases phases, ILogger logger)
@@ -585,7 +585,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     }
 
     /// <summary>
-    /// Shows the Retainers tab (sprint 2.4): the biggest retainers and their icicle (the first time computes or opens the
+    /// Shows the Retainers tab: the biggest retainers and their icicle (the first time computes or opens the
     /// dominators in the worker; logged, not checked), then the checked part in the warm tab: expand the first row and focus
     /// on it, as a user would. Returns whether the tree showed rows each time.
     /// </summary>
@@ -639,7 +639,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     }
 
     /// <summary>
-    /// Shows an allocations trace on the Allocations page (sprint 2.5): its first show is logged as a cold cost; expanding
+    /// Shows an allocations trace on the Allocations page: its first show is logged as a cold cost; expanding
     /// the first back trace and switching to the call tree are the checked part. Returns whether both showed rows.
     /// </summary>
     private static async Task<bool> RunSmokeAllocationsAsync(ShellViewModel shell, string path, SmokePhases phases, ILogger logger)
@@ -699,7 +699,7 @@ internal sealed class SmokeRunner(IServiceProvider services)
     }
 
     /// <summary>
-    /// Opens a second dump and shows the comparison (sprint 1.4): the pickers fill themselves with the two open snapshots,
+    /// Opens a second dump and shows the comparison: the pickers fill themselves with the two open snapshots,
     /// the grid's first rows are fetched as the grid would. Returns whether the comparison showed rows.
     /// </summary>
     private static async Task<bool> RunSmokeCompareAsync(SnapshotsViewModel snapshots, string dump, SmokePhases phases, ILogger logger)

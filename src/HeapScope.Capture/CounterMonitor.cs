@@ -31,7 +31,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.Capture;
 
 /// <summary>
-/// One interval of a process's runtime counters (sprint 1.7). <see cref="GcHeapBytes"/> is the heap now, including
+/// One interval of a process's runtime counters. <see cref="GcHeapBytes"/> is the heap now, including
 /// everything allocated since the last GC; the generation sizes are as of the last GC (they change only when one runs).
 /// Collections and allocations are counted during the interval; <see cref="TimeInGcPercent"/> is the share the last GC
 /// took of the time since the one before (it does not change while no GC runs).
@@ -55,7 +55,7 @@ public sealed record CounterSample(
 /// Turns the runtime's counter values, which arrive one event per counter per interval, into samples: a counter seen
 /// again starts the next interval, so each sample is complete when the next one begins (testable without a process).
 /// A sample whose GC heap size is negative is dropped and logged: the target's runtime reported one (-0.77 MB, the 3.11
-/// wrap), and a heap below zero would chart a dip that never happened and feed the size rules (sprint 3.12).
+/// wrap), and a heap below zero would chart a dip that never happened and feed the size rules.
 /// </summary>
 public sealed class CounterSampleBuilder(ILogger? logger = null)
 {
@@ -88,7 +88,7 @@ public sealed class CounterSampleBuilder(ILogger? logger = null)
 
     /// <summary>
     /// The sample being collected, if any. One without the GC heap size (the last, cut-short interval when the session
-    /// ends) is dropped: its missing counters would read as zeros (review of 1.7).
+    /// ends) is dropped: its missing counters would read as zeros.
     /// </summary>
     public CounterSample? Flush()
     {
@@ -136,8 +136,7 @@ public sealed class CounterSampleBuilder(ILogger? logger = null)
 }
 
 /// <summary>
-/// Reads a process's runtime counters (<c>System.Runtime</c> EventCounters) over an EventPipe session (sprint 1.7,
-/// ADR-021): the diagnostics client HeapScope already uses for capture and traces, so nothing is installed and the
+/// Reads a process's runtime counters (<c>System.Runtime</c> EventCounters) over an EventPipe session (ADR-021): the diagnostics client HeapScope already uses for capture and traces, so nothing is installed and the
 /// target needs no changes.
 /// </summary>
 public static class CounterMonitor
@@ -171,7 +170,7 @@ public static class CounterMonitor
         limit.CancelAfter(StartWait);
         try
         {
-            // Bounded (review of 4.6): a process that does not answer (frozen) ends the run with a reason, not a wait.
+            // Bounded: a process that does not answer (frozen) ends the run with a reason, not a wait.
             session = await new DiagnosticsClient(processId).StartEventPipeSessionAsync(providers, requestRundown: false, circularBufferMB: 16, limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -183,7 +182,7 @@ public static class CounterMonitor
             var failure = Translate(processId, ex);
             if (failure is TargetUnavailableException { Evidence: { } evidence })
             {
-                // Sprint 4.1 review H6: what the reason given rests on.
+                // What the reason given rests on.
                 logger?.LogInformation("Pid {Pid} could not be monitored: {Evidence}", processId, evidence);
             }
             else if (failure is ElevationRequiredException && CapturePlatform.UserIdsOf(processId) is { } ids)
@@ -210,7 +209,7 @@ public static class CounterMonitor
                             return;
                         }
 
-                        // The interval the target says it used, not trusted to be the one asked (peer review 4.5 M11, sprint 4.7): a rate
+                        // The interval the target says it used, not trusted to be the one asked: a rate
                         // is per its interval, so one that differs is logged, once.
                         if (IntervalDiffers(data, interval) is { } reported && Interlocked.Exchange(ref intervalSaid, 1) == 0)
                         {
@@ -228,7 +227,7 @@ public static class CounterMonitor
                     }
                     catch (Exception ex) when (ex is FormatException or EndOfStreamException or IOException or ObjectDisposedException && Volatile.Read(ref stopping) == 1)
                     {
-                        // Stopping the session can cut the stream inside a block (CI, sprint 3.6: "Read past end of
+                        // Stopping the session can cut the stream inside a block (CI: "Read past end of
                         // stream"), or read from its pipe once closed (CI, 2026-11-25: "Cannot access a closed pipe"): the samples read so far are the
                         // run's; the stop was asked for.
                     }
@@ -322,7 +321,7 @@ public static class CounterMonitor
             return new TargetUnavailableException($"No running process has id {processId}.", ex);
         }
 
-        // Sprint 4.1 review M2: the same reasons as a capture's (another user's, diagnostics off, another /tmp).
+        // The same reasons as a capture's (another user's, diagnostics off, another /tmp).
         return ex is UnauthorizedAccessException
             ? ElevationRequiredException.ForMonitoring(processId, processName, ex)
             : CapturePlatform.Rules().NotAnswering(processId, $"{processName} ({processId}) did not answer on its diagnostics port: {ex.Message} Is it a .NET 6 or later process?", ex);

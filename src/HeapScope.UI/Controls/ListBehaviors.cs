@@ -31,7 +31,7 @@ using Avalonia.VisualTree;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// The grids' drill-down for lists (sprint 2.7): <c>OpenCommand</c> runs on the selected item for Enter or a double-click
+/// The grids' drill-down for lists: <c>OpenCommand</c> runs on the selected item for Enter or a double-click
 /// on an item (the Bookmarks list), so a list is used by keyboard as a grid is.
 /// </summary>
 public static class ListBehaviors

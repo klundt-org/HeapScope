@@ -67,24 +67,24 @@ internal static class ClrMdDump
 
     /// <summary>
     /// Creates the runtime with a local DAC (ADR-017), or a downloaded one when allowed. A DAC that is found but fails to
-    /// load (wrong build, damaged file) is reported with a next step (from the 1.2 review).
+    /// load (wrong build, damaged file) is reported with a next step.
     /// </summary>
     /// <exception cref="RuntimeComponentMissingException">The matching DAC is not on this machine.</exception>
     /// <exception cref="SnapshotFormatException">The runtime could not be opened with the DAC found.</exception>
     public static ClrRuntime CreateRuntime(ClrInfo clr, string dumpPath, ClrMdLoaderOptions options) =>
         CreateRuntime(clr, dumpPath, options, out _);
 
-    /// <summary>As <see cref="CreateRuntime(ClrInfo, string, ClrMdLoaderOptions)"/>, and says which DAC was used and why (sprint 2.3.7).</summary>
+    /// <summary>As <see cref="CreateRuntime(ClrInfo, string, ClrMdLoaderOptions)"/>, and says which DAC was used and why.</summary>
     public static ClrRuntime CreateRuntime(ClrInfo clr, string dumpPath, ClrMdLoaderOptions options, out DacChoice choice)
     {
         ArgumentNullException.ThrowIfNull(clr);
         ArgumentNullException.ThrowIfNull(options);
-        // The DAC that runs on this system (sprint 2.3.5): a dump is read with the DAC of the platform HeapScope runs on,
+        // The DAC that runs on this system: a dump is read with the DAC of the platform HeapScope runs on,
         // so a Linux dump is read on Linux and a Windows dump on Windows (cross-platform DACs are not searched).
         var platform = CurrentPlatform();
 
         // A dump is read by a worker of its own system and architecture (ADR-025): say so before any DAC is looked for or
-        // loaded (sprint 2.3.6 review; a DAC of the wrong architecture would only fail to load with a vaguer message). A
+        // loaded (a DAC of the wrong architecture would only fail to load with a vaguer message). A
         // dump of another system can still be read with the symbol server's cross-platform DAC when that is allowed.
         if (DacLocator.Mismatch(clr.DataTarget.DataReader.TargetPlatform, clr.DataTarget.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.DownloadsAllowed) is { } mismatch)
         {
@@ -97,7 +97,7 @@ internal static class ClrMdDump
             throw new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request));
         }
 
-        // The download comes first, apart from creating the runtime (sprint 3.12 review of task 9): a DAC the symbol server
+        // The download comes first, apart from creating the runtime: a DAC the symbol server
         // did not give is missing, while one it gave that then fails to load points at the dump, as a local one would.
         path ??= Download(clr, platform, request, fileName);
         choice = new DacChoice(dumpPath, path, rule ?? "downloaded from Microsoft's symbol server", looked);
@@ -106,7 +106,7 @@ internal static class ClrMdDump
         {
             // A DAC matched by build id is the exact build (its own id, or its runtime's with the pair checked), which is
             // stronger than ClrMD's version check; that check is skipped then, since ClrMD reads a core file's runtime
-            // version as 0.0 at times (sprint 2.3.5, the Linux CI run).
+            // version as 0.0 at times (the Linux CI run).
             var runtime = clr.CreateRuntime(path, ignoreMismatch: request.BuildId is { Length: > 0 });
             options.DacChosen?.Invoke(choice);
             return runtime;
@@ -122,8 +122,8 @@ internal static class ClrMdDump
 
     /// <summary>
     /// Why the DAC this dump's runtime needs cannot be loaded now, found without loading anything, or null when it can. A
-    /// dump opened from its index cache loads no DAC at open, but its field reader will later (sprint 3.6 review H1), so
-    /// the open says first: a DAC that needs trust (the app asks), and since sprint 3.12 a missing one, so value reads are
+    /// dump opened from its index cache loads no DAC at open, but its field reader will later, so
+    /// the open says first: a DAC that needs trust (the app asks), and a missing one, so value reads are
     /// refused from the start instead of failing one by one.
     /// </summary>
     /// <returns>
@@ -160,7 +160,7 @@ internal static class ClrMdDump
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // A dump ClrMD cannot open here is reported by the field reader when it is used, as before (sprint 3.6 re-review).
+            // A dump ClrMD cannot open here is reported by the field reader when it is used, as before.
             return null;
         }
     }
@@ -210,7 +210,7 @@ internal static class ClrMdDump
         throw NotDownloaded(request, fileName, "the server has no matching file, or the dump does not identify one", null);
     }
 
-    // No local DAC, and the symbol server gave none (sprint 3.12, the 3.10 review M29): the DAC is missing, not the dump
+    // No local DAC, and the symbol server gave none: the DAC is missing, not the dump
     // damaged, so an older index cache can still open in place of the rebuild.
     private static RuntimeComponentMissingException NotDownloaded(DacRequest request, string fileName, string why, Exception? inner) =>
         new(
@@ -227,7 +227,7 @@ internal static class ClrMdDump
     /// <exception cref="UntrustedDacException">The only matching DAC lies next to the dump and is not trusted.</exception>
     private static string? ResolveDac(ClrInfo clr, string dumpPath, ClrMdLoaderOptions options, OSPlatform platform, out DacRequest request, out string fileName, out string[] looked, out string? rule)
     {
-        // An entry with the DAC's own build id first, then one archived under the runtime's (sprint 2.3.5 review M1).
+        // An entry with the DAC's own build id first, then one archived under the runtime's.
         var dac = clr.DebuggingLibraries
             .Where(d => d.Kind == DebugLibraryKind.Dac && d.Platform == platform)
             .OrderBy(d => d.IndexBuildId.IsDefaultOrEmpty ? 2 : d.ArchivedUnder == SymbolProperties.Coreclr ? 1 : 0)
@@ -255,7 +255,7 @@ internal static class ClrMdDump
         var path = DacLocator.Find(request, directories, out var candidates, out rule, installedRoots);
         if (path is null)
         {
-            // Next to the dump last, and only once trusted (peer review P2): that DAC came with the dump.
+            // Next to the dump last, and only once trusted: that DAC came with the dump.
             var beside = DacLocator.Find(request, DacLocator.BesideDumpDirectories(request, dumpPath), out var besideCandidates, out var besideRule, installedRoots);
             candidates = [.. candidates, .. besideCandidates];
             if (beside is not null)
@@ -265,7 +265,7 @@ internal static class ClrMdDump
                     var sha256 = Sha256Of(beside);
                     if (options.IsTrustedDac?.Invoke(sha256) != true)
                     {
-                        // The files the trusted folders held and why they did not match go with the refusal (review H3).
+                        // The files the trusted folders held and why they did not match go with the refusal.
                         throw new UntrustedDacException(beside, sha256, request.RuntimeVersion, [.. candidates.Select(c => c.ToString()), .. DacLocator.DacFolderNotSearched(options) is { } leftOut ? [leftOut] : Array.Empty<string>()]);
                     }
 
@@ -274,7 +274,7 @@ internal static class ClrMdDump
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Not the dump's fault (review): say it is the DAC or its private copy.
+                    // Not the dump's fault: say it is the DAC or its private copy.
                     throw new RuntimeComponentMissingException(
                         $"The DAC next to the dump, {beside}, could not be read or copied into HeapScope's private DAC folder: {ex.Message} Close programs that hold it, check the free disk space, or put the DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line).",
                         ex);
@@ -287,7 +287,7 @@ internal static class ClrMdDump
     }
 
     /// <summary>
-    /// What to do when no DAC was found, beyond installing the runtime (sprint 2.3.5 review): a DAC archived under its
+    /// What to do when no DAC was found, beyond installing the runtime: a DAC archived under its
     /// runtime library is only accepted together with that library. (A dump of another system or architecture is refused
     /// before the search, <see cref="DacLocator.Mismatch"/>.)
     /// </summary>
@@ -306,7 +306,7 @@ internal static class ClrMdDump
 
     /// <summary>
     /// Copies a trusted DAC into a private folder under its hash and returns the copy, checked against the hash: the file
-    /// next to the dump could change between hashing and loading, its copy cannot (peer review P2).
+    /// next to the dump could change between hashing and loading, its copy cannot.
     /// </summary>
     internal static string CopyTrusted(string path, string sha256, string? copyFolder)
     {

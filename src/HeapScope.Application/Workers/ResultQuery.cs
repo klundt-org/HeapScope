@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.Application.Workers;
 
 /// <summary>
-/// A worker query whose rows come back as a result set (peer review P5): the answer holds the first result, and its
+/// A worker query whose rows come back as a result set: the answer holds the first result, and its
 /// <see cref="ResultSetHandle"/> runs the query again (reopening what it needs) when the worker no longer has the set.
 /// </summary>
 internal static class ResultQuery

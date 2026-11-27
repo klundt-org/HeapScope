@@ -40,7 +40,7 @@ public sealed partial class InspectionTileViewModel(InspectionInfo info) : Obser
 
     public bool IsAvailable => Info.Unavailable is null;
 
-    /// <summary>A leak detector (sprint 2.6), shown in its own group above the waste inspections.</summary>
+    /// <summary>A leak detector, shown in its own group above the waste inspections.</summary>
     public bool IsDetector => Info.Kind == InspectionKinds.Leak;
 
     /// <summary>The group's heading on the first tile of each group ("Leak detectors", "Memory waste"); null on the others.</summary>
@@ -68,6 +68,6 @@ public sealed partial class InspectionTileViewModel(InspectionInfo info) : Obser
 
     public InspectionRun? Run { get; internal set; }
 
-    /// <summary>The baseline <see cref="Run"/> used (sprint 2.6 review H6): a tile run with another one is run again.</summary>
+    /// <summary>The baseline <see cref="Run"/> used: a tile run with another one is run again.</summary>
     internal SnapshotHandle? RanWith { get; set; }
 }

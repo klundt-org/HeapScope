@@ -27,7 +27,7 @@ using Avalonia.Controls;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// A status line or note that takes no space when it has no text (sprint 2.4, 2.3.7 review M14): every grid's status,
+/// A status line or note that takes no space when it has no text: every grid's status,
 /// explanation and retained note was a text block with the same visibility binding repeated.
 /// </summary>
 public sealed class NoteText : TextBlock

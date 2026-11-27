@@ -25,7 +25,7 @@ namespace HeapScope.Core;
 
 /// <summary>
 /// Paths recorded in a snapshot (module paths, the runtime's folder), which come from the system that took it, not the
-/// one reading it (sprint 2.3.5): a Windows path read on Linux keeps its backslashes, so <see cref="Path.GetFileName(string)"/>
+/// one reading it: a Windows path read on Linux keeps its backslashes, so <see cref="Path.GetFileName(string)"/>
 /// would return it whole.
 /// </summary>
 public static class RecordedPath

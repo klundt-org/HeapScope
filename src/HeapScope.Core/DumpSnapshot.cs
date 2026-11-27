@@ -27,10 +27,10 @@ using HeapScope.Core.Graph;
 namespace HeapScope.Core;
 
 /// <summary>
-/// A full-dump snapshot (sprint 1.5): the graph plus an <see cref="IObjectReader"/> over the dump it came from, so it
+/// A full-dump snapshot: the graph plus an <see cref="IObjectReader"/> over the dump it came from, so it
 /// answers <see cref="SnapshotCapabilities.FieldValues"/> and <see cref="SnapshotCapabilities.StringContents"/>.
 /// <see cref="SnapshotCapabilities.ThreadStacks"/> is still removed: no service answers it yet. The reader is disposed
-/// with the graph, after the last lease. A full dump whose values cannot be read (its DAC is declined or gone, sprint 3.12)
+/// with the graph, after the last lease. A full dump whose values cannot be read (its DAC is declined or gone)
 /// has no reader, and <see cref="ValueReadsRefused"/> says why: the graph answers everything else.
 /// </summary>
 public sealed class DumpSnapshot : ISnapshot

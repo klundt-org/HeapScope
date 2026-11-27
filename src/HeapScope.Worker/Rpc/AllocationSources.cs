@@ -28,7 +28,7 @@ using HeapScope.Contracts;
 namespace HeapScope.Worker.Rpc;
 
 /// <summary>
-/// The types allocated in an interval (sprint 2.5), most sampled bytes first, with the part counted on the large and
+/// The types allocated in an interval, most sampled bytes first, with the part counted on the large and
 /// pinned object heaps (<see cref="AllocationTypeColumns"/>). Holds the type names only, not the trace.
 /// </summary>
 internal sealed class AllocationTypesSource(IReadOnlyList<string> typeNames, AllocationTypeTotal[] rows, long totalBytes) : IResultSource
@@ -62,7 +62,7 @@ internal sealed class AllocationTypesSource(IReadOnlyList<string> typeNames, All
     }
 }
 
-/// <summary>A flattened call tree or back traces (sprint 2.5), already in display order (<see cref="AllocationTreeColumns"/>).</summary>
+/// <summary>A flattened call tree or back traces, already in display order (<see cref="AllocationTreeColumns"/>).</summary>
 internal sealed class AllocationTreeSource(AllocationTreeView view) : IResultSource
 {
     public static readonly ResultColumn[] TreeColumns =

@@ -112,7 +112,7 @@ public sealed class HeapGraph : IDisposable
     public StringTable Strings { get; }
 
     /// <summary>
-    /// The dependent handles merged into the CSR as edges, sorted by primary then secondary (sprint 2.2), so an edge can be
+    /// The dependent handles merged into the CSR as edges, sorted by primary then secondary, so an edge can be
     /// told apart from a field reference: <see cref="IsDependentHandleEdge"/>.
     /// </summary>
     public Column<DependentHandle> DependentHandles { get; }
@@ -129,7 +129,7 @@ public sealed class HeapGraph : IDisposable
         + EdgeStarts.ByteLength + Edges.ByteLength + LargeSizes.ByteLength + DependentHandles.ByteLength;
 
     /// <summary>
-    /// The part of <see cref="ColumnBytes"/> that is a view of a file (sprint 4.8, F13): the references' temporary file of a load,
+    /// The part of <see cref="ColumnBytes"/> that is a view of a file: the references' temporary file of a load,
     /// or a mapped index cache. The rest is the process's private memory, which the memory mode counts.
     /// </summary>
     public long FileBackedColumnBytes =>
@@ -239,7 +239,7 @@ public sealed class HeapGraph : IDisposable
     }
 
     /// <summary>
-    /// Disposes <paramref name="owned"/> together with this graph (sprint 2.1): an optional index over the graph, such as
+    /// Disposes <paramref name="owned"/> together with this graph: an optional index over the graph, such as
     /// <see cref="ReverseReferences"/> mapped from a sidecar, then lives exactly as long as the graph, which a snapshot
     /// releases only after its last lease. Returns false, without taking ownership, when the graph is already disposed.
     /// </summary>

@@ -24,9 +24,9 @@
 namespace HeapScope.Capture;
 
 /// <summary>
-/// Why a process asked for by pid was not found (sprint 4.1), where the system can tell. <see cref="Reason"/> is for the
+/// Why a process asked for by pid was not found, where the system can tell. <see cref="Reason"/> is for the
 /// user, with what to do; null leaves the generic text. <see cref="Evidence"/> is for the log: what the reason rests on
-/// (review H6), never a value read from the process other than its temp folder.
+/// never a value read from the process other than its temp folder.
 /// </summary>
 public sealed record NotFoundExplanation(string? Reason, string? Evidence)
 {

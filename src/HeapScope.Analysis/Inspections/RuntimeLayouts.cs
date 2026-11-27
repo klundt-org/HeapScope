@@ -24,7 +24,7 @@
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// The runtime's private field names the inspections read, in one table (sprint 3.8, peer review P19): when a runtime
+/// The runtime's private field names the inspections read, in one table: when a runtime
 /// renames one, it changes here. A field missing from a dump reads as unknown, never as zero.
 /// </summary>
 internal static class RuntimeLayouts

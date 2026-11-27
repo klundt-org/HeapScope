@@ -494,9 +494,10 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   (`ViewModelSizeTests`). A class that outgrows it is split along its parts: a type of its own in its own file, or a
   partial file per part named after it (`CompareViewModel.Links.cs`, `SnapshotsViewModel.Dac.cs`). The test's exceptions
   list is a ratchet, empty since sprint 4.9.
-- **Comments** (sprint 3.8, peer review S8): state the current reason, not the history. Cite a sprint, review or ADR
-  id only beside a guard someone might otherwise simplify away, so its reason can be found; the history lives in git,
-  the review files and the ADRs. Apply it to the code a change touches.
+- **Comments** (sprint 3.8, peer review S8; tightened by M15 in sprint 4.9): state the current reason, not the history.
+  Source comments under `src/` cite no sprint or review id at all; a decision keeps its ADR number, beside a guard
+  someone might otherwise simplify away. The history lives in git, the review files and the ADRs. `SourceCommentTests`
+  refuses an id in a src comment (tests may still name the review a test proves).
 - **Derived state** (sprint 3.8, peer review P20): Analysis returns values and keeps nothing, no static caches and no
   mutable static state (`AnalysisStateTests`). What a snapshot derives gets a `DerivedData` slot in the worker:
   computed once for concurrent callers and dropped when the snapshot closes.

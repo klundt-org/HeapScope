@@ -30,7 +30,7 @@ namespace HeapScope.Analysis;
 public readonly record struct Referrer(int ObjectIndex, int References);
 
 /// <summary>
-/// The objects of one referrer type that reference a set of objects (sprint 2.1).
+/// The objects of one referrer type that reference a set of objects.
 /// </summary>
 /// <param name="TypeIndex">The referrers' type.</param>
 /// <param name="Objects">Distinct objects of this type that reference the set.</param>
@@ -39,7 +39,7 @@ public readonly record struct Referrer(int ObjectIndex, int References);
 /// <param name="Bytes">Shallow size of the referring objects.</param>
 public readonly record struct ReferrerTypeRow(int TypeIndex, long Objects, long References, long Targets, ulong Bytes);
 
-/// <summary>Who references an object or the objects of a type, from <see cref="ReverseReferences"/> (sprint 2.1).</summary>
+/// <summary>Who references an object or the objects of a type, from <see cref="ReverseReferences"/>.</summary>
 public static class IncomingReferences
 {
     /// <summary>Targets per cancellation check.</summary>

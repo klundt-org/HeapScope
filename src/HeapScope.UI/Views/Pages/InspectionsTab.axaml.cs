@@ -36,7 +36,7 @@ public partial class InspectionsTab : UserControl
     {
         InitializeComponent();
 
-        // A group heading shares its tile's list item but is not part of it: a click on it selects nothing (2.6 review L13).
+        // A group heading shares its tile's list item but is not part of it: a click on it selects nothing.
         TileList.AddHandler(PointerPressedEvent, OnTilePointerPressed, RoutingStrategies.Tunnel);
     }
 

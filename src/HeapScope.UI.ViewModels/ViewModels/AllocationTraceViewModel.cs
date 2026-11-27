@@ -36,7 +36,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// One allocation trace on the Allocations page (sprint 2.5): its timeline, where dragging selects the interval; the
+/// One allocation trace on the Allocations page: its timeline, where dragging selects the interval; the
 /// types of the interval; the back traces or call tree; and the top call stacks. Selecting a type narrows the trees and
 /// stacks to it. Sizes are estimates from samples, said once under the title.
 /// </summary>
@@ -158,7 +158,7 @@ public sealed partial class AllocationTraceViewModel : ObservableObject
         Refresh(types: true);
     }
 
-    /// <summary>Shows an interval, of one type or of every type (a step from another page, sprint 4.4).</summary>
+    /// <summary>Shows an interval, of one type or of every type (a step from another page).</summary>
     public void Narrow(TimeInterval interval, string? typeName)
     {
         ArgumentNullException.ThrowIfNull(interval);
@@ -177,7 +177,7 @@ public sealed partial class AllocationTraceViewModel : ObservableObject
 
     partial void OnSelectionChanged(TimeInterval? value)
     {
-        // A click without a drag is no interval: the whole trace (the 2.5 review).
+        // A click without a drag is no interval: the whole trace.
         if (value is { } interval && interval.ToSeconds <= interval.FromSeconds)
         {
             var wasWhole = _wholeTrace;
@@ -218,7 +218,7 @@ public sealed partial class AllocationTraceViewModel : ObservableObject
         using var activity = Act("show every type{0}", string.Empty);
         TypeName = null;
 
-        // Clears the grid's row too, so picking the same type again narrows again (the 2.5 review).
+        // Clears the grid's row too, so picking the same type again narrows again.
         Types.SelectedRow = null;
         Refresh(types: false);
     }
@@ -284,7 +284,7 @@ public sealed partial class AllocationTraceViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
-            // What the user was shown, for the log (sprint 4.8, M13).
+            // What the user was shown, for the log.
             _logger.LogInformation("{Section} shown as: {Message}", "Allocation stacks", ex.Message);
             Stacks.Clear();
             StacksStatus = ex.Message;

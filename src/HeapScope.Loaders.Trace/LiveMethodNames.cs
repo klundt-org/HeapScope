@@ -24,7 +24,7 @@
 namespace HeapScope.Loaders.Trace;
 
 /// <summary>
-/// Which method the code at an address belongs to (sprint 4.3), as rundowns and method events say it. A method loaded over the code
+/// Which method the code at an address belongs to, as rundowns and method events say it. A method loaded over the code
 /// of others takes their place from then on. Bounded: past <see cref="MaxMethods"/> or <see cref="MaxTextBytes"/> no more are kept.
 /// </summary>
 internal sealed class LiveMethodNames

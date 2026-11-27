@@ -39,17 +39,17 @@ namespace HeapScope.UI;
 
 /// <summary>Options read from the UI's command line.</summary>
 /// <param name="SmokeSyntheticObjects">When set (<c>--smoke-synthetic N</c>), the app runs one synthetic job of N
-/// objects, records the maximum dispatcher lag and exits (sprint 0.3 decision 7).</param>
+/// objects, records the maximum dispatcher lag and exits.</param>
 /// <param name="SmokeOpenPath">When set (<c>--smoke-open path</c>), the app opens this dump instead, waits for its overview
-/// and exits with the same dispatcher checks (sprint 1.2).</param>
-/// <param name="SmokeComparePath">With <c>--smoke-open</c>, a second dump to compare with (sprint 1.4).</param>
-/// <param name="SmokeTracePath">With <c>--smoke-open</c>, where to record a CPU trace of the run (sprint 1.5).</param>
+/// and exits with the same dispatcher checks.</param>
+/// <param name="SmokeComparePath">With <c>--smoke-open</c>, a second dump to compare with.</param>
+/// <param name="SmokeTracePath">With <c>--smoke-open</c>, where to record a CPU trace of the run.</param>
 /// <param name="SmokeLiveSamples">When set (<c>--smoke-live N</c>), the Live page charts N synthetic samples fed fast
-/// (sprint 1.7) and the run exits with the dispatcher checks.</param>
-/// <param name="SmokeAllocationsPath">With <c>--smoke-open</c>, an allocations trace to show on the Allocations page (sprint 2.5).</param>
+/// and the run exits with the dispatcher checks.</param>
+/// <param name="SmokeAllocationsPath">With <c>--smoke-open</c>, an allocations trace to show on the Allocations page.</param>
 /// <param name="ScreenshotFolder">With <c>--headless</c> (<c>--screenshots folder</c>), saves each page as PNG files (<see cref="Smoke.ScreenshotRunner"/>).</param>
 /// <param name="SmokeLiveProcess">When set (<c>--smoke-live-process pid</c>), the Live page watches this process for real and records its allocations
-/// (sprint 4.3), under a data folder of its own, and the run exits with the dispatcher checks.</param>
+/// under a data folder of its own, and the run exits with the dispatcher checks.</param>
 /// <param name="ScreenshotLivePid">With <c>--screenshots</c> (<c>--screenshot-live-pid N</c>), the Live page's picture watches this process for real.</param>
 public sealed record UiOptions(int? SmokeSyntheticObjects, string? SmokeOpenPath = null, string? SmokeComparePath = null, string? SmokeTracePath = null, int? SmokeLiveSamples = null, string? SmokeAllocationsPath = null, string? ScreenshotFolder = null, int? ScreenshotLivePid = null, int? SmokeLiveProcess = null)
 {
@@ -78,7 +78,7 @@ internal static class UiHost
 
         builder.Services.PostConfigure<WorkerHostOptions>(o => o.WorkerLogLevel = fileLog.MinimumLevel);
 
-        // The live smoke run charts made-up samples: no process is monitored (sprint 1.7).
+        // The live smoke run charts made-up samples: no process is monitored.
         var smokeLive = builder.Configuration["smoke-live"];
         if (smokeLive is not null)
         {

@@ -24,11 +24,11 @@
 namespace HeapScope.Analysis.Inspections;
 
 /// <summary>
-/// What an inspection's answer rests on, in the same terms for every inspection (sprint 3.12, B7): the objects, collections
+/// What an inspection's answer rests on, in the same terms for every inspection: the objects, collections
 /// or types it scanned and those it left out (could not read, or excluded by its rules), so "why is mine not listed?" has an
 /// answer in the log. Lists of rows in a basis are cut at <see cref="ListedCap"/>.
 /// </summary>
-/// <param name="ListsRows">Whether the inspection's basis lists rows, so its line says the cap (the review's M15).</param>
+/// <param name="ListsRows">Whether the inspection's basis lists rows, so its line says the cap.</param>
 public sealed record InspectionCounts(long Scanned, long LeftOut, bool ListsRows = false)
 {
     /// <summary>The most rows a log line lists; the rest are counted ("and N more").</summary>

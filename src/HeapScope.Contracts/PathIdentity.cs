@@ -28,8 +28,8 @@ namespace HeapScope.Contracts;
 #endif
 
 /// <summary>
-/// When two paths name the same file (sprint 3.12, B3): without regard to case on Windows and macOS, whose file systems ignore
-/// it by default (the review's M3), and exactly elsewhere, where <c>app.dmp</c> and <c>App.dmp</c> are two files. One rule for
+/// When two paths name the same file: without regard to case on Windows and macOS, whose file systems ignore
+/// it by default, and exactly elsewhere, where <c>app.dmp</c> and <c>App.dmp</c> are two files. One rule for
 /// every path comparison of the worker, the app, the command line, the loader and capture, so an open, a session's folder or
 /// a deletion never takes one file for another. This one file is compiled into Contracts (public, for the front ends and the
 /// worker) and into the projects on the Core side that cannot reference Contracts (internal, <c>HeapScope.Shared</c>).

@@ -26,7 +26,7 @@ using Microsoft.Diagnostics.NETCore.Client;
 
 namespace HeapScope.Capture;
 
-/// <summary>Lists running .NET processes (ARCHITECTURE.md 2, sprint 1.1). Faked in front end tests.</summary>
+/// <summary>Lists running .NET processes (ARCHITECTURE.md 2). Faked in front end tests.</summary>
 public interface IProcessDiscovery
 {
     IReadOnlyList<DotNetProcess> List(CancellationToken cancellationToken = default);
@@ -35,15 +35,15 @@ public interface IProcessDiscovery
     DotNetProcess? Find(int processId);
 
     /// <summary>
-    /// What the last <see cref="List"/> left out (sprint 3.13 review H5): HeapScope's own processes and the ones it could not
+    /// What the last <see cref="List"/> left out: HeapScope's own processes and the ones it could not
     /// describe (they exited meanwhile), by pid, so the log can say why a process is not listed.
     /// </summary>
     DiscoveryOmissions LastOmitted => DiscoveryOmissions.None;
 
     /// <summary>
-    /// Why a process that was asked for by pid is not found, with what to do, where the system can tell (sprint 4.1: on
+    /// Why a process that was asked for by pid is not found, with what to do, where the system can tell (on
     /// Linux and macOS, another user's process, diagnostics turned off, its own /tmp, or a socket in another temp folder), and what
-    /// that rests on, for the log (review H6).
+    /// that rests on, for the log.
     /// </summary>
     NotFoundExplanation WhyNotFound(int processId) => NotFoundExplanation.None;
 }
@@ -59,7 +59,7 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
 
     private readonly IElevationProbe _elevation = elevation ?? CapturePlatform.ElevationProbe();
 
-    // Sprint 4.1: the image path, command line and runtime per system (IProcessFacts).
+    // The image path, command line and runtime per system (IProcessFacts).
     private readonly IProcessFacts _facts = CapturePlatform.ProcessFacts();
 
     public DiscoveryOmissions LastOmitted { get; private set; } = DiscoveryOmissions.None;
@@ -112,8 +112,8 @@ public sealed class ProcessDiscovery(IElevationProbe? elevation = null) : IProce
     /// HeapScope itself (this process, and the UI, CLI and worker started from this installation) is never listed or
     /// captured: a dump of the worker would contain the snapshots it holds. Matched by pid and executable path, not by
     /// name, so a user's own app called HeapScope is still listed. In the CLI's dotnet tool the worker runs as the dotnet
-    /// host, so its command line names the worker's assembly in this installation (sprint 3.9, ADR-039). The tutorial's
-    /// sample (sprint 3.13, ADR-042) is HeapScope's too, but it is there to be captured, so it is listed.
+    /// host, so its command line names the worker's assembly in this installation (ADR-039). The tutorial's
+    /// sample (ADR-042) is HeapScope's too, but it is there to be captured, so it is listed.
     /// </summary>
     private bool IsOwn(int processId) =>
         processId == Environment.ProcessId

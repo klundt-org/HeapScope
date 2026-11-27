@@ -34,14 +34,14 @@ public enum TypeGrouping
     Assembly = 2,
 
     /// <summary>
-    /// Per interface a type implements (sprint 3.2, full dumps only): a type counts under each of its interfaces, so rows
+    /// Per interface a type implements (full dumps only): a type counts under each of its interfaces, so rows
     /// overlap; types without one are under <see cref="TypeSummaryColumns.NoInterface"/>.
     /// </summary>
     Interface = 3,
 }
 
 /// <summary>
-/// Column names of a type summary result set (sorting takes any of them, sprint 1.5). In Type grouping the rows also carry
+/// Column names of a type summary result set (sorting takes any of them). In Type grouping the rows also carry
 /// the hidden <see cref="TypeName"/> and <see cref="Module"/> columns: the key that opens a row's instances.
 /// </summary>
 public static class TypeSummaryColumns
@@ -52,7 +52,7 @@ public static class TypeSummaryColumns
     public const string Percent = "Percent";
 
     /// <summary>
-    /// Retained bytes of the row's objects (sprint 2.3, when asked for): a lower bound, the retained sizes of its objects that
+    /// Retained bytes of the row's objects (when asked for): a lower bound, the retained sizes of its objects that
     /// no other object of the row dominates.
     /// </summary>
     public const string Retained = "Retained";
@@ -85,7 +85,7 @@ public enum HeapKindDto
     Frozen = 6,
 }
 
-/// <summary>A type summary query (sprint 1.3).</summary>
+/// <summary>A type summary query.</summary>
 /// <param name="SnapshotId">The snapshot.</param>
 /// <param name="GroupBy">Rows per type, namespace or assembly.</param>
 /// <param name="Filter">
@@ -95,10 +95,10 @@ public enum HeapKindDto
 /// <param name="SortColumn">A result column name (<see cref="TypeSummaryColumns"/>); null sorts by bytes.</param>
 /// <param name="Descending">Sort direction.</param>
 /// <param name="IncludeRetained">
-/// Adds the <see cref="TypeSummaryColumns.Retained"/> column (sprint 2.3); the first such query of a snapshot computes its
+/// Adds the <see cref="TypeSummaryColumns.Retained"/> column; the first such query of a snapshot computes its
 /// dominators, which takes seconds and is reported as progress.
 /// </param>
-/// <param name="Set">Summarizes the members of this set instead of the whole snapshot (sprint 3.1); the totals and heap
+/// <param name="Set">Summarizes the members of this set instead of the whole snapshot; the totals and heap
 /// kinds are then the set's (its Generations view). Not with <paramref name="IncludeRetained"/>.</param>
 public sealed record TypeSummaryRequest(
     Guid SnapshotId,
@@ -116,7 +116,7 @@ public sealed record HeapKindTotal(HeapKindDto Kind, long Objects, long Bytes);
 /// The answer to a type summary: the rows as a result set (columns: name, objects, bytes, percent, then bytes per heap
 /// kind when <see cref="HasGenerations"/>), and totals over the whole snapshot (not only the filtered rows). Totals and
 /// rows count every object in the dump, including unreachable objects the GC has not collected yet; the retained column
-/// (sprint 2.3, when asked for) counts only what roots reach.
+/// (when asked for) counts only what roots reach.
 /// </summary>
 /// <param name="TotalTypes">Distinct types present in the snapshot.</param>
 /// <param name="UnfilteredRows">Rows of the requested grouping before the filter (types, namespaces or assemblies).</param>
@@ -133,7 +133,7 @@ public sealed record TypeSummaryResult(
     DominatorIndexInfo? Dominators = null,
     ObjectSetInfo? Set = null);
 
-/// <summary>A snapshot comparison query (sprint 1.4, ADR-018).</summary>
+/// <summary>A snapshot comparison query (ADR-018).</summary>
 /// <param name="BaselineId">The earlier snapshot; deltas are current minus baseline.</param>
 /// <param name="CurrentId">The later snapshot.</param>
 /// <param name="GroupBy">Rows per type, namespace or assembly.</param>
@@ -141,17 +141,16 @@ public sealed record TypeSummaryResult(
 /// <param name="SortColumn">The name of a result column to sort by; null sorts by <see cref="TypeDiffColumns.BytesDelta"/>.</param>
 /// <param name="Descending">Sort direction.</param>
 /// <param name="MatchObjects">
-/// Adds the <see cref="TypeDiffColumns.NewObjects"/> and <see cref="TypeDiffColumns.DeadObjects"/> columns (sprint 3.3,
-/// ADR-032): objects matched by address and type, only for two snapshots of one process (otherwise the result's
+/// Adds the <see cref="TypeDiffColumns.NewObjects"/> and <see cref="TypeDiffColumns.DeadObjects"/> columns (ADR-032): objects matched by address and type, only for two snapshots of one process (otherwise the result's
 /// <see cref="TypeDiffResult.IdentityNote"/> says why and the columns are left out).
 /// </param>
 /// <param name="IncludeRetained">
-/// Adds each row's retained lower bound in both snapshots and the delta (sprint 3.3); computes or opens both snapshots'
+/// Adds each row's retained lower bound in both snapshots and the delta; computes or opens both snapshots'
 /// dominators. Not for interface rows.
 /// </param>
 /// <param name="Allocations">
 /// Adds <see cref="TypeDiffColumns.AllocatedBytes"/> and <see cref="TypeDiffColumns.AllocatedSamples"/> from a trace of the same
-/// process (sprint 4.4); null leaves them out.
+/// process; null leaves them out.
 /// </param>
 public sealed record TypeDiffRequest(
     Guid BaselineId,
@@ -172,10 +171,10 @@ public static class TypeDiffColumns
     public const string BaselineTypes = "BaselineTypes";
     public const string CurrentTypes = "CurrentTypes";
 
-    /// <summary>Hidden key column in Type grouping: the raw type name (sprint 1.5).</summary>
+    /// <summary>Hidden key column in Type grouping: the raw type name.</summary>
     public const string TypeName = "TypeName";
 
-    /// <summary>Hidden key column in Type grouping: the module file name, empty when none (sprint 1.5).</summary>
+    /// <summary>Hidden key column in Type grouping: the module file name, empty when none.</summary>
     public const string Module = "Module";
     public const string BaselineObjects = "BaselineObjects";
     public const string CurrentObjects = "CurrentObjects";
@@ -185,7 +184,7 @@ public static class TypeDiffColumns
     public const string BytesDelta = "BytesDelta";
 
     /// <summary>
-    /// Current objects of the row with no object of their type at their address in the baseline (sprint 3.3, ADR-032:
+    /// Current objects of the row with no object of their type at their address in the baseline (ADR-032:
     /// allocated since, or moved by a compacting collection).
     /// </summary>
     public const string NewObjects = "NewObjects";
@@ -193,7 +192,7 @@ public static class TypeDiffColumns
     /// <summary>Baseline objects of the row with no object of their type at their address in the current snapshot (collected, or moved).</summary>
     public const string DeadObjects = "DeadObjects";
 
-    /// <summary>The row's retained lower bound in the baseline (sprint 3.3, as the type summary's retained column).</summary>
+    /// <summary>The row's retained lower bound in the baseline (as the type summary's retained column).</summary>
     public const string BaselineRetained = "BaselineRetained";
 
     /// <summary>The row's retained lower bound in the current snapshot.</summary>
@@ -202,7 +201,7 @@ public static class TypeDiffColumns
     /// <summary>Current minus baseline retained lower bound.</summary>
     public const string RetainedDelta = "RetainedDelta";
 
-    /// <summary>Byte deltas per heap kind (sprint 3.3, when both snapshots have generations).</summary>
+    /// <summary>Byte deltas per heap kind (when both snapshots have generations).</summary>
     public const string Gen0Delta = "Gen0Delta";
 
     public const string Gen1Delta = "Gen1Delta";
@@ -213,7 +212,7 @@ public static class TypeDiffColumns
 
     public const string PohDelta = "PohDelta";
 
-    /// <summary>Sampled bytes of the row's types allocated between the snapshots (sprint 4.4, an estimate); empty without a sample.</summary>
+    /// <summary>Sampled bytes of the row's types allocated between the snapshots (an estimate); empty without a sample.</summary>
     public const string AllocatedBytes = "AllocatedBytes";
 
     /// <summary>The samples behind <see cref="AllocatedBytes"/>.</summary>
@@ -273,7 +272,7 @@ public sealed record TypeDiffResult(
     DiffAllocationInfo? Allocations = null);
 
 /// <summary>
-/// A trend across several snapshots (sprint 3.3): rows per type, namespace, assembly or interface with objects and bytes
+/// A trend across several snapshots: rows per type, namespace, assembly or interface with objects and bytes
 /// in each snapshot, in the order given (2 to <see cref="TypeTrendColumns.MaxSnapshots"/>).
 /// </summary>
 public sealed record TypeTrendRequest(

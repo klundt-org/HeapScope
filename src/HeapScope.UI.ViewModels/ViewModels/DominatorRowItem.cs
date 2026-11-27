@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>A row of the dominator tree grid (sprint 2.4), filled from the worker's columns by name.</summary>
+/// <summary>A row of the dominator tree grid, filled from the worker's columns by name.</summary>
 public sealed class DominatorRowItem(int index, bool typeGroups) : ObservableObject, IIndexedRow
 {
     /// <summary>Pixels of indentation per tree level.</summary>
@@ -61,7 +61,7 @@ public sealed class DominatorRowItem(int index, bool typeGroups) : ObservableObj
 
     public long Retained { get; private set; }
 
-    /// <summary>Whether <see cref="Retained"/> is a lower bound (a group or a "more" row; sprint 3.12, M6).</summary>
+    /// <summary>Whether <see cref="Retained"/> is a lower bound (a group or a "more" row).</summary>
     public bool RetainedIsLowerBound { get; private set; }
 
     /// <summary>The Retained cell: "≥ " before a lower bound (the owner's wording, 2026-11-12).</summary>

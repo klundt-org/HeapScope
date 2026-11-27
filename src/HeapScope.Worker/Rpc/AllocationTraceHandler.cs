@@ -143,7 +143,7 @@ internal sealed class AllocationTraceHandler(
             var stacks = top.Select(s => new AllocationStackDto(s.Bytes, s.Samples, [.. AllocationProfile.FramesOf(open.Trace, s.Node).Select(f => open.Trace.Frames[f])])).ToArray();
 
             // Every stack answered, with its rank, its innermost stack node (which rebuilds it from the same trace) and its
-            // frames, allocating frame first: framework frames come first, so the disputed one may be deep (the 2.5 review).
+            // frames, allocating frame first: framework frames come first, so the disputed one may be deep.
             Logger.LogInformation(
                 "Allocation stacks of trace {Id}{AsOf} from {From} s to {To}, type {Type}: {Samples} samples of {Bytes} bytes, {Count} stacks: {Stacks}",
                 request.TraceId,

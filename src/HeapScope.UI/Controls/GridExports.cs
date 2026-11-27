@@ -35,7 +35,7 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// CSV export of every grid (sprint 2.7). A grid with an <c>ExportName</c> gets "Export to CSV..." in its context menu;
+/// CSV export of every grid. A grid with an <c>ExportName</c> gets "Export to CSV..." in its context menu;
 /// choosing it (or Command+E while the grid has focus) raises <see cref="ExportRequestedEvent"/>, which the window hands
 /// to the shell's <see cref="GridExportService"/>. A worker-backed grid exports its row list (all of the result's rows);
 /// a grid of rows held in memory exports its visible columns, read through their bindings.
@@ -55,7 +55,7 @@ public static class GridExports
 
     /// <summary>
     /// A column of a grid of in-memory rows that shows the target's data (a process's command line): left out of an export
-    /// unless the person opts in, as a worker column with <see cref="ResultColumn.HasValues"/> is (review H1).
+    /// unless the person opts in, as a worker column with <see cref="ResultColumn.HasValues"/> is.
     /// </summary>
     public static readonly AttachedProperty<bool> HasValuesProperty =
         AvaloniaProperty.RegisterAttached<DataGridColumn, bool>("HasValues", typeof(GridExports));
@@ -153,7 +153,7 @@ public static class GridExports
 
     /// <summary>
     /// The visible columns and rows of a grid of in-memory rows, read on the dispatcher when the export starts, in the
-    /// grid's current sort (its collection view; review).
+    /// grid's current sort (its collection view).
     /// </summary>
     private sealed class ItemsGridExport(IReadOnlyList<ResultColumn> columns, List<IReadOnlyList<string?>> rows) : IGridExport
     {
@@ -161,7 +161,7 @@ public static class GridExports
 
         public int RowCount => rows.Count;
 
-        /// <summary>A column's name: a header that carries a tooltip is a TextBlock, whose ToString is its type's name (3.11 review).</summary>
+        /// <summary>A column's name: a header that carries a tooltip is a TextBlock, whose ToString is its type's name.</summary>
         internal static string? HeaderText(object? header) => header is TextBlock block ? block.Text : header?.ToString();
 
         public static ItemsGridExport? From(DataGrid grid, IEnumerable items)
@@ -215,7 +215,7 @@ public static class GridExports
     }
 }
 
-/// <summary>A grid asked to be exported (sprint 2.7).</summary>
+/// <summary>A grid asked to be exported.</summary>
 public sealed class GridExportRequestedEventArgs(string name, IGridExport export) : RoutedEventArgs
 {
     public string Name { get; } = name;

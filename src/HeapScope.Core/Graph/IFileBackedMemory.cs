@@ -25,7 +25,7 @@
 namespace HeapScope.Core.Graph;
 
 /// <summary>
-/// Marks a <see cref="System.Buffers.MemoryManager{T}"/> whose memory is a view of a file (sprint 4.8, F13), so
+/// Marks a <see cref="System.Buffers.MemoryManager{T}"/> whose memory is a view of a file, so
 /// <see cref="Column{T}.IsFileBacked"/> can tell file-backed columns from the process's private memory.
 /// </summary>
 public interface IFileBackedMemory;

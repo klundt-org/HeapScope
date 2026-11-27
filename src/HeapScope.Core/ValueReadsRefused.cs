@@ -24,7 +24,7 @@
 namespace HeapScope.Core;
 
 /// <summary>
-/// Why a full dump's field values and strings are not read (sprint 3.12): its DAC was declined, or its index cache came from
+/// Why a full dump's field values and strings are not read: its DAC was declined, or its index cache came from
 /// an older loader because a rebuild could not reach a DAC. A snapshot that carries it has no <see cref="IObjectReader"/>;
 /// every rule that offers or refuses a value read words its refusal with <see cref="Reason"/>.
 /// </summary>

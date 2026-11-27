@@ -31,7 +31,7 @@ namespace HeapScope.UI.ViewModels;
 public sealed partial class CompareViewModel
 {
     /// <summary>
-    /// A row's new, dead or survived objects as a set (decision 2): new and survived in the current snapshot against the
+    /// A row's new, dead or survived objects as a set: new and survived in the current snapshot against the
     /// baseline, dead in the baseline against the current snapshot.
     /// </summary>
     private void OpenChange(DiffRowItem? row, ObjectChange change, INavigator? navigator)
@@ -87,7 +87,7 @@ public sealed partial class CompareViewModel
             return;
         }
 
-        // One snapshot's objects: the current one's, or the baseline's when none of the types is left (the 3.1 review: types
+        // One snapshot's objects: the current one's, or the baseline's when none of the types is left (types
         // only in the baseline are left out of a current set, and the status says so).
         var inBaselineOnly = Baseline is { } baseline && keyed.All(r => r.CurrentObjects == 0);
         var side = inBaselineOnly ? Baseline! : current;
@@ -120,7 +120,7 @@ public sealed partial class CompareViewModel
 
     /// <summary>
     /// Opens a row's type on the Snapshot tab: its objects in the current snapshot, or in the baseline for a type the
-    /// current snapshot no longer has (ADR-018; sprint 1.5 review).
+    /// current snapshot no longer has (ADR-018).
     /// </summary>
     private void OpenRow(DiffRowItem? row, INavigator? navigator)
     {
@@ -132,7 +132,7 @@ public sealed partial class CompareViewModel
         if (row.TypeName is null)
         {
             // In Type grouping a row has no key only when one side merged several of its types under one name: a full
-            // dump's nested types compared with a gcdump, which records them without their declaring type (sprint 1.8).
+            // dump's nested types compared with a gcdump, which records them without their declaring type.
             Status = GroupBy == TypeGrouping.Type
                 ? "This row joins several types of the full dump under the one name the gcdump records, so it cannot open one type's objects. Find the type in the full dump's own summary."
                 : "Group by type to open a row's objects.";

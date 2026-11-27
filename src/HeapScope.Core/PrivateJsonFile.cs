@@ -27,7 +27,7 @@ using System.Text.Json;
 namespace HeapScope.Core;
 
 /// <summary>
-/// HeapScope's own small JSON files, one way (peer review 4.5 M6): a lock file around a read and its write, reads that share the
+/// HeapScope's own small JSON files, one way: a lock file around a read and its write, reads that share the
 /// file and try again while it is held, writes to a new file flushed to the disk that then replaces the old one (tried again while a
 /// reader holds it), and a file that cannot be read now is never taken as empty.
 /// </summary>

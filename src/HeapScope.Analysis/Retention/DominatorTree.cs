@@ -44,14 +44,14 @@ public enum DominatorPhase
 public readonly record struct DominatorProgress(DominatorPhase Phase, long Done, long Total);
 
 /// <summary>
-/// Immediate dominators and retained sizes (sprint 2.3, ARCHITECTURE.md 6.4). An object's immediate dominator is the
+/// Immediate dominators and retained sizes (ARCHITECTURE.md 6.4). An object's immediate dominator is the
 /// closest object every path from a root to it passes through; its retained size is its own size plus the sizes of the
 /// objects it dominates, the bytes that would become unreachable without it. Paths start at a virtual root joined to
 /// exactly the objects of <see cref="PathRoots.Sources"/> (retaining roots, then frozen objects), so retention paths and
 /// dominators agree on what is alive by itself.
 /// </summary>
 /// <remarks>
-/// Semi-NCA (Georgiadis; the Lengauer-Tarjan family), chosen in sprint 1.9: a depth-first preorder, semidominators in one
+/// Semi-NCA (Georgiadis; the Lengauer-Tarjan family): a depth-first preorder, semidominators in one
 /// reverse preorder pass with path-compressed evaluation, then each immediate dominator as the nearest common ancestor of
 /// its depth-first parent and its semidominator. Every step is iterative: the depth-first search keeps no stack (it climbs
 /// back through the parents and keeps each vertex's next edge in an array used later for labels) and the path compression
@@ -67,19 +67,19 @@ public static class DominatorTree
     public const int VirtualRoot = -2;
 
     /// <summary>
-    /// The version of this computation's own rules; part of <see cref="SemanticsVersion"/>. Version 2 (sprint 2.4, ADR-027):
+    /// The version of this computation's own rules; part of <see cref="SemanticsVersion"/>. Version 2 (ADR-027):
     /// the dominator tree's children are kept too (<see cref="BuildChildren"/>), so older sidecars are rebuilt once.
     /// </summary>
     public const int AlgorithmVersion = 2;
 
     /// <summary>
-    /// The version of the rules the results depend on (decision 2): where paths start (<see cref="PathRoots.SemanticsVersion"/>)
+    /// The version of the rules the results depend on: where paths start (<see cref="PathRoots.SemanticsVersion"/>)
     /// and this computation's own. A dominators sidecar computed under another version is rebuilt.
     /// </summary>
     public const int SemanticsVersion = (PathRoots.SemanticsVersion << 16) | AlgorithmVersion;
 
     /// <summary>
-    /// Bytes per object kept: the immediate dominator (4), the retained size (8), and the tree's children (sprint 2.4: a
+    /// Bytes per object kept: the immediate dominator (4), the retained size (8), and the tree's children (a
     /// row offset and a child per object, 4 each).
     /// </summary>
     public const int KeptBytesPerObject = 20;
@@ -87,7 +87,7 @@ public static class DominatorTree
     /// <summary>
     /// Bytes per object of managed working arrays while computing (vertex, parent and label by preorder number, plus a bit
     /// per object for the roots), rounded up. The semidominators and the forest's ancestors live in the retained sizes
-    /// output until the sizes are summed, and the preorder numbers in the immediate dominators output (review M4), so
+    /// output until the sizes are summed, and the preorder numbers in the immediate dominators output, so
     /// managed outputs come on top only when the outputs themselves are managed.
     /// </summary>
     public const int WorkingBytesPerObject = 13;
@@ -96,11 +96,11 @@ public static class DominatorTree
     private const int Chunk = 1 << 16;
 
     /// <summary>
-    /// The dominator tree's children (sprint 2.4, ADR-027) as a CSR: vertex v's children are
+    /// The dominator tree's children (ADR-027) as a CSR: vertex v's children are
     /// <c>children[childStarts[v]..childStarts[v + 1]]</c>, where v is an object index or n (the virtual root, whose
     /// children are the top-level dominators); each slice is in object index order. Queries order the rows they show by
     /// retained size (<see cref="RetainedOrder"/>): sorting every slice here took 10 s on Medium and scattered the walk of
-    /// <see cref="GroupRetention"/> (the 2.4 review). <paramref name="childStarts"/> has n + 2 elements and
+    /// <see cref="GroupRetention"/>. <paramref name="childStarts"/> has n + 2 elements and
     /// <paramref name="children"/> n (unreachable objects leave its tail unused). No working memory: the counts and the
     /// cursors live in <paramref name="childStarts"/>.
     /// </summary>
@@ -210,7 +210,7 @@ public static class DominatorTree
 
         // Semidominators in reverse preorder; ancestor and label form the path-compressed forest of evaluated vertices.
         // Semidominators and ancestors are kept by preorder number minus one in the retained sizes output, which is not
-        // used until the sizes are summed (review M4): the virtual root (0) is never evaluated, its semidominator is never
+        // used until the sizes are summed: the virtual root (0) is never evaluated, its semidominator is never
         // read and it has no ancestor, so 2 ints per reachable object fit the output's 8 bytes per object.
         var reachable = count - 1;
         var spare = MemoryMarshal.Cast<ulong, int>(retainedSizes);
@@ -358,7 +358,7 @@ public static class DominatorTree
 
     /// <summary>
     /// The vertex with the smallest semidominator on <paramref name="v"/>'s path to the root of its tree in the forest,
-    /// compressing the path as it goes. No buffer (review M5): the climb reverses each ancestor pointer so the path can be
+    /// compressing the path as it goes. No buffer: the climb reverses each ancestor pointer so the path can be
     /// walked back down from its top, where compression must start; a path can be as long as the reachable objects (a
     /// circular list). Ancestors and semidominators are indexed by preorder number minus one; the virtual root (0) has no
     /// ancestor.

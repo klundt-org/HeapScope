@@ -37,17 +37,17 @@ using HeapScope.UI.ViewModels;
 namespace HeapScope.UI.Controls;
 
 /// <summary>
-/// What HeapScope's grids add to the DataGrid (sprint 2.3.6, from the WPF grid helpers of sprints 1.3 to 1.6):
+/// What HeapScope's grids add to the DataGrid (once the WPF grid helpers):
 /// <list type="bullet">
 /// <item><c>Rows</c>: the rows, a data-virtualized row list shown through <see cref="VirtualCollectionView{TRow}"/>.</item>
 /// <item><c>SortCommand</c> and <c>SortState</c>: a header click asks the view model (the worker sorts, since the grid
 /// holds only the rows on screen); the header arrow follows the view model's state ("Bytes|desc").</item>
 /// <item><c>OpenCommand</c>: double-click on a row, or Enter, opens it (dotMemory's one drill-down action).</item>
 /// <item><c>VisibleColumnGroups</c>: a column tagged with a group name (<see cref="ColumnGroups"/>) is shown when the
-/// group is in the list (columns are outside the visual tree, so they cannot bind themselves; 2.3.7 review M13).</item>
+/// group is in the list (columns are outside the visual tree, so they cannot bind themselves).</item>
 /// <item><c>ExpandCommand</c> and <c>CollapseCommand</c>: the Right and Left keys on the selected row (the dominator
-/// tree, sprint 2.4); <c>ScrollToSelection</c> keeps the selected row in view when the view model selects one.</item>
-/// <item><c>ResultColumns</c>: columns built from a result set's column list (inspections, sprint 1.6).</item>
+/// tree); <c>ScrollToSelection</c> keeps the selected row in view when the view model selects one.</item>
+/// <item><c>ResultColumns</c>: columns built from a result set's column list (inspections).</item>
 /// </list>
 /// </summary>
 public static class GridBehaviors
@@ -234,14 +234,14 @@ public static class GridBehaviors
             Key.Left => GetCollapseCommand(grid),
             _ => null,
         };
-        // Handled only when it did something, so an arrow on a leaf still moves as the grid would (the 2.4 review).
+        // Handled only when it did something, so an arrow on a leaf still moves as the grid would.
         if (command is not null && Run(command, item))
         {
             e.Handled = true;
         }
     }
 
-    // The view model selects the row it kept the user's place on; bring it into view (the 2.4 review).
+    // The view model selects the row it kept the user's place on; bring it into view.
     private static void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is DataGrid { SelectedItem: { } item } grid)

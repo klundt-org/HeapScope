@@ -23,7 +23,7 @@
 
 namespace HeapScope.UI.ViewModels;
 
-/// <summary>The page a lesson starts on (sprint 3.13).</summary>
+/// <summary>The page a lesson starts on.</summary>
 public enum LessonPage
 {
     Processes,

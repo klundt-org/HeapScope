@@ -37,8 +37,8 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Snapshots page: open a dump (sprint 1.2), see the open snapshots, and the selected one's overview tiles, heap
-/// kinds bar and types grid (sprint 1.3, dotMemory's types view).
+/// The Snapshots page: open a dump, see the open snapshots, and the selected one's overview tiles, heap
+/// kinds bar and types grid (dotMemory's types view).
 /// </summary>
 public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, IDisposable
 {
@@ -64,7 +64,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     private readonly ILogger? _logger;
     private readonly ILoggerFactory? _loggers;
 
-    // A workspace per open snapshot (peer review 4.5 H13), and the empty one shown while nothing is selected.
+    // A workspace per open snapshot, and the empty one shown while nothing is selected.
     private readonly Dictionary<SnapshotHandle, SnapshotWorkspaceViewModel> _workspaces = [];
     private readonly SnapshotWorkspaceViewModel _empty;
     private SnapshotWorkspaceViewModel _current;
@@ -100,7 +100,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     /// <summary>The workspaces of the open snapshots that have been shown, for tests and the log.</summary>
     public IReadOnlyCollection<SnapshotWorkspaceViewModel> Workspaces => _workspaces.Values;
 
-    /// <summary>The detail tab (2.3.7 review M8: named, not numbered).</summary>
+    /// <summary>The detail tab (named, not numbered).</summary>
     public SnapshotTabs Tab
     {
         get => (SnapshotTabs)SelectedTab;
@@ -129,7 +129,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         if (target.Kind is NavigationKind.Retainers or NavigationKind.RetainedBySet)
         {
             // The target first, so showing the tab queries what it asks for rather than the biggest retainers. The link is a
-            // step of the analysis path (sprint 2.7), replayed when it is chosen again.
+            // step of the analysis path, replayed when it is chosen again.
             Retainers.Navigate(target);
             Navigator.Record(target);
             Tab = SnapshotTabs.Retainers;
@@ -148,12 +148,12 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     /// <summary>The Snapshot tab's subjects of the selected snapshot: the types grid, instances and objects, with back and forward.</summary>
     public NavigatorViewModel Navigator => _current.Navigator;
 
-    /// <summary>Bookmarked objects of every open snapshot (sprint 2.7).</summary>
+    /// <summary>Bookmarked objects of every open snapshot.</summary>
     public BookmarksViewModel Bookmarks { get; }
 
     /// <summary>
     /// Bookmarks <paramref name="row"/>'s object when it opens one, else the object shown on the Snapshot tab, or removes
-    /// its bookmark (Command+D, sprint 2.7); false when there was nothing to bookmark.
+    /// its bookmark (Command+D); false when there was nothing to bookmark.
     /// </summary>
     public async Task<bool> ToggleBookmarkAsync(IObjectLink? row = null)
     {
@@ -181,13 +181,13 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     [RelayCommand]
     private Task ToggleBookmark() => ToggleBookmarkAsync();
 
-    /// <summary>The comparison of two open snapshots (sprint 1.4).</summary>
+    /// <summary>The comparison of two open snapshots.</summary>
     public CompareViewModel Compare { get; }
 
-    /// <summary>The selected snapshot's inspections (sprint 1.6); they run when their tab is shown.</summary>
+    /// <summary>The selected snapshot's inspections; they run when their tab is shown.</summary>
     public InspectionsViewModel Inspections => _current.Inspections;
 
-    /// <summary>The selected snapshot's dominator tree, icicle and set retention (sprint 2.4); queried when the tab is shown.</summary>
+    /// <summary>The selected snapshot's dominator tree, icicle and set retention; queried when the tab is shown.</summary>
     public RetainersViewModel Retainers => _current.Retainers;
 
     public void Dispose()
@@ -204,7 +204,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     }
 
     /// <summary>
-    /// Shows the workspace of <paramref name="snapshot"/>, made the first time (H13): the views it had are shown as they were, and
+    /// Shows the workspace of <paramref name="snapshot"/>, made the first time: the views it had are shown as they were, and
     /// nothing is queried again; null shows the empty one.
     /// </summary>
     private void ShowWorkspace(SnapshotHandle? snapshot)
@@ -261,7 +261,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         Status = $"Opening {System.IO.Path.GetFileName(path)}...";
 
         // The worker snapshot the dump has now, if it is open: an open that changes it was the user's way back from a refused
-        // reopen (3.11 review M1, M12). A silent reopen after a worker restart has already moved the handle on.
+        // reopen. A silent reopen after a worker restart has already moved the handle on.
         var fullPath = System.IO.Path.GetFullPath(path);
         var before = _session.Snapshots.FirstOrDefault(h => PathIdentity.Same(h.Path, fullPath))?.Descriptor.SnapshotId;
         try
@@ -280,14 +280,14 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
             }
             catch (WorkerOperationException ex) when (ex is { ErrorCode: HeapScopeErrorCode.DacNotTrusted, DacTrust: { } dac } && _session.TrustedDacs is { } trusted)
             {
-                // The only matching DAC came with the dump (sprint 3.6, peer review P2): load it only if the user says so.
-                // The question and the answer are logged (review): "it keeps asking" must be answerable from the log.
+                // The only matching DAC came with the dump: load it only if the user says so.
+                // The question and the answer are logged: "it keeps asking" must be answerable from the log.
                 var yes = await _interaction.ConfirmAsync("Trust the DAC next to this dump?", TrustQuestion(dac));
                 _logger?.LogInformation("Asked to trust the DAC {Sha256} at {DacPath} for {Path}; the user answered {Answer}", dac.Sha256, dac.Path, path, yes ? "yes" : "no");
                 if (!yes)
                 {
                     // From its index cache the graph needs no DAC: open it, and only field values and strings are refused
-                    // (re-review). A dump that has to be loaded cannot be read without one.
+                    // A dump that has to be loaded cannot be read without one.
                     try
                     {
                         handle = await _session.StartOpen(path, checkDac: false).Result;
@@ -296,12 +296,12 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
                     {
                         Status = $"Not opened: the DAC next to the dump is not trusted. Install the .NET {dac.RuntimeVersion} runtime, put its DAC in the DAC folder on the Settings page, or open the dump again and trust it.";
 
-                        // What the user was shown, for the log (sprint 4.8 review M17), with the worker's own text beside it.
+                        // What the user was shown, for the log, with the worker's own text beside it.
                         _logger?.LogInformation("{Section} shown as: {Message} (the worker said: {Worker})", "Open", Status, again.Message);
                         return;
                     }
 
-                    // The approved status, with Trust this DAC and reopen beside it (sprint 3.12 re-review).
+                    // The approved status, with Trust this DAC and reopen beside it.
                     ShowOpened(handle, before);
                     Status = OpenedStatus(handle);
                     return;
@@ -324,7 +324,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         }
         catch (Exception ex) when (ex is WorkerException)
         {
-            // What the user was shown, beside the worker's line with its id (sprint 3.12 review M17).
+            // What the user was shown, beside the worker's line with its id.
             _logger?.LogInformation("{Section} shown as: {Message}", "Snapshot open", ex.Message);
             Status = ex.Message;
         }
@@ -336,9 +336,9 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
 
     /// <summary>
     /// Lists and selects what was just opened. Opening a dump again after a refused reopen keeps its handle, so the selection would
-    /// not change and the page would keep the refusal and the old notes (3.10 review M40). When the open changed the handle's
+    /// not change and the page would keep the refusal and the old notes. When the open changed the handle's
     /// worker snapshot (<paramref name="before"/>), its item says so in place, so a pair picked on Compare and Trend's ticks stay
-    /// and run again, and its analysis path starts again, since every step on it asked the earlier snapshot (3.11 review M1). A
+    /// and run again, and its analysis path starts again, since every step on it asked the earlier snapshot. A
     /// dump that was already open gets its item back unchanged.
     /// </summary>
     private void ShowOpened(SnapshotHandle handle, Guid? before)
@@ -365,9 +365,8 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     }
 
     /// <summary>
-    /// The status after an open: a full dump whose DAC cannot be used opens without field values and strings (sprint 3.12:
-    /// missing, declined, or an older cache in place of a rebuild); the notes say why, and an untrusted DAC offers Trust this
-    /// DAC and reopen. Otherwise it says the snapshot is open and where to go next (sprint 3.13.2, owner 2026-11-19: after an
+    /// The status after an open: a full dump whose DAC cannot be used opens without field values and strings (missing, declined, or an older cache in place of a rebuild); the notes say why, and an untrusted DAC offers Trust this
+    /// DAC and reopen. Otherwise it says the snapshot is open and where to go next (owner 2026-11-19: after an
     /// open nothing said it had worked).
     /// </summary>
     private static string OpenedStatus(SnapshotHandle handle) =>
@@ -407,7 +406,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     }
 
     /// <summary>
-    /// Closes a snapshot and deletes its dump with its index caches (sprint 3.4, decision 6), after the user confirms what
+    /// Closes a snapshot and deletes its dump with its index caches, after the user confirms what
     /// goes and its size. Only a snapshot recorded in a HeapScope session is deleted: other dumps are the user's files.
     /// </summary>
     [RelayCommand]
@@ -470,7 +469,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
     {
         RaiseCanTrustDac();
 
-        // Each snapshot keeps its workspace, its analysis path included, while it is open (ADR-029, H13).
+        // Each snapshot keeps its workspace, its analysis path included, while it is open (ADR-029).
         ShowWorkspace(value?.Handle);
     }
 
@@ -483,7 +482,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
 
     private void OnSnapshotsChanged(object? sender, EventArgs e) => _dispatcher.Post(Refresh);
 
-    // Back, Forward or the sidebar showed a step: show its tab, replaying a Retainers link (sprint 2.7).
+    // Back, Forward or the sidebar showed a step: show its tab, replaying a Retainers link.
     private void OnStepShown(object? sender, AnalysisStep step)
     {
         if (step.Target is { } target)
@@ -514,7 +513,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         {
             if (Snapshots.FirstOrDefault(s => s.Handle == handle) is { } shown)
             {
-                // Reopened after a worker restart, or opened again: the row shows the snapshot's new load (3.11 review M12).
+                // Reopened after a worker restart, or opened again: the row shows the snapshot's new load.
                 shown.Reload();
             }
             else
@@ -524,7 +523,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
             }
         }
 
-        // A reopen after a worker restart can change what the selected snapshot offers (3.12 re-review).
+        // A reopen after a worker restart can change what the selected snapshot offers.
         RaiseCanTrustDac();
         if (Selected is not null && !Snapshots.Contains(Selected))
         {

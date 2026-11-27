@@ -35,12 +35,12 @@ using Microsoft.Extensions.Logging;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// The Retainers tab (sprint 2.4, dotMemory's dominators view): the biggest retainers as the top of the dominator tree,
+/// The Retainers tab (dotMemory's dominators view): the biggest retainers as the top of the dominator tree,
 /// expanded in place (a click on the arrow, Enter, Right and Left), children as objects or grouped by type or namespace;
 /// a focus with its dominators as a trail; the icicle chart of the focus; and the objects a type's objects retain
 /// together. Like the inspections, nothing is computed until the tab is shown, since the first query of a snapshot computes
 /// its dominators. The tree is re-queried on every expansion (the worker flattens it; the keys carry the state), and the
-/// worker says where the row just toggled or linked to landed, so it stays selected and in view (the 2.4 review).
+/// worker says where the row just toggled or linked to landed, so it stays selected and in view.
 /// Every user action logs one line under its own activity, so the queries it starts share its trace id.
 /// </summary>
 public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRowItem>
@@ -114,7 +114,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
 
     public static IReadOnlyList<DominatorGroupingDto> Groupings { get; } = Enum.GetValues<DominatorGroupingDto>();
 
-    /// <summary>The tree's note when grouped by Type or Namespace (sprint 3.12, M6; the owner's wording, 2026-11-12).</summary>
+    /// <summary>The tree's note when grouped by Type or Namespace (the owner's wording, 2026-11-12).</summary>
     public const string GroupedNote =
         "Exactly this much for object rows. A Type or Namespace row adds up its members' own retained bytes, so it is at least this much: what several members hold together is counted in the row above.";
 
@@ -191,7 +191,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         if (target.NodeKey is { } groupKey && target.TypeName is { } typeName)
         {
             // A type's group at the top level: group by type and open it. When none of the type's objects is itself a
-            // top-level retainer there is no such group, and the answer says so (the 2.4 review).
+            // top-level retainer there is no such group, and the answer says so.
             _navigating = true;
             Grouping = DominatorGroupingDto.Type;
             _navigating = false;
@@ -217,7 +217,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
             return;
         }
 
-        // Group keys of another grouping mean nothing now (the 2.4 review).
+        // Group keys of another grouping mean nothing now.
         using var activity = Act("group by {0}", value);
         _expanded.RemoveWhere(k => k.Contains("|g:", StringComparison.Ordinal) || k.Contains("|m:", StringComparison.Ordinal));
         RequeryTree();
@@ -243,7 +243,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         }
 
         // A bar selects its row when the row is in the loaded part of the tree; otherwise no row is selected, so the row
-        // commands never act on another one (the 2.4 review). A double-click on the bar focuses on it.
+        // commands never act on another one. A double-click on the bar focuses on it.
         _syncingSelection = true;
         SelectedRow = FindLoadedRow(value.Key);
         _syncingSelection = false;
@@ -293,7 +293,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
 
         if (index >= 0 || (fallback >= 0 && fallback < Rows.Count))
         {
-            // An expanded "more" row is replaced by the next batch, whose first row takes its place (the 2.4 review).
+            // An expanded "more" row is replaced by the next batch, whose first row takes its place.
             SelectTask = SelectAsync(Rows, index >= 0 ? index : fallback);
         }
         else if (missing is not null)
@@ -308,7 +308,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
     [RelayCommand]
     private void Toggle(DominatorRowItem? row)
     {
-        // The open keys decide, not the row, whose state may be a query behind (the 2.4 review).
+        // The open keys decide, not the row, whose state may be a query behind.
         if (row is { CanExpand: true } && row.Key != FocusKey)
         {
             SetExpanded(row, !_expanded.Contains(row.Key));
@@ -333,7 +333,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         }
     }
 
-    // Left and Right on a row they cannot change pass through to the grid (the 2.4 review).
+    // Left and Right on a row they cannot change pass through to the grid.
     private bool CanExpandRow(DominatorRowItem? row) => row is { CanExpand: true } && row.Key != FocusKey && !_expanded.Contains(row.Key);
 
     private bool CanCollapseRow(DominatorRowItem? row) => row is not null && _expanded.Contains(row.Key);
@@ -430,7 +430,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
         return items;
     }
 
-    /// <summary>Starts a user action: its log line, under an activity its queries join (the 2.4 review).</summary>
+    /// <summary>Starts a user action: its log line, under an activity its queries join.</summary>
     private Activity? Act(string action, object argument)
     {
         var activity = new Activity("HeapScope.Retainers").Start();
@@ -478,7 +478,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
     /// <summary>Queries the tree and the icicle once per snapshot and focus, when the tab is shown.</summary>
     private void Start()
     {
-        // A tree whose query failed runs again when the tab is shown again (peer review 4.5 M7).
+        // A tree whose query failed runs again when the tab is shown again.
         if (!CanQuery || (_queried && !LastQueryFailed))
         {
             return;
@@ -500,7 +500,7 @@ public sealed partial class RetainersViewModel : GridQueryViewModel<DominatorRow
 
     private async Task LoadIcicleAsync(SnapshotHandle snapshot, ulong focus, CancellationToken cancellationToken)
     {
-        // Its trace id joins the action's (2.3.7 review M1; the 2.4 review).
+        // Its trace id joins the action's.
         using var activity = new Activity("HeapScope.Query").SetTag("grid", "Icicle").Start();
         IcicleStatus = "Drawing...";
         try

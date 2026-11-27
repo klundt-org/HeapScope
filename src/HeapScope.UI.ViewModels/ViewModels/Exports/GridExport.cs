@@ -35,7 +35,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace HeapScope.UI.ViewModels;
 
 /// <summary>
-/// A grid's rows as an export (sprint 2.7): every row, not only those a virtualizing grid has loaded. A worker-backed
+/// A grid's rows as an export: every row, not only those a virtualizing grid has loaded. A worker-backed
 /// grid's row list is one (<see cref="VirtualRowList{TRow}"/>); a grid of rows held in memory is exported by the view.
 /// </summary>
 public interface IGridExport
@@ -54,7 +54,7 @@ public interface IGridExport
 }
 
 /// <summary>
-/// Exports a grid to a CSV file the person picks (sprint 2.7, ADR-026): asks for the file, asks whether to include
+/// Exports a grid to a CSV file the person picks (ADR-026): asks for the file, asks whether to include
 /// values when the grid has any (no unless they say yes), writes off the dispatcher into a temporary file moved into
 /// place only when complete, and says how it went; <see cref="CancelCommand"/> stops it. The log names the grid, its
 /// result set (the query that made it), the rows expected and written, the columns, the opt-in and the time; never the
@@ -99,7 +99,7 @@ public sealed partial class GridExportService(IUserInteraction interaction, ILog
             return null;
         }
 
-        // Taken before the dialogs, so a second Command+E does not open a second picker (review).
+        // Taken before the dialogs, so a second Command+E does not open a second picker.
         IsExporting = true;
         _cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         string? partial = null;
@@ -122,8 +122,8 @@ public sealed partial class GridExportService(IUserInteraction interaction, ILog
                 name, grid.ResultSetId?.ToString() ?? "in memory", expected, columns, includeValues);
 
             // Written beside the chosen file and moved into place when complete: a stopped export leaves no short file
-            // that looks whole (review).
-            // Created new under a random name, owner-only (sprint 3.7, peer review P15): a file someone made beforehand in a
+            // that looks whole.
+            // Created new under a random name, owner-only: a file someone made beforehand in a
             // shared folder is never written into.
             partial = $"{path}.{Guid.NewGuid():N}.partial";
             var token = _cancel.Token;

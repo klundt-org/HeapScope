@@ -29,7 +29,7 @@ namespace HeapScope.UI.Controls;
 
 /// <summary>
 /// A page host of the shell: the page's view is built when the page is first shown and then kept, so switching pages is
-/// a visibility change, not a rebuild of its grids, and keeps scroll positions and expanded state (sprint 1.5).
+/// a visibility change, not a rebuild of its grids, and keeps scroll positions and expanded state.
 /// </summary>
 public sealed class LazyContentControl : ContentControl
 {
@@ -68,7 +68,7 @@ public sealed class LazyContentControl : ContentControl
     }
 
     /// <summary>
-    /// Builds the page's view and lays it out at <paramref name="size"/> without showing it (sprint 3.12, task 4), so its first
+    /// Builds the page's view and lays it out at <paramref name="size"/> without showing it, so its first
     /// show is a visibility change; the view is the one kept, with its own view model. Returns the view, or null when the
     /// page is already built or has none.
     /// </summary>

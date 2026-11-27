@@ -32,7 +32,7 @@ namespace HeapScope.Loaders.GcDump;
 
 /// <summary>
 /// Loads a gcdump (PerfView's format, written by HeapScope, dotnet-gcdump or PerfView) into a <see cref="HeapGraph"/>
-/// (sprint 1.8, ARCHITECTURE.md 5.2). The file holds a graph of nodes: objects (with addresses, types, sizes and
+/// (ARCHITECTURE.md 5.2). The file holds a graph of nodes: objects (with addresses, types, sizes and
 /// references) below a tree of named pseudo nodes that stand for the roots ("[static vars]", "[local vars]", handles).
 /// Objects become graph objects; the pseudo nodes become root kinds. A gcdump has no generations, field values or string
 /// text, and records only objects that survived the collection it forced.
@@ -41,7 +41,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
 {
     private const int CheckInterval = 1 << 16;
 
-    /// <summary>The first gcdump semantics (sprint 1.8).</summary>
+    /// <summary>The first gcdump semantics.</summary>
     public const int CurrentVersion = 1;
 
     public SnapshotKind Kind => SnapshotKind.GcDump;
@@ -75,15 +75,15 @@ public sealed class GcDumpLoader : ISnapshotLoader
         catch (Exception ex) when (IsReaderInconsistency(ex))
         {
             // A file the reader accepted whose blob disagrees with its tables (a child list running past the blob): crafted
-            // or damaged, refused with a reason, never a crash (sprint 3.7, peer review P13; found by the mutation test).
+            // or damaged, refused with a reason, never a crash (found by the mutation test).
             // Indices are checked explicitly below, and HeapScope's own errors (the builder's) are not caught here, so a bug
-            // never reads as a bad file (3.7 review H5). The exception's type is in the message, which the worker logs.
+            // never reads as a bad file. The exception's type is in the message, which the worker logs.
             throw new SnapshotFormatException($"{fullPath} is not a consistent gcdump ({ex.GetType().Name}: {ex.Message}). The file may be damaged or crafted; capture another gcdump.", ex);
         }
         catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException or InsufficientExecutionStackException or SnapshotFormatException or IOException or UnauthorizedAccessException))
         {
             // Anything else is HeapScope's own error, never the file's: wrapped so the worker logs it as an unexpected
-            // failure with its stack, not as a refusal of a bad request or a bad file (3.7 review H5).
+            // failure with its stack, not as a refusal of a bad request or a bad file.
             throw new InvalidOperationException($"HeapScope could not build the graph of {fullPath}. This is a HeapScope error, not a problem with the file: please report it with the log.", ex);
         }
     }
@@ -91,7 +91,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
     /// <summary>
     /// What the vendored reader throws when a node's child list runs past the blob it reads from: a bare
     /// <see cref="Exception"/> from its stream reader, or an index or argument out of range from its lists. Decided by
-    /// where it was thrown (3.7 review H5): the first frame that is not the runtime's must be the vendored reader's, so the
+    /// where it was thrown: the first frame that is not the runtime's must be the vendored reader's, so the
     /// same exception types from HeapScope's own builder or loader (a bug) are never read as a bad file. A reader accessor
     /// inlined into the loader hides its frame; that case fails safe, as an unexpected error with its stack.
     /// </summary>
@@ -142,7 +142,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
 
         // Sampling (PerfView can write sampled gcdumps) leaves out objects and scales counts; nodes that were referenced
         // but never described, or objects of types the writer never saw described ("UNKNOWN 0x..."), mean the runtime's
-        // events were lost (review M13). Either way the graph is not complete.
+        // events were lost. Either way the graph is not complete.
         var capabilities = SnapshotCapabilities.ObjectGraph | SnapshotCapabilities.ObjectAddresses;
         if (!IsSampled(dump) && undefined == 0 && unknownTypes == 0)
         {
@@ -176,7 +176,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
         try
         {
             // The vendored reader reads the whole file at once; the stream lets that read report progress and stop on
-            // cancellation (review M9).
+            // cancellation.
             using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16);
             using var stream = new ObservedReadStream(file, read => progress?.Report(new LoadProgress("Reading gcdump", read, file.Length)), cancellationToken);
             return new GCHeapDump(stream, path);
@@ -227,15 +227,15 @@ public sealed class GcDumpLoader : ISnapshotLoader
             var rawName = type.Name ?? string.Empty;
             if (TypeNames.IsComCallableWrapper(rawName))
             {
-                continue; // a pseudo node at the native IUnknown address (review H4); the root walk passes through it
+                continue; // a pseudo node at the native IUnknown address; the root walk passes through it
             }
 
-            // The writer stores sizes as int: objects of 2 to 4 GB come back negative (review M10).
+            // The writer stores sizes as int: objects of 2 to 4 GB come back negative.
             ulong size = (uint)node.Size;
             if (TypeNames.IsRuntimeCallableWrapper(rawName))
             {
                 // The writer adds 1,000 bytes for the RCW's native part and a child at the COM object's IUnknown, which is
-                // never described (review H4).
+                // never described.
                 size = size >= TypeNames.RcwOverhead ? size - TypeNames.RcwOverhead : size;
                 var last = NodeIndex.Invalid;
                 for (var child = node.GetFirstChildIndex(); child != NodeIndex.Invalid; child = node.GetNextChildIndex())
@@ -279,8 +279,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
         Array.Sort(sortedAddresses, nodesByObject);
         for (var k = 1; k < sortedAddresses.Length; k++)
         {
-            // The runtime reports each object once; two at one address are the file's, not the builder's, error (3.7 review
-            // H5: found by the mutation test once the loader stopped turning every error into a format refusal).
+            // The runtime reports each object once; two at one address are the file's, not the builder's, error (found by the mutation test once the loader stopped turning every error into a format refusal).
             if (sortedAddresses[k] == sortedAddresses[k - 1])
             {
                 throw new SnapshotFormatException($"The gcdump states two objects at 0x{sortedAddresses[k]:X}. The file is damaged or crafted; capture another gcdump.");
@@ -354,7 +353,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
                 var address = source.GetAddress(children.Take(child));
                 if (address == 0 || IsComCallableWrapper(source, child, type))
                 {
-                    // A pseudo node already walked is not pushed again: many may share one child list (3.7 review H7).
+                    // A pseudo node already walked is not pushed again: many may share one child list.
                     if (!visited.Contains(child))
                     {
                         pending.Push((child, rootClass));
@@ -380,9 +379,9 @@ public sealed class GcDumpLoader : ISnapshotLoader
     }
 
     /// <summary>
-    /// The children every walk of one load reads, together (3.7 review H7): each must be a node of the file, and every child
+    /// The children every walk of one load reads, together: each must be a node of the file, and every child
     /// takes at least a byte of it, so more children than bytes mean nodes share their child lists, which only a crafted
-    /// file does (sprint 3.7, peer review P13: billions of references from a file of a few megabytes). The object, reference
+    /// file does (billions of references from a file of a few megabytes). The object, reference
     /// and root walks all draw on it, so none can spend what another left. Checks cancellation every 64K children.
     /// </summary>
     private sealed class ChildBudget(MemoryGraph source, long budget, CancellationToken cancellationToken)
@@ -412,7 +411,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
     }
 
     /// <summary>
-    /// The file states where its root tree starts (4.2.1, found by the nightly fuzz test). Left to the reader, the error was
+    /// The file states where its root tree starts (found by the nightly fuzz test). Left to the reader, the error was
     /// blamed on HeapScope once the JIT had inlined the accessor that throws (<see cref="IsReaderInconsistency"/>). Every writer
     /// starts it at a described pseudo node, which has no address: an object there would turn its references into roots.
     /// </summary>
@@ -431,7 +430,7 @@ public sealed class GcDumpLoader : ISnapshotLoader
         }
     }
 
-    /// <summary>Reads a node's type after checking its index against the type table, which the file states (3.7 review).</summary>
+    /// <summary>Reads a node's type after checking its index against the type table, which the file states.</summary>
     private static void ReadType(MemoryGraph source, Node node, NodeType storage)
     {
         if ((long)node.TypeIndex < 0 || (long)node.TypeIndex >= (long)source.NodeTypeIndexLimit)
