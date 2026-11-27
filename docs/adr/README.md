@@ -33,7 +33,7 @@ section 13 links here).
 - [ADR-026](ADR-026-sharing-results-an-exported-analysis-analysis-only-by-defaul.md) Sharing results: an exported analysis, analysis only by default (added in sprint 2.3.5)
 - [ADR-027](ADR-027-dominator-children-kept-the-tree-served-flattened.md) Dominator children kept; the tree served flattened (added in sprint 2.4)
 - [ADR-028](ADR-028-allocation-traces-read-in-the-worker-from-eventpipe-allocati.md) Allocation traces read in the worker from EventPipe allocation ticks (added in sprint 2.5; amended in 2.5, 4.2.1 and 4.4)
-- [ADR-029](ADR-029-analysis-path-per-snapshot-bookmarks-by-snapshot-file.md) Analysis path per snapshot; bookmarks by snapshot file (added in sprint 2.7)
+- [ADR-029](ADR-029-analysis-path-per-snapshot-bookmarks-by-snapshot-file.md) Analysis path per snapshot; bookmarks by snapshot file (added in sprint 2.7; amended by ADR-044)
 - [ADR-030](ADR-030-object-sets-as-the-analysis-subject.md) Object sets as the analysis subject (added in sprint 3.1)
 - [ADR-031](ADR-031-similar-retention-and-the-key-paths-diagram.md) Similar Retention and the key paths diagram (added in sprint 3.2)
 - [ADR-032](ADR-032-objects-of-two-snapshots-matched-by-address.md) Objects of two snapshots matched by address (added in sprint 3.3, amends ADR-018; amended by ADR-041)
@@ -48,3 +48,4 @@ section 13 links here).
 - [ADR-041](ADR-041-older-index-cache-in-place-of-a-rebuild-without-a-dac.md) An older index cache in place of a rebuild without a DAC (added in sprint 3.12, amended in 4.5 and 4.7, amends ADR-006, ADR-032, ADR-035 and ADR-036)
 - [ADR-042](ADR-042-tutorial-sample-and-lessons-as-catalogs.md) The tutorial: a shipped sample and lessons, both catalogs (added in sprint 3.13, amends ADR-039)
 - [ADR-043](ADR-043-dump-values-in-logs-by-consent.md) Dump values in logs, by consent (added in sprint 3.13.2)
+- [ADR-044](ADR-044-a-workspace-per-open-snapshot.md) A workspace per open snapshot (added in sprint 4.9, amends ADR-029)

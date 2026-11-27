@@ -269,7 +269,10 @@ Large results are never sent whole. A query creates a result set in the worker a
 worker, producing a new result set. The grids use data virtualization and fetch pages on scroll. Result
 sets are typed sources (`IResultSource`: compact arrays such as indices, counts and sizes) formatted to strings only
 for the requested page, never stored as one string per cell. The store evicts least recently used sets beyond 32
-sets or an estimated 256 MB, whichever comes first (the newest set is always kept). A set can carry an owner, for
+sets or an estimated 256 MB, whichever comes first (the newest set is always kept). Each set names the snapshot it
+came from, and once the client has said which snapshot its window shows (`ShowSnapshotAsync`, ADR-044), the sets of
+the other snapshots are evicted first, least recently used among them, then the rest; sets of no snapshot (traces, a
+synthetic graph) and Compare's diff and trend sets are never preferred. Evictions log at Debug with the shown snapshot. A set can carry an owner, for
 example a snapshot lease, disposed on release or eviction. Producers must stay compact (indices, counts, sizes),
 because the newest set is kept even when it alone exceeds the byte budget. Sources that read the graph or the dump
 while formatting (instances, references) are safe against a release or eviction during a page: the store counts the

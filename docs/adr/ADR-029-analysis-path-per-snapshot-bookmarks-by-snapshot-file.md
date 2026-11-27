@@ -1,4 +1,4 @@
-# ADR-029 Analysis path per snapshot; bookmarks by snapshot file (added in sprint 2.7)
+# ADR-029 Analysis path per snapshot; bookmarks by snapshot file (added in sprint 2.7; amended by ADR-044)
 
 - Context: 2.7's acceptance asks that history survive view switches. Until 2.6 the Snapshot tab kept one linear
   history of 30 subjects, reset whenever another snapshot was selected; going back and opening something dropped the
@@ -16,6 +16,7 @@
   snapshot, so the front end's share grows with the open snapshots; the 2.7 review M3) and their worker result sets,
   which the worker's result set store (32 sets, 256 MB in all) may evict: a step shown again then re-runs its query.
   Releasing the sets of snapshots not shown and measuring three Medium snapshots open are in the Backlog. The types
-  grid is shared by the paths and re-queried for the selected snapshot. Every change to the bookmarks file re-reads it
+  grid was shared by the paths and re-queried for the selected snapshot; since ADR-044 each open snapshot has a workspace
+  of its own, its types grid included, and the worker keeps the shown snapshot's result sets first. Every change to the bookmarks file re-reads it
   under a lock file, so two HeapScope windows keep each other's marks (review H3). Several analyses side by side
   (analysis tabs) are a Phase 4 candidate: the branching path covers coming back to an earlier one without more result sets. Bookmarks are not matched to objects of another dump.

@@ -348,9 +348,9 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   2.7 wrote the first form, a grid as CSV; the export of a whole analysis (several views, the snapshot's metadata) and
   JSON and HTML remain.
 - From the 2.7 review (decided autonomously): a column projection on page requests, so an export without values never
-  reads or sends them (M2, a protocol change); releasing the worker result sets of snapshots not shown, and measuring
-  front end and worker memory with three Medium snapshots open, each with a full analysis path, and trimming the row
-  lists of subjects not shown (M3); export marks for a gcdump's sampled counts (L17).
+  reads or sends them (M2, a protocol change); measuring front end and worker memory with three Medium snapshots open, each with a
+  full analysis path, and trimming the row lists of subjects and workspaces not shown (M3; sprint 4.9 made the worker
+  evict the sets of snapshots not shown first, ADR-044); export marks for a gcdump's sampled counts (L17).
 - More channels and formats (sprint 3.9 decided GitHub Releases with a Windows `.zip`, a Linux `.tar.gz` and the CLI's
   dotnet tool, ADR-039; product owner, 2026-10-31):
   - nuget.org for the dotnet tool: since 3.13.1 the owner uploads the release's package by hand (ADR-039). Next: publish
