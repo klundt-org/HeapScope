@@ -65,7 +65,7 @@ public sealed partial class SnapshotWorkspaceViewModel : ObservableObject, INavi
         Retainers = new RetainersViewModel(session, dispatcher, loggers?.CreateLogger<RetainersViewModel>(), this, loggers?.CreateLogger<RetainedBySetViewModel>());
         Navigator.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(NavigatorViewModel.CurrentStep))
+            if (e.PropertyName == nameof(NavigatorViewModel.Trail))
             {
                 OnPropertyChanged(nameof(Title));
             }
@@ -79,7 +79,7 @@ public sealed partial class SnapshotWorkspaceViewModel : ObservableObject, INavi
     public SnapshotHandle? Snapshot { get; }
 
     /// <summary>The tab's title: the step it shows.</summary>
-    public string Title => Navigator.CurrentStep?.Title ?? "Types";
+    public string Title => Navigator.Trail is [.., var current] ? current.Title : "Types";
 
     /// <summary>The types grid, the root of the analysis path.</summary>
     public TypeSummaryViewModel Types { get; }

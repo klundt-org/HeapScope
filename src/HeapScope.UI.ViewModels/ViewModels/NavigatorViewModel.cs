@@ -307,6 +307,11 @@ public sealed partial class NavigatorViewModel : ObservableObject
         {
             ShowStep(_path.Select(value));
         }
+        else if (value is null)
+        {
+            // The sidebar clears its selection when it shows another tab's path: the current step stays, selected again.
+            Types.UiDispatcher.Post(() => CurrentStep ??= _path.Current);
+        }
     }
 
     private void ShowStep(AnalysisStep step)

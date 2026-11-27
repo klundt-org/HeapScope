@@ -145,10 +145,10 @@ results first. Inputs: the 4.9 review's deferred M4, M6 and M7 (ADR-044), and it
    (`ShowSnapshotAsync(snapshot, scope)`, protocol 26); new sets of the shown snapshot carry the shown tab; eviction goes other
    snapshots first, then the shown snapshot's other tabs, then the rest. Tests: the eviction order with two tabs; the scope over the
    pipe; the page tells the scope on a tab switch.
-5. [ ] The tab strip: on the Snapshots page above the tabs, the selected snapshot's tabs with their titles (the current step's),
+5. [x] The tab strip: on the Snapshots page above the tabs, the selected snapshot's tabs with their titles (the current step's),
    New tab and Close tab, and Ctrl+T and Ctrl+W (Cmd on macOS) in the shortcut table; texts as drafts. Tests: the view binds the
    tabs and commands (UI tests), the shortcuts list, the page and workspace tests on the UI thread.
-6. [ ] Docs: ADR-045 for tabs (amending ADR-044), ARCHITECTURE.md 3.2, process-model.md (protocol 26, the store), code-map.md,
+6. [x] Docs: ADR-045 for tabs (amending ADR-044), ARCHITECTURE.md 3.2, process-model.md (protocol 26, the store), code-map.md,
    logging.md (the tab lines), the user guide (a draft), info-text.md (drafts).
 
 **Decisions**

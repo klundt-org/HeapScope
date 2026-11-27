@@ -293,15 +293,16 @@ Rules:
   references from the project and the shared targets it imports. It also checks every compiled assembly reference
   (solution assemblies and the governed package assemblies) against the same table.
 
-### 3.2 Page model (ADR-044)
+### 3.2 Page model (ADR-044, ADR-045)
 
-The Snapshots page keeps a workspace per open snapshot (`SnapshotWorkspaceViewModel`): its types grid, analysis path,
-inspections and retainers, pointed at that snapshot once. The page shows the selected snapshot's workspace, and its views
-bind through the page to the current one; switching shows a workspace as it was and queries nothing, and closing a
-snapshot disposes its workspace. Compare, Trend and the bookmarks belong to the page, across snapshots. Every link is a
-`NavigationTarget` the page routes: it shows the target snapshot's workspace first, and refuses a link of a snapshot no
-longer open. The page tells the worker which snapshot is shown, so the worker's result set store evicts the others' sets
-first (process-model.md). A view model file stays at 600 lines or fewer, split along its parts (DEVELOPER.md 4).
+The Snapshots page keeps an analysis per open snapshot (`SnapshotAnalysisViewModel`): its tabs, each a workspace
+(`SnapshotWorkspaceViewModel`) with its own types grid, analysis path and retainers, and the inspections they share. The page
+shows the selected snapshot's current tab, and its views bind through the page to it; switching snapshots or tabs shows them as
+they were and queries nothing, and closing a tab or a snapshot disposes what it held. Compare, Trend and the bookmarks belong to
+the page, across snapshots. Every link is a `NavigationTarget`: a tab routes a link of its snapshot into itself and hands one
+into another snapshot to the page, which shows that snapshot's current tab and refuses a link of a snapshot no longer open. The
+page tells the worker which snapshot and tab are shown, so the worker's result set store evicts the other snapshots' sets first,
+then the shown snapshot's other tabs' (process-model.md). A view model file stays at 600 lines or fewer, split along its parts (DEVELOPER.md 4).
 
 ## 4. Process model and IPC
 

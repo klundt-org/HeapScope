@@ -112,6 +112,30 @@
         </ListBox>
       </DockPanel>
     </Grid>
+    <!-- The selected snapshot's analysis tabs (ADR-045): each its own types grid, path and retainers; the inspections are shared. -->
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <Button x:Name="NewTabButton" DockPanel.Dock="Right" Content="New tab" Margin="8,0,0,0" VerticalAlignment="Center" Command="{Binding NewTabCommand}"
+              ToolTip.Tip="Opens another analysis of this snapshot at its types grid, with its own path, filter and Retainers tab, beside the ones you have. The inspections are the same in every tab. Up to 8 tabs." />
+      <ListBox x:Name="AnalysisTabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding CurrentTab, Mode=TwoWay}"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="4" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:SnapshotWorkspaceViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="220" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+              <Button Content="x" Padding="4,0" VerticalAlignment="Center"
+                      Command="{Binding $parent[ListBox].((vm:SnapshotsViewModel)DataContext).CloseTabCommand}" CommandParameter="{Binding}"
+                      IsVisible="{Binding $parent[ListBox].((vm:SnapshotsViewModel)DataContext).CurrentAnalysis.CanCloseTab}"
+                      ToolTip.Tip="Closes this tab, with its path and results. The last tab of a snapshot stays; closing the snapshot closes it." />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
     <TabControl SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
       <TabItem Header="Snapshot">
         <pages:SnapshotTab />

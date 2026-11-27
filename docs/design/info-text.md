@@ -495,6 +495,18 @@ Drafts for the owner (sprint 4.9, workspaces; peer review 4.5 H13).
 | Snapshots | Status when a link (a bookmark, Compare, an inspection) leads into a snapshot that was closed | This link leads into {file}, which is no longer open. Open the dump again to look there. | draft |
 | USER-GUIDE | Switching snapshots | The bullet as written in sprint 4.9: each open snapshot keeps its views as left; a link into a closed one says so | draft |
 
+## Sprint 4.10 additions
+
+Drafts for the owner (sprint 4.10, analysis tabs, ADR-045).
+
+| Page | Where | Text | Status |
+|---|---|---|---|
+| Snapshots | New tab button (tooltip) | Opens another analysis of this snapshot at its types grid, with its own path, filter and Retainers tab, beside the ones you have. The inspections are the same in every tab. Up to 8 tabs. | draft |
+| Snapshots | A tab's close button "x" (tooltip) | Closes this tab, with its path and results. The last tab of a snapshot stays; closing the snapshot closes it. | draft |
+| Snapshots | Status when a ninth tab is refused | A snapshot opens at most 8 tabs. Close one you no longer need, then open a new one. | draft |
+| About | Shortcuts list | "Open another analysis tab of the selected snapshot" (Ctrl+T), "Close the selected snapshot's tab shown (never its last one)" (Ctrl+W) | draft |
+| USER-GUIDE | Analysis tabs | The bullet as written in sprint 4.10 | draft |
+
 ## Evidence: the per-setting drafts
 
 Tables 2 and 3 were merged from these 117 rows, which keep the citations. This table is not itself for approval, and its drafts

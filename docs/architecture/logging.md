@@ -53,6 +53,10 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     stopped ...; {n} run when shown", and "the growth tiles of {path} run when shown ({n} stale)" for a baseline that changed
     while it was hidden; the rerun when shown logs "baseline {b} left for when shown".
   - A link into a snapshot no longer open: "A {kind} link of {snapshot} refused: the snapshot is no longer open".
+  - Tabs (sprint 4.10, ADR-045): "Tab shown ({why}): tab {id} of {path}, new, at the types grid | kept as it was, {n} of {count}",
+    "Tab {id} of {path} closed: its types grid, path and retainers, and their result sets, released ({n} tabs open)", "New tab of
+    {path} refused: 8 tabs open", the closed workspace's count of tabs, and the tell's tab ("worker snapshot {id}, tab {scope}").
+    A navigator refusing a link of another snapshot is a warning.
   - Which snapshot the worker keeps: the client's "The worker was not told the window shows {path}: no worker runs | not open
     in worker generation N yet" and a failed tell (Information); "The worker was told the window shows ..." (Debug). The
     worker's store logs an eviction of the shown snapshot's set, of a set of no snapshot, or of any set while none is shown, at Information with the

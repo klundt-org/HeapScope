@@ -1,4 +1,4 @@
-# ADR-044 A workspace per open snapshot (added in sprint 4.9, amends ADR-029)
+# ADR-044 A workspace per open snapshot (added in sprint 4.9, amends ADR-029; amended by ADR-045)
 
 - Context: peer review 4.5 (H13) found that switching snapshots lost work. ADR-029 kept an analysis path per snapshot,
   but the types grid, the inspections and the retainers were shared by the page and pointed at the selected snapshot

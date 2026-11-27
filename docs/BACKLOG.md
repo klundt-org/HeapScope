@@ -353,7 +353,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   reads or sends them (M2, a protocol change); measuring front end and worker memory with three Medium snapshots open, each with a
   full analysis path, and trimming the row lists of subjects and workspaces not shown (M3; sprint 4.9 made the worker
   evict the sets of snapshots not shown first, ADR-044); export marks for a gcdump's sampled counts (L17).
-- For sprint 4.10, from the 4.9 review (decided autonomously): before tabs multiply the state, measure the UI process's
+- From 4.10 (decided autonomously): "open in a new tab" from a row of a grid or the path (tabs start at the types grid now).
+- For sprint 4.10, from the 4.9 review (decided autonomously, done in 4.10 with ADR-045): before tabs multiply the state, measure the UI process's
   working set and managed heap with three Medium snapshots open, each with a full path and an inspections run, and record it
   in budgets.md (M6); tag the worker's sets by workspace (an opaque scope id, a protocol change) so a tab's hidden siblings
   do not share the shown tab's preference (M4); make the workspace the navigator of its own views, so a link lands in the
