@@ -550,7 +550,9 @@ Adding a feature a user would learn (the Definition of Done item, section 9):
   that only arrives as a dependency counts too. The SIL Open Font License is allowed for fonts only (product owner,
   2026-11-03): the app ships the Inter typeface (ADR-040), with its license text in `build/licenses/Avalonia.Fonts.Inter`,
   which `build/check-package.sh` looks for in a published build. Update `THIRD-PARTY-NOTICES.md` whenever a dependency is
-  added, removed or vendored.
+  added, removed, updated or vendored: `ThirdPartyNoticesTests` (sprint 4.8, peer review 4.5 M2) fails until every package the
+  app's, the CLI's, the worker's and the sample's lock files resolve is listed at the version resolved, so a Dependabot
+  update that changes a shipped version fails CI until its PR updates the notices too.
 - **Adding a worker area** (sprint 3.8): a contract in Contracts (`I...Service`, methods ending in `Async` with the
   token last, names unique across contracts), listed in `WorkerContracts.All` and in `IWorkerService`'s bases; a handler
   (`...Handler : RpcHandler, I...Service`) registered in `WorkerRpcTargets` with `RpcTarget.For`; a fake partial in
