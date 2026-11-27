@@ -493,6 +493,7 @@ Drafts for the owner (sprint 4.9, workspaces; peer review 4.5 H13).
 | Page | Where | Text | Status |
 |---|---|---|---|
 | Snapshots | Status when a link (a bookmark, Compare, an inspection) leads into a snapshot that was closed | This link leads into {file}, which is no longer open. Open the dump again to look there. | draft |
+| USER-GUIDE | Switching snapshots | The bullet as written in sprint 4.9: each open snapshot keeps its views as left; a link into a closed one says so | draft |
 
 ## Evidence: the per-setting drafts
 

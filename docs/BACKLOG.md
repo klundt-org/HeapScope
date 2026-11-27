@@ -21,6 +21,9 @@ Built in sprint 4.8:
   cancels never failed; the churn recording failed once (its `diff` ran past 2 min) and the load cancel three times (its 2 s
   criterion), all while 2 GB loads on the same machine took every processor, and loops 7 to 20 were clean with builds beside them.
   The churn test now ends at once with the reason when its recording stops, and the CLI monitor's rule run is 30 s.
+  Sprint 4.9's last full run (2026-11-27) failed three that pass alone: the load cancel (2.7 s against 2 s), the sample's
+  CLI start (no "Stop it:" within 60 s), and `StartFailureTests`, whose message left out the log folder: find what that one
+  shares with tests running beside it.
 
 Swept in sprint 3.12:
 - The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and
@@ -232,8 +235,7 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   suspend or clock step; a 32-bit target's live call stacks; live wordings for two refusals (its Lows).
 - From 4.3: a stall of 140 to 170 ms, with no processor time used by the UI thread, in some runs of the live smoke runs on a real
   window (3 of 11, with and without the live allocations, none headless): find what it waits for.
-- From 3.8 (decided autonomously): an analysis workspace per snapshot, extracted from
-  the Snapshots page, with a design for the worker's result sets of hidden snapshots (P21, Phase 4); the Object view,
+- From 3.8 (decided autonomously; the workspace per snapshot, P21, came in 4.9 with ADR-044): the Object view,
   the inspections page, the allocation trace page and the icicle loading through the query runner (P8's second wave);
   `OfTypeKeys` and `TypeGroups.MatchTypes` as one matcher (S5, both normalize the module since 3.8).
 - From the 3.8 review (decided autonomously): view models reading cells by column name and refusing a missing required

@@ -14,8 +14,9 @@
   `bookmarks.json` beside the session library.
 - Consequences: subjects of every open snapshot's path keep their row lists in the front end (up to 30 steps per
   snapshot, so the front end's share grows with the open snapshots; the 2.7 review M3) and their worker result sets,
-  which the worker's result set store (32 sets, 256 MB in all) may evict: a step shown again then re-runs its query.
-  Releasing the sets of snapshots not shown and measuring three Medium snapshots open are in the Backlog. The types
+  which the worker's result set store (32 sets then, 128 since ADR-044; 256 MB in all) may evict: a step shown again then
+  re-runs its query. The worker evicts the sets of snapshots not shown first (ADR-044); measuring three Medium snapshots open
+  is in the Backlog. The types
   grid was shared by the paths and re-queried for the selected snapshot; since ADR-044 each open snapshot has a workspace
   of its own, its types grid included, and the worker keeps the shown snapshot's result sets first. Every change to the bookmarks file re-reads it
   under a lock file, so two HeapScope windows keep each other's marks (review H3). Several analyses side by side

@@ -60,12 +60,15 @@ highest severity. Moderates decided autonomously: fixed, or deferred to the Back
   stops, the loader version history was garbled, a measured 1.2 GB read as the load's peak, and DacLocator lost its two version
   examples. Fixed: the XML comments of views and project files and the bare history reworded; the broken sentences, the loader history,
   the 1.2 GB (chunks, with the peak's 3.2 to 1.7 GB) and DacLocator's versions repaired; `SourceCommentTests` reads a run of comment
-  lines as one text, `/* */` and the XML comments, and refuses "since/before X.Y", with tests. DEVELOPER.md 4 says what is enforced.
-  Status: Fixed (decided autonomously).
+  lines as one text, `/* */` and the XML comments, and refuses "since/before X.Y" (and X.Y.Z), with tests. DEVELOPER.md 4 says what
+  is enforced. Status: Fixed (decided autonomously).
+- M15 (support-engineer, in the re-check) "Workspace shown ... kept as it was, nothing queried" was logged after the tab was set, which
+  may start a stopped run or the stale growth tiles, so it claimed more than was true and followed the queries it caused. Fixed: logged
+  before the tab, and a kept workspace says what may still run. Status: Fixed (decided autonomously).
 
 ## Low
 
-Listed only, not fixed.
+Listed only, not fixed (from the review and its re-checks).
 
 - L1 (solution-architect, senior-dev) `ShowInBackground` sends unordered calls; two quick switches (or a close that sends none, then the
   next) may be applied out of order until the next switch. `InvokeAsync` can start a worker that died between the state check and the
@@ -87,18 +90,45 @@ Listed only, not fixed.
 - L11 (support-engineer) The re-query line has no previous row count or snapshot, so a re-run that gives another count is not flagged.
 - L12 (support-engineer) The closed-snapshot link text names only the file and does not say to follow the link again from the reopened
   snapshot; it is a draft for the owner.
-- L13 (support-engineer, pre-existing) CLI option help still says "(sprint 3.3)", "(sprint 2.6)" and "(sprint 3.5)": user-facing text,
-  left for a text pass with the owner's approval.
+- L13 (support-engineer, senior-dev, pre-existing) CLI option help still says "(sprint 3.3)", "(sprint 2.6)" and "(sprint 3.5)":
+  user-facing text, left for a text pass with the owner's approval.
+- L14 (gc-specialist, solution-architect) A query that holds its lease when its snapshot closes can still add its set after
+  `ReleaseSnapshot`; that set keeps the closed graph until released or evicted (process-model.md says so). A throwing owner `Dispose`
+  in `ReleaseSnapshot` skips the rest and fails the close (L4's path).
+- L15 (senior-dev) A cancelled rerun's tile status can overwrite "Running..." on a tile the next rerun has started.
+- L16 (senior-dev) The switching test does not assert that no new retainers query ran; the Retainers link test starts from the Snapshot
+  tab, not with Retainers active (L6).
+- L17 (senior-dev) The test dispatcher's `BlockingCollection` is never disposed; one page in `SnapshotsViewModelTests` is not disposed.
+- L18 (senior-dev) `SourceCommentTests` skips a comment after code on a line with a quote before it (`Foo("x"); // ...`), and a bare
+  finding id ("as B5 shows") passes it; the one found was removed.
 
 ## Measurements and runs
 
 - Before the review: Debug build 0 warnings; `dotnet test --solution HeapScope.sln` 2,354 tests, 2,327 passed, 27 skipped, 0 failed.
 - Page and workspace tests on the UI thread: no change was raised off it, five runs.
+- After the fixes: the view model tests 357, the architecture tests 83, each run green; the race test fails with its fix removed.
+- Final run: Debug build 0 warnings; 2,371 tests, 2,341 passed, 27 skipped, 3 failed under load and passed alone (the load cancel's
+  2 s, the sample's CLI start, `StartFailureTests`' log folder; Backlog).
 
 ## Confirmations
 
-To be filled as each fix goes back to the reviewer that raised it.
+- First re-check (commit 94eef0a): support-engineer confirmed H1, M9, M10 and M1's deferral, and raised M15; gc-specialist confirmed M4
+  and M5, accepted M6's deferral, and found the 1.2 GB comment (M14) still inaccurate (fixed with its wording); senior-dev confirmed M3,
+  M11, M12 and M13, and M2 and M14 with a Low each (a stopped rerun still ending when shown again; two theme comments); solution-architect
+  confirmed M8, accepted M4's and M7's deferrals, and found M1 not fully fixed for the same race, as a Moderate. Fixed: the stopped
+  rerun's tiles run once it ends (`RerunWhenEndedAsync`), with a test that fails without the fix; the theme comments reworded and the
+  rule widened to X.Y.Z after since and before.
+- Second re-check: all four confirmed the rest. solution-architect: M1 confirmed (the race, its test, the closed snapshot's sets in
+  process-model.md). support-engineer: M15 and the stopped-rerun Low confirmed; logging.md's order note made exact. gc-specialist: the
+  collection comment confirmed accurate. senior-dev: M2 and M14 confirmed. Nothing High or Moderate remains open.
 
 ## Markdown sweep
 
-To be filled after the fixes are confirmed.
+After the fixes were confirmed, the tracked Markdown files were checked against what this sprint changed (the workspace model, the
+result set store and protocol 25, the split view models, the comment rule and the test UI thread). Changed: ADR-029 (the store's cap
+and the hidden sets, pointing to ADR-044), ADR-044 (the review's decisions), BACKLOG.md (P21 done; the 4.10 items),
+design/refactor-analysis.md (the workspace candidate done), architecture/process-model.md (the bump rule names an added method; the cap;
+closing drops sets), architecture/threading.md and code-map.md (the test UI thread), architecture/logging.md (the Workspaces lines),
+DEVELOPER.md (the comment rule as enforced), USER-GUIDE.md (switching snapshots, a draft), design/info-text.md (the drafts), and the
+senior-dev brief (the size and comment rules). CLAUDE.md (git-ignored) has both rules. Past review files and RELEASE-NOTES' past
+sections are records and were left as written. No em or en dashes in the changed files.

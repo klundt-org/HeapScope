@@ -7,7 +7,8 @@ references such as "ARCHITECTURE.md 8" still name the right section.
 - **UI**: view models are touched only on the dispatcher thread. All Application calls are `async` and
   awaited from view models; `.Result`, `.Wait()` and `Dispatcher.Invoke` for long work are forbidden.
   Application events (job progress, worker state) arrive on any thread and are marshaled with `IUiDispatcher`
-  (`AvaloniaUiDispatcher` in the app, `ImmediateUiDispatcher` in tests). No dispatcher work item may block more than
+  (`AvaloniaUiDispatcher` in the app; in tests `ImmediateUiDispatcher`, or `SingleThreadUiDispatcher`, a UI thread of its
+  own on which the page and workspace tests fail a change raised elsewhere). No dispatcher work item may block more than
   100 ms.
 - **Responsiveness measurement**: `DispatcherWatchdog` posts an input-priority probe every 25 ms and logs any
   delay over 100 ms (with UI-process GC pause time). Since the Avalonia port (sprint 2.3.6) a second probe at the

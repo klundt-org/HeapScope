@@ -149,11 +149,10 @@ public sealed class ClrMdDumpLoader(ClrMdLoaderOptions? options = null) : ISnaps
 
         builder.FreezeObjects(cancellationToken);
 
-        // Freezing copied the chunked object buffers into the final columns; about 20 bytes per object of chunks are
-        // garbage now. Without an aggressive collection the GC keeps that memory committed through the reference pass,
-        // which is where the load peaks: about 1.2 GB of chunks on the Medium dump (the load's peak fell from 3.2 GB to 1.7 GB with this
-        // collection). FreezeObjects already lets the chunks go; this collection compacts the heap and returns the freed memory
-        // before the reference pass. A phase of its own.
+        // Freezing copied the chunked object buffers into the final columns and dropped the chunks (about 18 bytes per
+        // object, about 1 GB on the Medium dump), collecting them. This aggressive, compacting collection returns that memory
+        // to the system before the reference pass, where the load peaks. When it was added, before FreezeObjects collected,
+        // it took the Medium dump from 3.2 GB to 1.7 GB at the start of the reference pass. A phase of its own.
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         var freeze = meter.End("freeze and collect");
         var handles = HandleTables.Read(runtime, dac.Path, minidump && !_options.IgnoreProcessorsForTests ? MinidumpHeader.Processors(fullPath, cancellationToken) : null, !_options.SecondHandleWalk, progress, cancellationToken);

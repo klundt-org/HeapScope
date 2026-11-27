@@ -22,7 +22,7 @@
 
   Commercial licenses are available. See COMMERCIAL.md.
 -->
-<!-- HeapScope light theme (Avalonia since 2.3.6). Both themes define the same keys; a test checks it. -->
+<!-- HeapScope light theme (Avalonia). Both themes define the same keys; a test checks it. -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <SolidColorBrush x:Key="Brush.Window" Color="#FFFFFFFF" />

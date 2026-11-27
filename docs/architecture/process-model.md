@@ -238,7 +238,7 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   (null: none), and the result set store evicts the sets of the other snapshots first, least recently used among them; then
   the rest, least recently used. Sets of no snapshot (traces, a synthetic graph) and Compare's diff and trend sets are never
   preferred for eviction. Before the client says anything, eviction is least recently used, as before.
-- When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
+- When to bump `WorkerProtocol.Version`: for a method added, removed or renamed, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id
   the worker does not list is unavailable.
@@ -272,7 +272,9 @@ for the requested page, never stored as one string per cell. The store evicts le
 sets or an estimated 256 MB, whichever comes first (the newest set is always kept). Each set names the snapshot it
 came from, and once the client has said which snapshot its window shows (`ShowSnapshotAsync`, ADR-044), the sets of
 the other snapshots are evicted first, least recently used among them, then the rest; sets of no snapshot (traces, a
-synthetic graph) and Compare's diff and trend sets are never preferred. Evictions log at Debug with the shown snapshot. A set can carry an owner, for
+synthetic graph) and Compare's diff and trend sets are never preferred. Closing a snapshot drops its sets, so a page of one
+fails with `ResultSetNotFound` and its handle runs the query again on the reopened snapshot (a set a query adds just
+after the close stays until released or evicted). Evictions log as logging.md says. A set can carry an owner, for
 example a snapshot lease, disposed on release or eviction. Producers must stay compact (indices, counts, sizes),
 because the newest set is kept even when it alone exceeds the byte budget. Sources that read the graph or the dump
 while formatting (instances, references) are safe against a release or eviction during a page: the store counts the

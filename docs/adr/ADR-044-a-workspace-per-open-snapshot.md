@@ -24,7 +24,8 @@
     rest. Sets of no snapshot (traces, a synthetic graph) and Compare's diff and trend sets are never preferred. Before the
     client says anything, eviction is least recently used, as before. The count cap is 128 sets (32 before): an inspections run
     alone holds about 20, so two or three workspaces fit, and the 256 MB byte budget stays the memory guard. Closing a snapshot
-    in the worker drops its sets, so none keeps a closed graph alive through its lease. A set evicted from a hidden workspace runs its query
+    in the worker drops its sets, so none that exists at the close keeps the closed graph alive through its lease (a query
+    already running may still add one, kept until released or evicted). A set evicted from a hidden workspace runs its query
     again when paged (`ResultSetHandle`), so a workspace shown again re-runs only what was evicted.
 - Consequences: the front end keeps every open snapshot's views and row lists while it is open (ADR-029 already kept its
   path's steps); measuring front end and worker memory with three Medium snapshots open, and trimming the row lists of

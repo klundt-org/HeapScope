@@ -227,15 +227,17 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         _current = workspace;
         _current.Navigator.StepShown += OnStepShown;
         _current.Show();
-        _current.SetActiveTab(Tab);
-        _session.ShowInBackground(snapshot);
         _logger?.LogInformation(
             "Workspace shown: {Path} (snapshot {Snapshot}), {How}, tab {Tab}, {Open} workspaces open",
             snapshot?.Path ?? "none",
             snapshot?.Descriptor.SnapshotId.ToString() ?? "none",
-            kept ? "kept as it was, nothing queried" : "new, its views query the snapshot",
+            kept
+                ? "kept as it was; a stopped inspection run or stale growth tiles run if its Inspections tab is shown, and evicted result sets run again when paged"
+                : "new, its views query the snapshot",
             Tab,
             _workspaces.Count);
+        _current.SetActiveTab(Tab);
+        _session.ShowInBackground(snapshot);
         OnPropertyChanged(nameof(Current));
         OnPropertyChanged(nameof(Types));
         OnPropertyChanged(nameof(Navigator));

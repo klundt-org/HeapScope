@@ -200,6 +200,21 @@ public sealed partial class InspectionsViewModel : ObservableObject
         {
             Rerun(Baseline, "left for when shown");
         }
+        else if (value && _runAll.IsCompleted && !RunTask.IsCompleted)
+        {
+            // A rerun stopped when hidden may still be ending (the worker answers the cancel): the stale tiles run after it.
+            // Not awaited: RerunAsync catches everything, so the task never faults.
+            _ = RerunWhenEndedAsync(RunTask);
+        }
+    }
+
+    private async Task RerunWhenEndedAsync(Task stopping)
+    {
+        await stopping;
+        if (IsActive && _runAll.IsCompleted && RunTask.IsCompleted && StaleTiles().Count > 0)
+        {
+            Rerun(Baseline, "left for when shown, after the stopped rerun ended");
+        }
     }
 
     partial void OnSelectedChanged(InspectionTileViewModel? value)

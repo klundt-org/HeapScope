@@ -243,7 +243,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   other snapshot [3.3].
 - **UI.ViewModels** (sprint 2.3.6, moved from the WPF app; no UI toolkit). Since 3.8 every query runs through
   `QueryRunner` (its activity, progress, and a refusal logged as shown; grids through `GridQueryViewModel`) [P8]. `SettingsViewModel` (the Settings page above About) [3.12]. `Services/`: `IUiDispatcher` (post to the UI
-  thread, `YieldToRenderAsync`) with `ImmediateUiDispatcher` for tests, `IUserInteraction` (asynchronous dialogs; opening a file or showing it in its folder since the timeline row) with
+  thread, `YieldToRenderAsync`) with `ImmediateUiDispatcher` for tests (and the tests' own `SingleThreadUiDispatcher`), `IUserInteraction` (asynchronous dialogs; opening a file or showing it in its folder since the timeline row) with
   `AutomaticUserInteraction` for smoke runs. `ViewModels/`: the shell, pages and jobs [0.3]; `GridQueryViewModel<TRow>`
   (the query lifecycle shared by the grids: debounced filter, latest query wins, column-name sort, first page preloaded
   before the grid binds, release) and `TypeGridViewModel<TRow>` (grouping) over the generic `VirtualRowList<TRow>` (data

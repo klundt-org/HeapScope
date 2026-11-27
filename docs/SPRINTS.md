@@ -58,7 +58,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.6 | Right answers | Closed | 2026-11-25 | sprint-4.6 |
 | 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
 | 4.8 | Ready to release | Closed | 2026-11-27 | sprint-4.8 |
-| 4.9 | Workspaces | In Progress | | |
+| 4.9 | Workspaces | Wrapping | | |
 | 4.10 | Analysis tabs | Planned | | |
 | 4.11 | Sunburst | Planned | | |
 | 4.12 | WPF leak detectors (optional) | Planned | | |
@@ -160,6 +160,14 @@ comments, tests without a UI thread).
 - Decided autonomously: comment ids go from src only; tests and docs keep theirs (their records); an ADR number stays in a comment.
 - Decided autonomously: 600 lines per view model file, with a list of named exceptions that only shrinks.
 - Decided autonomously: page and workspace tests move to the single-thread dispatcher; other view model tests keep the immediate one.
+
+**Review summary:** 1 High and 15 Moderate ([reviews/sprint-4.9.md](reviews/sprint-4.9.md)). The High, fixed: logging.md now
+describes the sprint's lines. Moderates: 12 fixed (a hidden workspace defers its growth reruns, a switch stops only a rerun in
+flight even while it ends, a chosen None baseline survives, the worker keeps 128 sets and drops a closed snapshot's, the eviction and tell lines at
+Information, the workspace lines say new or kept and what may still run, more workspace tests, a robust test UI thread watching the page's subjects, the
+comment rule over views, project files and wrapped ids, and the sweep's damaged comments repaired); 3 deferred, all to 4.10 or
+before it (measuring three Medium snapshots open, sets tagged by workspace, links routed by workspace). 13 Lows listed. Measured:
+about 1,950 comment lines in src and about 80 XML comments lost their ids; the four view models are 496 to 549 lines.
 
 ---
 

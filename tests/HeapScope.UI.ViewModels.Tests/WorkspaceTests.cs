@@ -352,6 +352,33 @@ public sealed class WorkspaceTests : IDisposable
     });
 
     [Fact]
+    public Task Shown_again_while_its_stopped_rerun_ends_the_growth_tiles_run_with_the_baseline_shown() => _ui.RunCheckedAsync(async () =>
+    {
+        WithGrowthDetector();
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!;
+        await _snapshots.OpenPathAsync(Dump("b.dmp"));
+        var b = _snapshots.Selected!;
+        _snapshots.Tab = SnapshotTabs.Inspections;
+        var inspections = _snapshots.Inspections;
+        await inspections.RunTask;
+
+        // None chosen starts a held rerun; a switch away and straight back, in one turn, finds it still ending.
+        var gate = new TaskCompletionSource();
+        _worker.Service.InspectionGate = gate;
+        inspections.Baseline = inspections.BaselineChoices[0];
+        await WaitUntilAsync(() => GrowthRuns(b, null) == 1);
+        _snapshots.Selected = a;
+        _snapshots.Selected = b;
+        gate.SetResult();
+        _worker.Service.InspectionGate = null;
+
+        await WaitUntilAsync(() => GrowthRuns(b, null) == 2);
+        await inspections.RunTask;
+        inspections.Tiles.Single(t => t.Info.Name == Growth).RanWith.ShouldBeNull("the tile ran with the baseline shown, None");
+    });
+
+    [Fact]
     public Task A_chosen_None_baseline_stays_when_a_hidden_run_starts_again() => _ui.RunCheckedAsync(async () =>
     {
         WithGrowthDetector();

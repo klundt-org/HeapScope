@@ -43,8 +43,10 @@ references such as "ARCHITECTURE.md 11" still name the right section.
     ended because the worker was stopped for a restart or a close", whose message says so instead of "stopped unexpectedly".
   - "Offered the report of a run that closed unexpectedly, {report} ({n} found); the user chose ...".
 - **Workspaces (sprint 4.9, ADR-044)**, so "my results changed" or "the grid ran again" after a switch has its lines:
-  - "Workspace shown: {path} (snapshot {id}), new, its views query the snapshot | kept as it was, nothing queried, tab {tab},
-    {n} workspaces open", and "Workspace of {path} closed: its types grid, path, inspections and retainers, and their result
+  - "Workspace shown: {path} (snapshot {id}), new, its views query the snapshot | kept as it was; a stopped inspection run
+    or stale growth tiles run if its Inspections tab is shown, and evicted result sets run again when paged, tab {tab}, {n}
+    workspaces open", logged before the tab is shown, so what the tab starts follows it (a new
+    workspace's first queries start just before it), and "Workspace of {path} closed: its types grid, path, inspections and retainers, and their result
     sets, released"; a dump opened again says its workspace starts again.
   - A hidden workspace's inspections: "the run of {path} stopped after {done} of {total} inspections (their results dropped),
     its workspace no longer shown; it runs again when shown, baseline {baseline} kept", "the growth tiles' rerun of {path}
@@ -53,7 +55,7 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   - A link into a snapshot no longer open: "A {kind} link of {snapshot} refused: the snapshot is no longer open".
   - Which snapshot the worker keeps: the client's "The worker was not told the window shows {path}: no worker runs | not open
     in worker generation N yet" and a failed tell (Information); "The worker was told the window shows ..." (Debug). The
-    worker's store logs an eviction of the shown snapshot's set, or of any set while none is shown, at Information with the
+    worker's store logs an eviction of the shown snapshot's set, of a set of no snapshot, or of any set while none is shown, at Information with the
     store's state ("{count}/{capacity} sets, {bytes}/{budget} bytes"); a hidden snapshot's eviction is Debug
     (`Logging:File:MinimumLevel=Debug` shows them). A closed snapshot's sets: "Snapshot {id} closed: {n} of its result sets
     dropped". A re-run is the client's "Result set X was gone (evicted, or the worker restarted); the query ran again as Y"

@@ -76,6 +76,7 @@ public partial class SourceCommentTests
     [InlineData("// The exact retention of a set is 2.4's.")]
     [InlineData("// As LiveViewModel does since 3.4.")]
     [InlineData("// Caches written before 1.6 lack the flag.")]
+    [InlineData("// The dark theme (Avalonia since 2.3.6).")]
     public void The_rule_finds_ids(string comment) => Id().IsMatch(comment).ShouldBeTrue();
 
     [Theory]
@@ -90,7 +91,7 @@ public partial class SourceCommentTests
     [InlineData("// TraceEvent 4.0.0's source, the commit the package is built from.")]
     public void The_rule_leaves_other_text_alone(string comment) => Id().IsMatch(comment).ShouldBeFalse();
 
-    [GeneratedRegex(@"\b[Ss]prints? \d+(?:\.\d+)*\b|\b\d+\.\d+(?:\.\d+)? (?:re-)?review\b|\b(?:[Pp]eer )?[Rr]eview(?:'s)? [A-Z]{1,2}\d+\b|\b[Pp]eer review\b|\bre-review\b|\breview of \d+\.\d+|\b[A-Z]{1,2}\d+ of the\b|\b\d+\.\d+(?:\.\d+)? decision \d|\b[1-4]\.\d{1,2}'s\b|\b(?:[Ss]ince|[Bb]efore|[Uu]ntil|[Aa]fter|[Ii]n|[Oo]f|[Ff]rom) [0-4]\.\d{1,2}(?!\.?\d)(?! ?(?:GB|MB|KB|s\b|ms\b|x\b|%|percent))")]
+    [GeneratedRegex(@"\b[Ss]prints? \d+(?:\.\d+)*\b|\b\d+\.\d+(?:\.\d+)? (?:re-)?review\b|\b(?:[Pp]eer )?[Rr]eview(?:'s)? [A-Z]{1,2}\d+\b|\b[Pp]eer review\b|\bre-review\b|\breview of \d+\.\d+|\b[A-Z]{1,2}\d+ of the\b|\b\d+\.\d+(?:\.\d+)? decision \d|\b[1-4]\.\d{1,2}'s\b|\b(?:[Ss]ince|[Bb]efore|[Uu]ntil|[Aa]fter|[Ii]n|[Oo]f|[Ff]rom) [0-4]\.\d{1,2}(?!\.?\d)(?! ?(?:GB|MB|KB|s\b|ms\b|x\b|%|percent))|\b(?:[Ss]ince|[Bb]efore|[Uu]ntil|[Aa]fter) [0-4]\.\d{1,2}\.\d(?!\.?\d)")]
     private static partial Regex Id();
 
     [GeneratedRegex(@"\s+")]

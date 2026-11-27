@@ -45,7 +45,7 @@ internal sealed class SnapshotHandler(
         });
 
     /// <summary>Closes the snapshot; the store drops its derived data and its object sets with it, and its result sets go too.</summary>
-    /// <remarks>Through the guard like every method: a failure is logged with its id, as B5 shows it.</remarks>
+    /// <remarks>Through the guard like every method: a failure is logged with its id.</remarks>
     public Task CloseSnapshotAsync(Guid snapshotId, CancellationToken cancellationToken) =>
         GuardAsync(
             snapshotId,
