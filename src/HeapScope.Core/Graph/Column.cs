@@ -49,6 +49,14 @@ public readonly struct Column<T> : IEquatable<Column<T>>
     /// <summary>Bytes held by this column.</summary>
     public long ByteLength => (long)_memory.Length * System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
 
+    /// <summary>
+    /// Whether the column is a view of a file (a mapped index cache, a load's references file; sprint 4.8): its pages are the
+    /// system's file cache, which it can drop and read again, not the process's private memory.
+    /// </summary>
+    public bool IsFileBacked =>
+        System.Runtime.InteropServices.MemoryMarshal.TryGetMemoryManager(_memory, out System.Buffers.MemoryManager<T>? manager)
+        && manager is IFileBackedMemory;
+
     /// <summary>Single element access. Convenient but slower than taking <see cref="Span"/> once in loops.</summary>
     public T this[int index] => _memory.Span[index];
 

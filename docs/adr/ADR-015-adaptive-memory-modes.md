@@ -20,3 +20,9 @@
   cost: the references are on disk twice (the file and the cache) while the snapshot is open, the file on the temporary
   folder's drive; a snapshot kept in memory keeps the file until it closes. With the collection of the frozen chunks, it took the
   first load's peak down by about 40% on a 2 GB DenseHeap dump (budgets.md; the 8 GB dump is still to be measured).
+- Amended in sprint 4.8 (task 11, F13): the mode is chosen by the graph's private bytes (`HeapGraph.PrivateColumnBytes`), not all
+  its columns: a column that is a view of a file (the references' temporary file of a load, `IFileBackedMemory`) is the system's
+  file cache, which it drops when it needs the memory, and a mapped switch frees the private part alone. The memory mode's log
+  line gives both parts. The switch itself runs after the method that loaded the graph has returned, so no local of that frame
+  keeps the graph alive through the collection (it kept all of it before: the 2 GB dump's 698 MB of GC heap after the drop, 8 MB
+  now; budgets.md).

@@ -116,5 +116,9 @@ public sealed class HeapDumpStaticsTests
         loaded.ShouldBeGreaterThan(warned, "the warning comes when it happens, before the load's line");
         log.ShouldContain("Check that the folder is the user's own and can be written");
         log.ShouldContain("; references in memory: the temporary file in ");
+
+        // Sprint 4.8 (task 11): the snapshot says so too, with why and what to do (the CLI prints its notes on stderr).
+        open.Output.ShouldContain("its references were kept in the worker's memory instead of a temporary file");
+        open.Output.ShouldContain("Why: in memory: the temporary file in ");
     }
 }

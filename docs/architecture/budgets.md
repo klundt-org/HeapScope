@@ -126,6 +126,24 @@ The benchmark's check used the whole run's peak, which includes reopening the 3.
 first load's since 4.7 and prints the whole run's beside it. Found on the way: after the graph is dropped for the mapped switch, the
 process still held 1,866 MB on the 8 GB dump (3,092 MB before the fix) and about 1,000 MB on the 2 GB one, the same at sprint 4.6
 (1,003 MB), where 3.12 measured 34 MB on its DenseHeap dump: memory the drop does not return (Backlog, for 4.8).
+
+Found in sprint 4.8 (task 11): nothing outside the GC held it. On the 2 GB dump the benchmark's GC heap after the drop was still
+576 MB of live objects, and a gcdump of that moment (HeapScope's own capture) showed the graph's columns rooted by a local
+variable: the frame that loaded the graph was still running, and its locals kept every column alive through the collection. The
+worker did the same: its log showed 698 MB of GC heap after the drop (743 MB private). Both now load, write and decide in a method
+of their own, and drop and reopen mapped after it returns. Measured on the same 2 GB DenseHeap dump (graph hash e8a102e4d933d936,
+unchanged):
+
+| | Before (4.7) | After (4.8) |
+|---|---|---|
+| `load-dump` after the drop | 618 MB private, GC heap 576 MB | 49 MB private, GC heap 8 MB |
+| `load-dump` peak, whole run (with the reopens) | 1,706 MB | 1,208 MB, the first load's |
+| The worker after the drop (`heapscope-cli open --rebuild --mode mapped`) | 743 MB private, GC heap 698 MB | 50 MB private, GC heap 8 MB |
+
+The first load's own peak is unchanged (1,196 and 1,208 MB, within the run to run spread). The 8 GB dump was not measured again
+(it needs claude-dev-2's free memory); by the same cause its 1,866 MB after the drop should fall the same way. The memory mode's
+line now gives the graph's private and file-backed parts (`HeapGraph.PrivateColumnBytes`, `FileBackedColumnBytes`): on the 2 GB
+dump 1,078 MB, of which 384 MB are the references' file.
 `FirstLoadEstimate` refitted to 0.45 bytes per dump byte plus 704 MB, above every peak measured (the highest per dump byte, 3.10's
 Medium, needs 677 MB at that slope): 4,778 MB for the 8 GB dump (5,748 MB before), 2,119 MB for the 2 GB one.
 

@@ -73,6 +73,14 @@ public sealed class IndexCacheTests : IDisposable
         using var copy = result.Graph!;
         AssertSame(original, copy);
         result.Metadata.ShouldBe(_metadata);
+
+        // Sprint 4.8 (F13): a mapped graph's large columns are the cache file's pages (its small sections are read into memory);
+        // one read into memory is the process's own.
+        copy.FileBackedColumnBytes.ShouldBe(mode == MemoryMode.Mapped ? copy.ColumnBytes - copy.PrivateColumnBytes : 0);
+        if (mode == MemoryMode.Mapped)
+        {
+            copy.FileBackedColumnBytes.ShouldBeGreaterThanOrEqualTo(copy.Addresses.ByteLength + copy.Edges.ByteLength);
+        }
     }
 
     [Fact]

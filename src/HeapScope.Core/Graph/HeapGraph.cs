@@ -128,6 +128,20 @@ public sealed class HeapGraph : IDisposable
         Addresses.ByteLength + TypeIndices.ByteLength + Sizes.ByteLength + HeapKinds.ByteLength + Flags.ByteLength
         + EdgeStarts.ByteLength + Edges.ByteLength + LargeSizes.ByteLength + DependentHandles.ByteLength;
 
+    /// <summary>
+    /// The part of <see cref="ColumnBytes"/> that is a view of a file (sprint 4.8, F13): the references' temporary file of a load,
+    /// or a mapped index cache. The rest is the process's private memory, which the memory mode counts.
+    /// </summary>
+    public long FileBackedColumnBytes =>
+        Bytes(Addresses) + Bytes(TypeIndices) + Bytes(Sizes) + Bytes(HeapKinds) + Bytes(Flags)
+        + Bytes(EdgeStarts) + Bytes(Edges) + Bytes(LargeSizes) + Bytes(DependentHandles);
+
+    /// <summary>The part of <see cref="ColumnBytes"/> in the process's private memory.</summary>
+    public long PrivateColumnBytes => ColumnBytes - FileBackedColumnBytes;
+
+    private static long Bytes<T>(Column<T> column)
+        where T : unmanaged => column.IsFileBacked ? column.ByteLength : 0;
+
     /// <summary>Sum of all shallow sizes, computed once at construction (immutable, safe for concurrent readers).</summary>
     public ulong TotalSize => _totalSize;
 

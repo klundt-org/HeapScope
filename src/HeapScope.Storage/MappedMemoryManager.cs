@@ -31,7 +31,7 @@ namespace HeapScope.Storage;
 /// can be backed by the index cache file (ADR-015). The view's lifetime is owned by <see cref="MappedIndexFile"/>;
 /// this manager neither frees nor pins anything.
 /// </summary>
-internal sealed unsafe class MappedMemoryManager<T>(byte* pointer, int length) : MemoryManager<T>
+internal sealed unsafe class MappedMemoryManager<T>(byte* pointer, int length) : MemoryManager<T>, Core.Graph.IFileBackedMemory
     where T : unmanaged
 {
     public override Span<T> GetSpan() => new(pointer, length);

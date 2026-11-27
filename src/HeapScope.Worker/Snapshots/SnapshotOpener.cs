@@ -373,6 +373,52 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
         Rpc.ThrottledProgress<JobProgress> progress,
         CancellationToken cancellationToken)
     {
+        var (kept, metadata, keptCache, identity) = LoadAndDecide(path, cachePath, fingerprint, forced, notes, rebuilding, progress, cancellationToken);
+        if (kept is not null)
+        {
+            return (kept, metadata, MemoryMode.InMemory, keptCache, identity);
+        }
+
+        // Switch to mapped mode (ADR-015), in this frame (sprint 4.8, task 11): LoadAndDecide has returned and disposed the built
+        // arrays, so nothing on its stack holds them. Its frame kept the whole graph alive through this collection before (the
+        // 2 GB dump's 698 MB of GC heap after the drop). Compact once so the memory really returns to the OS, then reopen the
+        // cache as views.
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        var afterDrop = GC.GetGCMemoryInfo(GCKind.Any);
+        logger.LogInformation(
+            "Mapped switch: after the drop the worker holds {PrivateMb:N0} MB private, the GC heap {HeapMb:N0} MB ({CommittedMb:N0} MB committed)",
+            ProcessMemory.PrivateBytes() / (1024 * 1024),
+            afterDrop.HeapSizeBytes / (1024 * 1024),
+            afterDrop.TotalCommittedBytes / (1024 * 1024));
+        var mapped = IndexCacheReader.Open(cachePath, _signer, fingerprint, MemoryMode.Mapped, cancellationToken);
+        if (!mapped.Success)
+        {
+            throw new SnapshotFormatException($"The index cache just written could not be reopened: {mapped.Detail}");
+        }
+
+        return (mapped.Graph!, mapped.Metadata!, MemoryMode.Mapped, cachePath, mapped.Identity);
+    }
+
+    /// <summary>The note on a snapshot whose load kept its references in memory (sprint 4.8, a draft in info-text.md).</summary>
+    internal static string EdgesFallbackNote(string why) =>
+        $"While this dump loaded, its references were kept in the worker's memory instead of a temporary file, so the load needed about 4 bytes per reference more memory than usual. Why: {why.TrimEnd('.')}.";
+
+    /// <summary>
+    /// Loads a dump, writes its index cache and chooses the memory mode: the graph when it stays in memory, or null once it is
+    /// disposed because the mapped cache replaces it (the caller reopens it, after this frame is gone).
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private (HeapGraph? Kept, IndexCacheMetadata Metadata, string? CachePath, ulong Identity) LoadAndDecide(
+        string path,
+        string cachePath,
+        SnapshotFingerprint fingerprint,
+        MemoryMode? forced,
+        List<string> notes,
+        bool rebuilding,
+        Rpc.ThrottledProgress<JobProgress> progress,
+        CancellationToken cancellationToken)
+    {
         var handler = _kinds.ForFile(path);
         var loader = LoaderForTests?.Invoke(path) ?? handler.CreateLoader();
         LoadResult? loaded;
@@ -421,6 +467,12 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                 Describe(diagnostics.Handles, metadata.Info.Kind),
                 diagnostics.Edges ?? "in memory");
 
+            // Sprint 4.8 (task 11, F12): the load needed more memory than usual, and the user can do something about it.
+            if (diagnostics.EdgesFallback is { } why)
+            {
+                notes.Add(EdgesFallbackNote(why));
+            }
+
             // Nothing else may reference the built graph, or the mapped transition below cannot free it.
             loaded = null;
             progress.Report(new JobProgress("Writing index cache", 0, null));
@@ -432,12 +484,17 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             // would copy the live graph's arrays; an aggressive collection already returns the freed regions.
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             var budget = MemoryBudget.Current(forced: forced);
-            budget = budget with { AvailableBytes = budget.AvailableBytes + graph.ColumnBytes };
-            var mode = MemoryModeSelector.Select(graph.ColumnBytes, budget);
+            // The private part only (sprint 4.8, F13): the references' file is the system's file cache, which it drops when it needs
+            // the memory, and a mapped switch frees the private part alone.
+            var privateBytes = graph.PrivateColumnBytes;
+            budget = budget with { AvailableBytes = budget.AvailableBytes + privateBytes };
+            var mode = MemoryModeSelector.Select(privateBytes, budget);
             logger.LogInformation(
-                "Memory mode {Mode}: graph {GraphMb:N0} MB, budget {BudgetMb:N0} MB of {TotalMb:N0} MB physical",
+                "Memory mode {Mode}: graph {GraphMb:N0} MB ({PrivateMb:N0} MB private, {FileMb:N0} MB in its references' file), budget {BudgetMb:N0} MB of {TotalMb:N0} MB physical",
                 mode,
                 graph.ColumnBytes / (1024 * 1024),
+                privateBytes / (1024 * 1024),
+                graph.FileBackedColumnBytes / (1024 * 1024),
                 budget.BudgetBytes / (1024 * 1024),
                 budget.TotalPhysicalBytes / (1024 * 1024));
             if (mode == MemoryMode.InMemory || !written)
@@ -447,23 +504,14 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
                     notes.Add("The snapshot is held in memory because its index cache could not be written; memory use is higher than usual.");
                 }
 
-                return (graph, metadata, MemoryMode.InMemory, written ? cachePath : null, identity);
+                return (graph, metadata, written ? cachePath : null, identity);
             }
 
-            // Switch to mapped mode (ADR-015): drop the built arrays, compact once so the memory really returns to the
-            // OS, then reopen the cache as views.
+            // To mapped mode: the built arrays go here; the caller collects and reopens the cache as views.
             progress.Report(new JobProgress("Mapping index cache", 0, null));
             graph.Dispose();
             graph = null;
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-            var mapped = IndexCacheReader.Open(cachePath, _signer, fingerprint, MemoryMode.Mapped, cancellationToken);
-            if (!mapped.Success)
-            {
-                throw new SnapshotFormatException($"The index cache just written could not be reopened: {mapped.Detail}");
-            }
-
-            return (mapped.Graph!, mapped.Metadata!, MemoryMode.Mapped, cachePath, mapped.Identity);
+            return (null, metadata, cachePath, identity);
         }
         catch
         {

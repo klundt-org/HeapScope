@@ -10,6 +10,14 @@ Outside a sprint:
 - SkiaSharp's native library without Adobe's DNG SDK and Google's piex (High, from the 3.8 owner actions): built
   2026-10-30 (ADR-038; `skia-native.yml`, `build/skia-native.sh`, `build/check-no-dng.sh`).
 
+Built in sprint 4.8:
+- The memory the drop before the mapped switch did not return (from 4.7): a local of the frame that loaded the graph kept it alive
+  through the collection, in the worker and in `load-dump` (budgets.md); the switch runs after that frame returns now. The 8 GB
+  dump's figure is still to be measured again on claude-dev-2.
+- A snapshot note when a load kept its references in memory (F12), and the graph's columns split into private and file-backed
+  bytes for the memory mode's log and choice (F13).
+- A session document read during a save on Windows (the readers test, one run in five): read again briefly before "missing".
+
 Swept in sprint 3.12:
 - The intermittent dispatcher lag under load (from 0.3) and the worker's Server GC threads (from 0.3): traced (tasks 3 and
   6). No stall waited for a processor; the UI's own gen 0 and gen 1 collections were a quarter of the lag under load (a 64 MB
@@ -177,11 +185,6 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   the worker refusing a first load that does not fit when the open says it may not overcommit (a protocol field); the 1 GB trace
   reader replaced by one streaming reader (H8, L); a real Linux desktop run of the app (claude-dev-3); the cause of a live recording's
   late start once in the 4.6 gate (`AllocatedBetweenTests`), which the file buffer of 4.7 does not explain.
-  From the task 10 follow-up (F12, F13): a snapshot note when a load kept its references in memory for lack of space or a
-  failed file (user-facing wording; the log says it); `ColumnBytes` split into private and file-backed bytes, for the memory mode
-  log and choice. The memory the drop before the mapped switch does not return: `load-dump`'s private bytes after the drop were
-  1,866 MB on the 8 GB DenseHeap dump and 1,003 MB on a 2 GB one at sprint 4.6 already, against 34 MB in 3.12 (budgets.md); find
-  what holds it (the GC's regions, ClrMD's or the DAC's native memory) for the worker's mapped mode on 16 GB machines (4.8).
 - From sprint 4.6 (decided autonomously; [reviews/sprint-4.6.md](reviews/sprint-4.6.md) M15 to M19 and H5): the settings and lesson progress
   saves off the UI thread; the unread counts as data in the inspection DTO; the event handler detector, the disposed objects detector with no
   flag readable, and the collection inspections with an items field unread saying what they could not read, with a test per detector with

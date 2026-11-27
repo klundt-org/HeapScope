@@ -694,7 +694,9 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
     `osx-x64` are built on Linux and not run. On manual runs it uploads the archives (`HeapScope-<rid>`, kept 14 days),
     whatever the tests do, and it always uploads HeapScope's logs of the checks (`package-logs-<rid>`).
   The local gate runs the same tiers. Fixture dumps are never uploaded. The required check ("CI passed") on `develop`
-  and `main` is a repository setting the owner applies (the ruleset "Protect main and develop").
+  and `main` is a repository setting the owner applies (the ruleset "Protect main and develop"); confirmed on 2026-11-26
+  (sprint 4.8, M14) with `gh api repos/klundt-org/HeapScope/rulesets`, which showed no tag ruleset yet. Check it again after any
+  change to the job names in `ci.yml`: a required check that no job reports any more leaves every PR waiting.
 - A sprint's PR into `develop` is squash merged; the annotated tag `sprint-X.Y` goes on the resulting commit on
   `develop` and is pushed. In autonomous mode Claude merges sprint PRs once the gate passes; otherwise the owner
   merges.
@@ -738,6 +740,32 @@ and compares against the budget, returning exit code 1 when a budget is missed. 
   `gh workflow run release.yml --ref <branch> -f tag=<tag, branch or commit>` builds and runs everything and creates, attests and
   attaches nothing (`publish` is off by default). The architecture test `ReleaseWorkflowTests` holds the workflow to these
   rules. Security reports: `SECURITY.md`.
+- .NET servicing (sprint 4.8, peer review 4.5 M14). The released builds are self-contained, so they carry the .NET runtime of the SDK
+  that built them, and the CLI's dotnet tool runs on the user's installed .NET 10. Each monthly .NET servicing release (usually the
+  second Tuesday) is taken within two weeks: the SDK is updated on the development machines and CI's `setup-dotnet` follows
+  `global.json`; Dependabot's updates of the `Microsoft.Extensions.*` and `System.*` packages are merged once CI passes, with
+  THIRD-PARTY-NOTICES.md updated in the same PR (`ThirdPartyNoticesTests` fails until it is). When a servicing release fixes a
+  security issue in a part HeapScope ships, the next release follows within two weeks, whatever the sprint, and its notes name
+  the runtime it carries. The dumps HeapScope analyzes are another matter: the known answers are checked on .NET 8, 9 and 10
+  (`TestedRuntimes`), kept after Microsoft's end of support for as long as the fixtures can be captured, since services run old
+  runtimes; a new major version opens with the note that its answers are not checked until a sprint adds its known answers.
+- Single points of failure, and what the owner holds (sprint 4.8, M14). Written down so a lost account or machine is a known
+  recovery, not a surprise:
+  - The owner's GitHub account (rklundt) is the only owner of the organization klundt-org and of the repository: merging,
+    releasing and every repository setting go through it. It needs two-factor sign-in with its recovery codes kept offline; a
+    second organization owner (an account of the owner's own, kept for recovery) would remove this single point, and is the
+    owner's to decide.
+  - The `gh` sign-in on the development machines (the token Claude's sessions use for PRs, workflow runs and reading CI) lives
+    in each machine's credential store. A lost or retired machine: `gh auth logout` there, or revoke the token in the account's
+    settings (Applications, or Personal access tokens).
+  - nuget.org: the owner's account uploads `HeapScope.Cli` by hand from the release's file; no API key is stored on disk, in CI
+    or in the repository.
+  - The workflows hold no stored secrets: `release.yml` and `ci.yml` use the job's own `GITHUB_TOKEN`, with the least
+    permissions each job needs, and attestations use GitHub's OIDC token.
+  - Build inputs on the repository: the SkiaSharp native libraries' pre-release (`skia-native-<version>-<n>`, ADR-038), which
+    every package build downloads and checks by SHA-256. Deleting it breaks the builds until it is rebuilt
+    (`skia-native.yml`); immutable releases (below) protect it once on.
+  - CI runs on GitHub's hosted runners only: no machine of the owner's is in HeapScope's CI.
 - Repository settings for releases (the owner's to apply; drafted in sprint 4.8, M1): a tag ruleset on `v*` that blocks
   updates and deletion and allows creation by the owner only (Settings, Rules, Rulesets, New tag ruleset: target `v*`, restrict
   updates and deletions); immutable releases (Settings, General, Releases: "Enable release immutability"), so a published

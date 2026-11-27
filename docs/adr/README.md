@@ -19,7 +19,7 @@ section 13 links here).
 - [ADR-012](ADR-012-git.md) Git
 - [ADR-013](ADR-013-leaky-fixtures-as-source-of-truth.md) Leaky fixtures as source of truth
 - [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1, 4.1.1, 4.2 and 4.8: the Linux and macOS meaning; hidden by default; sudo keeps the user's folder)
-- [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment; amended in 4.7: a first load's references in a mapped temporary file)
+- [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment; amended in 4.7: a first load's references in a mapped temporary file; in 4.8: the mode by private bytes)
 - [ADR-016](ADR-016-contracts-owns-the-wire-vocabulary.md) Contracts owns the wire vocabulary (added in sprint 0.1)
 - [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035 and in sprint 4.8)
 - [ADR-018](ADR-018-diffs-compare-per-type-totals-no-object-identity-across-dump.md) Diffs compare per-type totals; no object identity across dumps (added in sprint 1.4; amended by ADR-032)
