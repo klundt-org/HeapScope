@@ -22,7 +22,9 @@
     tab queries a tab's views (ADR-044), so a new set of one of them is that tab's; the inspections are the snapshot's, shared by
     its tabs, so their sets carry no tab and stay with the snapshot. Over the store's limits the other snapshots' sets go first,
     then the sets of the shown snapshot's other tabs, then the rest, each least recently used first. The client tells one at a
-    time, the latest shown, so a quick switch away and back ends with the right tab told. The cap stays 128 sets: tabs add sets
+    time, the latest shown, so a quick switch away and back ends with the right tab told; the tell goes before the tab's views
+    query, but without waiting for it, so a first query can reach the worker first and be tagged with the tab shown before.
+    That costs only eviction order, and the eviction line says which tab and rule took a set. The cap stays 128 sets: tabs add sets
     a hidden tab runs again when shown, and the 256 MB byte budget stays the memory guard.
 - Consequences: the front end's cost is measured in budgets.md with three Medium snapshots open and the most tabs on one,
   each tab's grid of objects paged as far as a grid keeps pages; each snapshot's graph (about 1.5 GB for Medium, in the

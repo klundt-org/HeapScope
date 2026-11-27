@@ -32,13 +32,15 @@ namespace HeapScope.Worker.Rpc;
 /// exceeded, so a client that never releases cannot grow the worker without bound. A set may carry an owner
 /// (for example a snapshot lease) that is disposed when the set is released or evicted, or, when a page is being
 /// formatted at that moment, after that page: sources read the graph and the dump while formatting.
-/// A set names the snapshot it came from; once the client says which snapshot its window shows (<see cref="Show"/>), the
-/// sets of the others are evicted first, so the workspace on screen keeps its rows while hidden ones give way (ADR-044).
+/// A set names the snapshot it came from and, for a view of one tab, the tab shown when it was added; once the client says which
+/// snapshot and tab its window shows (<see cref="Show"/>), the other snapshots' sets are evicted first, then the shown snapshot's
+/// other tabs', so the tab on screen and what its snapshot's tabs share keep their rows while hidden ones give way (ADR-044,
+/// ADR-045).
 /// </summary>
 internal sealed class ResultSetStore
 {
-    // Room for several workspaces' sets (an inspections run alone holds about 20); the byte budget guards the memory
-    // (ADR-044).
+    // Room for several workspaces' sets (an inspections run alone holds about 20); tabs add sets a hidden tab runs again when
+    // shown, and the byte budget guards the memory (ADR-044, ADR-045).
     public const int DefaultCapacity = 128;
     public const long DefaultByteBudget = 256L * 1024 * 1024;
 
@@ -111,8 +113,8 @@ internal sealed class ResultSetStore
 
     /// <summary>
     /// The client shows <paramref name="snapshot"/> now (null: none), in its tab <paramref name="scope"/>: from here on the other
-    /// snapshots' sets go first, then the shown snapshot's other tabs'. Only the shown tab queries, so a new set of the shown
-    /// snapshot is that tab's.
+    /// snapshots' sets go first, then the shown snapshot's other tabs'. Only the shown tab queries a tab's views, so a new set of
+    /// the shown snapshot is that tab's, unless it is one the tabs share (<see cref="Add"/> with perTab false).
     /// </summary>
     public void Show(Guid? snapshot, Guid? scope = null)
     {

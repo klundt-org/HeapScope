@@ -259,6 +259,9 @@ public sealed partial class SnapshotsViewModel
         OnPropertyChanged(nameof(CurrentTab));
         OnPropertyChanged(nameof(Types));
         OnPropertyChanged(nameof(Navigator));
+
+        // The sidebar cleared its selection as it took the new path (its null is ignored): it selects the step again.
+        _analysis.Current.Navigator.ReselectStep();
         OnPropertyChanged(nameof(Inspections));
         OnPropertyChanged(nameof(Retainers));
         OnPropertyChanged(nameof(ShowsTabStrip));

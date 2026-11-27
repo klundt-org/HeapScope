@@ -324,6 +324,18 @@ public sealed partial class NavigatorViewModel : ObservableObject
         }
     }
 
+    /// <summary>Says the current step again, so the sidebar selects it after it showed another tab's path and cleared its selection.</summary>
+    public void ReselectStep()
+    {
+        // A binding passes on only a value that differs from the one it passed last, the step, though the sidebar has
+        // cleared its own selection since: a null first, then the step, makes it select the step again.
+        var step = _currentStep;
+        _currentStep = null;
+        OnPropertyChanged(nameof(CurrentStep));
+        _currentStep = step;
+        OnPropertyChanged(nameof(CurrentStep));
+    }
+
     /// <summary>The tab whose path this is, named in the path's log lines (ADR-045); null for none.</summary>
     public Guid? Tab { get; set; }
 
@@ -407,6 +419,9 @@ public sealed partial class NavigatorViewModel : ObservableObject
         {
             _steps = null;
             OnPropertyChanged(nameof(Steps));
+
+            // The sidebar clears its selection when its steps are replaced (its null is ignored): it selects the step again.
+            ReselectStep();
         }
 
         OnPropertyChanged(nameof(CanGoBack));

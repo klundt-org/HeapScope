@@ -22,7 +22,7 @@ highest severity. Moderates decided autonomously: fixed, or deferred where said.
 
 - M1 (gc-specialist) The measurement could not show what tabs cost: it ran before tabs, touched one page per grid, and checked no
   release. Fixed: the smoke run opens the most tabs on a snapshot, pages each tab's largest grid of objects to the 50 pages a grid
-  keeps, then closes the tabs and the snapshots, logging memory at each count; budgets.md records it (about 1.1 MB a tab, memory back
+  keeps, then closes the tabs and the snapshots, logging memory at each count; budgets.md records it (about 1 to 3.5 MB a tab, the baseline moving between readings; memory back
   on close) with a ceiling. Status: Fixed (decided autonomously).
 - M2 (gc-specialist) `--smoke-more` counted slow operations two and three times, ran the memory's full collection inside a checked
   phase, and never checked the extra dumps' drills. Fixed: each pass begins its phases before opening, ends its drill and its
@@ -61,6 +61,9 @@ Listed only, not fixed.
 - L5 (solution-architect) The scope over the pipe is tested only as accepted, not by its effect in the worker.
 - L6 (solution-architect) BACKLOG.md's "the navigator's history at the Snapshots page level" item predates tabs.
 - L7 (senior-dev) The tab's close button is a plain "x", not the `dismiss` style with an icon and an automation name.
+- L9 (support-engineer, solution-architect, senior-dev) The tell is sent before a tab's views query but not awaited, so a first query can
+  be tagged with the tab shown before; ADR-045 says so, and the eviction line names the tab and rule.
+- L10 (senior-dev) The late-link route through `NavigateIn` has no test of its own; `Record` throws where `Navigate` logs.
 - L8 (senior-dev) `SingleThreadUiDispatcher` watches the first empty analysis only after a switch, and re-subscribes a navigator per
   switch (the duplicate check keeps it harmless).
 
@@ -75,7 +78,14 @@ Listed only, not fixed.
 
 ## Confirmations
 
-To be filled as each fix goes back to the reviewer that raised it.
+- First re-check (commit 1bd909b): support-engineer confirmed H1, H2, M9 and the user guide and late-link Lows; solution-architect
+  confirmed H1, M3, the late link, ShowTab's activate flag and the cap note, leaving doc leftovers (the store's summaries, the
+  done Backlog item, the tell's order as best effort), fixed; gc-specialist confirmed M1, M2, H1's part and the cap note, with one
+  figure corrected (about 1 to 3.5 MB a tab, the baseline moving between readings); senior-dev confirmed H1, M4, M6, M7 and M8, and
+  found M5 not fixed: ignoring the sidebar's null kept the step but left the path list with nothing selected, which its test could
+  not see. Fixed: the navigator says the step again after its steps are replaced and after the page shows another tab's path (a
+  null first, since a binding passes on only a changed value), and the UI test checks the path list's selection itself.
+- Second re-check: to be recorded.
 
 ## Markdown sweep
 

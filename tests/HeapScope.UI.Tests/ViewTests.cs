@@ -686,12 +686,14 @@ public sealed class ViewTests(UiSession ui) : IDisposable
             snapshots.Navigate(NavigationTarget.Instances(snapshots.Selected!.Handle, "System.String", "System.Private.CoreLib.dll"));
             Dispatcher.UIThread.RunJobs();
             snapshots.Current.Title.ShouldNotBe("Types");
-            snapshots.Navigator.CurrentStep.ShouldNotBeNull("the path list keeps the step selected");
+            var pathList = window.GetVisualDescendants().OfType<ListBox>().Single(l => l.Name == "PathList");
+            pathList.SelectedItem.ShouldBeSameAs(snapshots.Navigator.CurrentStep, "the path list shows the new tab's step selected");
             strip.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ShouldContain(snapshots.Current.Title, "the tab is titled by its step");
             Press(window, PhysicalKey.W, command);
             Dispatcher.UIThread.RunJobs();
             (snapshots.Tabs.Count, strip.ItemCount).ShouldBe((1, 1));
             snapshots.Current.ShouldBeSameAs(first);
+            pathList.SelectedItem.ShouldBeSameAs(snapshots.Navigator.CurrentStep, "the path list shows the first tab's step selected again");
             snapshots.Navigator.Current.ShouldBeOfType<TypeSummaryViewModel>();
 
             // Export the view's grid, refresh a page, and the shortcuts list.
