@@ -147,7 +147,7 @@ comments, tests without a UI thread).
    with a named, shrinking list of exceptions. Tests: the cap; the split classes' existing tests unchanged.
 5. [x] M15, comments: source comments say why without sprint or review ids (a decision keeps its ADR number); an architecture test
    refuses new ones in src. Tests: the rule, with its patterns.
-6. [ ] M15, the UI thread: a test dispatcher that runs on a thread of its own, and checks that a view model's state changes there;
+6. [x] M15, the UI thread: a test dispatcher that runs on a thread of its own, and checks that a view model's state changes there;
    the workspace and page tests use it. Tests: a property set off that thread fails the test; the workspace tests pass on it.
 7. [ ] Docs: an ADR for workspaces (amending ADR-029's shared types grid), ARCHITECTURE.md's page model, process-model.md's result set
    store, code-map.md, DEVELOPER.md's view model and comment conventions.

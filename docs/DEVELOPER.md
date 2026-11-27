@@ -46,6 +46,13 @@ dotnet test --solution HeapScope.sln
   parts it implements with `AreaWorkerService.Create(...)` (Application tests), and any other call fails naming its
   contract. `HeapScope.Cli.Tests` runs the CLI in process (`CliApp.RunAsync` with its own output and error writers):
   usage errors need no host, and the tables are checked as text against fixed rows.
+- The UI thread in view model tests (sprint 4.9, peer review 4.5 M15): `SingleThreadUiDispatcher` (in the same
+  `Fakes/` folder) is a UI thread of its own with a synchronization context, so a test body run with
+  `RunCheckedAsync` and its awaits continue there as in the app. `WatchPage` watches the Snapshots page and every
+  workspace it shows, and a property or collection change raised on another thread fails the test. The page and
+  workspace tests (`SnapshotsViewModelTests`, `WorkspaceTests`) use it; other view model tests use
+  `ImmediateUiDispatcher`, which runs work on the calling thread and so cannot see such a change. New page-level tests
+  use the single-thread one.
 - Data folders (sprint 3.8): every test process sets `HEAPSCOPE_DATA_FOLDER` to `HeapScopeTests/data` under the temporary
   folder (`tests/Shared/TestDataFolder.cs`) before anything reads `HeapScopeFolders`, and the workers and front ends it
   starts inherit it, so no test writes into the user's sessions, logs, index cache key, trusted DACs or bookmarks. Set it

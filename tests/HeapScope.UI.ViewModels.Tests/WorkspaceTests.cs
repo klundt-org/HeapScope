@@ -31,26 +31,41 @@ using HeapScope.UI.ViewModels;
 
 namespace HeapScope.UI.ViewModels.Tests;
 
-/// <summary>Each open snapshot keeps its own workspace on the Snapshots page (peer review 4.5 H13).</summary>
+/// <summary>
+/// Each open snapshot keeps its own workspace on the Snapshots page (peer review 4.5 H13). The tests run on a UI thread of
+/// their own (M15): every change of the page and of its workspaces' views must be raised there.
+/// </summary>
 public sealed class WorkspaceTests : IDisposable
 {
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "HeapScopeTests", Guid.NewGuid().ToString("N"));
     private readonly FakeWorkerClient _worker = new();
+    private readonly SingleThreadUiDispatcher _ui = new();
     private readonly SnapshotsViewModel _snapshots;
 
     public WorkspaceTests()
     {
         Directory.CreateDirectory(_folder);
         var operations = new WorkerOperations(_worker, new JobTracker(TimeProvider.System));
-        _snapshots = new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs, () => new PhysicalMemory(32L << 30, 20L << 30)), operations, new ImmediateUiDispatcher(), new FakeUserInteraction());
+        _snapshots = _ui.Invoke(() => new SnapshotsViewModel(TestSessions.Create(_worker, operations.Jobs, () => new PhysicalMemory(32L << 30, 20L << 30)), operations, _ui, new FakeUserInteraction()));
+        _ui.WatchPage(_snapshots);
         _worker.Service.Rows.Add(["System.String", "600", "36000"]);
         _worker.Service.Rows.Add(["System.Byte[]", "400", "12000"]);
+    }
+
+    [Fact]
+    public async Task A_change_off_the_UI_thread_is_caught()
+    {
+        await _ui.RunAsync(() => _snapshots.OpenPathAsync(Dump("a.dmp")));
+
+        await Task.Run(() => _snapshots.Types.Filter = "String", Ct);
+
+        _ui.Violations.ShouldContain(v => v.StartsWith("workspace a.dmp.Types.Filter changed on thread", StringComparison.Ordinal));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Switching_snapshots_shows_each_workspace_as_it_was_without_a_new_query()
+    public Task Switching_snapshots_shows_each_workspace_as_it_was_without_a_new_query() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
         await _snapshots.Types.QueryTask;
@@ -86,10 +101,10 @@ public sealed class WorkspaceTests : IDisposable
         _worker.Service.SummaryQueries.Count.ShouldBe(queries, "a's grid is shown as it was");
         _worker.Service.InspectionRuns.Count.ShouldBe(allRuns, "a's inspections are shown as they were");
         _snapshots.Workspaces.Count.ShouldBe(2);
-    }
+    });
 
     [Fact]
-    public async Task Closing_a_snapshot_drops_its_workspace_and_releases_its_results()
+    public Task Closing_a_snapshot_drops_its_workspace_and_releases_its_results() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
         await _snapshots.Types.QueryTask;
@@ -107,10 +122,10 @@ public sealed class WorkspaceTests : IDisposable
 
         _snapshots.Workspaces.ShouldHaveSingleItem().Snapshot!.Path.ShouldEndWith("b.dmp", Case.Sensitive);
         await WaitUntilAsync(() => kept.All(id => !_worker.Service.LiveSets.Contains(id)));
-    }
+    });
 
     [Fact]
-    public async Task With_nothing_selected_the_empty_workspace_is_shown()
+    public Task With_nothing_selected_the_empty_workspace_is_shown() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
         await _snapshots.Types.QueryTask;
@@ -120,10 +135,10 @@ public sealed class WorkspaceTests : IDisposable
         _snapshots.Current.Snapshot.ShouldBeNull();
         _snapshots.Types.Rows.Count.ShouldBe(0);
         _snapshots.Workspaces.ShouldHaveSingleItem("a's workspace stays while a is open");
-    }
+    });
 
     [Fact]
-    public async Task A_link_into_a_snapshot_not_shown_shows_its_workspace_and_step()
+    public Task A_link_into_a_snapshot_not_shown_shows_its_workspace_and_step() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
         var a = _snapshots.Selected!;
@@ -139,10 +154,10 @@ public sealed class WorkspaceTests : IDisposable
         _snapshots.Tab.ShouldBe(SnapshotTabs.Snapshot);
         aWorkspace.Navigator.Current.ShouldBeOfType<InstancesViewModel>().TypeName.ShouldBe("App.Order");
         bWorkspace.Navigator.IsTypesShown.ShouldBeTrue("b's path is untouched");
-    }
+    });
 
     [Fact]
-    public async Task A_link_of_a_closed_snapshot_is_refused_with_why()
+    public Task A_link_of_a_closed_snapshot_is_refused_with_why() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
         var a = _snapshots.Selected!.Handle;
@@ -156,10 +171,10 @@ public sealed class WorkspaceTests : IDisposable
         _snapshots.Current.ShouldBeSameAs(b);
         b.Navigator.IsTypesShown.ShouldBeTrue("nothing of a lands in b's workspace");
         _snapshots.Status.ShouldBe(string.Format(CultureInfo.CurrentCulture, InfoTexts.LinkOfClosedSnapshot, "a.dmp"));
-    }
+    });
 
     [Fact]
-    public async Task The_worker_is_told_which_snapshot_is_shown()
+    public Task The_worker_is_told_which_snapshot_is_shown() => _ui.RunCheckedAsync(async () =>
     {
         await _snapshots.OpenPathAsync(Dump("a.dmp"));
         var a = _snapshots.Selected!;
@@ -172,11 +187,16 @@ public sealed class WorkspaceTests : IDisposable
 
         _snapshots.Selected = null;
         await WaitUntilAsync(() => Shown() is [.., null]);
-    }
+    });
 
     public void Dispose()
     {
-        _snapshots.Dispose();
+        _ui.Invoke(() =>
+        {
+            _snapshots.Dispose();
+            return true;
+        });
+        _ui.Dispose();
         try
         {
             Directory.Delete(_folder, recursive: true);
