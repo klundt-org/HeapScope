@@ -97,3 +97,12 @@ budgets.md (the measurement), DEVELOPER.md (`AnalysisTabsTests` on the UI thread
 draft), design/info-text.md (the drafts), BACKLOG.md (open in a new tab; the done 4.9 items removed; the tab's history item
 re-scoped), and CLAUDE.md (git-ignored; `--smoke-more`). Past review files and RELEASE-NOTES' past sections were left as written.
 No em or en dashes in the changed files.
+
+## Gate at close
+
+Pass on 2026-11-27 at 8d1cb5b: Debug and Release with 0 warnings, 2,388 tests (fast 2,004, integration 384), the fixture capture
+(the known answers run in CI). Two gate runs on this machine failed first while it was saturated by other work (CPU 88 to 100%: the
+worker missed its 30 s pipe start, so up to 36 integration tests failed). A run on claude-dev-2 then built clean and passed
+everything those runs had failed, but could not stand as the gate: Smart App Control there blocked the CLI tests' assembly, its
+SDK copy had no .NET 8 runtime for the .NET 8 dump tests (added since), and the shell window test sees no desktop over SSH. Once
+the load here dropped (CPU about 9%), the gate passed here.

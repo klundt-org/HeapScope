@@ -22,6 +22,18 @@ since its previous version there (`src/HeapScope.Cli/package-release-notes.txt`)
 
 Everything else was built on `develop` and first shipped in the next release above it.
 
+## 4.10.0: Analysis tabs (sprint 4.10)
+
+- **Analysis tabs**: open several tabs on one snapshot, each with its own types grid (filter, sort, grouping), analysis path and
+  Retainers tab, to follow two leads in one dump without losing either. New tab (Ctrl+T, Cmd+T on macOS) starts at the types grid;
+  Close tab (Ctrl+W) closes the one shown. The inspections run once per snapshot and are shared by its tabs.
+- **Links land in their tab**: a link from a tab's views opens in that tab; a link into another open snapshot shows that
+  snapshot's current tab.
+- **The tab on screen keeps its results first**: the worker lets go of other snapshots' result sets first, then of the other tabs',
+  and the log names the tab of every path step and link.
+- Limited: at most 8 tabs per snapshot, and the last one cannot be closed (close the snapshot instead); tabs are not kept across
+  restarts; opening a row in a new tab comes later.
+
 ## 4.9.0: Workspaces (sprint 4.9)
 
 - **Each open snapshot keeps its own work**: switching between open snapshots shows each one's types grid (filter, sort,
