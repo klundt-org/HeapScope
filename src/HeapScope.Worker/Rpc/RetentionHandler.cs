@@ -282,7 +282,7 @@ internal sealed class RetentionHandler(
                 string.Join("; ", shown.Select(Describe)));
             var rowAddresses = view.Rows.Select(r => r.Object >= 0 ? graph.Addresses[r.Object] : 0).ToArray();
             return new DominatorTreeResult(
-                resultSets.Add(new DominatorTreeSource(view, rowAddresses)),
+                resultSets.Add(request.SnapshotId, new DominatorTreeSource(view, rowAddresses)),
                 focus >= 0 ? DominatorTreeRows.ObjectKey(request.FocusAddress) : null,
                 ancestors,
                 (long)view.FocusRetained,
@@ -375,7 +375,7 @@ internal sealed class RetentionHandler(
                 seconds,
                 string.Join("; ", source.Describe(10)));
             return new RetainedBySetResult(
-                resultSets.Add(source),
+                resultSets.Add(request.SnapshotId, source),
                 matched,
                 result.SetObjects,
                 (long)result.SetBytes,
@@ -439,7 +439,7 @@ internal sealed class RetentionHandler(
                 source.Describe(5));
 
             // The rows read the graph and the dominators while they live, so they keep a lease of their own (the 3.1 review).
-            return new SetDominatorsResult(resultSets.Add(source, snapshot.AcquireLease()), ObjectSetResolver.Info(set), tops.Count, topRetained, tops.UnreachableMembers, info);
+            return new SetDominatorsResult(resultSets.Add(request.SnapshotId, source, snapshot.AcquireLease()), ObjectSetResolver.Info(set), tops.Count, topRetained, tops.UnreachableMembers, info);
         });
 
     public Task<SimilarRetentionResult> QuerySimilarRetentionAsync(SimilarRetentionRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>

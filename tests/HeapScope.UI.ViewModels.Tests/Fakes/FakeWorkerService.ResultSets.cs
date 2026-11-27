@@ -58,4 +58,20 @@ internal sealed partial class FakeWorkerService : IResultSetService
         _sets.Remove(resultSetId);
         return Task.CompletedTask;
     }
+
+    /// <summary>The snapshots the client said it shows, in order (null: none).</summary>
+    public List<Guid?> Shown { get; } = [];
+
+    public Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken)
+    {
+        lock (Shown)
+        {
+            Shown.Add(snapshotId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Drops a set as the worker's store would evict it: the client's next page runs its query again.</summary>
+    public void Evict(Guid resultSetId) => _sets.Remove(resultSetId);
 }

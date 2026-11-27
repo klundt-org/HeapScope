@@ -139,7 +139,7 @@ comments, tests without a UI thread).
 2. [x] Links land in their workspace: a `NavigationTarget` names its snapshot, and following one shows that snapshot's workspace
    first (Compare, bookmarks, Retainers links, the Live page's files). Tests: a link into a snapshot not shown shows its workspace and
    step; a link of a closed snapshot is refused with why.
-3. [ ] The worker's result sets follow the workspace shown: the client tells the worker which snapshot is shown, and the result set
+3. [x] The worker's result sets follow the workspace shown: the client tells the worker which snapshot is shown, and the result set
    store evicts the sets of snapshots not shown first; a workspace shown again re-runs only what was evicted. Protocol version bump.
    Tests: three snapshots open, the shown one's sets survive the others' queries; the eviction order; the re-run.
 4. [ ] M15, classes: the view models over 600 lines are split along their parts (CompareViewModel, LiveAllocationsViewModel,

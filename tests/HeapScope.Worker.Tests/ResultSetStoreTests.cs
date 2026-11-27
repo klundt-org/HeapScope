@@ -35,7 +35,7 @@ public class ResultSetStoreTests
     public void Pages_are_formatted_on_demand_and_capped()
     {
         var store = new ResultSetStore();
-        var info = store.Add(new CountingSource(25_000));
+        var info = store.Add(null, new CountingSource(25_000));
 
         var page = store.TryGetPage(info.Id, 10, 3)!;
         page.Rows.Select(r => r[0]).ShouldBe(["10", "11", "12"]);
@@ -49,11 +49,11 @@ public class ResultSetStoreTests
     {
         var store = new ResultSetStore(capacity: 2);
         var firstOwner = new Owner();
-        var first = store.Add(new CountingSource(1), firstOwner);
-        var second = store.Add(new CountingSource(1));
+        var first = store.Add(null, new CountingSource(1), firstOwner);
+        var second = store.Add(null, new CountingSource(1));
         store.TryGetPage(first.Id, 0, 1).ShouldNotBeNull();
 
-        store.Add(new CountingSource(1));
+        store.Add(null, new CountingSource(1));
 
         store.TryGetPage(second.Id, 0, 1).ShouldBeNull();
         store.TryGetPage(first.Id, 0, 1).ShouldNotBeNull();
@@ -65,14 +65,14 @@ public class ResultSetStoreTests
     {
         var store = new ResultSetStore(capacity: 100, byteBudget: 1_000);
         var ownerA = new Owner();
-        var a = store.Add(new CountingSource(1, bytes: 600), ownerA);
-        var b = store.Add(new CountingSource(1, bytes: 600));
+        var a = store.Add(null, new CountingSource(1, bytes: 600), ownerA);
+        var b = store.Add(null, new CountingSource(1, bytes: 600));
 
         store.TryGetPage(a.Id, 0, 1).ShouldBeNull();
         ownerA.Disposed.ShouldBeTrue();
         store.EstimatedBytes.ShouldBe(600);
 
-        var huge = store.Add(new CountingSource(1, bytes: 5_000));
+        var huge = store.Add(null, new CountingSource(1, bytes: 5_000));
         store.TryGetPage(b.Id, 0, 1).ShouldBeNull();
         store.TryGetPage(huge.Id, 0, 1).ShouldNotBeNull();
         store.Count.ShouldBe(1);
@@ -83,7 +83,7 @@ public class ResultSetStoreTests
     {
         var store = new ResultSetStore();
         var owner = new Owner();
-        var info = store.Add(new CountingSource(3, bytes: 300), owner);
+        var info = store.Add(null, new CountingSource(3, bytes: 300), owner);
 
         store.Release(info.Id);
         store.Release(info.Id);
@@ -91,6 +91,61 @@ public class ResultSetStoreTests
         owner.Disposed.ShouldBeTrue();
         store.EstimatedBytes.ShouldBe(0);
         store.TryGetPage(info.Id, 0, 1).ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_shown_snapshots_sets_survive_the_others_queries()
+    {
+        // Three snapshots open (ADR-044): the client shows a; b's and c's queries fill the store, and a's sets stay.
+        var (a, b, c) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore(capacity: 4);
+        store.Show(a);
+        var aSets = new[] { store.Add(a, new CountingSource(1)), store.Add(a, new CountingSource(1)) };
+        for (var i = 0; i < 10; i++)
+        {
+            store.Add(i % 2 == 0 ? b : c, new CountingSource(1));
+        }
+
+        store.ShownSnapshot.ShouldBe(a);
+        store.Count.ShouldBe(4);
+        aSets.ShouldAllBe(set => store.TryGetPage(set.Id, 0, 1) != null);
+    }
+
+    [Fact]
+    public void Eviction_takes_the_hidden_snapshots_sets_first_least_recently_used_then_the_rest()
+    {
+        var (shown, hidden) = (Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore(capacity: 3);
+        store.Show(shown);
+        var mine = store.Add(shown, new CountingSource(1));
+        var trace = store.Add(null, new CountingSource(1));
+        var older = store.Add(hidden, new CountingSource(1));
+
+        // Over the cap: the hidden snapshot's set goes, although the shown one's and the trace's are older.
+        var newer = store.Add(hidden, new CountingSource(1));
+        store.TryGetPage(older.Id, 0, 1).ShouldBeNull();
+        store.TryGetPage(mine.Id, 0, 1).ShouldNotBeNull();
+        store.TryGetPage(trace.Id, 0, 1).ShouldNotBeNull();
+
+        // The newest set always stays; with no hidden set left but it, the least recently used of the rest goes.
+        store.Add(shown, new CountingSource(1));
+        store.TryGetPage(newer.Id, 0, 1).ShouldBeNull("the hidden set goes before any other");
+        var last = store.Add(hidden, new CountingSource(1));
+        store.TryGetPage(last.Id, 0, 1).ShouldNotBeNull("the newest set is kept");
+        store.Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public void With_no_snapshot_shown_eviction_is_least_recently_used()
+    {
+        var (a, b) = (Guid.NewGuid(), Guid.NewGuid());
+        var store = new ResultSetStore(capacity: 2);
+        var first = store.Add(a, new CountingSource(1));
+        store.Add(b, new CountingSource(1));
+        store.Add(b, new CountingSource(1));
+
+        store.ShownSnapshot.ShouldBeNull();
+        store.TryGetPage(first.Id, 0, 1).ShouldBeNull();
     }
 
     [Fact]
@@ -137,7 +192,7 @@ public class ResultSetStoreTests
         var owner = new Owner();
         using var formatting = new ManualResetEventSlim();
         using var proceed = new ManualResetEventSlim();
-        var info = store.Add(new BlockingSource(formatting, proceed), owner);
+        var info = store.Add(null, new BlockingSource(formatting, proceed), owner);
 
         var page = Task.Run(() => store.TryGetPage(info.Id, 0, 1), TestContext.Current.CancellationToken);
         formatting.Wait(TestContext.Current.CancellationToken);

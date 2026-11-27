@@ -39,4 +39,10 @@ public interface IResultSetService
 
     /// <summary>Frees a result set. Releasing an unknown set is not an error.</summary>
     Task ReleaseResultSetAsync(Guid resultSetId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Says which snapshot the client's window shows (null: none), so the result sets of the others are evicted first and
+    /// the one on screen keeps its rows (ADR-044). An unknown snapshot is not an error.
+    /// </summary>
+    Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken);
 }

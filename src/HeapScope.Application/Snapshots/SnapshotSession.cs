@@ -94,6 +94,7 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
 
     private readonly object _gate = new();
     private readonly List<SnapshotHandle> _snapshots = [];
+    private SnapshotHandle? _shown;
 
     /// <summary>Raised on any thread when a snapshot is opened, reopened or closed.</summary>
     public event EventHandler? SnapshotsChanged;
@@ -203,6 +204,49 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
         {
             await worker.InvokeAsync((service, ct) => service.CloseSnapshotAsync(handle.WorkerSnapshotId, ct), cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Tells the worker which snapshot the window shows (null: none), so its result set store evicts the others' sets first
+    /// and the one on screen keeps its rows (ADR-044). A worker that is not running is told when the snapshot is reopened in
+    /// it; nothing starts a worker for this.
+    /// </summary>
+    public async Task ShowAsync(SnapshotHandle? handle, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            _shown = handle;
+        }
+
+        await TellShownAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary><see cref="ShowAsync"/> without waiting, for the UI: a failure only costs eviction order, so it is logged at Debug.</summary>
+    public void ShowInBackground(SnapshotHandle? handle) =>
+        _ = ShowAsync(handle, CancellationToken.None).ContinueWith(
+            static (t, state) => ((ILogger)state!).LogDebug(t.Exception, "Telling the worker which snapshot is shown failed"),
+            _logger,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+
+    private async Task TellShownAsync(CancellationToken cancellationToken)
+    {
+        SnapshotHandle? shown;
+        lock (_gate)
+        {
+            shown = _shown;
+        }
+
+        // A snapshot not open in this worker (it restarted) is told once its reopen gives it an id there.
+        if (worker.State != WorkerState.Running || shown is { IsClosed: false } && shown.Generation != worker.Generation)
+        {
+            return;
+        }
+
+        var id = shown is { IsClosed: false } ? shown.WorkerSnapshotId : (Guid?)null;
+        await worker.InvokeAsync((service, ct) => service.ShowSnapshotAsync(id, ct), cancellationToken).ConfigureAwait(false);
+        _logger.LogDebug("The worker was told the window shows {Path} (worker snapshot {WorkerSnapshotId})", shown?.Path ?? "no snapshot", id);
     }
 
     /// <summary>Closes a snapshot in the worker (when it is still there) and forgets the handle.</summary>
@@ -668,6 +712,18 @@ public sealed class SnapshotSession(IWorkerClient worker, JobTracker jobs, Func<
             // Closed while the reopen was running: do not leave an orphaned snapshot in the worker.
             await worker.InvokeAsync((service, ct) => service.CloseSnapshotAsync(descriptor.SnapshotId, ct), CancellationToken.None).ConfigureAwait(false);
             ThrowIfClosed(handle);
+        }
+
+        // The new worker learns which snapshot is shown once that one has an id there.
+        bool shown;
+        lock (_gate)
+        {
+            shown = _shown == handle;
+        }
+
+        if (shown)
+        {
+            ShowInBackground(handle);
         }
 
         SafeEvents.Raise(SnapshotsChanged, this, _logger, nameof(SnapshotsChanged));

@@ -46,6 +46,16 @@ internal sealed class ResultSetHandler(ResultSetStore resultSets, ILogger<Result
             LogLevel.Debug);
     }
 
+    public Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken) =>
+        GuardAsync(
+            snapshotId,
+            () =>
+            {
+                resultSets.Show(snapshotId);
+                return Task.FromResult(true);
+            },
+            LogLevel.Debug);
+
     /// <remarks>Through the guard like every method (sprint 3.12 review M17).</remarks>
     public Task ReleaseResultSetAsync(Guid resultSetId, CancellationToken cancellationToken) =>
         GuardAsync(

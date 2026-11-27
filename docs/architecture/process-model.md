@@ -234,6 +234,10 @@ references such as "ARCHITECTURE.md 4" still name the right section.
   machine's clock), the diff's `AllocatedBytes` and `AllocatedSamples` columns with the hidden key column `AllocatedType` (the trace's
   name of a type row; empty without a sample and when the row joins several names), and `TypeDiffResult.Allocations`
   (`DiffAllocationInfo`: what was counted and what no row holds). A live trace is refused.
+  Version 25 (sprint 4.9, ADR-044): `IResultSetService.ShowSnapshotAsync`: the client says which snapshot its window shows
+  (null: none), and the result set store evicts the sets of the other snapshots first, least recently used among them; then
+  the rest, least recently used. Sets of no snapshot (traces, a synthetic graph) and Compare's diff and trend sets are never
+  preferred for eviction. Before the client says anything, eviction is least recently used, as before.
 - When to bump `WorkerProtocol.Version`: for a removed or renamed method, or a changed DTO shape (a field added, removed,
   renamed or retyped, a changed enum value). Not for new catalog values (an inspection, a detector) or new feature ids:
   front ends read those from the worker's own lists (`ListInspectionsAsync`, the availability list), and a feature id

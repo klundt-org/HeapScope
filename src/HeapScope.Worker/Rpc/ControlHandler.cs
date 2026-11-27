@@ -170,7 +170,7 @@ internal sealed class ControlHandler(
 
         throttled.Report(new JobProgress("Summarizing types", total, total));
         throttled.Flush();
-        var summary = resultSets.Add(TypeSummarySource.Create(graph, cancellationToken));
+        var summary = resultSets.Add(null, TypeSummarySource.Create(graph, cancellationToken));
         stopwatch.Stop();
 
         return new SyntheticJobResult(graph.ObjectCount, graph.EdgeCount, graph.TotalSize, graph.ColumnBytes, stopwatch.Elapsed.TotalSeconds, summary);

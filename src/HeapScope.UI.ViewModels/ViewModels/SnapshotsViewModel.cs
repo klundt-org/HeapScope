@@ -292,6 +292,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
         _current.Navigator.StepShown += OnStepShown;
         _current.Show();
         _current.SetActiveTab(Tab);
+        _session.ShowInBackground(snapshot);
         _logger?.LogInformation("Workspace shown: snapshot {Snapshot} ({Open} workspaces open)", snapshot?.Descriptor.SnapshotId.ToString() ?? "none", _workspaces.Count);
         OnPropertyChanged(nameof(Current));
         OnPropertyChanged(nameof(Types));

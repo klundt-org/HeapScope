@@ -200,6 +200,8 @@ public sealed class ResultSetHandleTests
             return Task.CompletedTask;
         }
 
+        public Task ShowSnapshotAsync(Guid? snapshotId, CancellationToken cancellationToken) => Task.CompletedTask;
+
         private async Task<ResultSetInfo> RunQueryAsync(CancellationToken cancellationToken)
         {
             lock (_lock)

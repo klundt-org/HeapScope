@@ -123,7 +123,7 @@ internal sealed class AllocationTraceHandler(
                 samples,
                 bytes,
                 string.Join("; ", rows.Take(LoggedAllocationRows).Select(r => string.Create(CultureInfo.InvariantCulture, $"{open.Trace.Types[r.Type]} {r.Bytes} bytes ({r.Samples} samples, LOH {r.LargeBytes}, POH {r.PinnedBytes})"))));
-            return new AllocationTypesResult(resultSets.Add(new AllocationTypesSource(open.Trace.Types, rows, bytes)), bytes, samples, Interval(open, filter));
+            return new AllocationTypesResult(resultSets.Add(null, new AllocationTypesSource(open.Trace.Types, rows, bytes)), bytes, samples, Interval(open, filter));
         }, LevelOf(request?.TraceId));
 
     public Task<AllocationStacksResult> QueryAllocationStacksAsync(AllocationStacksRequest request, CancellationToken cancellationToken) =>
@@ -216,7 +216,7 @@ internal sealed class AllocationTraceHandler(
                 request.RevealKey ?? "none",
                 reveal,
                 string.Join("; ", shown.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Name} total {r.Total} own {r.Own}"))));
-            return new AllocationTreeResult(resultSets.Add(new AllocationTreeSource(view)), view.TotalBytes, view.TotalSamples, view.Truncated, reveal);
+            return new AllocationTreeResult(resultSets.Add(null, new AllocationTreeSource(view)), view.TotalBytes, view.TotalSamples, view.Truncated, reveal);
         });
 
     private OpenTrace Trace(Guid traceId) => traces.TryGet(traceId) ?? throw NotLoaded(traceId);

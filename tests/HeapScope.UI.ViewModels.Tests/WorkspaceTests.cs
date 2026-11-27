@@ -158,6 +158,22 @@ public sealed class WorkspaceTests : IDisposable
         _snapshots.Status.ShouldBe(string.Format(CultureInfo.CurrentCulture, InfoTexts.LinkOfClosedSnapshot, "a.dmp"));
     }
 
+    [Fact]
+    public async Task The_worker_is_told_which_snapshot_is_shown()
+    {
+        await _snapshots.OpenPathAsync(Dump("a.dmp"));
+        var a = _snapshots.Selected!;
+        await _snapshots.OpenPathAsync(Dump("b.dmp"));
+        var b = _snapshots.Selected!;
+        await WaitUntilAsync(() => Shown().LastOrDefault() == b.Handle.Descriptor.SnapshotId);
+
+        _snapshots.Selected = a;
+        await WaitUntilAsync(() => Shown().LastOrDefault() == a.Handle.Descriptor.SnapshotId);
+
+        _snapshots.Selected = null;
+        await WaitUntilAsync(() => Shown() is [.., null]);
+    }
+
     public void Dispose()
     {
         _snapshots.Dispose();
@@ -178,6 +194,14 @@ public sealed class WorkspaceTests : IDisposable
         }
 
         condition().ShouldBeTrue();
+    }
+
+    private List<Guid?> Shown()
+    {
+        lock (_worker.Service.Shown)
+        {
+            return [.. _worker.Service.Shown];
+        }
     }
 
     private string Dump(string name)

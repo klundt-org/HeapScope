@@ -85,7 +85,7 @@ using (var self = System.Diagnostics.Process.GetCurrentProcess())
 if (options is not null)
 {
     builder.Services.AddSingleton(options);
-    builder.Services.AddSingleton(new ResultSetStore());
+    builder.Services.AddSingleton(services => new ResultSetStore(logger: services.GetRequiredService<ILoggerFactory>().CreateLogger<ResultSetStore>()));
     builder.Services.AddSingleton(new HeapScope.Storage.IndexCacheLocator(options.Folders.Cache));
 
     // Index caches are signed with this user's key and a cache without its signature is never used (ADR-036): a cache

@@ -125,7 +125,7 @@ internal sealed class HeapQueryHandler(
 
             var source = await Task.Run(() => TypeSummarySource.Create(snapshot.Graph, aggregation, request, generations, retained, interfaces), cancellationToken).ConfigureAwait(false);
             throttled.Flush();
-            var rows = resultSets.Add(source);
+            var rows = resultSets.Add(request.SnapshotId, source);
             // Unknown (generation not determined) is listed only when present, so the bar always adds up to the total.
             var kinds = generations
                 ? TypeSummarySource.KindColumns.Prepend(Core.Graph.HeapKind.Unknown)
@@ -180,7 +180,7 @@ internal sealed class HeapQueryHandler(
                 () => TypeDiffSource.Create(baseline.Graph, baselineAggregation, current.Graph, currentAggregation, request, baseline.Info.Kind, current.Info.Kind, baselineInterfaces, currentInterfaces, extras),
                 cancellationToken).ConfigureAwait(false);
             throttled.Flush();
-            var rows = resultSets.Add(source);
+            var rows = resultSets.Add(null, source);
             LogDiff(request, comparison, source);
             return new TypeDiffResult(
                 rows,
@@ -250,7 +250,7 @@ internal sealed class HeapQueryHandler(
                 }
 
                 var source = await Task.Run(() => TypeTrendSource.Create(inputs, request), cancellationToken).ConfigureAwait(false);
-                var rows = resultSets.Add(source);
+                var rows = resultSets.Add(null, source);
 
                 // What the trend rests on (decision 7): its snapshots in order, the grouping and the rows.
                 Logger.LogInformation(
@@ -302,7 +302,7 @@ internal sealed class HeapQueryHandler(
                 var reachable = request.Scope == InstanceScope.Reachable ? await derived.GetReachableAsync(request.SnapshotId, cancellationToken).ConfigureAwait(false) : null;
                 var throttled = new ThrottledProgress<JobProgress>(progress);
                 var source = await Task.Run(() => InstancesSource.Create(snapshot.Graph, reader, request, cancellationToken, throttled, dominators?.Dominators, set, reachable), cancellationToken).ConfigureAwait(false);
-                var rows = resultSets.Add(source, lease);
+                var rows = resultSets.Add(request.SnapshotId, source, lease);
                 return new InstancesResult(rows, source.TotalObjects, source.TotalBytes, source.MatchedTypes, reader is not null, stopwatch.Elapsed.TotalSeconds, info, source.Note);
             }
             catch (CapabilityNotSupportedException ex) when (ex.Missing != SnapshotCapabilities.None)
@@ -376,7 +376,7 @@ internal sealed class HeapQueryHandler(
 
             // The source formats pages from the graph, so the set keeps a lease of its own.
             var owner = snapshot.AcquireLease();
-            return resultSets.Add(source, owner);
+            return resultSets.Add(request.SnapshotId, source, owner);
         });
 
     public Task<ReferrersResult> QueryReferrersAsync(ReferrersRequest request, IProgress<JobProgress>? progress, CancellationToken cancellationToken) =>
@@ -402,7 +402,7 @@ internal sealed class HeapQueryHandler(
                     () => ReferrersSource.Create(snapshot.Graph, reverse.References, reader, index, noReader, throttled, cancellationToken),
                     cancellationToken).ConfigureAwait(false);
                 throttled.Flush();
-                return new ReferrersResult(resultSets.Add(source, lease), source.ReferenceCount, source.FieldsNote, info, SnapshotAccess.IsComplete(snapshot));
+                return new ReferrersResult(resultSets.Add(request.SnapshotId, source, lease), source.ReferenceCount, source.FieldsNote, info, SnapshotAccess.IsComplete(snapshot));
             }
             catch
             {
@@ -426,13 +426,13 @@ internal sealed class HeapQueryHandler(
                 // An unknown sort column or type is answered before the index is built for nothing (review M8).
                 if (TypeReferrersSource.EmptyUnlessMatched(snapshot.Graph, request) is { } none)
                 {
-                    return new TypeReferrersResult(resultSets.Add(none, lease), 0, 0, 0, null, SnapshotAccess.IsComplete(snapshot));
+                    return new TypeReferrersResult(resultSets.Add(request.SnapshotId, none, lease), 0, 0, 0, null, SnapshotAccess.IsComplete(snapshot));
                 }
 
                 var (reverse, info) = await derived.GetReverseAsync(request.SnapshotId, progress, cancellationToken).ConfigureAwait(false);
                 progress?.Report(new JobProgress("Grouping referrers by type", 0, null));
                 var source = await Task.Run(() => TypeReferrersSource.Create(snapshot.Graph, reverse.References, request, cancellationToken), cancellationToken).ConfigureAwait(false);
-                return new TypeReferrersResult(resultSets.Add(source, lease), source.MatchedTypes, source.TargetObjects, source.ReferenceCount, info, SnapshotAccess.IsComplete(snapshot));
+                return new TypeReferrersResult(resultSets.Add(request.SnapshotId, source, lease), source.MatchedTypes, source.TargetObjects, source.ReferenceCount, info, SnapshotAccess.IsComplete(snapshot));
             }
             catch
             {

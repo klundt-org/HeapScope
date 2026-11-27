@@ -63,7 +63,7 @@ internal sealed class InspectionHandler(
             var run = await runner.RunAsync(request, progress, cancellationToken).ConfigureAwait(false);
 
             // The set keeps the lease: its rows read the graph while it lives.
-            var rows = resultSets.Add(new InspectionSource(run.Result.Rows), run.Lease);
+            var rows = resultSets.Add(request.SnapshotId, new InspectionSource(run.Result.Rows), run.Lease);
             return new InspectionResultDto(run.Name, run.Result.Count, run.Result.Bytes, run.Result.WastedBytes, run.Result.Note, rows, run.Seconds, run.BaselineId);
         });
 }
