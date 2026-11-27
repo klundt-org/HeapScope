@@ -12,7 +12,7 @@ section 13 links here).
 - [ADR-005](ADR-005-compact-struct-of-arrays-object-graph.md) Compact, struct-of-arrays object graph
 - [ADR-006](ADR-006-on-disk-index-cache.md) On-disk index cache (amended by ADR-041)
 - [ADR-007](ADR-007-out-of-process-worker.md) Out-of-process worker (amended by ADR-025)
-- [ADR-008](ADR-008-headless-core-and-cli.md) Headless core and CLI
+- [ADR-008](ADR-008-headless-core-and-cli.md) Headless core and CLI (amended in sprint 4.8: the JSON output's format)
 - [ADR-009](ADR-009-application-stack.md) Application stack
 - [ADR-010](ADR-010-diagnostics-libraries.md) Diagnostics libraries (amended in 3.12: the loader's own object walk, and in 4.5: the second walk of GC handles)
 - [ADR-011](ADR-011-build-hygiene.md) Build hygiene

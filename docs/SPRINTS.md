@@ -147,7 +147,7 @@ mapped switch does not return, a note when a load's references fall back to memo
 5. [x] M2: THIRD-PARTY-NOTICES lists the versions shipped, and a test compares it with the lock files. Test: `Notices_list_the_shipped_versions`.
 6. [x] M3: opening an untrusted dump runs the dump's runtime's DAC, native code, with the user's rights: security-privacy.md and INSTALL
    say so (draft), and opening a dump while elevated adds a note. Sandboxing the reader stays in the Backlog (L). Tests: the note.
-7. [ ] M4: CLI output is a versioned contract: every `--json` output carries `"format": 1`, docs/cli-output.md says what may change
+7. [x] M4: CLI output is a versioned contract: every `--json` output carries `"format": 1`, docs/cli-output.md says what may change
    within a format and what bumps it. Tests: each command's JSON has the field; a contract test per command's top-level shape.
 8. [ ] M5: the worker. A crash banner stays until the worker is back or dismissed; "Restart worker" for a stuck one (also the CLI's
    timeout message names it). One process for live and snapshots stays (Backlog, with its reason). Tests: the banner's life; restart.
@@ -176,7 +176,8 @@ mapped switch does not return, a note when a load's references fall back to memo
   repositories; the macOS packages stay untested.
 - Decided autonomously: repository settings (tag protection, immutable releases, required checks) are the owner's; the sprint
   drafts them in DEVELOPER.md 7 and the owner applies them.
-- Decided autonomously: the JSON output's version is a top-level `"format": 1`, additive only within a format.
+- Decided autonomously: the JSON output's version is a top-level `"format": 1`, additive only within a format. Built as `"Format": 1`,
+  the first member, in PascalCase like every other member; a list (`inspect` without a name) became the object's `Inspections`.
 - Decided autonomously: under sudo, HeapScope gives what it writes to `SUDO_UID` and keeps that user's data folder.
 - Decided autonomously: one worker process for live and snapshots stays; a second process is Backlog.
 - Decided autonomously: user-facing texts are built as drafts (docs/design/info-text.md "Sprint 4.8 additions") for the owner.
