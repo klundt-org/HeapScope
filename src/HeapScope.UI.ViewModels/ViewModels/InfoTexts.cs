@@ -200,6 +200,22 @@ public static class InfoTexts
     /// <summary>Settings: the status after downloads are turned off.</summary>
     public const string SymbolServerOff = "Missing DACs are no longer downloaded: HeapScope looks on this computer only.";
 
+    // Sprint 4.8 (M5): the worker. Drafts for the owner (docs/design/info-text.md, Sprint 4.8 additions).
+
+    /// <summary>Crash banner: added when the next request started a new worker before the user did.</summary>
+    public const string WorkerBackOnItsOwn =
+        "A new worker started for the next request, and open snapshots are read back from their saved index when next used.";
+
+    /// <summary>The status bar's Restart worker: the question's title.</summary>
+    public const string RestartWorkerQuestionTitle = "Restart the worker?";
+
+    /// <summary>The status bar's Restart worker: the question.</summary>
+    public const string RestartWorkerQuestion =
+        "The worker is the separate process that does the analysis. Restarting it ends what it is doing now: opens, queries, recordings and live sessions stop, and open snapshots are read back from their saved index when next used. Use it when the worker stops answering.";
+
+    /// <summary>The status bar's Restart worker: its tooltip.</summary>
+    public const string RestartWorkerTip = "Stop the worker and start a new one, for a worker that stops answering. Asks first.";
+
     /// <summary>Learn (sprint 3.13).</summary>
     public const string Learn =
         "Lessons that teach HeapScope on a sample process of its own, with problems planted on purpose. Use it to learn the pages hands-on before you look at your own application. Choose a lesson and press Start lesson, then follow its steps and answer its question.";

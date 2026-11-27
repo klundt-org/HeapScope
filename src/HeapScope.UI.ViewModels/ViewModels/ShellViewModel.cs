@@ -103,8 +103,18 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _crashMessage;
 
-    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null)
+    /// <summary>Whether the status bar offers Restart worker: while a worker runs or starts (sprint 4.8, M5).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RestartRunningWorkerCommand))]
+    private bool _canRestartWorker;
+
+    // While the user's own restart runs: the worker coming back then ends the crash banner (sprint 4.8, M5).
+    private bool _restarting;
+    private readonly IUserInteraction? _interaction;
+
+    public ShellViewModel(WorkerOperations operations, IUiDispatcher dispatcher, HomeViewModel home, SnapshotsViewModel snapshots, ProcessesViewModel processes, AboutViewModel about, LiveViewModel? live = null, AllocationsViewModel? allocations = null, GridExportService? exports = null, SettingsViewModel? settings = null, LearnViewModel? learn = null, IUserInteraction? interaction = null)
     {
+        _interaction = interaction;
         Exports = exports ?? new GridExportService(new AutomaticUserInteraction());
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
@@ -250,10 +260,12 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
         _operations.Worker.StateChanged -= OnWorkerStateChanged;
     }
 
+    /// <summary>The crash banner's Restart worker: the worker stopped, so nothing is lost by asking nothing.</summary>
     [RelayCommand]
     private async Task RestartWorkerAsync(CancellationToken cancellationToken)
     {
         IsCrashBannerVisible = false;
+        _restarting = true;
         try
         {
             await _operations.Worker.RestartAsync(cancellationToken);
@@ -263,7 +275,30 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             CrashMessage = ex.Message;
             IsCrashBannerVisible = true;
         }
+        finally
+        {
+            _restarting = false;
+        }
     }
+
+    /// <summary>
+    /// The status bar's Restart worker, for a worker that stops answering (sprint 4.8, peer review 4.5 M5): it asks first, since
+    /// it ends what the worker does now (opens, queries, recordings, live sessions), then stops the worker and starts a new one.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRestartWorker))]
+    private async Task RestartRunningWorkerAsync(CancellationToken cancellationToken)
+    {
+        if (_interaction is not null && !await _interaction.ConfirmAsync(InfoTexts.RestartWorkerQuestionTitle, InfoTexts.RestartWorkerQuestion, RestartWorkerConfirm, RestartWorkerCancel))
+        {
+            return;
+        }
+
+        await RestartWorkerAsync(cancellationToken);
+    }
+
+    public const string RestartWorkerConfirm = "Restart worker";
+
+    public const string RestartWorkerCancel = "Cancel";
 
     [RelayCommand]
     private void DismissCrashBanner() => IsCrashBannerVisible = false;
@@ -356,14 +391,21 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
             _ => state.ToString(),
         };
 
+        CanRestartWorker = state is WorkerState.Running or WorkerState.Starting;
         if (state == WorkerState.Crashed)
         {
             CrashMessage = message ?? "The analysis worker stopped unexpectedly.";
             IsCrashBannerVisible = true;
         }
-        else if (state == WorkerState.Running)
+        else if (state == WorkerState.Running && _restarting)
         {
             IsCrashBannerVisible = false;
+        }
+        else if (state == WorkerState.Running && IsCrashBannerVisible && CrashMessage?.EndsWith(InfoTexts.WorkerBackOnItsOwn, StringComparison.Ordinal) != true)
+        {
+            // The next request started a new worker (sprint 4.8, M5: the banner went at once before): it stays until dismissed,
+            // so the crash is seen, and says what came back.
+            CrashMessage = $"{CrashMessage} {InfoTexts.WorkerBackOnItsOwn}";
         }
     }
 }

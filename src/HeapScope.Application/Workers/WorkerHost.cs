@@ -47,6 +47,10 @@ namespace HeapScope.Application.Workers;
 public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 {
     private static readonly TimeSpan s_shutdownCallTimeout = TimeSpan.FromSeconds(1);
+
+    /// <summary>What to do when a worker does not start in time (sprint 4.8, M5): the app's Restart worker, or the command again.</summary>
+    internal const string StartTimeoutNextStep =
+        "A busy computer can take longer: try again with Restart worker at the bottom of the app's window, or run the command again. HeapScope's log says what the worker did.";
     private static readonly TimeSpan s_exitCodeWait = TimeSpan.FromSeconds(2);
 
     private readonly WorkerHostOptions _options;
@@ -370,7 +374,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {
-            throw new WorkerStartException($"The analysis worker did not open its pipe within {_options.ConnectTimeout.TotalSeconds:N0} s.");
+            throw new WorkerStartException($"The analysis worker did not open its pipe within {_options.ConnectTimeout.TotalSeconds:N0} s. {StartTimeoutNextStep}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -393,7 +397,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {
-            throw new WorkerStartException($"The analysis worker did not answer the handshake within {_options.ConnectTimeout.TotalSeconds:N0} s.");
+            throw new WorkerStartException($"The analysis worker did not answer the handshake within {_options.ConnectTimeout.TotalSeconds:N0} s. {StartTimeoutNextStep}");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

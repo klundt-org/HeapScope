@@ -50,6 +50,12 @@ Sprint 3.11:
 Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.6 to 4.9 to it.
 
 **High**
+- Live sessions in a process of their own (from peer review 4.5 M5, sprint 4.8; M): one worker does both, so a snapshot whose load
+  ends the worker (a damaged dump, a DAC that crashes) stops a live session too, and Restart worker stops both. Kept in one
+  process on purpose (sprint 4.8, decided autonomously): a second process would hold its own runtime and caches (about 250 MB
+  idle, the worker's FirstLoadEstimate), start a second time, and need its own pipe, protocol checks and crash handling; a crash
+  is said on the banner, which now stays until dismissed, and Restart worker in the status bar ends a stuck one. Worth
+  splitting when a crash of one is seen to cost the other in a trial.
 - The reader in a sandbox (from peer review 4.5 M3, sprint 4.8; L): reading a full dump runs the runtime's DAC, native code, with
   the user's rights (security-privacy.md). A worker for untrusted dumps that runs with fewer rights (a restricted token or
   AppContainer on Windows, a user namespace with seccomp on Linux) would contain a dump made to attack it. 4.8 documents it and

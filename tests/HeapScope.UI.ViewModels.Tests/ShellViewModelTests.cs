@@ -206,6 +206,48 @@ public sealed class ShellViewModelTests : IDisposable
         _shell.Home.LastResult.ShouldBe("Canceled.");
     }
 
+    // Sprint 4.8 (peer review 4.5 M5): the next request started a new worker, which hid the banner at once; it stays now.
+    [Fact]
+    public void A_crash_banner_stays_when_the_worker_comes_back_on_its_own_until_it_is_dismissed()
+    {
+        _worker.Raise(WorkerState.Crashed, "The analysis worker stopped unexpectedly (exit code -1).");
+        _worker.Raise(WorkerState.Starting, null);
+        _worker.Raise(WorkerState.Running, null);
+        _worker.Raise(WorkerState.Running, null);
+
+        _shell.IsCrashBannerVisible.ShouldBeTrue();
+        _shell.CrashMessage.ShouldBe("The analysis worker stopped unexpectedly (exit code -1). " + InfoTexts.WorkerBackOnItsOwn, "said once");
+        _shell.WorkerStatus.ShouldBe("Worker running (pid 1234)");
+
+        _shell.DismissCrashBannerCommand.Execute(null);
+
+        _shell.IsCrashBannerVisible.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Restart_worker_in_the_status_bar_asks_first_and_restarts_a_running_worker_on_a_yes()
+    {
+        var interaction = new FakeUserInteraction { Answer = false };
+        var snapshots = new SnapshotsViewModel(new Application.Snapshots.SnapshotSession(_worker, _operations.Jobs), _operations, new ImmediateUiDispatcher(), interaction);
+        var shell = new ShellViewModel(_operations, new ImmediateUiDispatcher(), new HomeViewModel(_operations, snapshots), snapshots, new ProcessesViewModel(new FakeCaptureService(_sessions, _operations.Jobs), snapshots, interaction), new AboutViewModel(_operations), interaction: interaction);
+        shell.CanRestartWorker.ShouldBeFalse("no worker runs yet");
+
+        _worker.Raise(WorkerState.Running, null);
+        shell.CanRestartWorker.ShouldBeTrue();
+        await shell.RestartRunningWorkerCommand.ExecuteAsync(null);
+
+        interaction.Titles.ShouldBe([InfoTexts.RestartWorkerQuestionTitle]);
+        interaction.Questions.ShouldBe([InfoTexts.RestartWorkerQuestion]);
+        _worker.RestartCount.ShouldBe(0, "a no restarts nothing");
+
+        interaction.Answer = true;
+        await shell.RestartRunningWorkerCommand.ExecuteAsync(null);
+
+        _worker.RestartCount.ShouldBe(1);
+        shell.IsCrashBannerVisible.ShouldBeFalse();
+        shell.CanRestartWorker.ShouldBeTrue();
+    }
+
     [Fact]
     public async Task Crash_banner_appears_on_worker_crash_and_restart_hides_it()
     {
