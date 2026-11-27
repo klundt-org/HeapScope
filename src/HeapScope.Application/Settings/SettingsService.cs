@@ -154,6 +154,9 @@ public sealed class SettingsService
         }
     }
 
+    /// <summary>Whether this process runs with sudo, when saved DAC settings are ignored (the 4.8 review's H1).</summary>
+    public static bool UnderSudo => InvokingUser.Current is not null;
+
     /// <summary>The DAC folder saved on the Settings page (sprint 4.8, H15), or null.</summary>
     public string? DacFolder => HeapScopeSettings.Read(_folders).DacFolder is { Length: > 0 } folder ? folder : null;
 

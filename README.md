@@ -177,7 +177,7 @@ Or build it from source:
 ## Getting help
 
 Questions, problems and results that look wrong: open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues).
-[SUPPORT.md](SUPPORT.md) says what to include, and how to check HeapScope's log before you attach it. Never attach a memory dump.
+[SUPPORT.md](SUPPORT.md) says what to include, and which lines of HeapScope's log to paste (issues are public). Never attach a memory dump.
 
 ## License
 

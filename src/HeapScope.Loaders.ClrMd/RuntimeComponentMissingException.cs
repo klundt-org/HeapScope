@@ -75,6 +75,8 @@ public sealed class RuntimeComponentMissingException : Exception
             (hint is null ? "" : hint + " ") +
             $"Install {(known ? $"the .NET {runtimeVersion} runtime" : "that runtime")}, or copy {fileName} from that runtime's folder into the DAC folder (on the Settings page in the app, or --dac-folder on the command line); a copy next to the dump is used once you trust it. " +
             "Downloading it from Microsoft's symbol server is off by default: turn on Download missing DACs from Microsoft on the Settings page, or add --allow-symbol-server on the command line. " +
+            // Run with sudo, a folder or opt-in saved in the app is ignored (sprint 4.8 review H1), so the command line is the way.
+            (HeapScope.Core.InvokingUser.Current is null ? string.Empty : "Run with sudo, HeapScope ignores a DAC folder and a download choice saved in the app: give --dac-folder or --allow-symbol-server. ") +
             $"Searched: {(searched.Count == 0 ? "nothing" : string.Join("; ", searched))}.";
     }
 }

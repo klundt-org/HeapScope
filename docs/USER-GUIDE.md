@@ -152,6 +152,6 @@ on in a new file, so all it wrote before goes too; after you turn dump values of
 go with it); Purge all deletes the logs,
 every session of the library and the bookmarks, never a dump you opened from your own folders.
 
-If HeapScope closes unexpectedly, it writes a crash report beside its logs and offers it at its next start, to attach to an
-issue. To get help, open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues) with the details Copy details
-gives (the version, the system and the id of the last unexpected failure); [SUPPORT.md](../SUPPORT.md) says what to include and how to check a log before you attach it. The About page links to it.
+If HeapScope closes unexpectedly, it writes a crash report beside its logs and offers it at its next start; its error and first lines
+of stack can go into an issue. To get help, open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues) with the details Copy details
+gives (the version, the system and the id of the last unexpected failure); [SUPPORT.md](../SUPPORT.md) says what to include and which log lines to paste (issues are public). The About page links to it.

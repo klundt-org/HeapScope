@@ -56,7 +56,7 @@ public sealed class WorkerCrashedException : WorkerException
     /// The message of a call that a restart the user asked for ended (sprint 4.8 review H3): not "stopped unexpectedly", which would
     /// send the user and support after a crash that did not happen. A draft (docs/design/info-text.md).
     /// </summary>
-    public const string EndedByRestartMessage = "This stopped because the worker was restarted (Restart worker). Run it again.";
+    public const string EndedByRestartMessage = "This stopped because the worker was restarted (Restart worker) or HeapScope is closing. Run it again.";
 
     /// <summary>Whether a restart the user asked for ended the call, rather than a crash.</summary>
     public bool EndedByRestart { get; init; }

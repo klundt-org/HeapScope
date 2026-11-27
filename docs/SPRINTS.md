@@ -57,7 +57,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.5 | Peer review | Closed | 2026-11-25 | sprint-4.5 |
 | 4.6 | Right answers | Closed | 2026-11-25 | sprint-4.6 |
 | 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
-| 4.8 | Ready to release | In Progress | | |
+| 4.8 | Ready to release | Wrapping | | |
 | 4.9 | Workspaces | Planned | | |
 | 4.10 | Analysis tabs | Planned | | |
 | 4.11 | Sunburst | Planned | | |
@@ -180,7 +180,18 @@ mapped switch does not return, a note when a load's references fall back to memo
   the first member, in PascalCase like every other member; a list (`inspect` without a name) became the object's `Inspections`.
 - Decided autonomously: under sudo, HeapScope gives what it writes to `SUDO_UID` and keeps that user's data folder.
 - Decided autonomously: one worker process for live and snapshots stays; a second process is Backlog.
+- Decided autonomously in the review (owner to confirm): a whole log, when the lines in an issue are not enough, is shared by email to the
+  owner's address, never posted (SUPPORT.md).
 - Decided autonomously: user-facing texts are built as drafts (docs/design/info-text.md "Sprint 4.8 additions") for the owner.
+
+**Review summary:** 6 High and 18 Moderate ([reviews/sprint-4.8.md](reviews/sprint-4.8.md)). The Highs, all fixed: under sudo the root
+worker no longer takes what decides which DAC it loads from the user's folder (the saved DAC folder and opt-in are ignored, the trust
+list and DAC copies are root's, and nothing in root's home is given away, the reviewers' re-check); a DAC folder the search leaves out is
+refused or named; Restart worker is logged and what it ends says so; the help pages say issues are public; HelpLinks moved to
+Contracts with a source check; a release runs on its tag and builds one resolved commit. Moderates: 12 fixed, 6 fixed in part or
+deferred to the Backlog (the error id as protocol data, the JSON rows' keys, PrivateFiles.Copy, a failed Give logged, a DAC-only
+symbol locator, the capture refusal's sudo advice). Measured: the worker after the mapped switch on a 2 GB dump 50 MB private and
+8 MB of GC heap (743 and 698 MB before); the flaky loop's 20 runs (BACKLOG.md); the release workflow's dry run and CI on the branch.
 
 ---
 

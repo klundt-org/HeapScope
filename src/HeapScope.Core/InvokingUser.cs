@@ -110,7 +110,7 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
     public static bool Give(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        if (Current is not { } user || IsRoots(path, s_rootHome))
+        if (Current is not { } user || IsRoots(path, s_rootHome) || IsTrusts(path, TrustFolder))
         {
             return false;
         }
@@ -138,7 +138,22 @@ public sealed partial record InvokingUser(int UserId, int GroupId, string Name, 
 
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         var home = Path.TrimEndingDirectorySeparator(rootHome);
-        return full == home || full.StartsWith(home + "/", StringComparison.Ordinal);
+
+        // A home of "/" would make everything root's; the trust folder's own rule (IsTrusts) covers that case.
+        return home != "/" && (full == home || full.StartsWith(home + "/", StringComparison.Ordinal));
+    }
+
+    /// <summary>Whether <paramref name="path"/> is the trust folder, under it, or a folder above it HeapScope may create on the way.</summary>
+    internal static bool IsTrusts(string path, string? trustFolder)
+    {
+        if (string.IsNullOrEmpty(trustFolder))
+        {
+            return false;
+        }
+
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var trust = Path.TrimEndingDirectorySeparator(trustFolder);
+        return full == trust || full.StartsWith(trust + "/", StringComparison.Ordinal) || trust.StartsWith(full + "/", StringComparison.Ordinal);
     }
 
     private static string? ReadPasswd()

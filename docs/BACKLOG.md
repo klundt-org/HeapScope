@@ -67,8 +67,8 @@ Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.
   static `ErrorIds` (M7); the JSON rows' keys pinned per command in docs/cli-output.md and `CliJsonContractTests`, or a stable key
   per column apart from its header (M8); a `PrivateFiles.Copy` that gives ownership under sudo, an architecture test against raw
   `File.Copy` and create modes in src, and a capture in CI's sudo check (M9); a failed `InvokingUser.Give` logged once and said in
-  the capture's result (M13); a symbol server locator that answers DAC requests only, or texts naming every module it may ask for,
-  checked against ClrMD (M16); the capture refusal's sudo advice with the full path on the command line (M12, the rest).
+  the capture's result (M13); a symbol server locator that answers DAC requests only and reads the opt-in at each request, so a reader
+  already open honours one withdrawn (the re-check of M5), or texts naming every module it may ask for, checked against ClrMD (M16); the capture refusal's sudo advice with the full path on the command line (M12, the rest).
 - Live sessions in a process of their own (from peer review 4.5 M5, sprint 4.8; M): one worker does both, so a snapshot whose load
   ends the worker (a damaged dump, a DAC that crashes) stops a live session too, and Restart worker stops both. Kept in one
   process on purpose (sprint 4.8, decided autonomously): a second process would hold its own runtime and caches (256 MB idle by

@@ -256,7 +256,7 @@ release, so copy it across; for the dotnet tool, use environment variables, sinc
 
 If something here does not work, open an issue on [HeapScope's issues](https://github.com/klundt-org/HeapScope/issues) with the
 details the About page copies (Copy details) or `heapscope-cli --version`. [SUPPORT.md](SUPPORT.md) says what to include and how to
-check the log before you attach it.
+which log lines to paste (issues are public).
 
 ## Updating and removing
 

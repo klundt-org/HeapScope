@@ -134,6 +134,11 @@ internal static partial class CliCommands
         await context.Output.WriteLineAsync($"Download missing DACs from Microsoft: {(settings.AllowMicrosoftSymbolServer ? "on" : "off")}{(settings.ConfiguredSymbolServer ? " (on for this run, from --allow-symbol-server or appsettings)" : string.Empty)}").ConfigureAwait(false);
         await context.Output.WriteLineAsync($"Include filter text in logs: {(settings.IncludeFilterTextInLogs ? "on" : "off")}").ConfigureAwait(false);
         await context.Output.WriteLineAsync($"Include dump values in logs: {(settings.IncludeDumpValuesInLogs ? "on" : "off")}").ConfigureAwait(false);
+        if (HeapScope.Application.Settings.SettingsService.UnderSudo)
+        {
+            await context.Output.WriteLineAsync("Run with sudo, HeapScope ignores the saved DAC folder and download choice (your own programs can change this file): give --dac-folder or --allow-symbol-server instead.").ConfigureAwait(false);
+        }
+
         await context.Output.WriteLineAsync($"Settings file: {settings.SettingsPath}").ConfigureAwait(false);
         await context.Output.WriteLineAsync($"Log folder: {settings.LogFolder}").ConfigureAwait(false);
     }

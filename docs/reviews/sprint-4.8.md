@@ -100,7 +100,26 @@ Listed, not fixed:
 
 ## Confirmations
 
-To be recorded when the reviewers have seen the fixes.
+Each High was sent back to the reviewers that raised it, with the fix's commits (1578a97 and 3fdddae).
+- H1: not confirmed at first by senior-dev, gc-specialist and solution-architect. The trust folder and the DAC copies in it, now in
+  root's home, still went through `PrivateFiles`, which gave each new folder and file to the invoking user. Fixed (2bd939d):
+  `InvokingUser.Give` refuses root's home and anything under it, and, for a root home of `/` (the re-check's Low), the trust folder,
+  anything under it and the folders above it; CI's sudo check fails when anything under `/root` is the user's. Confirmed by all three.
+  Their Low notes: the CI check does not yet make the root run trust and copy a DAC, so it would pass without the rule (the unit tests
+  hold it); folders a development build of this sprint gave away under sudo keep their owner (never released).
+- H2: confirmed by the support engineer and the senior developer. Found in the re-check and fixed: the untrusted DAC refusal names a DAC
+  folder the search left out too. On Linux the save still takes a folder on a non-local mount; the refusal names it (Low).
+- H3: confirmed by the support engineer. Found in the re-check and fixed: a call a close ended got the restart's message; the message
+  now says "restarted (Restart worker) or HeapScope is closing".
+- H4: confirmed by the support engineer. Found in the re-check and fixed: the crash report's offer, the user guide, INSTALL and README
+  still said "attach"; they say which lines to paste. For the owner: SUPPORT.md's private way for a whole log is email to the owner's
+  address, which the sprint's decision on the help channel ("not Discussions or email") did not foresee; recorded as owner to confirm.
+- H5 and H6: confirmed by the solution architect.
+- Moderates sent back: M1, M2, M3, M4, M6, M10, M11, M14, M15 (in part), M16 (in part), M17 and M18 confirmed. M5 confirmed with a gap:
+  an open reader's DataTarget keeps ClrMD's locator after it opened, which the DAC-only locator in the Backlog covers (rated Moderate
+  there by the GC specialist). Found in the re-check and fixed: under sudo the missing-DAC message and `heapscope-cli settings` say a
+  saved DAC folder and download choice are ignored and name the command line's options. Still open and in the Backlog: the capture
+  refusal's sudo advice with the full path (M12) and a failed `Give` logged (M13).
 
 ## Markdown sweep
 

@@ -90,6 +90,19 @@ public sealed class InvokingUserTests
         InvokingUser.IsRoots(path, null).ShouldBeFalse();
     }
 
+    // Root's home of "/" (the re-check): the trust folder and the folders above it stay root's anyway.
+    [Theory]
+    [InlineData("/.local/share/HeapScope/dac/abc/libmscordaccore.so", true)]
+    [InlineData("/.local/share/HeapScope", true)]
+    [InlineData("/.local", true)]
+    [InlineData("/home/ubuntu/.local/share/HeapScope/logs", false)]
+    public void The_trust_folder_and_its_parents_are_never_given_away(string path, bool trusts)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Linux paths.");
+        InvokingUser.IsRoots(path, "/").ShouldBeFalse("a home of / is the trust folder's rule's case");
+        InvokingUser.IsTrusts(path, "/.local/share/HeapScope").ShouldBe(trusts);
+    }
+
     [Fact]
     public void Off_linux_and_when_not_root_no_one_is_given_anything()
     {

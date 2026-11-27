@@ -211,7 +211,7 @@ public static class InfoTexts
 
     /// <summary>The message at the next start after the app closed unexpectedly; {0} is the report's path.</summary>
     public const string CrashReportOffer =
-        "HeapScope closed unexpectedly last time. A report of where it failed is in {0}: the versions, the system and the error, which may quote text you typed or saw, so read it before you share any of it. To help fix it, open an issue on HeapScope's page and attach it (Getting help, on the About page).";
+        "HeapScope closed unexpectedly last time. A report of where it failed is in {0}: the versions, the system and the error, which may quote text you typed or saw, so read it before you share any of it. To help fix it, open an issue on HeapScope's page and paste its error and first lines of stack (Getting help, on the About page).";
 
     /// <summary>The title of <see cref="CrashReportOffer"/>.</summary>
     public const string CrashReportOfferTitle = "HeapScope closed unexpectedly";
