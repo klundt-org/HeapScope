@@ -34,8 +34,27 @@
       <TextBlock Classes="pageTitle" Text="Settings" VerticalAlignment="Center" />
       <ctl:InfoIcon Text="{x:Static vm:InfoTexts.Settings}" />
     </StackPanel>
+    <!-- Sprint 4.8 (H15): the Dumps section, where a missing DAC is found; drafts (docs/design/info-text.md, Sprint 4.8 additions). -->
+    <TextBlock Text="Dumps" FontWeight="SemiBold" Margin="0,0,0,6" />
+    <TextBlock Text="DAC folder" Margin="0,0,0,4" />
+    <Grid ColumnDefinitions="*,Auto,Auto">
+      <TextBox x:Name="DacFolderBox" Text="{Binding DacFolder}" PlaceholderText="None: the .NET runtimes installed here only"
+               ToolTip.Tip="{x:Static vm:InfoTexts.DacFolderTip}">
+        <TextBox.KeyBindings>
+          <KeyBinding Gesture="Enter" Command="{Binding SaveDacFolderCommand}" />
+        </TextBox.KeyBindings>
+      </TextBox>
+      <Button Grid.Column="1" Margin="8,0,0,0" Content="Browse..." Command="{Binding PickDacFolderCommand}"
+              ToolTip.Tip="Choose the folder that holds the DAC, and save it." />
+      <Button Grid.Column="2" Margin="8,0,0,0" Content="Save" Command="{Binding SaveDacFolderCommand}"
+              ToolTip.Tip="Save the folder as typed. An empty box clears it." />
+    </Grid>
+    <CheckBox Margin="0,6,0,0" Content="Download missing DACs from Microsoft" IsChecked="{Binding AllowMicrosoftSymbolServer}"
+              ToolTip.Tip="{x:Static vm:InfoTexts.SymbolServerTip}" />
+    <SelectableTextBlock Margin="0,4,0,0" Text="{Binding DacConfiguredNote}" TextWrapping="Wrap" Classes="subtle"
+                         IsVisible="{Binding DacConfiguredNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <!-- Sprint 3.12, B1: the Logging section; the texts are the owner's (docs/design/info-text.md, Sprint 3.12 additions). -->
-    <TextBlock Text="Logging" FontWeight="SemiBold" Margin="0,0,0,6" />
+    <TextBlock Text="Logging" FontWeight="SemiBold" Margin="0,16,0,6" />
     <CheckBox Content="Include filter text in logs" IsChecked="{Binding IncludeFilterTextInLogs}"
               ToolTip.Tip="Write the text you type in filters and searches into HeapScope's logs, to help troubleshoot a result. It can hold values from your dumps (account numbers, tokens), so turn it off before you share a log." />
     <!-- Sprint 3.13.2 (owner, 2026-11-19): off by default; turning it on asks first (SettingsViewModel). -->

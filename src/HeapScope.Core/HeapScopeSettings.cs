@@ -39,7 +39,19 @@ namespace HeapScope.Core;
 /// Whether values read from a dump (field values, string text) are written into the logs (sprint 3.13.2; owner, 2026-11-19):
 /// off by default, turned on only after the user confirms. Off, the logs keep a value's length only.
 /// </param>
-public sealed record HeapScopeSettings(bool IncludeFilterTextInLogs = true, bool IncludeDumpValuesInLogs = false)
+/// <param name="DacFolder">
+/// A folder of this computer searched for a dump's data access component (sprint 4.8, H15; ADR-017): the Settings page's DAC
+/// folder. A <c>--dac-folder</c> on the command line, or <c>Symbols:DacFolder</c> in appsettings, wins over it. Null: none.
+/// </param>
+/// <param name="AllowMicrosoftSymbolServer">
+/// Whether a DAC no folder of this computer has may be downloaded from Microsoft's symbol server (sprint 4.8, ADR-017 amended):
+/// off by default, turned on only after the user confirms, since a download sends the runtime module's identifiers.
+/// </param>
+public sealed record HeapScopeSettings(
+    bool IncludeFilterTextInLogs = true,
+    bool IncludeDumpValuesInLogs = false,
+    string? DacFolder = null,
+    bool AllowMicrosoftSymbolServer = false)
 {
     /// <summary>The file's name in the data folder's root.</summary>
     public const string FileName = "settings.json";

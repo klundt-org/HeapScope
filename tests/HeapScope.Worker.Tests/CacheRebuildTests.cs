@@ -70,7 +70,7 @@ public sealed class CacheRebuildTests : IDisposable
         "Field values and strings are not read: the DAC (Data Access Component) next to the dump is not trusted. Trust it to read them (on the command line, add --trust-dac aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa).";
 
     private const string MissingReason =
-        "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.14 runtime was not found. Install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line), then close the snapshot and open the dump again.";
+        "Field values and strings are not read: the DAC (Data Access Component) of this dump's .NET 10.0.14 runtime was not found. Install that runtime or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line), then close the snapshot and open the dump again.";
 
     private void WriteDamagedCache()
     {

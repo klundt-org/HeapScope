@@ -120,6 +120,7 @@ internal abstract class SnapshotKindHandler
 /// <summary>The handlers of every kind, chosen by kind or by a file's first bytes.</summary>
 /// <param name="dacChosen">Told which DAC each full dump's runtime was created with (sprint 2.3.7).</param>
 /// <param name="edgesKeptInMemory">Told a dump's path and why when its load keeps the references in memory (sprint 4.7).</param>
+/// <param name="symbolsChanged">Told the DAC lookup the first time a load uses it and whenever it changes (sprint 4.8, H15).</param>
 internal sealed class SnapshotKinds
 {
     // For what does not depend on the worker's options (texts, name forms, versions): explanations and diffs.
@@ -131,9 +132,9 @@ internal sealed class SnapshotKinds
 
     private readonly SnapshotKindHandler[] _handlers;
 
-    public SnapshotKinds(WorkerOptions options, Action<DacChoice>? dacChosen = null, Action<string, string>? edgesKeptInMemory = null)
+    public SnapshotKinds(WorkerOptions options, Action<DacChoice>? dacChosen = null, Action<string, string>? edgesKeptInMemory = null, Action<WorkerSymbols>? symbolsChanged = null)
     {
-        _handlers = [new FullDumpKind(options, dacChosen, edgesKeptInMemory, _trustedDacs), new GcDumpKind()];
+        _handlers = [new FullDumpKind(options, dacChosen, edgesKeptInMemory, symbolsChanged, _trustedDacs), new GcDumpKind()];
     }
 
     /// <summary>Adds the DACs an open request trusts.</summary>
@@ -159,8 +160,10 @@ internal sealed class SnapshotKinds
     public SnapshotKindHandler ForFile(string path) =>
         SnapshotFileSignature.Detect(path) is { } kind ? For(kind) : throw new SnapshotFormatException(SnapshotFileSignature.DescribeUnknown(path));
 
-    private sealed class FullDumpKind(WorkerOptions options, Action<DacChoice>? dacChosen, Action<string, string>? edgesKeptInMemory, ConcurrentDictionary<string, byte> trustedDacs) : SnapshotKindHandler
+    private sealed class FullDumpKind(WorkerOptions options, Action<DacChoice>? dacChosen, Action<string, string>? edgesKeptInMemory, Action<WorkerSymbols>? symbolsChanged, ConcurrentDictionary<string, byte> trustedDacs) : SnapshotKindHandler
     {
+        private readonly Lock _symbolsGate = new();
+        private WorkerSymbols? _symbols;
         public override SnapshotKind Kind => SnapshotKind.FullDump;
 
         public override int LoaderVersion => ClrMdDumpLoader.CurrentVersion;
@@ -236,10 +239,30 @@ internal sealed class SnapshotKinds
         public override Func<string, string>? NamesWhenComparedWith(SnapshotKind other) =>
             other == SnapshotKind.GcDump ? TypeNameForms.AsGcDumpName : null;
 
-        private ClrMdLoaderOptions LoaderOptions() => new()
+        // The lookup as the command line and the Settings page say now (sprint 4.8, H15), logged when it is new.
+        private WorkerSymbols SymbolsNow()
         {
-            DacFolder = options.DacFolder,
-            AllowMicrosoftSymbolServer = options.AllowMicrosoftSymbolServer,
+            var now = options.Symbols();
+            lock (_symbolsGate)
+            {
+                if (now == _symbols)
+                {
+                    return now;
+                }
+
+                _symbols = now;
+            }
+
+            symbolsChanged?.Invoke(now);
+            return now;
+        }
+
+        private ClrMdLoaderOptions LoaderOptions() => LoaderOptions(SymbolsNow());
+
+        private ClrMdLoaderOptions LoaderOptions(WorkerSymbols symbols) => new()
+        {
+            DacFolder = symbols.DacFolder,
+            AllowMicrosoftSymbolServer = symbols.AllowMicrosoftSymbolServer,
             SecondHandleWalk = options.SecondHandleWalk,
             DacChosen = dacChosen,
             IsTrustedDac = trustedDacs.ContainsKey,

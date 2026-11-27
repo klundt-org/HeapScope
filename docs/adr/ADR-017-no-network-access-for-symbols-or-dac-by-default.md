@@ -1,4 +1,4 @@
-# ADR-017 No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035)
+# ADR-017 No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035 and in sprint 4.8)
 
 - Context: ClrMD can download the data access component (DAC) and symbols from Microsoft's symbol server, and it
   ships Azure.Identity and MSAL for that purpose. A download sends module identifiers off the machine, which
@@ -38,3 +38,14 @@
   check, which reads some core files' version as 0.0, is skipped for it.
 - Amended in sprint 3.6 (ADR-035): the dump's folder and `dac\<runtime file version>` beside it are searched last, and
   a DAC there is loaded only once trusted by its SHA-256.
+- Amended in sprint 4.8 (peer review 4.5 H15; owner, 2026-11-26): the opt-in is per user again, as first decided, and the
+  DAC folder can be set per user. Both are on the Settings page (and `heapscope-cli settings --saved-dac-folder <folder|none>`,
+  `--symbol-server on|off`) and saved in `settings.json` (`HeapScopeSettings.DacFolder`, `AllowMicrosoftSymbolServer`).
+  Downloads stay off by default and turn on only after the user confirms (the app asks with the privacy note, the command line
+  needs `--yes`). The worker reads the two from the settings file it already follows (`--settings-folder`) at each load
+  (`WorkerOptions.Symbols`), so a change reaches the next open without a restart; a file that cannot be read is no folder
+  and downloads off. The command line and appsettings still win: `--dac-folder` or `Symbols:DacFolder` over the saved
+  folder, and `--allow-symbol-server` or `Symbols:AllowMicrosoftSymbolServer` turn downloads on whatever is saved. The
+  worker logs the lookup the first time a load uses it and whenever it changes, with where each value came from, as a
+  warning when downloads are on; the client logs the warning at the worker's start too (the CLI's stderr). A saved folder
+  must be a full path to a folder that exists, and never a network folder (which the locator would not search anyway).

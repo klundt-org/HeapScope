@@ -134,7 +134,7 @@ mapped switch does not return, a note when a load's references fall back to memo
    `SUPPORT.md`; a "Getting help" section in README and INSTALL; every message that says to contact support names that page and the
    error's id, and says what the log holds and how to check it before attaching it (CONTRIBUTING and INSTALL agree). Wording drafts for
    the owner. Tests: an architecture test that no user-facing text says "support" without the page; the templates' fields.
-2. [ ] H15: a missing DAC is not a dead end. The app's Settings page gets the DAC folder (picked or typed) and the opt-in Microsoft
+2. [x] H15: a missing DAC is not a dead end. The app's Settings page gets the DAC folder (picked or typed) and the opt-in Microsoft
    symbol server, saved where the worker reads them; the missing-DAC message names that page in the app and the options in the CLI;
    INSTALL says where the DAC is found and how to copy one. Tests: the settings round trip, the worker reading them, the message per front end.
 3. [ ] H17: sudo on Linux works as written. The advice names the full path (`secure_path` drops the user's `PATH`), and HeapScope run
@@ -165,6 +165,10 @@ mapped switch does not return, a note when a load's references fall back to memo
     release in DEVELOPER.md 7. The trial itself and the release are the owner's.
 
 **Decisions**
+- Owner, 2026-11-26 (asked: it changes ADR-017's 1.2 amendment): the symbol server opt-in is per user, on the Settings page and
+  `heapscope-cli settings --symbol-server on --yes`, off by default and on only after the user confirms; ADR-017 amended. The DAC
+  folder is per user too (`--saved-dac-folder` on the command line, since the run's `--dac-folder` is taken); the command line and
+  appsettings win over both.
 - Decided autonomously (owner to confirm): the help channel is GitHub Issues on klundt-org/HeapScope, with templates, not
   Discussions or email; a log may be attached after the user checks it (it holds paths and type names, filter text only when the
   user turned it on).

@@ -221,7 +221,7 @@ public sealed class InfoIconTests(UiSession ui)
                 .Select(File.ReadAllText));
         var texts = typeof(InfoTexts).GetFields().Where(static f => f.IsLiteral).ToList();
 
-        texts.Count.ShouldBe(57);
+        texts.Count.ShouldBe(68);
         foreach (var text in texts)
         {
             sources.ShouldContain("InfoTexts." + text.Name, customMessage: text.Name);
@@ -330,7 +330,10 @@ public sealed class InfoIconTests(UiSession ui)
         var screens = string.Concat(Directory.EnumerateFiles(Path.Combine(repo, "src", "HeapScope.UI", "Views"), "*.axaml", SearchOption.AllDirectories).Select(File.ReadAllText))
             .Replace("&quot;", "\"", StringComparison.Ordinal).Replace("&amp;", "&", StringComparison.Ordinal);
 
-        rows.Single(r => r[0] == "Settings" && r[1].StartsWith("Page icon", StringComparison.Ordinal))[2].ShouldBe(InfoTexts.Settings);
+        // Sprint 4.8 (H15) rewords it as a draft that replaces the approved row until the owner decides.
+        var replaced = table[table.IndexOf("## Sprint 4.8 additions", StringComparison.Ordinal)..].Split('\n')
+            .FirstOrDefault(static l => l.StartsWith("| Settings | The page's icon", StringComparison.Ordinal))?.Split(" | ")[2];
+        (replaced ?? rows.Single(r => r[0] == "Settings" && r[1].StartsWith("Page icon", StringComparison.Ordinal))[2]).ShouldBe(InfoTexts.Settings);
         var tooltips = rows.Where(static r => r[1].EndsWith("(tooltip)", StringComparison.Ordinal)).ToList();
         tooltips.Count.ShouldBe(3);
         foreach (var row in tooltips)

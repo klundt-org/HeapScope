@@ -289,7 +289,7 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
                     }
                     catch (WorkerOperationException again) when (again.ErrorCode == HeapScopeErrorCode.DacNotTrusted)
                     {
-                        Status = $"Not opened: the DAC next to the dump is not trusted. Install the .NET {dac.RuntimeVersion} runtime, put its DAC in the Symbols:DacFolder folder, or open the dump again and trust it.";
+                        Status = $"Not opened: the DAC next to the dump is not trusted. Install the .NET {dac.RuntimeVersion} runtime, put its DAC in the DAC folder on the Settings page, or open the dump again and trust it.";
                         return;
                     }
 

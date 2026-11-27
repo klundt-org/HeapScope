@@ -6,11 +6,12 @@ references such as "ARCHITECTURE.md 12" still name the right section.
 ## 12. Security and privacy
 - Full dumps contain everything in the process memory: connection strings, tokens, personal data. HeapScope
   treats every dump and every index cache as sensitive.
-- Nothing is ever uploaded. There is no telemetry. Symbol and DAC downloads are off by default (ADR-017).
+- Nothing is ever uploaded. There is no telemetry. Symbol and DAC downloads are off by default (ADR-017); turning them on on the Settings page asks first, with what a download
+  sends (the runtime module's name, time stamp and size), and every process that follows it logs a warning.
 - A dump is untrusted input. Paths recorded in it (the runtime's folder, module paths) never lead the worker to a
   network share: the DAC lookup and ClrMD's file locator accept local fixed-drive paths only, and the dumped runtime's
-  folder only when it is an installed shared runtime folder. A DAC in `Symbols:DacFolder` is native code the user chose
-  to trust by putting it there. A DAC next to the dump came with the dump, so it is native code from whoever made the
+  folder only when it is an installed shared runtime folder. A DAC in the DAC folder (the Settings page's, `--dac-folder` or `Symbols:DacFolder`) is
+  native code the user chose to trust by putting it there; a saved folder must exist and is never a network folder. A DAC next to the dump came with the dump, so it is native code from whoever made the
   dump: since 3.6 (ADR-035) it is searched last and loaded only when trusted by its SHA-256 (the app asks, naming the file
   and its hash, and keeps a yes in `trusted-dacs.json`; the CLI takes `--trust-dac <sha256>` for one run; HeapScope's own
   capture trusts the DAC it copies from the target's runtime), and then from a private copy checked against the hash.

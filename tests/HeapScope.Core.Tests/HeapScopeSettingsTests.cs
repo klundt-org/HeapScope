@@ -160,5 +160,30 @@ public sealed class HeapScopeSettingsTests : IDisposable
         changes[^1].ShouldBe(new LogPrivacyChange(true, false), "the change is announced, so the worker logs it");
     }
 
+    // Sprint 4.8 (H15): the Settings page's DAC folder and the symbol server opt-in.
+    [Fact]
+    public void The_dac_folder_and_the_symbol_server_round_trip_and_default_to_none_and_off()
+    {
+        var defaults = HeapScopeSettings.Read(Folders);
+        defaults.DacFolder.ShouldBeNull();
+        defaults.AllowMicrosoftSymbolServer.ShouldBeFalse("off unless the user turned it on (ADR-017)");
+
+        File.WriteAllText(HeapScopeSettings.PathIn(Folders), "{\"IncludeFilterTextInLogs\": false}");
+        (HeapScopeSettings.Read(Folders) with { DacFolder = _root, AllowMicrosoftSymbolServer = true }).Save(Folders);
+
+        var read = HeapScopeSettings.Read(Folders);
+        read.DacFolder.ShouldBe(_root);
+        read.AllowMicrosoftSymbolServer.ShouldBeTrue();
+        read.IncludeFilterTextInLogs.ShouldBeFalse("the other settings are kept");
+    }
+
+    [Fact]
+    public void A_file_that_cannot_be_read_keeps_the_symbol_server_off()
+    {
+        File.WriteAllText(HeapScopeSettings.PathIn(Folders), "{\"AllowMicrosoftSymbolServer\": tru");
+
+        HeapScopeSettings.Read(Folders).AllowMicrosoftSymbolServer.ShouldBeFalse();
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 }

@@ -85,6 +85,21 @@ public sealed class AvaloniaUserInteraction(Func<Window?> owner, ILogger<Avaloni
         return files.Count > 0 ? files[0].TryGetLocalPath() : null;
     }
 
+    public async Task<string?> PickFolderAsync(string title)
+    {
+        if (owner() is not { } window)
+        {
+            return null;
+        }
+
+        var folders = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+        });
+        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+    }
+
     public Task<bool> ConfirmAsync(string title, string message) =>
         MessageWindow.ShowAsync(owner(), title, message, MessageButtons.YesNo);
 

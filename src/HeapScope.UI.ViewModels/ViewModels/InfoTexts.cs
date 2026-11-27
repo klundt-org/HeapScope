@@ -134,9 +134,9 @@ public static class InfoTexts
     public const string Jobs =
         "Lists long work such as opening a dump, capturing or recording, with its progress and how it ended. Use it to see what finished or failed, and why. Jobs appear here by themselves; press Cancel on one that is running.";
 
-    /// <summary>Settings (sprint 3.12).</summary>
+    /// <summary>Settings (sprint 3.12; the DAC since sprint 4.8, a draft).</summary>
     public const string Settings =
-        "Choose what HeapScope writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
+        "Choose where HeapScope finds the DAC a dump needs and what it writes to its logs, and delete its logs or everything it keeps. Settings apply to the app and the command line on this machine.";
 
     // Sprint 3.13.2 (owner, 2026-11-19): Include dump values in logs, approved by the owner on 2026-11-19 (docs/design/info-text.md).
 
@@ -161,6 +161,44 @@ public static class InfoTexts
     /// <summary>Settings: the status after dump values are turned off.</summary>
     public const string DumpValuesOff =
         "HeapScope's logs no longer get values read from your dumps. Logs written while this was on still hold them: Purge logs deletes them.";
+
+    // Sprint 4.8 (H15): the Settings page's Dumps section; drafts for the owner (docs/design/info-text.md, Sprint 4.8 additions).
+
+    /// <summary>Settings: the DAC folder's tooltip.</summary>
+    public const string DacFolderTip =
+        "A folder on this computer where HeapScope looks for a dump's DAC (mscordaccore.dll, or libmscordaccore.so on Linux) when the dump's .NET runtime is not installed here. Copy the DAC from that runtime's folder on the machine the dump came from. The app and the command line follow it.";
+
+    /// <summary>Settings: the title of the folder picker for the DAC folder.</summary>
+    public const string DacFolderPickerTitle = "Choose the folder that holds the DAC";
+
+    /// <summary>Settings: the status after a DAC folder is saved; {0} is the folder.</summary>
+    public const string DacFolderSaved = "DAC folder saved: {0}. HeapScope looks there from the next dump you open.";
+
+    /// <summary>Settings: the status after the DAC folder is cleared.</summary>
+    public const string DacFolderCleared = "No DAC folder: HeapScope looks in the .NET runtimes installed here.";
+
+    /// <summary>Settings: the note when appsettings or the command line gives the DAC folder; {0} is the folder.</summary>
+    public const string DacFolderConfigured = "This installation's appsettings set the DAC folder to {0}, which HeapScope uses instead of the one here.";
+
+    /// <summary>Settings: the note when appsettings turn downloads on.</summary>
+    public const string SymbolServerConfigured = "This installation's appsettings turn downloads on, whatever the box here says.";
+
+    /// <summary>Settings: Download missing DACs from Microsoft's tooltip.</summary>
+    public const string SymbolServerTip =
+        "When no DAC on this computer matches a dump's runtime, download it from Microsoft's symbol server. Off by default. A download sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents.";
+
+    /// <summary>Settings: the title of the question asked before downloads are turned on.</summary>
+    public const string SymbolServerQuestionTitle = "Download missing DACs from Microsoft?";
+
+    /// <summary>Settings: the question asked before downloads are turned on.</summary>
+    public const string SymbolServerQuestion =
+        "When no DAC on this computer matches a dump's runtime, HeapScope will download it from Microsoft's symbol server. Each download sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents. The app and the command line on this computer follow this setting until you turn it off here.";
+
+    /// <summary>Settings: the status after downloads are turned on.</summary>
+    public const string SymbolServerOn = "From the next dump you open, a missing DAC is downloaded from Microsoft's symbol server.";
+
+    /// <summary>Settings: the status after downloads are turned off.</summary>
+    public const string SymbolServerOff = "Missing DACs are no longer downloaded: HeapScope looks on this computer only.";
 
     /// <summary>Learn (sprint 3.13).</summary>
     public const string Learn =

@@ -158,13 +158,37 @@ full dump of another version opens with a note that its answers are not checked,
 HeapScope does not analyze it. A heap dump of .NET 8 taken on Windows (`dotnet-dump collect --type Heap`) leaves out the static
 fields: take a full dump (`--type Full`, or HeapScope's own capture).
 
-To open a dump, HeapScope needs the dumped runtime's data access component (DAC), which must match the .NET version
-the dumped process ran on. HeapScope finds it in the .NET runtimes installed on the machine and in its own runtime when
-the versions match, so a dump from a server with another .NET version usually needs that runtime installed, or its DAC
-in a folder you name (`--dac-folder`, or the `Symbols:DacFolder` setting). A DAC that came with the dump (in its folder)
-is native code from whoever made the dump: the app asks before using it and remembers a yes, and the CLI uses it only
-with `--trust-dac <sha256>`, which its refusal names. A DAC that HeapScope's own capture copied is trusted. When none is
-found, the message says what to do, including downloading it from Microsoft's symbol server if you allow that.
+### A missing DAC
+
+To open a dump, HeapScope needs the dumped runtime's data access component (DAC): `mscordaccore.dll` on Windows,
+`libmscordaccore.so` on Linux, `libmscordaccore.dylib` on macOS. It must be the DAC of the exact .NET version the dumped
+process ran on, for the same system and processor as the dump. HeapScope looks for it, in this order:
+
+1. in the .NET runtimes installed on this computer (`shared/Microsoft.NETCore.App/<version>` under the dotnet folder);
+2. in the DAC folder: the one on the Settings page, or `--dac-folder <folder>` for one command line run (a `--dac-folder`,
+   or `Symbols:DacFolder` in `appsettings.json`, wins over the Settings page);
+3. in HeapScope's own runtime, when its version matches;
+4. next to the dump, in its folder or in `dac/<version>` beside it, where HeapScope's own capture puts the target's DAC. A DAC
+   HeapScope's capture copied is trusted. Any other DAC there came with the dump and is native code from whoever made it: the
+   app asks before using it and remembers a yes, and the CLI uses it only with `--trust-dac <sha256>`, which its refusal names;
+5. on Microsoft's symbol server, only when you turned on **Download missing DACs from Microsoft** on the Settings page (or
+   `heapscope-cli settings --symbol-server on --yes`, or `--allow-symbol-server` for one run). Off by default: a download
+   sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents.
+
+When none matches, the message names the version it needs and the folders it searched. The simplest fix is to install that
+.NET runtime. Otherwise copy the DAC from the machine the dump came from into a folder of your own, and choose that folder
+on the Settings page:
+
+- From an installed runtime: the DAC is in `shared/Microsoft.NETCore.App/<version>/` under the dotnet folder, for example
+  `C:\Program Files\dotnet\shared\Microsoft.NETCore.App\8.0.11\mscordaccore.dll` on Windows or
+  `/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.11/libmscordaccore.so` on Linux (`/usr/lib/dotnet` for some
+  distributions' packages). On Linux and macOS copy `libcoreclr.so` (`libcoreclr.dylib`) from the same folder too:
+  HeapScope checks the two came from the same build.
+- From a self-contained application: the same files are in the application's own folder.
+- From a container: `docker cp <container>:/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.11/libmscordaccore.so .`, and
+  `libcoreclr.so` the same way.
+
+The folder must be on this computer: HeapScope never searches a network folder for a DAC.
 
 ## Where HeapScope keeps its data
 
@@ -177,12 +201,15 @@ under "Logs and getting help".
 
 ## Settings
 
-The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: whether the text
-typed in filters is written into the logs (on by default), and whether values read from dumps are (off by default; turning
-it on asks you to confirm, or needs `--yes` on the command line). It is saved in `settings.json` in the data folder.
+The Settings page (and `heapscope-cli settings`) sets what every HeapScope process on the machine shares: the DAC folder and
+whether a missing DAC may be downloaded from Microsoft (off by default; turning it on asks you to confirm, or needs `--yes` on
+the command line), whether the text typed in filters is written into the logs (on by default), and whether values read from
+dumps are (off by default; turning it on asks you to confirm, or needs `--yes`). It is saved in `settings.json` in the data
+folder.
 
 HeapScope reads its other settings from an `appsettings.json` file you create beside `HeapScope` and `heapscope-cli`, and from
-environment variables that name the setting with `__` between its parts. For example, a DAC folder:
+environment variables that name the setting with `__` between its parts. For example, a DAC folder for every user of this
+installation, which wins over the Settings page:
 
 ```json
 { "Symbols": { "DacFolder": "/srv/dacs" } }

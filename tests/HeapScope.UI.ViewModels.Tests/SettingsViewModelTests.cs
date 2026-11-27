@@ -171,6 +171,102 @@ public sealed class SettingsViewModelTests : IDisposable
         page.Status.ShouldNotBeNull().ShouldStartWith("The setting could not be saved to ");
     }
 
+    // Sprint 4.8 (H15): a missing DAC is not a dead end; the folder is saved where the worker reads it.
+    [Fact]
+    public async Task A_dac_folder_chosen_or_typed_is_saved_as_a_full_path_and_an_empty_box_clears_it()
+    {
+        var dacs = Directory.CreateDirectory(Path.Combine(_root, "dacs")).FullName;
+        var page = new SettingsViewModel(_service, _interaction);
+        page.DacFolder.ShouldBeNull();
+
+        _interaction.NextFolder = dacs + Path.DirectorySeparatorChar;
+        await page.PickDacFolderCommand.ExecuteAsync(null);
+
+        HeapScopeSettings.Read(Folders).DacFolder.ShouldBe(dacs);
+        page.DacFolder.ShouldBe(dacs);
+        page.Status.ShouldBe(string.Format(System.Globalization.CultureInfo.CurrentCulture, InfoTexts.DacFolderSaved, dacs));
+        new SettingsViewModel(_service, _interaction).DacFolder.ShouldBe(dacs, "a new run shows it");
+
+        page.DacFolder = "  ";
+        page.SaveDacFolderCommand.Execute(null);
+
+        HeapScopeSettings.Read(Folders).DacFolder.ShouldBeNull();
+        page.Status.ShouldBe(InfoTexts.DacFolderCleared);
+        HeapScopeSettings.Read(Folders).IncludeFilterTextInLogs.ShouldBeTrue("the other settings are kept");
+    }
+
+    [Theory]
+    [InlineData("relative", "is not a full path")]
+    [InlineData("missing", "does not exist")]
+    [InlineData("network", "is a network folder")]
+    public void A_dac_folder_heapscope_cannot_use_is_refused_with_why_and_nothing_is_saved(string kind, string why)
+    {
+        Assert.SkipWhen(kind == "network" && !OperatingSystem.IsWindows(), "A network folder is told apart by its path on Windows only.");
+        var typed = kind switch
+        {
+            "relative" => "dacs",
+            "missing" => Path.Combine(_root, "no such folder"),
+            _ => @"\\server\share\dacs",
+        };
+        var page = new SettingsViewModel(_service, _interaction) { DacFolder = typed };
+
+        page.SaveDacFolderCommand.Execute(null);
+
+        page.Status.ShouldNotBeNull().ShouldStartWith("Not saved: ");
+        page.Status.ShouldContain(why);
+        page.DacFolder.ShouldBe(typed, "the box keeps what was typed, to correct it");
+        File.Exists(HeapScopeSettings.PathIn(Folders)).ShouldBeFalse();
+    }
+
+    // ADR-017 amended (owner, 2026-11-26): per user, off by default, on only after a yes.
+    [Fact]
+    public async Task Downloads_from_microsoft_are_off_by_default_and_turned_on_only_after_a_yes()
+    {
+        var page = new SettingsViewModel(_service, _interaction);
+        page.AllowMicrosoftSymbolServer.ShouldBeFalse();
+
+        _interaction.Answer = false;
+        page.AllowMicrosoftSymbolServer = true;
+        await page.SymbolServerConfirmation;
+
+        page.AllowMicrosoftSymbolServer.ShouldBeFalse();
+        File.Exists(HeapScopeSettings.PathIn(Folders)).ShouldBeFalse("a no saves nothing");
+        _interaction.Questions.ShouldHaveSingleItem().ShouldBe(InfoTexts.SymbolServerQuestion);
+
+        _interaction.Answer = true;
+        page.AllowMicrosoftSymbolServer = true;
+        await page.SymbolServerConfirmation;
+
+        HeapScopeSettings.Read(Folders).AllowMicrosoftSymbolServer.ShouldBeTrue();
+        page.Status.ShouldBe(InfoTexts.SymbolServerOn);
+        _serviceLog.Lines.ShouldContain(l => l.Contains("symbol server downloads on, confirmed by the user", StringComparison.Ordinal));
+
+        _interaction.Questions.Clear();
+        page.AllowMicrosoftSymbolServer = false;
+
+        _interaction.Questions.ShouldBeEmpty("turning it off asks nothing");
+        HeapScopeSettings.Read(Folders).AllowMicrosoftSymbolServer.ShouldBeFalse();
+        page.Status.ShouldBe(InfoTexts.SymbolServerOff);
+    }
+
+    [Fact]
+    public void The_page_says_when_appsettings_decide_the_dac_lookup_instead()
+    {
+        new SettingsViewModel(_service, _interaction).DacConfiguredNote.ShouldBeNull();
+        var configured = new SettingsService(
+            _library,
+            _bookmarks,
+            _snapshots,
+            _jobs,
+            folders: Folders,
+            workerOptions: Microsoft.Extensions.Options.Options.Create(new WorkerHostOptions { DacFolder = @"C:\dacs", AllowMicrosoftSymbolServer = true }));
+
+        var note = new SettingsViewModel(configured, _interaction).DacConfiguredNote.ShouldNotBeNull();
+
+        note.ShouldContain(@"C:\dacs");
+        note.ShouldContain(InfoTexts.SymbolServerConfigured);
+    }
+
     // The sprint 3.13.2 review (M8): the box shows on only while the question is open, and never on without an answer.
     [Fact]
     public async Task A_second_click_while_the_question_is_open_is_ignored_and_a_question_that_fails_leaves_it_off()

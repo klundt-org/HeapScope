@@ -49,7 +49,7 @@ public sealed class UntrustedDacException : Exception
         : base($"The .NET {runtimeVersion} runtime's data access component (DAC) was found only next to the dump, at {path} (SHA-256 {sha256}). " +
             "A DAC is native code HeapScope runs to read the dump, and one that came with a dump runs code from whoever made it. " +
             $"Trust it only if you know where it came from: in the app, open the dump and answer the question; on the command line, add --trust-dac {sha256}. " +
-            "Otherwise install that runtime, or put its DAC in the Symbols:DacFolder folder. " +
+            "Otherwise install that runtime, or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line). " +
             $"Trusted folders searched: {(searched is null || searched.Count == 0 ? "no matching file" : string.Join("; ", searched))}.")
     {
         Path = path;

@@ -41,7 +41,7 @@ internal static class DacRefusals
         UntrustedDacException { Sha256: { } sha256 } =>
             $"{Prefix}{Cause(problem)}. Trust it to read them (on the command line, add --trust-dac {sha256}).",
         RuntimeComponentMissingException { RuntimeVersion: not null } =>
-            $"{Prefix}{Cause(problem)}. Install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line), then close the snapshot and open the dump again.",
+            $"{Prefix}{Cause(problem)}. Install that runtime or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line), then close the snapshot and open the dump again.",
         _ => $"{Prefix}{Cause(problem)}. {problem.Message}",
     });
 

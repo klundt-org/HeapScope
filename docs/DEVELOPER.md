@@ -242,14 +242,18 @@ dotnet test --solution HeapScope.sln
   at the end, the timeline file (`counters-<pid>-<time>.csv` in the session folder). Ctrl+C stops; a process that
   cannot be monitored exits 1.
 - DAC lookup (ADR-017): local only. A dump from a runtime that is not installed needs its `mscordaccore.dll` in a DAC
-  folder (CLI `--dac-folder <folder>`, UI `--Symbols:DacFolder <folder>` or the `Symbols:DacFolder` setting) or next to
+  folder (the Settings page's DAC folder or `heapscope-cli settings --saved-dac-folder <folder>`, saved per user; for one run
+  CLI `--dac-folder <folder>` or UI `--Symbols:DacFolder <folder>`; per installation the `Symbols:DacFolder` setting, which
+  wins over the saved one) or next to
   the dump, where it is loaded only once trusted (ADR-035, sprint 3.6): the app asks when it opens the dump (loaded or
   from its index cache), naming the file and its SHA-256, and remembers a yes in `trusted-dacs.json` in HeapScope's data
   folder (`%LOCALAPPDATA%\HeapScope`); the CLI refuses, names the hash and the trusted folders it searched, and
   `--trust-dac <sha256>` (repeatable) trusts it for that run. A DAC HeapScope's capture copied is trusted already, unless
   HeapScope ran elevated. To revoke a trust, delete its entry (or the file); the private copies under
-  `%LOCALAPPDATA%\HeapScope\dac` can be deleted at any time. `--allow-symbol-server` (CLI) or `Symbols:AllowMicrosoftSymbolServer true` opts in to
-  downloads and logs a warning. Both reach the worker on its command line only.
+  `%LOCALAPPDATA%\HeapScope\dac` can be deleted at any time. Download missing DACs from Microsoft on the Settings page (asks first), `heapscope-cli settings --symbol-server on --yes`,
+  `--allow-symbol-server` for one run or `Symbols:AllowMicrosoftSymbolServer true` opts in to downloads and logs a warning.
+  The command line options reach the worker on its command line; the saved ones it reads from `settings.json` at each load
+  (ADR-017, amended in sprint 4.8).
 - Worker GC heaps: half the logical processors by default, so the worker cannot starve the UI; override with
   `--Worker:GcHeapCount <n>` (UI), the `Worker__GcHeapCount` environment variable, or `DOTNET_GCHeapCount` (hexadecimal).
 - A Server GC dump that ends the worker while its GC handles are read: `--Worker:SecondHandleWalk false` (UI) or `Worker__SecondHandleWalk=false`

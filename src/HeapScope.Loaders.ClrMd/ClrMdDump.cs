@@ -115,7 +115,7 @@ internal static class ClrMdDump
         {
             throw new SnapshotFormatException(
                 $"The .NET {request.RuntimeVersion} runtime in the dump could not be opened with {path ?? fileName}: {ex.Message} "
-                + "Make sure the DAC is the one from that exact runtime version (Symbols:DacFolder), then open the dump again.",
+                + "Make sure the DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line) is the one from that exact runtime version, then open the dump again.",
                 ex);
         }
     }
@@ -217,7 +217,7 @@ internal static class ClrMdDump
             request.RuntimeVersion,
             fileName,
             $"The .NET {request.RuntimeVersion} runtime's DAC ({fileName}) was not found locally and was not downloaded from Microsoft's symbol server: {why.TrimEnd('.')}. "
-            + "Check the network, or install that runtime or put its DAC in the DAC folder (Symbols:DacFolder, or --dac-folder on the command line).",
+            + "Check the network, or install that runtime or put its DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line).",
             inner);
 
     /// <summary>
@@ -276,7 +276,7 @@ internal static class ClrMdDump
                 {
                     // Not the dump's fault (review): say it is the DAC or its private copy.
                     throw new RuntimeComponentMissingException(
-                        $"The DAC next to the dump, {beside}, could not be read or copied into HeapScope's private DAC folder: {ex.Message} Close programs that hold it, check the free disk space, or put the DAC in the Symbols:DacFolder folder.",
+                        $"The DAC next to the dump, {beside}, could not be read or copied into HeapScope's private DAC folder: {ex.Message} Close programs that hold it, check the free disk space, or put the DAC in the DAC folder (on the Settings page in the app, or --dac-folder on the command line).",
                         ex);
                 }
             }

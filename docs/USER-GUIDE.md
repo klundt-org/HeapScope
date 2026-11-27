@@ -128,6 +128,11 @@ notes who can capture whom.
   tabs, Ctrl+F for the filter, Ctrl+L for the analysis path, F5 to refresh.
 - **Appearance.** HeapScope follows your system's light or dark theme, and changes with it while it runs. To choose one,
   start the app with `--Ui:Theme Light` or `--Ui:Theme Dark`.
+- **A missing DAC.** A dump from a .NET version not installed here needs that runtime's DAC. Install the runtime, or copy
+  its DAC into a folder of yours and choose it as the DAC folder on the Settings page (`heapscope-cli settings
+  --saved-dac-folder <folder>`, or `--dac-folder` for one run). Download missing DACs from Microsoft, on the same page, gets
+  it from Microsoft's symbol server instead; it is off by default and asks first, since a download sends the runtime
+  module's name, time stamp and size. [INSTALL](../INSTALL.md#a-missing-dac) says where HeapScope looks and how to copy one.
 
 ## Logs and getting help
 
@@ -137,7 +142,7 @@ asks you to confirm, or `heapscope-cli settings --dump-values-in-logs on --yes`;
 whether it holds them; the text you type in filters, unless you turn that off with Include filter text in logs or
 `heapscope-cli settings --filter-text-in-logs off`): `%LOCALAPPDATA%\HeapScope\logs` on Windows, `~/.local/share/HeapScope/logs` on Linux and
 `~/Library/Application Support/HeapScope/logs` on macOS (under the folder `HEAPSCOPE_DATA_FOLDER` names, when set).
-The About page shows the folder and copies the version details for a support request. For more detail in one run,
+The About page shows the folder and copies the version details for an issue. For more detail in one run,
 start the app with `--Logging:File:MinimumLevel Debug`, or set the environment variable
 `Logging__File__MinimumLevel=Debug` (the CLI reads settings from the environment, not from its arguments). Logs are kept
 14 days. They hold file paths and type names, so share them only with someone you trust. Purge logs on the Settings page

@@ -79,4 +79,35 @@ public class WorkerOptionsTests
         options.DataFolder.ShouldBeNull();
         options.Folders.ShouldBeSameAs(HeapScopeFolders.Default);
     }
+
+    // Sprint 4.8 (H15; ADR-017 amended): the worker reads the Settings page's DAC folder and opt-in at each load, and the
+    // command line wins for the folder.
+    [Fact]
+    public void A_load_uses_the_saved_dac_lookup_and_the_command_line_wins_for_the_folder()
+    {
+        var settings = Directory.CreateTempSubdirectory("hs-worker-symbols-").FullName;
+        try
+        {
+            var folders = new HeapScopeFolders(settings);
+            var options = Read("--pipe", "p", "--settings-folder", settings);
+            options.Symbols().ShouldBe(new WorkerSymbols(null, "none", false, "off"));
+
+            new HeapScopeSettings(DacFolder: @"C:\saved", AllowMicrosoftSymbolServer: true).Save(folders);
+
+            options.Symbols().ShouldBe(new WorkerSymbols(@"C:\saved", "Settings", true, "Settings"), "read at each load, no restart");
+            Read("--pipe", "p", "--settings-folder", settings, "--dac-folder", @"C:\given").Symbols()
+                .ShouldBe(new WorkerSymbols(@"C:\given", "--dac-folder", true, "Settings"));
+
+            new HeapScopeSettings().Save(folders);
+            Read("--pipe", "p", "--settings-folder", settings, "--allow-symbol-server", "true").Symbols()
+                .ShouldBe(new WorkerSymbols(null, "none", true, "--allow-symbol-server"));
+
+            File.WriteAllText(HeapScopeSettings.PathIn(folders), "{ \"AllowMicrosoftSymbolServer\": tr");
+            options.Symbols().AllowMicrosoftSymbolServer.ShouldBeFalse("a file that cannot be read never turns downloads on");
+        }
+        finally
+        {
+            Directory.Delete(settings, recursive: true);
+        }
+    }
 }

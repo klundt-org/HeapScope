@@ -70,6 +70,23 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
     /// <summary>Opt-in: let ClrMD download a missing DAC from Microsoft's symbol server (<c>--allow-symbol-server true</c>).</summary>
     public bool AllowMicrosoftSymbolServer { get; init; }
 
+    /// <summary>
+    /// The DAC lookup a load uses now (sprint 4.8, H15; ADR-017 amended): the command line's <see cref="DacFolder"/> wins over the
+    /// one saved on the Settings page, and downloads are on when the command line or the saved settings turn them on. Read at each
+    /// load, so a change on the Settings page reaches the next open without a restart. A settings file that cannot be read is
+    /// no saved folder and downloads off.
+    /// </summary>
+    public WorkerSymbols Symbols()
+    {
+        var saved = HeapScopeSettings.Read(SettingsFolders);
+        var savedFolder = string.IsNullOrWhiteSpace(saved.DacFolder) ? null : saved.DacFolder;
+        return new WorkerSymbols(
+            DacFolder ?? savedFolder,
+            DacFolder is not null ? "--dac-folder" : savedFolder is not null ? "Settings" : "none",
+            AllowMicrosoftSymbolServer || saved.AllowMicrosoftSymbolServer,
+            AllowMicrosoftSymbolServer ? "--allow-symbol-server" : saved.AllowMicrosoftSymbolServer ? "Settings" : "off");
+    }
+
     /// <summary>Whether GC handles of Server GC processes are walked a second time (<c>--second-handle-walk</c>).</summary>
     public bool SecondHandleWalk { get; init; } = true;
 

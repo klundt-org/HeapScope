@@ -51,6 +51,8 @@ public sealed class SettingsService
     private readonly FileLoggerProvider? _logs;
     private readonly HeapScopeFolders _folders;
     private readonly string _cacheRoot;
+    private readonly string? _configuredDacFolder;
+    private readonly bool _configuredSymbolServer;
     private readonly ILogger _logger;
     private long _dumpValuesOffAt;
 
@@ -75,6 +77,8 @@ public sealed class SettingsService
         _logs = logs;
         _folders = folders ?? HeapScopeFolders.Default;
         _cacheRoot = (workerOptions?.Value.DataFolder is { Length: > 0 } data ? new HeapScopeFolders(data) : _folders).Cache;
+        _configuredDacFolder = string.IsNullOrWhiteSpace(workerOptions?.Value.DacFolder) ? null : workerOptions.Value.DacFolder;
+        _configuredSymbolServer = workerOptions?.Value.AllowMicrosoftSymbolServer ?? false;
         _logger = logger ?? NullLogger<SettingsService>.Instance;
     }
 
@@ -148,6 +152,93 @@ public sealed class SettingsService
             // The review's H1: the part that holds the values is closed, so Purge logs can delete it.
             _logger.LogInformation("This log goes on in {Part}; Purge logs deletes this process's earlier parts, which may hold values read from dumps", part);
         }
+    }
+
+    /// <summary>The DAC folder saved on the Settings page (sprint 4.8, H15), or null.</summary>
+    public string? DacFolder => HeapScopeSettings.Read(_folders).DacFolder is { Length: > 0 } folder ? folder : null;
+
+    /// <summary>
+    /// The DAC folder this process's configuration gives (<c>Symbols:DacFolder</c> in appsettings, or <c>--dac-folder</c>), which
+    /// wins over the saved one; null when there is none.
+    /// </summary>
+    public string? ConfiguredDacFolder => _configuredDacFolder;
+
+    /// <summary>
+    /// Saves the DAC folder, or clears it when <paramref name="folder"/> is empty; the worker uses it from the next open. The
+    /// folder must be a full path to a folder that exists on this computer: a network folder is never searched (ADR-017).
+    /// </summary>
+    /// <returns>The folder saved, as a full path, or null when cleared.</returns>
+    /// <exception cref="ArgumentException">The folder is not one HeapScope can use; the message says why and what to do.</exception>
+    /// <exception cref="IOException">The settings file could not be written.</exception>
+    public string? SetDacFolder(string? folder)
+    {
+        var saved = CheckDacFolder(folder);
+        using (PrivateJsonFile.Lock(SettingsPath))
+        {
+            (ReadForSave() with { DacFolder = saved }).Save(_folders);
+        }
+
+        _logger.LogInformation("Setting saved to {File}: DAC folder {Folder}", SettingsPath, saved ?? "(none)");
+        return saved;
+    }
+
+    /// <summary>The folder <see cref="SetDacFolder"/> would save, or why it refuses it.</summary>
+    /// <exception cref="ArgumentException">The folder is not one HeapScope can use.</exception>
+    public static string? CheckDacFolder(string? folder)
+    {
+        var text = folder?.Trim().Trim('"').Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        if (!Path.IsPathFullyQualified(text))
+        {
+            throw new ArgumentException($"{text} is not a full path: give the whole path of the folder.");
+        }
+
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(text));
+        if (OperatingSystem.IsWindows() && full.StartsWith(@"\\", StringComparison.Ordinal) && !IsLocalDevicePath(full))
+        {
+            throw new ArgumentException($"{full} is a network folder, which HeapScope never searches for a DAC. Copy the DAC into a folder on this computer and choose that one.");
+        }
+
+        if (!Directory.Exists(full))
+        {
+            throw new ArgumentException($"{full} does not exist. Create it and copy the DAC into it, or choose another folder.");
+        }
+
+        return full;
+    }
+
+    // \\?\C:\ is a local drive; \\?\UNC\ and \\server\ are network folders.
+    private static bool IsLocalDevicePath(string path) =>
+        path.StartsWith(@"\\?\", StringComparison.Ordinal) && !path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether downloads from Microsoft's symbol server are on, as saved (off when nothing is saved; sprint 4.8).</summary>
+    public bool AllowMicrosoftSymbolServer => HeapScopeSettings.Read(_folders).AllowMicrosoftSymbolServer;
+
+    /// <summary>Whether this process's configuration turns downloads on whatever is saved (appsettings, or <c>--allow-symbol-server</c>).</summary>
+    public bool ConfiguredSymbolServer => _configuredSymbolServer;
+
+    /// <summary>
+    /// Saves whether a missing DAC may be downloaded from Microsoft's symbol server; the worker follows it from the next open.
+    /// The caller has asked the user first: the app's Settings page with a question, the command line with <c>--yes</c>.
+    /// </summary>
+    /// <exception cref="IOException">The settings file could not be written.</exception>
+    public void SetAllowMicrosoftSymbolServer(bool allow)
+    {
+        using (PrivateJsonFile.Lock(SettingsPath))
+        {
+            (ReadForSave() with { AllowMicrosoftSymbolServer = allow }).Save(_folders);
+        }
+
+        _logger.Log(
+            allow ? LogLevel.Warning : LogLevel.Information,
+            "Setting saved to {File}: symbol server downloads {State}{Note}",
+            SettingsPath,
+            allow ? "on" : "off",
+            allow ? ", confirmed by the user; a missing DAC may be downloaded from Microsoft's symbol server, which sends module identifiers (never dump contents)" : string.Empty);
     }
 
     /// <summary>The time a worker needs to see a settings change (it checks once a second) and its lines to reach this log.</summary>

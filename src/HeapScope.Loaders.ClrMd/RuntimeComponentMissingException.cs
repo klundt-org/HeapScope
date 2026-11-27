@@ -73,8 +73,8 @@ public sealed class RuntimeComponentMissingException : Exception
         var runtime = known ? $".NET {runtimeVersion}" : "a .NET runtime whose version it does not record";
         return $"This dump was taken from {runtime}, and the matching {fileName} was not found on this machine. " +
             (hint is null ? "" : hint + " ") +
-            $"Install {(known ? $"the .NET {runtimeVersion} runtime" : "that runtime")}, or copy {fileName} from that runtime's folder into a folder given with --dac-folder (CLI) or the Symbols:DacFolder setting (a copy next to the dump is used once you trust it). " +
-            "Downloading it from Microsoft's symbol server is off by default; it can be turned on with --allow-symbol-server (CLI) or the Symbols:AllowMicrosoftSymbolServer setting. " +
+            $"Install {(known ? $"the .NET {runtimeVersion} runtime" : "that runtime")}, or copy {fileName} from that runtime's folder into the DAC folder (on the Settings page in the app, or --dac-folder on the command line); a copy next to the dump is used once you trust it. " +
+            "Downloading it from Microsoft's symbol server is off by default: turn on Download missing DACs from Microsoft on the Settings page, or add --allow-symbol-server on the command line. " +
             $"Searched: {(searched.Count == 0 ? "nothing" : string.Join("; ", searched))}.";
     }
 }

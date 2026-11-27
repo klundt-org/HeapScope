@@ -36,6 +36,9 @@ public interface IUserInteraction
     /// <summary>Asks for an allocation trace (.nettrace, sprint 2.5); null when the user cancels.</summary>
     Task<string?> PickTraceFileAsync() => Task.FromResult<string?>(null);
 
+    /// <summary>Asks for a folder (the Settings page's DAC folder, sprint 4.8); null when the user cancels.</summary>
+    Task<string?> PickFolderAsync(string title) => Task.FromResult<string?>(null);
+
     /// <summary>Asks a yes or no question; true for yes.</summary>
     Task<bool> ConfirmAsync(string title, string message);
 

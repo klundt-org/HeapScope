@@ -461,6 +461,11 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             info.ArgumentList.Add("--allow-symbol-server");
             info.ArgumentList.Add("true");
         }
+        else if (HeapScope.Core.HeapScopeSettings.Read(HeapScope.Core.HeapScopeFolders.Default).AllowMicrosoftSymbolServer)
+        {
+            // Sprint 4.8 (H15): turned on on the Settings page, which the worker reads at each load; said here too, for the CLI's stderr.
+            _logger.LogWarning("Symbol server downloads are on (Settings page, {File}): a missing DAC may be downloaded from Microsoft's symbol server (module identifiers only, never dump contents).", HeapScope.Core.HeapScopeSettings.PathIn(HeapScope.Core.HeapScopeFolders.Default));
+        }
 
         if (!_options.SecondHandleWalk)
         {

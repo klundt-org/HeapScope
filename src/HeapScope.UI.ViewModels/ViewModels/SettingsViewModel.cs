@@ -34,7 +34,8 @@ namespace HeapScope.UI.ViewModels;
 /// The Settings page (sprint 3.12, B1; owner, 2026-11-12), above About: its Logging section has Include filter text in logs
 /// (on by default; the app, the worker and the command line follow it), Include dump values in logs (off by default, and
 /// turned on only after the user confirms; owner, 2026-11-19), Purge logs and Purge all, which asks first. The page shows the
-/// settings file each time it is shown, since the command line can change it while the app runs.
+/// settings file each time it is shown, since the command line can change it while the app runs. Since sprint 4.8 (H15), its
+/// Dumps section has the DAC folder (typed or chosen) and Download missing DACs from Microsoft, which asks first (ADR-017).
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
@@ -43,6 +44,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ILogger? _logger;
     private bool _reverting;
     private bool _confirming;
+    private bool _confirmingSymbols;
+
+    [ObservableProperty]
+    private string? _dacFolder;
+
+    [ObservableProperty]
+    private bool _allowMicrosoftSymbolServer;
 
     [ObservableProperty]
     private bool _includeFilterTextInLogs;
@@ -65,8 +73,25 @@ public sealed partial class SettingsViewModel : ObservableObject
         _reverting = true;
         IncludeFilterTextInLogs = settings.IncludeFilterTextInLogs;
         IncludeDumpValuesInLogs = settings.IncludeDumpValuesInLogs;
+        DacFolder = settings.DacFolder;
+        AllowMicrosoftSymbolServer = settings.AllowMicrosoftSymbolServer;
         _reverting = false;
     }
+
+    /// <summary>The question asked before downloads are turned on, while it is open (tests wait for it).</summary>
+    internal Task SymbolServerConfirmation { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// A note when this installation's configuration (appsettings, or the command line) decides the DAC lookup instead of the
+    /// page; null when the page decides.
+    /// </summary>
+    public string? DacConfiguredNote => (_settings.ConfiguredDacFolder, _settings.ConfiguredSymbolServer) switch
+    {
+        (null, false) => null,
+        ({ } folder, false) => string.Format(CultureInfo.CurrentCulture, InfoTexts.DacFolderConfigured, folder),
+        (null, true) => InfoTexts.SymbolServerConfigured,
+        ({ } folder, true) => string.Format(CultureInfo.CurrentCulture, InfoTexts.DacFolderConfigured, folder) + " " + InfoTexts.SymbolServerConfigured,
+    };
 
     /// <summary>The question asked before dump values are turned on, while it is open (tests wait for it).</summary>
     internal Task DumpValuesConfirmation { get; private set; } = Task.CompletedTask;
@@ -82,8 +107,127 @@ public sealed partial class SettingsViewModel : ObservableObject
         _reverting = true;
         IncludeFilterTextInLogs = _settings.IncludeFilterTextInLogs;
         IncludeDumpValuesInLogs = _settings.IncludeDumpValuesInLogs;
+        if (!_confirmingSymbols)
+        {
+            DacFolder = _settings.DacFolder;
+            AllowMicrosoftSymbolServer = _settings.AllowMicrosoftSymbolServer;
+        }
+
         _reverting = false;
     }
+
+    /// <summary>Saves the DAC folder as typed; an empty box clears it.</summary>
+    [RelayCommand]
+    private void SaveDacFolder() => Save(DacFolder);
+
+    /// <summary>Asks for the DAC folder, then saves it.</summary>
+    [RelayCommand]
+    private async Task PickDacFolderAsync()
+    {
+        if (await _interaction.PickFolderAsync(InfoTexts.DacFolderPickerTitle) is { } folder)
+        {
+            Save(folder);
+        }
+    }
+
+    private void Save(string? folder)
+    {
+        try
+        {
+            var saved = _settings.SetDacFolder(folder);
+            Status = saved is null ? InfoTexts.DacFolderCleared : string.Format(CultureInfo.CurrentCulture, InfoTexts.DacFolderSaved, saved);
+            DacFolder = saved;
+        }
+        catch (ArgumentException ex)
+        {
+            // Nothing saved: the box keeps what was typed, so it can be corrected.
+            _logger?.LogInformation("DAC folder not saved: {Reason}", ex.Message);
+            Status = "Not saved: " + ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "The setting could not be saved to {File}", _settings.SettingsPath);
+            Status = $"The setting could not be saved to {_settings.SettingsPath}: {ex.Message}";
+        }
+    }
+
+    partial void OnAllowMicrosoftSymbolServerChanged(bool value)
+    {
+        if (_reverting)
+        {
+            return;
+        }
+
+        if (_confirmingSymbols)
+        {
+            RevertSymbols(true);
+            return;
+        }
+
+        if (value)
+        {
+            // As dump values (ADR-017 amended, sprint 4.8): not saved until the user says yes.
+            _confirmingSymbols = true;
+            SymbolServerConfirmation = ConfirmSymbolServerAsync();
+            return;
+        }
+
+        SaveSymbolServer(false);
+    }
+
+    private async Task ConfirmSymbolServerAsync()
+    {
+        bool yes;
+        try
+        {
+            yes = await _interaction.ConfirmAsync(InfoTexts.SymbolServerQuestionTitle, InfoTexts.SymbolServerQuestion, SymbolServerConfirm, SymbolServerCancel);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The question to download missing DACs could not be shown; the setting stays off");
+            yes = false;
+        }
+        finally
+        {
+            _confirmingSymbols = false;
+        }
+
+        _logger?.LogInformation("Asked to download missing DACs from Microsoft's symbol server; the user answered {Answer}", yes ? "yes" : "no");
+        if (yes)
+        {
+            SaveSymbolServer(true);
+        }
+        else
+        {
+            RevertSymbols(false);
+        }
+    }
+
+    private void SaveSymbolServer(bool allow)
+    {
+        try
+        {
+            _settings.SetAllowMicrosoftSymbolServer(allow);
+            Status = allow ? InfoTexts.SymbolServerOn : InfoTexts.SymbolServerOff;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "The setting could not be saved to {File}", _settings.SettingsPath);
+            Status = $"The setting could not be saved to {_settings.SettingsPath}: {ex.Message}";
+            RevertSymbols(!allow);
+        }
+    }
+
+    private void RevertSymbols(bool allow)
+    {
+        _reverting = true;
+        AllowMicrosoftSymbolServer = allow;
+        _reverting = false;
+    }
+
+    public const string SymbolServerConfirm = "Allow downloads";
+
+    public const string SymbolServerCancel = "Cancel";
 
     /// <summary>Where the logs are, shown under the buttons.</summary>
     public string LogFolder => _settings.LogFolder;

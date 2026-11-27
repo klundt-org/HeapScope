@@ -7,7 +7,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
 
 - **Core.** `HelpLinks` (the one place to get help, the issues and SUPPORT.md, which messages name) [4.8]; `SystemMemory` and `ProcessMemory` (the machine's memory and this process's, from the system on Windows, Linux and
   macOS) [4.7]; `FirstLoadEstimate` and `TraceReadCost` (what a first load and a trace's read cost the worker) [4.7]; `HeapScopeFolders` (every HeapScope data folder in one place, moved by `HEAPSCOPE_DATA_FOLDER` or the worker's
-  `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder) and `LogPrivacy`
+  `--data-folder`) [3.8]; `HeapScopeSettings` (the user's settings, `settings.json` in the data folder; the DAC folder and the symbol server opt-in [4.8]) and `LogPrivacy`
   (what the logs may hold, followed within a second by every process) [3.12], with `LogPrivacyChange` (both settings as one
   value) [3.13.2]; `RequestRefusedException` (a request the worker
   refuses for a reason the user can act on; any other exception at its boundary is a bug) [3.12]. `ISnapshot`, `GraphSnapshot` and `DumpSnapshot` (a full dump: the graph plus a reader, section 5.1) [1.5];
@@ -143,7 +143,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `DominatorTreeKeys` (the row keys clients link with), the icicle request and segments, the set retention request,
   result and `RetainedBySetColumns`; `ResultColumn.Bound` with `ValueBound` and `ValueBoundTexts` [2.4].
 - **Worker.** `Program` and `ParentProcessWatcher` (the worker exits with its front end) [0.3]; `WorkerOptions`'
-  `--settings-folder` (the client's settings file) and `WorkerErrors`' fixed message with an id for an unexpected failure
+  `--settings-folder` (the client's settings file) and `Symbols()` (the DAC lookup a load uses, read from it at each load, `WorkerSymbols`) [4.8], and `WorkerErrors`' fixed message with an id for an unexpected failure
   [3.12]; `Rpc/`:
   `WorkerRpcServer`, `ResultSetStore`, `ThrottledProgress` [0.3]. Since 3.8 (peer review P5) one handler per contract,
   registered by `WorkerRpcTargets` (`RpcTarget.For<TContract, THandler>`): `ControlHandler`, `TestHooksHandler`,
@@ -207,7 +207,7 @@ Code map by project (reorganized in sprint 1.9 from the per-sprint notes):
   `Monitoring/TimelineWriter`, `AllocationRecording` (awaited before it is disposed; since 4.3 live, `LiveTraceFile` and `TraceEnded` tell who follows it) and `RunRecord`, a file per type
   [P11]; `Sessions/SessionFileCheck` (a session's file, or which check refused it) [3.7 review M2].
   `Workers/` (`WorkerHost`, `IWorkerClient`, exceptions, log forwarding), `Jobs/JobTracker`,
-  `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's setting and its
+  `Logging/FileLoggerProvider`, `WorkerOperations` [0.3]; `Settings/SettingsService` (the Settings page's settings, the DAC folder checked before it is saved [4.8], and its
   Purge logs and Purge all, with `PurgePlan`) [3.12]; `Snapshots/`: `SnapshotSession` (summaries, diffs with both
   snapshots reopened after a restart through `UseBothAsync`, instances, objects, inspections, referrers [2.1], retention paths [2.2], retained sizes [2.3]) and
   `ResultSetHandle` (section 4.6) [1.3 to 1.6]; `Sessions/`: `SessionLibrary`, `CaptureService` (per-kind capture settings in one table)

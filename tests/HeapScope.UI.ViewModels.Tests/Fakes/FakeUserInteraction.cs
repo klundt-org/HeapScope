@@ -41,6 +41,11 @@ internal sealed class FakeUserInteraction : HeapScope.UI.Services.IUserInteracti
 
     public Task<string?> PickTraceFileAsync() => Task.FromResult(NextFile);
 
+    /// <summary>Where a folder picker answers (sprint 4.8); null cancels.</summary>
+    public string? NextFolder { get; set; }
+
+    public Task<string?> PickFolderAsync(string title) => Task.FromResult(NextFolder);
+
     /// <summary>Where a save picker answers (sprint 2.7); null cancels.</summary>
     public string? SaveFile { get; set; }
 

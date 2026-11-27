@@ -21,7 +21,7 @@ section 13 links here).
 - [ADR-014](ADR-014-elevation.md) Elevation (amended in sprints 4.1, 4.1.1 and 4.2: the Linux and macOS meaning; hidden by default)
 - [ADR-015](ADR-015-adaptive-memory-modes.md) Adaptive memory modes (added 2026-10-22, follows from the ADR-004 amendment; amended in 4.7: a first load's references in a mapped temporary file)
 - [ADR-016](ADR-016-contracts-owns-the-wire-vocabulary.md) Contracts owns the wire vocabulary (added in sprint 0.1)
-- [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035)
+- [ADR-017](ADR-017-no-network-access-for-symbols-or-dac-by-default.md) No network access for symbols or DAC by default (added in sprint 0.1; amended by ADR-035 and in sprint 4.8)
 - [ADR-018](ADR-018-diffs-compare-per-type-totals-no-object-identity-across-dump.md) Diffs compare per-type totals; no object identity across dumps (added in sprint 1.4; amended by ADR-032)
 - [ADR-019](ADR-019-the-ui-process-is-never-power-throttled.md) The UI process is never power-throttled (added in sprint 1.5)
 - [ADR-020](ADR-020-inspections-are-analysis-plugins-with-declared-capabilities.md) Inspections are Analysis plugins with declared capabilities (added in sprint 1.6, amended in 4.6: what could not be read is said, and in 4.7: the memory an inspection works in)
