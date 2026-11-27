@@ -281,7 +281,7 @@ public sealed class LinuxCaptureRulesTests
     [Fact]
     public void The_command_lines_note_gives_sudo_the_full_path_on_linux_only()
     {
-        ElevationTexts.CliNoteOn(HostSystem.Linux).ShouldBe("Processes marked elevated run as another user: run heapscope-cli as that user, or as root with its full path, since sudo does not keep your PATH (sudo \"$(command -v heapscope-cli)\" capture --pid <pid>), to capture them.");
+        ElevationTexts.CliNoteOn(HostSystem.Linux).ShouldBe("Processes marked elevated run as another user: run heapscope-cli as that user, or as root with its full path, since sudo does not keep your PATH (sudo \"$(command -v heapscope-cli)\" capture --pid <pid> --out /tmp/app.dmp), to capture them.");
         ElevationTexts.CliNoteOn(HostSystem.MacOS).ShouldNotContain("sudo");
     }
 }

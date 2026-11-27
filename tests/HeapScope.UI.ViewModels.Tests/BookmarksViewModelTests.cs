@@ -76,6 +76,25 @@ public sealed class BookmarksViewModelTests : IDisposable
         snapshots.Bookmarks.Items.ShouldHaveSingleItem().Address.ShouldBe(0x1000UL);
     }
 
+    // Sprint 4.8 review M2: after Purge all deleted the bookmarks file, the list lets go of them, and a new bookmark starts a new file.
+    [Fact]
+    public async Task Forgetting_all_after_a_purge_empties_the_list_and_the_next_bookmark_starts_afresh()
+    {
+        var snapshots = Create();
+        await OpenAsync(snapshots, "app.dmp");
+        (await snapshots.ToggleBookmarkAsync(new Link(0x2000, "App.Customer"))).ShouldBeTrue();
+        var file = Path.Combine(_folder, "data", BookmarkStore.FileName);
+        File.Delete(file);
+
+        snapshots.Bookmarks.ForgetAll();
+
+        snapshots.Bookmarks.Items.ShouldBeEmpty();
+        (await snapshots.ToggleBookmarkAsync(new Link(0x3000, "App.Order"))).ShouldBeTrue("read again from the file that is gone");
+        snapshots.Bookmarks.Items.ShouldHaveSingleItem().Address.ShouldBe(0x3000UL);
+        File.Exists(file).ShouldBeTrue();
+        _logger.Lines.ShouldContain(l => l.Contains("emptied after Purge all", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_snapshots_bookmarks_open_as_one_set_of_objects()
     {

@@ -413,9 +413,9 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
 - The worker's `SnapshotOpener` (moved out of `SnapshotStore` in sprint 3.12, R1) applies this policy: a valid index cache is opened in the mode the budget chooses;
   otherwise the dump is loaded, the cache written, and the graph either kept in memory or switched to mapped. After a
   load, the mode is chosen once the load's garbage is collected, counting the graph's own memory as available (it
-  would be freed by going mapped), so a first load and a later reopen decide the same way. Since 4.8 that is the graph's private
-  memory (`HeapGraph.PrivateColumnBytes`): a column that is a view of a file (`Column<T>.IsFileBacked`, an `IFileBackedMemory`)
-  is the system's file cache, and the memory mode's log line gives both parts. The clean-up collection
+  would be freed by going mapped), so a first load and a later reopen decide the same way. Since 4.8 the memory mode's log
+  line also gives the graph's private and file-backed parts (`HeapGraph.PrivateColumnBytes`; a file-backed column is an
+  `IFileBackedMemory` view, `Column<T>.IsFileBacked`), while the choice counts all the columns, as a reopen does. The clean-up collection
   runs only after dump loads (and failed or canceled ones), never after a cache hit, because it pauses queries on
   other snapshots. When the cache cannot be written the graph stays in memory, with a note. A request can force
   either mode.
@@ -426,7 +426,8 @@ Code map (sprint 0.2, namespace `HeapScope.Core.Graph`): `HeapGraphBuilder` (`Ad
 A span over an unmapped view is an access violation that kills the worker, so mapped data has an explicit
 lifetime rule (implemented in sprint 0.5: `LeaseTracker`, `ISnapshot.AcquireLease`). A mapped snapshot owns its views through the graph's owner, and since 4.7 so does a snapshot kept in memory after a first load
 (the view of its references' file, 6.3): the rule protects real mappings in both modes. `ColumnBytes` counts that view as the
-graph's memory; since 4.8 the mode choice counts only `PrivateColumnBytes`, which leaves it out (its pages are the file's). Every query takes a lease
+graph's memory, so the mode choice treats it as memory the switch to mapped would free (conservative: its pages are the file's,
+and a reopen in memory reads them into the worker's memory; the log shows the file-backed part apart since 4.8). Every query takes a lease
 (`using var lease = snapshot.AcquireLease()`), works on spans only inside that scope and never stores a span or a
 pointer beyond it. Disposing a snapshot (explicitly or by LRU) returns at once; the mapping is released when the last
 lease is returned. `Column<T>` wraps `ReadOnlyMemory<T>`; a native backing is a `MemoryManager<T>` over the mapped

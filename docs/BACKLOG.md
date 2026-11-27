@@ -15,7 +15,7 @@ Built in sprint 4.8:
   through the collection, in the worker and in `load-dump` (budgets.md); the switch runs after that frame returns now. The 8 GB
   dump's figure is still to be measured again on claude-dev-2.
 - A snapshot note when a load kept its references in memory (F12), and the graph's columns split into private and file-backed
-  bytes for the memory mode's log and choice (F13).
+  bytes for the memory mode's log (F13; the choice still counts all the columns, review M4).
 - A session document read during a save on Windows (the readers test, one run in five): read again briefly before "missing".
 
 Swept in sprint 3.12:
@@ -58,6 +58,13 @@ Sprint 3.11:
 Phase 4 is planned in [SPRINTS.md](SPRINTS.md); peer review 4.5 added sprints 4.6 to 4.9 to it.
 
 **High**
+- From the sprint 4.8 review (deferred, decided autonomously; [reviews/sprint-4.8.md](reviews/sprint-4.8.md)): the error id as error data
+  in the protocol (`ErrorDetails`, a protocol bump) instead of read from the message's text, kept by an injectable service, not the
+  static `ErrorIds` (M7); the JSON rows' keys pinned per command in docs/cli-output.md and `CliJsonContractTests`, or a stable key
+  per column apart from its header (M8); a `PrivateFiles.Copy` that gives ownership under sudo, an architecture test against raw
+  `File.Copy` and create modes in src, and a capture in CI's sudo check (M9); a failed `InvokingUser.Give` logged once and said in
+  the capture's result (M13); a symbol server locator that answers DAC requests only, or texts naming every module it may ask for,
+  checked against ClrMD (M16); the capture refusal's sudo advice with the full path on the command line (M12, the rest).
 - Live sessions in a process of their own (from peer review 4.5 M5, sprint 4.8; M): one worker does both, so a snapshot whose load
   ends the worker (a damaged dump, a DAC that crashes) stops a live session too, and Restart worker stops both. Kept in one
   process on purpose (sprint 4.8, decided autonomously): a second process would hold its own runtime and caches (256 MB idle by

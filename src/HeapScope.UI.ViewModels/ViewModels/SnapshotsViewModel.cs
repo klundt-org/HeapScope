@@ -289,9 +289,10 @@ public sealed partial class SnapshotsViewModel : ObservableObject, INavigator, I
                     }
                     catch (WorkerOperationException again) when (again.ErrorCode == HeapScopeErrorCode.DacNotTrusted)
                     {
-                        // What the user was shown, for the log (sprint 4.8, M13).
-                        _logger?.LogInformation("{Section} shown as: {Message}", "Open", again.Message);
                         Status = $"Not opened: the DAC next to the dump is not trusted. Install the .NET {dac.RuntimeVersion} runtime, put its DAC in the DAC folder on the Settings page, or open the dump again and trust it.";
+
+                        // What the user was shown, for the log (sprint 4.8 review M17), with the worker's own text beside it.
+                        _logger?.LogInformation("{Section} shown as: {Message} (the worker said: {Worker})", "Open", Status, again.Message);
                         return;
                     }
 

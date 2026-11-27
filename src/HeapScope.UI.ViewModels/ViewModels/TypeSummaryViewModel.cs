@@ -452,6 +452,7 @@ public sealed partial class TypeSummaryViewModel : TypeGridViewModel<TypeRowItem
         {
             // Review M8: retained sizes are optional, so the rows load without them and the note says why.
             retainedFailure = ex.Message;
+            QueryRunner.LogShown(Logger, "Types' retained sizes", ex);
             var bytes = SortColumn == TypeSummaryColumns.Retained;
             summary = await _session.QueryTypeSummaryAsync(snapshot, groupBy, Filter, bytes ? TypeSummaryColumns.Bytes : SortColumn, bytes || Descending, false, null, cancellationToken, Set);
         }

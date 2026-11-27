@@ -7,7 +7,7 @@ references such as "ARCHITECTURE.md 12" still name the right section.
 - Full dumps contain everything in the process memory: connection strings, tokens, personal data. HeapScope
   treats every dump and every index cache as sensitive.
 - Nothing is ever uploaded. There is no telemetry. Symbol and DAC downloads are off by default (ADR-017); turning them on on the Settings page asks first, with what a download
-  sends (the runtime module's name, time stamp and size), and every process that follows it logs a warning.
+  sends (the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks)), and every process that follows it logs a warning.
 - Opening a full dump runs native code with HeapScope's rights (sprint 4.8, peer review 4.5 M3). The worker reads a full dump
   through the dumped runtime's data access component (DAC), native code from the .NET runtime (Microsoft's, from an installed
   runtime or a folder the user chose; one that came with the dump only once trusted, ADR-035), which parses the dump's own

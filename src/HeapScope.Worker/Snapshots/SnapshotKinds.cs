@@ -269,6 +269,8 @@ internal sealed class SnapshotKinds
         {
             DacFolder = symbols.DacFolder,
             AllowMicrosoftSymbolServer = symbols.AllowMicrosoftSymbolServer,
+            // Read again when the field reader opens the dump later (review M5): a withdrawn opt-in holds for open snapshots too.
+            AllowMicrosoftSymbolServerNow = () => options.Symbols().AllowMicrosoftSymbolServer,
             SecondHandleWalk = options.SecondHandleWalk,
             DacChosen = dacChosen,
             IsTrustedDac = trustedDacs.ContainsKey,

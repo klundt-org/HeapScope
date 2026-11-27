@@ -131,8 +131,8 @@ notes who can capture whom.
 - **A missing DAC.** A dump from a .NET version not installed here needs that runtime's DAC. Install the runtime, or copy
   its DAC into a folder of yours and choose it as the DAC folder on the Settings page (`heapscope-cli settings
   --saved-dac-folder <folder>`, or `--dac-folder` for one run). Download missing DACs from Microsoft, on the same page, gets
-  it from Microsoft's symbol server instead; it is off by default and asks first, since a download sends the runtime
-  module's name, time stamp and size. [INSTALL](../INSTALL.md#a-missing-dac) says where HeapScope looks and how to copy one.
+  it from Microsoft's symbol server instead; it is off by default and asks first, since a download sends the name, time stamp and
+  size of each module it asks for (the runtime's, and any whose image the dump lacks). [INSTALL](../INSTALL.md#a-missing-dac) says where HeapScope looks and how to copy one.
 
 ## Logs and getting help
 

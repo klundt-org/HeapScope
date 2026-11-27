@@ -25,7 +25,7 @@ namespace HeapScope.Worker;
 
 /// <summary>The DAC lookup of a load (<see cref="WorkerOptions.Symbols"/>), with where each value came from, for the log.</summary>
 /// <param name="DacFolder">The user's DAC folder, or null.</param>
-/// <param name="DacFolderFrom"><c>--dac-folder</c>, <c>Settings</c> or <c>none</c>.</param>
+/// <param name="DacFolderFrom">Where it came from: the command line or appsettings (the client passes both as <c>--dac-folder</c>), <c>Settings</c>, or none.</param>
 /// <param name="AllowMicrosoftSymbolServer">Whether a missing DAC may be downloaded from Microsoft's symbol server.</param>
-/// <param name="AllowFrom"><c>--allow-symbol-server</c>, <c>Settings</c> or <c>off</c>.</param>
+/// <param name="AllowFrom">Where it came from, as <paramref name="DacFolderFrom"/>, or off.</param>
 public sealed record WorkerSymbols(string? DacFolder, string DacFolderFrom, bool AllowMicrosoftSymbolServer, string AllowFrom);

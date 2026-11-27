@@ -88,18 +88,18 @@ public sealed record WorkerOptions(string Pipe, int? ParentPid, bool EnableTestH
         {
             return new WorkerSymbols(
                 DacFolder,
-                DacFolder is not null ? "--dac-folder" : "a saved one is ignored under sudo",
+                DacFolder is not null ? "the command line or appsettings" : "a saved one is ignored under sudo",
                 AllowMicrosoftSymbolServer,
-                AllowMicrosoftSymbolServer ? "--allow-symbol-server" : "a saved one is ignored under sudo");
+                AllowMicrosoftSymbolServer ? "the command line or appsettings" : "a saved one is ignored under sudo");
         }
 
         var saved = HeapScopeSettings.Read(SettingsFolders);
         var savedFolder = string.IsNullOrWhiteSpace(saved.DacFolder) ? null : saved.DacFolder;
         return new WorkerSymbols(
             DacFolder ?? savedFolder,
-            DacFolder is not null ? "--dac-folder" : savedFolder is not null ? "Settings" : "none",
+            DacFolder is not null ? "the command line or appsettings" : savedFolder is not null ? "Settings" : "none",
             AllowMicrosoftSymbolServer || saved.AllowMicrosoftSymbolServer,
-            AllowMicrosoftSymbolServer ? "--allow-symbol-server" : saved.AllowMicrosoftSymbolServer ? "Settings" : "off");
+            AllowMicrosoftSymbolServer ? "the command line or appsettings" : saved.AllowMicrosoftSymbolServer ? "Settings" : "off");
     }
 
     /// <summary>

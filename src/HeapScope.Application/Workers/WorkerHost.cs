@@ -50,7 +50,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
 
     /// <summary>What to do when a worker does not start in time (sprint 4.8, M5): the app's Restart worker, or the command again.</summary>
     internal const string StartTimeoutNextStep =
-        "A busy computer can take longer: try again with Restart worker at the bottom of the app's window, or run the command again. HeapScope's log says what the worker did.";
+        "A busy computer, or the first start after an install, can take longer: try again with Restart worker in the banner at the top of the app's window, or run the command again. HeapScope's log says what the worker did.";
     private static readonly TimeSpan s_exitCodeWait = TimeSpan.FromSeconds(2);
 
     private readonly WorkerHostOptions _options;
@@ -244,7 +244,7 @@ public sealed class WorkerHost : IWorkerClient, IHostedService, IAsyncDisposable
             catch (Exception ex) when (ex is WorkerException)
             {
                 // The banner shows the message; the log keeps it too (sprint 2.3.7 review H4).
-                _logger.LogWarning(ex, "The analysis worker could not be started: {Message}", ex.Message);
+                _logger.LogWarning(ex, "The analysis worker could not be started after {Ms:N0} ms: {Message}", started.Elapsed.TotalMilliseconds, ex.Message);
                 SetState(WorkerState.Crashed, ex.Message);
                 throw;
             }

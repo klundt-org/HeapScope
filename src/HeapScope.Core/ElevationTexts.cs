@@ -69,7 +69,7 @@ public static class ElevationTexts
 
     public static string CliNoteOn(HostSystem system) => HostSystems.RightsGoByUser(system)
         // Sprint 4.8 (H17): the full path, since sudo's secure_path drops the user's PATH, where a dotnet tool lives.
-        ? $"Processes marked elevated run as another user: run heapscope-cli as that user{OrRoot(system, ", or as root with its full path, since sudo does not keep your PATH (sudo \"$(command -v heapscope-cli)\" capture --pid <pid>),")} to capture them."
+        ? $"Processes marked elevated run as another user: run heapscope-cli as that user{OrRoot(system, ", or as root with its full path, since sudo does not keep your PATH (sudo \"$(command -v heapscope-cli)\" capture --pid <pid> --out /tmp/app.dmp),")} to capture them."
         : "Processes marked elevated can only be captured when HeapScope runs as administrator.";
 
     public static string SampleRefusedOn(HostSystem system) => HostSystems.RightsGoByUser(system)

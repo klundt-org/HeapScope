@@ -178,21 +178,21 @@ public static class InfoTexts
     public const string DacFolderCleared = "No DAC folder: HeapScope looks in the .NET runtimes installed here.";
 
     /// <summary>Settings: the note when appsettings or the command line gives the DAC folder; {0} is the folder.</summary>
-    public const string DacFolderConfigured = "This installation's appsettings set the DAC folder to {0}, which HeapScope uses instead of the one here.";
+    public const string DacFolderConfigured = "This installation's own settings (appsettings.json, the environment or the command line) set the DAC folder to {0}, which HeapScope uses instead of the one here.";
 
     /// <summary>Settings: the note when appsettings turn downloads on.</summary>
-    public const string SymbolServerConfigured = "This installation's appsettings turn downloads on, whatever the box here says.";
+    public const string SymbolServerConfigured = "This installation's own settings (appsettings.json, the environment or the command line) turn downloads on, whatever the box here says.";
 
     /// <summary>Settings: Download missing DACs from Microsoft's tooltip.</summary>
     public const string SymbolServerTip =
-        "When no DAC on this computer matches a dump's runtime, download it from Microsoft's symbol server. Off by default. A download sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents.";
+        "When no DAC on this computer matches a dump's runtime, download it from Microsoft's symbol server. Off by default. A download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents.";
 
     /// <summary>Settings: the title of the question asked before downloads are turned on.</summary>
     public const string SymbolServerQuestionTitle = "Download missing DACs from Microsoft?";
 
     /// <summary>Settings: the question asked before downloads are turned on.</summary>
     public const string SymbolServerQuestion =
-        "When no DAC on this computer matches a dump's runtime, HeapScope will download it from Microsoft's symbol server. Each download sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents. The app and the command line on this computer follow this setting until you turn it off here.";
+        "When no DAC on this computer matches a dump's runtime, HeapScope will download it from Microsoft's symbol server. Each download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents. The app and the command line on this computer follow this setting until you turn it off here.";
 
     /// <summary>Settings: the status after downloads are turned on.</summary>
     public const string SymbolServerOn = "From the next dump you open, a missing DAC is downloaded from Microsoft's symbol server.";
@@ -206,12 +206,12 @@ public static class InfoTexts
     public const string WorkerBackOnItsOwn =
         "A new worker started for the next request, and open snapshots are read back from their saved index when next used.";
 
-    /// <summary>The status bar while the worker starts (M13: the first start after an install can take 30 s).</summary>
-    public const string WorkerStarting = "Worker starting: the first start after installing or updating HeapScope can take up to half a minute";
+    /// <summary>The status bar while the worker starts (M13: the first start after an install can take long).</summary>
+    public const string WorkerStarting = "Worker starting: the first start after installing or updating HeapScope can take a while";
 
     /// <summary>The message at the next start after the app closed unexpectedly; {0} is the report's path.</summary>
     public const string CrashReportOffer =
-        "HeapScope closed unexpectedly last time. A report of where it failed is in {0}: the versions, the system and the error, never anything from your dumps. To help fix it, open an issue on HeapScope's page and attach it (Getting help, on the About page).";
+        "HeapScope closed unexpectedly last time. A report of where it failed is in {0}: the versions, the system and the error, which may quote text you typed or saw, so read it before you share any of it. To help fix it, open an issue on HeapScope's page and attach it (Getting help, on the About page).";
 
     /// <summary>The title of <see cref="CrashReportOffer"/>.</summary>
     public const string CrashReportOfferTitle = "HeapScope closed unexpectedly";

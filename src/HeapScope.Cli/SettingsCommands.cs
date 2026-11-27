@@ -55,7 +55,7 @@ internal static partial class CliCommands
         };
         var symbolServer = new Option<string?>("--symbol-server")
         {
-            Description = "Download a missing DAC from Microsoft's symbol server (on, with --yes) or never (off, the default). A download sends the runtime module's name, time stamp and size, never dump contents. The app and the command line follow it.",
+            Description = "Download a missing DAC from Microsoft's symbol server (on, with --yes) or never (off, the default). A download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks), never dump contents. The app and the command line follow it.",
         };
         symbolServer.AcceptOnlyFromAmong("on", "off");
         var yes = new Option<bool>("--yes") { Description = "Confirm turning on --dump-values-in-logs or --symbol-server; without it, the command says what it would do and changes nothing." };
@@ -144,7 +144,7 @@ internal static partial class CliCommands
 
     /// <summary>What --symbol-server on without --yes says (sprint 4.8, a draft in docs/design/info-text.md).</summary>
     internal const string SymbolServerQuestion =
-        "Turning this on lets HeapScope download a missing DAC from Microsoft's symbol server when no DAC on this computer matches a dump's runtime. Each download sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents. The app and the command line on this computer follow it. Nothing was changed: run it again with --yes to turn it on.";
+        "Turning this on lets HeapScope download a missing DAC from Microsoft's symbol server when no DAC on this computer matches a dump's runtime. Each download sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents. The app and the command line on this computer follow it. Nothing was changed: run it again with --yes to turn it on.";
 
     private static Command BuildPurgeCommand(Func<IServiceProvider> services)
     {

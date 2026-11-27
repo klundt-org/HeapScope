@@ -19,7 +19,8 @@ format at a time; a release that starts a new one says so at the top of its note
 
 How the values are written, in every format:
 - Member names are in PascalCase, as listed below; the rows of a grid (`Rows`, `Types` and the like) are keyed by the column
-  names the table shows.
+  names the table shows, so a column's name is part of the format too: renaming one is a new format (review M8; the contract
+  test pins the top-level members, and the rows' keys are to be pinned too, BACKLOG.md).
 - Counts and sizes are numbers (bytes, unless the name says otherwise); percentages are numbers from 0 to 100.
 - An object's address is a string, `0x` and hexadecimal digits.
 - `null` means unknown or not available for that snapshot (a gcdump has no generations; an object no root reaches has no

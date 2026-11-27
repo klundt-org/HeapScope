@@ -150,7 +150,10 @@ To update, put the new version's file in that folder and run `dotnet tool update
   `~/.local/bin`, or the dotnet tool). The dotnet tool also needs the .NET it runs on: if you
   installed .NET in your home folder (`~/.dotnet`), add `DOTNET_ROOT="$HOME/.dotnet"` after `sudo`. Run with sudo, HeapScope keeps
   your data folder (your sessions, logs and settings, not root's) and gives you what it writes, the dump included, so it is
-  yours to open and delete afterwards. As root, a full dump of another user's process goes to a folder that user can write
+  yours to open and delete afterwards. It is the folder your own runs use by default (`~/.local/share/HeapScope`): sudo drops
+  `XDG_DATA_HOME` and `HEAPSCOPE_DATA_FOLDER`, so if you set either, give it to sudo too (`sudo HEAPSCOPE_DATA_FOLDER=... "$(command -v heapscope-cli)" ...`).
+  Run with sudo, HeapScope ignores a DAC folder and a download choice saved on the Settings page, since your own programs can
+  change that file: give `--dac-folder` or `--allow-symbol-server` on the command line instead. As root, a full dump of another user's process goes to a folder that user can write
   (`--out`, such as `/tmp`): the runtime writes it as that user, and HeapScope then makes it yours. Some systems stop one process from examining
   another (`kernel.yama.ptrace_scope` of 2 or 3, or a container without `SYS_PTRACE`); HeapScope then says what to
   change, and changes nothing itself. A process that keeps its diagnostics socket in another temp folder (its `TMPDIR`)
@@ -179,7 +182,7 @@ process ran on, for the same system and processor as the dump. HeapScope looks f
    app asks before using it and remembers a yes, and the CLI uses it only with `--trust-dac <sha256>`, which its refusal names;
 5. on Microsoft's symbol server, only when you turned on **Download missing DACs from Microsoft** on the Settings page (or
    `heapscope-cli settings --symbol-server on --yes`, or `--allow-symbol-server` for one run). Off by default: a download
-   sends the runtime module's name, time stamp and size to Microsoft, never the dump's contents.
+   sends the name, time stamp and size of each module it asks for (the runtime's, and any whose image the dump lacks) to Microsoft, never the dump's contents.
 
 When none matches, the message names the version it needs and the folders it searched. The simplest fix is to install that
 .NET runtime. Otherwise copy the DAC from the machine the dump came from into a folder of your own, and choose that folder

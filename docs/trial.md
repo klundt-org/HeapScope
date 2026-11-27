@@ -67,6 +67,6 @@ What we most want to hear:
 - **A full dump runs native code** when it is read (its runtime's DAC): open dumps from other people as your own user, never
   elevated ([Dumps you did not make](../INSTALL.md#dumps-you-did-not-make)).
 - **Live sessions and snapshots share one worker process**: if a damaged dump ends the worker, a live session ends with it. Restart
-  worker, at the bottom of the window, starts a new one.
+  worker starts a new one: in the banner at the top after a crash, or at the bottom of the window while a worker runs.
 - **The app on Linux** needs an X11 or XWayland session.
 - **Outside contributions are not accepted yet**, issues are: see [CONTRIBUTING.md](../CONTRIBUTING.md).

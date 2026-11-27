@@ -39,7 +39,7 @@ internal static class ClrMdDump
         var targetOptions = new DataTargetOptions();
         targetOptions.CacheOptions.MaxDumpCacheSize = options.MaxDumpCacheBytes;
         targetOptions.UseLockFreeMemoryMapReader = true;
-        if (!options.AllowMicrosoftSymbolServer)
+        if (!options.DownloadsAllowed)
         {
             targetOptions.FileLocator = LocalOnlyFileLocator.Instance;
         }
@@ -86,13 +86,13 @@ internal static class ClrMdDump
         // A dump is read by a worker of its own system and architecture (ADR-025): say so before any DAC is looked for or
         // loaded (sprint 2.3.6 review; a DAC of the wrong architecture would only fail to load with a vaguer message). A
         // dump of another system can still be read with the symbol server's cross-platform DAC when that is allowed.
-        if (DacLocator.Mismatch(clr.DataTarget.DataReader.TargetPlatform, clr.DataTarget.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.AllowMicrosoftSymbolServer) is { } mismatch)
+        if (DacLocator.Mismatch(clr.DataTarget.DataReader.TargetPlatform, clr.DataTarget.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.DownloadsAllowed) is { } mismatch)
         {
             throw new RuntimeComponentMissingException(mismatch);
         }
 
         var path = ResolveDac(clr, dumpPath, options, platform, out var request, out var fileName, out var looked, out var rule);
-        if (path is null && !options.AllowMicrosoftSymbolServer)
+        if (path is null && !options.DownloadsAllowed)
         {
             throw new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request));
         }
@@ -144,13 +144,13 @@ internal static class ClrMdDump
             }
 
             var platform = CurrentPlatform();
-            if (DacLocator.Mismatch(target.DataReader.TargetPlatform, target.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.AllowMicrosoftSymbolServer) is { } mismatch)
+            if (DacLocator.Mismatch(target.DataReader.TargetPlatform, target.DataReader.Architecture, platform, RuntimeInformation.ProcessArchitecture, options.DownloadsAllowed) is { } mismatch)
             {
                 return new RuntimeComponentMissingException(mismatch);
             }
 
             var path = ResolveDac(target.ClrVersions[0], dumpPath, options, platform, out var request, out var fileName, out var looked, out _);
-            return path is null && !options.AllowMicrosoftSymbolServer
+            return path is null && !options.DownloadsAllowed
                 ? new RuntimeComponentMissingException(request.RuntimeVersion, fileName, looked, Hint(request))
                 : null;
         }

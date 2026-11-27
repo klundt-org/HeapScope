@@ -484,11 +484,12 @@ internal sealed class SnapshotOpener(IndexCacheLocator locator, IndexCacheSigner
             // would copy the live graph's arrays; an aggressive collection already returns the freed regions.
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             var budget = MemoryBudget.Current(forced: forced);
-            // The private part only (sprint 4.8, F13): the references' file is the system's file cache, which it drops when it needs
-            // the memory, and a mapped switch frees the private part alone.
+            // All the columns, as a later open from the cache counts them (sprint 4.8 review M4): reopened in memory, the references
+            // are read into the worker's memory, so a first load that left them out would choose otherwise than the reopen. The log
+            // gives the private and file-backed parts (F13).
             var privateBytes = graph.PrivateColumnBytes;
-            budget = budget with { AvailableBytes = budget.AvailableBytes + privateBytes };
-            var mode = MemoryModeSelector.Select(privateBytes, budget);
+            budget = budget with { AvailableBytes = budget.AvailableBytes + graph.ColumnBytes };
+            var mode = MemoryModeSelector.Select(graph.ColumnBytes, budget);
             logger.LogInformation(
                 "Memory mode {Mode}: graph {GraphMb:N0} MB ({PrivateMb:N0} MB private, {FileMb:N0} MB in its references' file), budget {BudgetMb:N0} MB of {TotalMb:N0} MB physical",
                 mode,

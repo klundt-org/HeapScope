@@ -22,8 +22,26 @@ references such as "ARCHITECTURE.md 11" still name the right section.
   `heapscope-<date>-ui-<pid>-crash-<time>.log`, the build, the system, where and the exception), which its next start offers once
   with a way to show it; it is a log file, so the 14 days and Purge logs apply. A failure a view shows is logged as shown
   ("{Section} shown as: {Message}") where no other line says it. The worker's start is measured ("Worker started in N ms", the
-  first of a run said), and the status bar says a first start after an install can take half a minute. Copy details on the About
+  first of a run said), and the status bar says a first start after an install can take a while; a start that fails says how long it tried. Copy details on the About
   page carries the id of the last unexpected worker failure (`ErrorIds`), which names its lines in the worker's log.
+- **What sprint 4.8 added to the logs** (review M18), so a contested DAC, memory mode or restart has its line:
+  - The worker's DAC lookup, the first time a load uses it and whenever it changes: "DAC lookup from here on: DAC folder X (where
+    from); symbol server downloads on|off (where from)", where from being the command line or appsettings (the client passes both
+    as options), Settings, none, or "a saved one is ignored under sudo"; a warning when downloads are on.
+  - The Settings page and `heapscope-cli settings`: "Setting saved to {file}: DAC folder ..." and "... symbol server downloads on,
+    confirmed by the user ..." (a warning), "Asked to download missing DACs ...; the user answered ...", "DAC folder not saved:
+    {reason}", and the client's warning at a worker's start when the saved opt-in is on.
+  - A refusal for a missing DAC lists a DAC folder the search left out, with why ("not searched, since it is not on a local fixed
+    disk").
+  - The memory mode: "Memory mode {mode}: graph N MB (P MB private, F MB in its references' file), budget ...", and after a
+    mapped switch "Mapped switch: after the drop the worker holds N MB private, the GC heap H MB". A load whose references went to
+    memory gets the snapshot note that says why, beside the warning logged when it happened.
+  - Run with sudo on Linux: every log's header names the data folder's source ("the default of {user}, who ran it with sudo").
+    A full dump opened as administrator or root gets the note that its DAC runs with those rights.
+  - Restart worker: "Restart worker pressed in {the crash banner|the status bar}", "Asked to restart the worker (the status bar);
+    the user answered ...", "Worker restart: stopping generation N (pid P, ...)", and for each call it ended "A call to the worker
+    ended because the worker was stopped for a restart or a close", whose message says so instead of "stopped unexpectedly".
+  - "Offered the report of a run that closed unexpectedly, {report} ({n} found); the user chose ...".
 - **Correlation (sprint 2.3.7)**: every job (`JobTracker`: open, capture) and every CLI command runs under an
   `Activity`; its trace id is a scope of every line it causes, in the front end and, through StreamJsonRpc's activity
   tracing (W3C trace context in each request), in the worker. Not every app call has one yet (checked in sprint 3.12): the

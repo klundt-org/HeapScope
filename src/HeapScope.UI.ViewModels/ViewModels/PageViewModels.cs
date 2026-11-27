@@ -335,7 +335,7 @@ public sealed partial class JobsPageViewModel(ObservableCollection<JobViewModel>
 /// About page: product and worker versions, what HeapScope runs on and where its logs are, with a copy action for support
 /// (sprint 2.3.7 review M16).
 /// </summary>
-public sealed partial class AboutViewModel(WorkerOperations operations, IUserInteraction? interaction = null, string? logFolder = null) : ObservableObject
+public sealed partial class AboutViewModel(WorkerOperations operations, IUserInteraction? interaction = null, string? logFolder = null, Microsoft.Extensions.Logging.ILogger<AboutViewModel>? logger = null) : ObservableObject
 {
     [ObservableProperty]
     private string _workerDetails = "Not queried yet.";
@@ -381,6 +381,8 @@ public sealed partial class AboutViewModel(WorkerOperations operations, IUserInt
         }
         catch (Exception ex) when (ex is WorkerException or OperationCanceledException)
         {
+            // What About shows, for the log (sprint 4.8 review M3).
+            logger?.LogInformation("{Section} shown as: {Message}", "About, the worker", ex.Message);
             WorkerDetails = ex.Message;
         }
     }

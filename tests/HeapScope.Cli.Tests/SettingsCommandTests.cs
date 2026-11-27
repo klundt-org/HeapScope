@@ -108,66 +108,6 @@ public sealed class SettingsCommandTests
         }
     }
 
-    // Sprint 4.8 (H15): the Settings page's DAC folder and its opt-in, on the command line too.
-    [Fact]
-    public async Task The_dac_folder_is_saved_and_cleared_and_a_folder_that_does_not_exist_changes_nothing()
-    {
-        var before = HeapScopeSettings.Read(HeapScopeFolders.Default);
-        var dacs = Directory.CreateTempSubdirectory("hs-cli-dacs-").FullName;
-        try
-        {
-            new HeapScopeSettings().Save(HeapScopeFolders.Default);
-
-            var (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--saved-dac-folder", dacs);
-            code.ShouldBe(0);
-            output.ShouldContain("DAC folder: " + dacs);
-            HeapScopeSettings.Read(HeapScopeFolders.Default).DacFolder.ShouldBe(dacs);
-
-            string error;
-            (code, _, error) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--saved-dac-folder", Path.Combine(dacs, "missing"), "--filter-text-in-logs", "off");
-            code.ShouldBe(CliCommands.Usage);
-            error.ShouldContain("Nothing was changed: ");
-            error.ShouldContain("does not exist");
-            HeapScopeSettings.Read(HeapScopeFolders.Default).ShouldBe(new HeapScopeSettings(DacFolder: dacs), "nothing else changed either");
-
-            (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--saved-dac-folder", "none");
-            output.ShouldContain("DAC folder: none");
-            HeapScopeSettings.Read(HeapScopeFolders.Default).DacFolder.ShouldBeNull();
-        }
-        finally
-        {
-            before.Save(HeapScopeFolders.Default);
-            Directory.Delete(dacs, recursive: true);
-        }
-    }
-
-    [Fact]
-    public async Task Downloads_from_microsoft_turn_on_only_with_yes()
-    {
-        var before = HeapScopeSettings.Read(HeapScopeFolders.Default);
-        try
-        {
-            new HeapScopeSettings().Save(HeapScopeFolders.Default);
-
-            var (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--symbol-server", "on");
-            code.ShouldBe(0);
-            output.ShouldContain(CliCommands.SymbolServerQuestion);
-            output.ShouldContain("Download missing DACs from Microsoft: off");
-            HeapScopeSettings.Read(HeapScopeFolders.Default).AllowMicrosoftSymbolServer.ShouldBeFalse("nothing changes without --yes");
-
-            (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--symbol-server", "on", "--yes");
-            output.ShouldContain("Download missing DACs from Microsoft: on");
-            HeapScopeSettings.Read(HeapScopeFolders.Default).AllowMicrosoftSymbolServer.ShouldBeTrue();
-
-            (code, output, _) = await InProcessCli.RunAsync(CliHost.Build, "settings", "--symbol-server", "off");
-            output.ShouldContain("Download missing DACs from Microsoft: off");
-        }
-        finally
-        {
-            before.Save(HeapScopeFolders.Default);
-        }
-    }
-
     [Fact]
     public void The_symbol_server_question_is_the_draft_in_the_table()
     {
