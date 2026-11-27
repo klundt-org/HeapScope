@@ -58,7 +58,7 @@ in [sprints/](sprints/): [Phase 0](sprints/phase-0.md), [Phase 1](sprints/phase-
 | 4.6 | Right answers | Closed | 2026-11-25 | sprint-4.6 |
 | 4.7 | Runtimes, Linux and large heaps | Closed | 2026-11-26 | sprint-4.7 |
 | 4.8 | Ready to release | Closed | 2026-11-27 | sprint-4.8 |
-| 4.9 | Workspaces | Planned | | |
+| 4.9 | Workspaces | In Progress | | |
 | 4.10 | Analysis tabs | Planned | | |
 | 4.11 | Sunburst | Planned | | |
 | 4.12 | WPF leak detectors (optional) | Planned | | |
@@ -119,6 +119,47 @@ Owner decisions, 2026-11-18:
 | 4.10 | Analysis tabs | M to L | Several analyses of a snapshot side by side, each with its own path (from 2.7; peer review P21 and the Live page split). |
 | 4.11 | Sunburst | S to M | (Peer review 4.5 M16) A sunburst view beside the icicle chart for dominators and call trees. |
 | 4.12 | WPF leak detectors (optional) | M | (Peer review 4.5 M12) With a WPF fixture app (from 2.6): binding to a non-INotifyPropertyChanged source, collection bindings, dependency property descriptors, x:Name. Dropped if time runs short. |
+
+---
+
+## Sprint 4.9: Workspaces
+
+**Goal:** each open snapshot gets a workspace of its own (its types grid, analysis path, inspections and retainers), so switching
+snapshots keeps every view as it was and links land in their snapshot's workspace, with the worker's result sets kept for the
+workspace shown; and the code is ready for analysis tabs (4.10): classes kept small, comments that explain without sprint ids, and
+view model tests on a real UI thread. Peer review 4.5: H13 (analysis tabs do not fit the page model: one set of views re-pointed,
+paths per snapshot, links without a workspace, 32 result sets) and M15 (classes grow back, sprint and review ids in about 1,600
+comments, tests without a UI thread).
+
+**Tasks**
+1. [ ] A workspace per open snapshot: `SnapshotWorkspaceViewModel` owns its types grid, analysis path (navigator), inspections and
+   retainers; the Snapshots page keeps one per open snapshot and shows the current one; closing a snapshot disposes its workspace.
+   Views bind to the current workspace. Compare stays on the page. Tests: switching between two snapshots keeps each one's filter, sort,
+   path, inspection results and retainers as they were, without a new query; closing one drops its workspace.
+2. [ ] Links land in their workspace: a `NavigationTarget` names its snapshot, and following one shows that snapshot's workspace
+   first (Compare, bookmarks, Retainers links, the Live page's files). Tests: a link into a snapshot not shown shows its workspace and
+   step; a link of a closed snapshot is refused with why.
+3. [ ] The worker's result sets follow the workspace shown: the client tells the worker which snapshot is shown, and the result set
+   store evicts the sets of snapshots not shown first; a workspace shown again re-runs only what was evicted. Protocol version bump.
+   Tests: three snapshots open, the shown one's sets survive the others' queries; the eviction order; the re-run.
+4. [ ] M15, classes: the view models over 600 lines are split along their parts (CompareViewModel, LiveAllocationsViewModel,
+   InspectionsViewModel, SnapshotsViewModel once the workspace is out), and an architecture test caps a view model file at 600 lines,
+   with a named, shrinking list of exceptions. Tests: the cap; the split classes' existing tests unchanged.
+5. [ ] M15, comments: source comments say why without sprint or review ids (a decision keeps its ADR number); an architecture test
+   refuses new ones in src. Tests: the rule, with its patterns.
+6. [ ] M15, the UI thread: a test dispatcher that runs on a thread of its own, and checks that a view model's state changes there;
+   the workspace and page tests use it. Tests: a property set off that thread fails the test; the workspace tests pass on it.
+7. [ ] Docs: an ADR for workspaces (amending ADR-029's shared types grid), ARCHITECTURE.md's page model, process-model.md's result set
+   store, code-map.md, DEVELOPER.md's view model and comment conventions.
+
+**Decisions**
+- Decided autonomously: a workspace per open snapshot now; several workspaces of one snapshot (analysis tabs) are 4.10's, on this model.
+- Decided autonomously: Compare stays on the Snapshots page, across workspaces; it takes its two snapshots as before.
+- Decided autonomously: the worker is told which snapshot is shown (a protocol call) and evicts other snapshots' result sets first,
+  rather than the client releasing them eagerly: a workspace shown again keeps what still fits.
+- Decided autonomously: comment ids go from src only; tests and docs keep theirs (their records); an ADR number stays in a comment.
+- Decided autonomously: 600 lines per view model file, with a list of named exceptions that only shrinks.
+- Decided autonomously: page and workspace tests move to the single-thread dispatcher; other view model tests keep the immediate one.
 
 ---
 
